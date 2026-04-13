@@ -13,10 +13,15 @@ public enum AICommandStatus
 /// <summary>
 /// Indicates that this member or module must not be structurally modified without explicit approval.
 /// </summary>
-[FileVersion("1.0")]
+[FileVersion("1.3")]
+[AIFileContext("SchemaStudio.AIHelpers/AIAttributes.cs", "Defines the shared AI workflow attributes and command-status enum used to annotate monitored source files.")]
+[AIChange("1.3", "2026-04-13 02:33 PM CDT workflow smoke test: refreshed the working copy again, incremented the file version, and added a new visible compare marker for AIAttributes.cs.", AICommandStatus.Pending)]
+[AIChange("1.2", "2026-04-13 02:08 PM CDT workflow smoke test: refreshed the working copy, added file-context metadata, and added a visible version marker comment for AIAttributes.cs.", AICommandStatus.Pending)]
 [AIInstructions("2026-04-10 10:31 AM CDT added partial-safe AIChangeAttribute to combine edit version, instruction text, and status in one repeatable marker.", AICommandStatus.Pending)]
 [AIChange("1.1", "2026-04-10 12:10 PM CDT added AIFileContextAttribute for durable file-purpose and nuance headers that remain code-shaped for AI and human readers.", AICommandStatus.Pending)]
 [AttributeUsage(AttributeTargets.Module | AttributeTargets.Class | AttributeTargets.Method | AttributeTargets.Property, AllowMultiple = true)]
+// 2026-04-13 02:33 PM CDT AI v1.3 workflow smoke-test marker: refreshed working copy and added a new pending compare marker for AIAttributes.cs review.
+// 2026-04-13 02:08 PM CDT AI v1.2 workflow smoke-test marker: refreshed working copy and added pending metadata for AIAttributes.cs review.
 public sealed class DoNotRefactorAttribute(string reason) : Attribute
 {
     public string Reason { get; } = reason;

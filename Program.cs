@@ -1,10 +1,15 @@
 ﻿using Radzen;
 using SchemaStudioWebViewer.Components;
+using SchemaStudio.AIHelpers;
 using SchemaStudioWebViewer.Configuration;
 using SchemaStudioWebViewer.Utils;
 
 namespace SchemaStudioWebViewer
 {
+    [FileVersion("1.0")]
+    [AIFileContext("Program.cs", "Bootstraps the SchemaStudioWebViewer web app, initializes configuration, registers services, and maps the Razor and MCP endpoints.")]
+    [AIChange("1.0", "2026-04-13 02:37 PM CDT workflow header test: added the initial file header metadata, version marker, and visible compare marker for Program.cs.", AICommandStatus.Pending)]
+    // 2026-04-13 02:37 PM CDT AI v1.0 workflow header test marker: added the initial file header and pending metadata for Program.cs review.
     public class Program
     {
         public static void Main(string[] args)
