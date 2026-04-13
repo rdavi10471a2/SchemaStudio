@@ -1,0 +1,35 @@
+﻿@using SchemaStudioWebViewer.Models
+@inject IJSRuntime JSRuntime
+
+<RadzenStack Gap="1rem" Style="padding: 10px; height: 100%; overflow: hidden;">
+    <RadzenRow AlignItems="AlignItems.Center">
+        <RadzenColumn Size="6">
+            <RadzenText TextStyle="TextStyle.Caption">Modified: @(ModifyDate?.ToString("yyyy-MM-dd HH:mm") ?? "N/A")</RadzenText>
+        </RadzenColumn>
+        @if (IsMock)
+        {
+            <RadzenColumn Size="6" class="rz-text-align-right">
+                <RadzenBadge BadgeStyle="BadgeStyle.Danger" Text="VIEW RETRIEVAL FAILED Sample SQL Used" Variant="Variant.Flat" />
+            </RadzenColumn>
+        }
+    </RadzenRow>
+
+    <div class="sql-code-container" style="flex-grow: 1; border: @(IsMock ? "2px solid red" : "1px solid #444"); max-height: 600px; overflow: auto;">
+        <pre class="language-sql"><code class="language-sql">@SqlContent</code></pre>
+    </div>
+</RadzenStack>
+
+@code {
+    [Parameter] public string SqlContent { get; set; }
+    [Parameter] public bool IsMock { get; set; }
+    [Parameter] public DateTime? ModifyDate { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Trigger the highlight with the 30-retry buffer defined in App.razor
+            await JSRuntime.InvokeVoidAsync("highlightSql", 30);
+        }
+    }
+}

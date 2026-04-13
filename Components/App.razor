@@ -1,0 +1,51 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <link rel="stylesheet" href="app.css" />
+    <link rel="stylesheet" href="SchemaStudioWebViewer.styles.css" />
+    <link rel="stylesheet" href="_content/Radzen.Blazor/css/standard-base.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" />
+    <HeadOutlet @rendermode="InteractiveServer" />
+</head>
+<body>
+    <Routes @rendermode="InteractiveServer" />
+
+    <script src="_content/Radzen.Blazor/Radzen.Blazor.js"></script>
+    <script src="_framework/blazor.web.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-sql.min.js"></script>
+
+    <script>
+        // --- 1. State Management (No-NuGet Persistence) ---
+        window.stateManager = {
+            save: function (key, value) {
+                localStorage.setItem(key, value);
+            },
+            load: function (key) {
+                return localStorage.getItem(key);
+            }
+        };
+
+        // --- 2. Prism SQL Highlighting Logic ---
+        const delay = ms => new Promise(res => setTimeout(res, ms));
+
+        window.highlightSql = async (maxRetries = 30) => {
+            if (!window.Prism) return;
+
+            for (let i = 0; i < maxRetries; i++) {
+                const codeBlock = document.querySelector('.sql-code-container code');
+
+                if (codeBlock) {
+                    window.Prism.highlightElement(codeBlock);
+                    return;
+                }
+                await delay(100);
+            }
+            console.warn("Prism highlight failed: Element not found after 30 attempts.");
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+.vs/
+.vscode/
+.dotnet/
+Working/
+
+**/bin/
+**/obj/
+
+*.user
+*.suo
+*.cache
+*.tmp
+*.bak
+*.log

@@ -1,0 +1,71 @@
+﻿@inherits LayoutComponentBase
+@using Radzen.Blazor
+
+<RadzenComponents @rendermode="InteractiveServer" />
+<RadzenTooltip /> @* Explicitly added for tooltip rendering *@
+
+<style>
+    :root {
+        --rz-layout-body-background: #f4f6f9;
+    }
+
+    /* Kill the rainbow gradient */
+    .rz-layout, .rz-body {
+        background-image: none !important;
+        background-color: #f4f6f9 !important;
+    }
+
+        /* The white card container for the main content */
+        .rz-body > .rz-p-4 {
+            background-color: #ffffff !important;
+            min-height: calc(100vh - 100px);
+            border-radius: 8px;
+            margin: 1rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border: 1px solid var(--rz-divider);
+        }
+
+    .rz-sidebar {
+        background-color: #26272b !important;
+        transition: width 0.3s ease-in-out;
+    }
+
+    /* Utility to fix your alignment frustration */
+    .align-header {
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+    }
+</style>
+
+<RadzenLayout Style="grid-template-areas: 'rz-header rz-header' 'rz-sidebar rz-body'; height: 100vh;">
+    <RadzenHeader>
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0">
+            <RadzenSidebarToggle Click="@ToggleSidebar" />
+            <RadzenText TextStyle="TextStyle.H6" class="rz-mb-0 rz-ml-2">Schema Studio Web</RadzenText>
+        </RadzenStack>
+    </RadzenHeader>
+
+    <RadzenSidebar @bind-Expanded="@sidebarExpanded"
+                   Responsive="false"
+                   Style="@(sidebarExpanded ? "width: 250px;" : "width: 0px; overflow: hidden;")">
+        <RadzenStack Gap="0" class="rz-py-4 rz-ph-4">
+            <NavMenu />
+        </RadzenStack>
+    </RadzenSidebar>
+
+    <RadzenBody>
+        <div class="rz-p-4">
+            @Body
+        </div>
+    </RadzenBody>
+</RadzenLayout>
+
+@code {
+    bool sidebarExpanded = false;
+
+    void ToggleSidebar()
+    {
+        sidebarExpanded = !sidebarExpanded;
+    }
+}

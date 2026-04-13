@@ -1,0 +1,74 @@
+[
+  {
+    "Id": "system-overview",
+    "Title": "General Overview",
+    "Subtitle": "System Description",
+    "Icon": "info",
+    "Details": [
+      {
+        "Id": "about",
+        "Label": "What is Schema Studio?",
+        "Subtitle": "Enterprise Data Catalog",
+        "Description": "Schema Studio is a centralized metadata repository designed to bridge the gap between technical SQL definitions and business logic. It provides a searchable interface for exploring views, conformed dimensions, and data lineages across the entire organization's data landscape.",
+        "Icon": "hub",
+        "CustomFragmentName": ""
+      },
+      {
+        "Id": "purpose",
+        "Label": "Core Purpose",
+        "Subtitle": "Self-Service Discovery",
+        "Description": "The system is built to allow analysts and developers to quickly identify the correct data sources for financial reporting and data modeling without needing direct access to underlying SQL Server instances.",
+        "Icon": "center_focus_strong",
+        "CustomFragmentName": ""
+      }
+    ]
+  },
+  {
+    "Id": "explore",
+    "Title": "Explorer Guide",
+    "Subtitle": "Systems & Navigation",
+    "Icon": "explore",
+    "Details": [
+      {
+        "Id": "databases",
+        "Label": "Database Directory",
+        "Subtitle": "System Inventory",
+        "Description": "The directory below lists every source system currently connected to Schema Studio. You can see the technical identifier used in SQL vs. the friendly business name.",
+        "Icon": "storage",
+        "CustomFragmentName": "DatabaseGrid"
+      },
+      {
+        "Id": "steps",
+        "Label": "How to Search",
+        "Subtitle": "3-Step Navigation",
+        "Description": "Follow the top-down dropdown sequence: \n1. Select a Database source. \n2. Choose a Business Domain (e.g., Sales, Finance). \n3. Select the specific View you wish to inspect.\n\nThe column grid below the selection will update automatically.",
+        "Icon": "help_center",
+        "CustomFragmentName": ""
+      }
+    ]
+  },
+  {
+    "Id": "technical",
+    "Title": "Technical Info",
+    "Subtitle": "SQL & Metadata",
+    "Icon": "code",
+    "Details": [
+      {
+        "Id": "sql",
+        "Label": "SQL Definitions",
+        "Subtitle": "T-SQL Source",
+        "Description": "Each view is built on a T-SQL script. Click the 'SQL' button on the view header to view the full source code, including joins and business logic.",
+        "Icon": "terminal",
+        "CustomFragmentName": ""
+      },
+      {
+        "Id": "meta",
+        "Label": "Column Metadata",
+        "Subtitle": "Extended Attributes",
+        "Description": "The grid displays business-friendly names by default. To see data types, precision, and physical column constraints, double-click any row in the columns table.",
+        "Icon": "settings_ethernet",
+        "CustomFragmentName": ""
+      }
+    ]
+  }
+]
