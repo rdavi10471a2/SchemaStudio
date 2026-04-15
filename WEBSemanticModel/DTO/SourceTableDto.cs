@@ -38,16 +38,16 @@ public sealed class SourceTableDto
     public int ResolvedOrder { get; set; }
 
     [Display(Name = "Join Expression", Order = 90)]
-    [Description("The full join expression associated with this source, when one exists.")]
+    [Description("The join expression used to connect this source to the current query shape.")]
     [DataType(DataType.MultilineText)]
     public string? JoinExpression { get; set; }
 
     [Display(Name = "Base Table", Order = 100)]
-    [Description("Indicates whether this source resolved to a base table rather than another derived query.")]
+    [Description("Indicates whether this source resolves directly to a base table instead of another derived query.")]
     public bool IsBaseTable { get; set; }
 
     [Display(Name = "Physical Source", Order = 110)]
-    [Description("The fully qualified source object name when database, schema, and table values are available.")]
+    [Description("The fully qualified physical source name for this parser-resolved table reference.")]
     public string PhysicalSourceName =>
         string.Join(".",
             new[] { Database, Schema, Table }

@@ -17,8 +17,8 @@
                 var value = prop.GetValue(Model);
 
                 var multilineAttr = prop.GetCustomAttribute<MultilineDisplayRequiredAttribute>();
-                var isMultiline = multilineAttr?.IsMultiline ?? false;
-                var initialHeight = multilineAttr?.InitialHeight ?? 100;
+                var isMultiline = multilineAttr?.IsMultiline ?? ReflectionUtils.IsMultilineRequired(ModelType, prop.Name);
+                var initialHeight = multilineAttr?.InitialHeight ?? 160;
 
                 @if (isMultiline)
                 {
@@ -31,7 +31,7 @@
                                 @if (!string.IsNullOrEmpty(description))
                                 {
                                     <RadzenIcon Icon="help_outline"
-                                                Style="font-size: 14px; margin-left: 6px; cursor: help; color: var(--rz-base-400);"
+                                                Style="font-size: 14px; margin-left: 6px; cursor: help; color: var(--rz-primary);"
                                                 MouseEnter="@(args => TooltipService.Open(args, description))" />
                                 }
                             </div>
@@ -59,12 +59,12 @@
 
                             <div class="rz-display-flex rz-align-items-center">
                                 <RadzenText TextStyle="TextStyle.Overline"
-                                            Style="font-weight: 800; color: var(--rz-primary-darker);"
+                                            Style="font-weight: 800; color: var(--rz-primary);"
                                             class="rz-m-0">@displayName</RadzenText>
                                 @if (!string.IsNullOrEmpty(description))
                                 {
                                     <RadzenIcon Icon="help_outline"
-                                                Style="font-size: 12px; margin-left: 4px; cursor: help; color: var(--rz-base-400);"
+                                                Style="font-size: 12px; margin-left: 4px; cursor: help; color: var(--rz-primary);"
                                                 MouseEnter="@(args => TooltipService.Open(args, description))" />
                                 }
                             </div>

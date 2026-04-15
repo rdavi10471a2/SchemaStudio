@@ -31,43 +31,20 @@
                 var typeName = parts[0];
                 var propName = parts[1];
 
-                // Find type in the assembly
+                // Resolve metadata by simple type name so DTOs outside SchemaStudioWebViewer.Models
+                // still use their Display/Description attributes in shared detail views.
                 var type = typeof(SchemaObjectModel).Assembly.GetTypes()
-                    .FirstOrDefault(t => t.Name == typeName || t.FullName == $"SchemaStudioWebViewer.Models.{typeName}");
+                    .FirstOrDefault(t => string.Equals(t.Name, typeName, StringComparison.Ordinal));
 
                 if (type != null)
                 {
-                    // Map "Name" -> GetDisplayName and "Desc" -> GetDescription
-                    string methodName = suffix == "Name" ? "GetDisplayName" : "GetDescription";
-
-                    return InvokeGenericReflectionUtil(type, methodName, propName) ?? path;
+                    return suffix == "Name"
+                        ? ReflectionUtils.GetDisplayName(type, propName)
+                        : ReflectionUtils.GetDescription(type, propName);
                 }
 
-                return path;
+                return propName;
             });
-        }
-
-        private string? InvokeGenericReflectionUtil(Type modelType, string methodName, string propName)
-        {
-            try
-            {
-                // Get the generic method from ReflectionUtils
-                var method = typeof(ReflectionUtils)
-                    .GetMethods(BindingFlags.Public | BindingFlags.Static)
-                    .FirstOrDefault(m => m.Name == methodName && m.IsGenericMethod);
-
-                if (method != null)
-                {
-                    // Supply the generic type (T) and invoke
-                    var genericMethod = method.MakeGenericMethod(modelType);
-                    return genericMethod.Invoke(null, new object[] { propName })?.ToString();
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Metadata Error: {ex.Message}");
-            }
-            return null;
         }
 
         private string Get(string type, string prop, string suffix, Func<string> fetcher)

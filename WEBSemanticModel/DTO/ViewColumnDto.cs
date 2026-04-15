@@ -65,16 +65,16 @@ public sealed class ViewColumnDto
         SqlQualify(BaseDatabase, BaseSchema, BaseTable, BaseColumn);
 
     [Display(Name = "Business Name", Order = 30)]
-    [Description("Business-facing name for this column.")]
+    [Description("Business Name for this column.")]
     public string? BusinessName { get; set; }
 
     [Display(Name = "Description", Order = 40)]
-    [Description("Overview of the purpose of this column and what it represents.")]
+    [Description("Overview of the purpose of this column and what it represents")]
     [DataType(DataType.MultilineText)]
     public string? BusinessDescription { get; set; }
 
-    [Display(Name = "Developer Notes", Order = 50)]
-    [Description("Additional implementation notes and maintenance details for this column.")]
+    [Display(Name = "Dev Notes", Order = 50)]
+    [Description("Additional Notes and information about this column and details on advanced use")]
     [DataType(DataType.MultilineText)]
     public string? DeveloperNotes { get; set; }
 
