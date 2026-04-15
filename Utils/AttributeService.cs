@@ -9,6 +9,7 @@
     public class AttributeService
     {
         private readonly ConcurrentDictionary<string, string> _cache = new();
+        private readonly ConcurrentDictionary<string, Type?> _typeCache = new();
 
         // Keep the generic versions for code-behind usage
         public string Name<T>(string prop) => Get(typeof(T).Name, prop, "Name", () => ReflectionUtils.GetDisplayName<T>(prop));
@@ -31,12 +32,9 @@
                 var typeName = parts[0];
                 var propName = parts[1];
 
-                // Resolve metadata across loaded assemblies so shared DTOs from the parser DLL
-                // can participate in the same detail-view metadata path as local web models.
-                var type = AppDomain.CurrentDomain.GetAssemblies()
-                    .Where(a => !a.IsDynamic)
-                    .SelectMany(SafeGetTypes)
-                    .FirstOrDefault(t => string.Equals(t.Name, typeName, StringComparison.Ordinal));
+                // Cache type-name resolution so shared DTO metadata lookups stay cheap after
+                // the first hit and we do not rescan loaded assemblies for every property read.
+                var type = _typeCache.GetOrAdd(typeName, ResolveTypeByName);
 
                 if (type != null)
                 {
@@ -53,6 +51,14 @@
         {
             var key = $"{type}.{prop}.{suffix}";
             return _cache.GetOrAdd(key, _ => fetcher() ?? "");
+        }
+
+        private static Type? ResolveTypeByName(string typeName)
+        {
+            return AppDomain.CurrentDomain.GetAssemblies()
+                .Where(a => !a.IsDynamic)
+                .SelectMany(SafeGetTypes)
+                .FirstOrDefault(t => string.Equals(t.Name, typeName, StringComparison.Ordinal));
         }
 
         private static Type[] SafeGetTypes(Assembly assembly)
