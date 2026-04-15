@@ -59,10 +59,18 @@
         border-radius: 4px;
         padding: 0.5rem;
         background: #fafbfc;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        flex: 1 1 auto;
+        min-height: 0;
     }
 
     .parser-workspace {
         height: min(780px, calc(100vh - 170px));
+        display: grid;
+        grid-template-columns: 240px minmax(0, 1fr);
+        gap: 0.75rem;
     }
 
     .parser-left-pane {
@@ -70,10 +78,14 @@
         flex-direction: column;
         gap: 1rem;
         height: 100%;
+        min-height: 0;
     }
 
     .parser-right-pane {
+        display: flex;
+        flex-direction: column;
         height: 100%;
+        min-height: 0;
     }
 
     .parser-tab-panel {
@@ -164,6 +176,26 @@
         overflow-y: auto;
     }
 
+    .parser-listbox {
+        width: 100%;
+        min-height: 0;
+    }
+
+    .parser-listbox-base {
+        height: 180px;
+    }
+
+    .parser-listbox-derived-wrap {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+    }
+
+    .parser-listbox-derived {
+        flex: 1 1 auto;
+    }
+
     .parser-section-title {
         color: var(--rz-primary);
         font-size: 1rem;
@@ -199,9 +231,7 @@
     </RadzenCard>
 
     <div class="parser-workspace">
-        <RadzenSplitter Style="height:100%;">
-            <RadzenSplitterPane Size="240px" Min="240px" Max="240px">
-                <div class="parser-panel parser-left-pane">
+        <div class="parser-panel parser-left-pane">
                     <div class="parser-section-title">Select View</div>
 
                     <RadzenStack Gap="0.75rem">
@@ -226,6 +256,7 @@
                     </RadzenStack>
 
                     <div class="parser-picker-frame">
+                        <div>
                         <div class="parser-section-title" style="font-size:0.85rem;margin-bottom:0.5rem;">Base Objects</div>
                         <RadzenListBox Data="@BaseDisplayObjects"
                                        TextProperty="DisplayName"
@@ -234,9 +265,11 @@
                                        @bind-Value="@SelectedObjectId"
                                        Change="@OnObjectChanged"
                                        Disabled="@string.IsNullOrWhiteSpace(SelectedDomain)"
-                                       Style="width:100%; height:180px;" />
+                                       Class="parser-listbox parser-listbox-base" />
+                        </div>
 
-                        <div class="parser-section-title rz-mt-3" style="font-size:0.85rem;margin-bottom:0.5rem;">Derived Views</div>
+                        <div class="parser-listbox-derived-wrap">
+                        <div class="parser-section-title" style="font-size:0.85rem;margin-bottom:0.5rem;">Derived Views</div>
                         <RadzenListBox Data="@DerivedDisplayObjects"
                                        TextProperty="DisplayName"
                                        ValueProperty="SchemaObjectId"
@@ -244,12 +277,13 @@
                                        @bind-Value="@SelectedObjectId"
                                        Change="@OnObjectChanged"
                                        Disabled="@string.IsNullOrWhiteSpace(SelectedDomain)"
-                                       Style="width:100%; height:220px;" />
+                                       Class="parser-listbox parser-listbox-derived" />
+                        </div>
                     </div>
 
                     @if (SelectedObject != null)
                     {
-                        <RadzenCard Variant="Variant.Outlined" Class="rz-p-3">
+                        <div class="parser-page-shell" style="padding:0.75rem;">
                             <RadzenText TextStyle="TextStyle.Overline" Style="font-weight:700;color:var(--rz-primary);">
                                 Selected View
                             </RadzenText>
@@ -258,14 +292,12 @@
                             <RadzenText TextStyle="TextStyle.Body2" Style="margin-top:0.75rem;color:#495057;">
                                 Tables: @ParsedTables.Count | Columns: @ParsedColumns.Count
                             </RadzenText>
-                        </RadzenCard>
+                        </div>
                     }
 
-                </div>
-            </RadzenSplitterPane>
+        </div>
 
-            <RadzenSplitterPane>
-                <div class="parser-right-pane">
+        <div class="parser-right-pane">
                     <div class="parser-toolbar">
                         <RadzenText TextStyle="TextStyle.Body2" Style="color:#495057;">
                             Selection parses automatically. Use the toolbar for SQL, reload, and cache control.
@@ -290,7 +322,7 @@
                         </div>
                     </div>
 
-                    <div class="parser-tabs">
+        <div class="parser-tabs">
                         <RadzenTabs Style="height:100%;">
                             <Tabs>
                                 <RadzenTabsItem Text="Tables">
@@ -298,7 +330,6 @@
                                         <div class="parser-panel parser-tab-panel parser-data-host">
                                             <div class="parser-section-title">Parsed Source Tables</div>
                                             <div class="parser-grid-frame">
-                                                <div class="parser-grid-scroll">
                                                     <RadzenDataGrid Data="@ParsedTables"
                                                                     TItem="SourceTableDto"
                                                                     Class="parser-data-grid"
@@ -332,7 +363,6 @@
                                                             }
                                                         </Columns>
                                                     </RadzenDataGrid>
-                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -343,7 +373,6 @@
                                         <div class="parser-panel parser-tab-panel parser-data-host">
                                             <div class="parser-section-title">Parsed View Columns</div>
                                             <div class="parser-grid-frame">
-                                                <div class="parser-grid-scroll">
                                                     <RadzenDataGrid Data="@ParsedColumns"
                                                                     TItem="ViewColumnDto"
                                                                     Class="parser-data-grid"
@@ -377,7 +406,6 @@
                                                             }
                                                         </Columns>
                                                     </RadzenDataGrid>
-                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -396,9 +424,7 @@
                             </Tabs>
                         </RadzenTabs>
                     </div>
-                </div>
-            </RadzenSplitterPane>
-        </RadzenSplitter>
+        </div>
     </div>
 </RadzenStack>
 
