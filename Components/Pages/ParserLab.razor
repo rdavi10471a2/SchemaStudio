@@ -63,10 +63,32 @@
         height: 100%;
     }
 
-    .parser-right-section {
+    .parser-tab-panel {
         display: flex;
         flex-direction: column;
         height: 100%;
+    }
+
+    .parser-tabs {
+        height: calc(100% - 52px);
+    }
+
+    .parser-tab-content {
+        height: calc(100% - 48px);
+    }
+
+    .parser-placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        border: 1px dashed #cbd3da;
+        border-radius: 4px;
+        background: #fafbfc;
+        color: #6c757d;
+        font-size: 0.95rem;
+        text-align: center;
+        padding: 1.5rem;
     }
 
     .parser-toolbar {
@@ -108,7 +130,7 @@
 
 <PageTitle>Parser Test Area</PageTitle>
 
-@* 2026-04-15 04:01 PM CDT AI parser lab marker: parse on view selection, move parser actions into a top toolbar, and tighten the parser workspace height. *@
+@* 2026-04-15 04:06 PM CDT AI parser lab marker: replace the RHS splitter with tabs for tables, columns, and a placeholder AI Markdown pane. *@
 
 <RadzenStack Gap="1rem">
     <RadzenCard Variant="Variant.Flat" Class="rz-p-3">
@@ -210,91 +232,110 @@
                         </div>
                     </div>
 
-                    <RadzenSplitter Orientation="Orientation.Vertical" Style="height:calc(100% - 52px);">
-                        <RadzenSplitterPane Size="400px" Min="400px" Max="400px">
-                            <div class="parser-panel parser-right-section">
-                                <div class="parser-section-title">Parsed Source Tables</div>
-                                <div class="parser-grid-frame">
-                                    <div class="parser-grid-scroll">
-                                        <RadzenDataGrid Data="@ParsedTables"
-                                                        TItem="SourceTableDto"
-                                                        AllowPaging="false"
-                                                        AllowFiltering="true"
-                                                        AllowColumnResize="true"
-                                                        FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
-                                                        Density="Density.Compact"
-                                                        Style="height:100%; min-width:1600px;"
-                                                        RowDoubleClick="@(args => OpenDtoDetails(args.Data, args.Data.PhysicalSourceName, "Table"))">
-                                            <Columns>
-                                                @foreach (var prop in TableProperties)
-                                                {
-                                                    <RadzenDataGridColumn TItem="SourceTableDto"
-                                                                          Property="@prop.Name"
-                                                                          Width="@GetColumnWidth(prop.Name, false)">
-                                                        <HeaderTemplate>
-                                                            <div class="view-label-blue">
-                                                                @ReflectionUtils.GetDisplayName(typeof(SourceTableDto), prop.Name)
-                                                                @{
-                                                                    var description = ReflectionUtils.GetDescription(typeof(SourceTableDto), prop.Name);
-                                                                }
-                                                                @if (!string.IsNullOrWhiteSpace(description))
-                                                                {
-                                                                    <RadzenIcon Icon="help_outline"
-                                                                                MouseEnter="@(args => TooltipService.Open(args, description))" />
-                                                                }
-                                                            </div>
-                                                        </HeaderTemplate>
-                                                    </RadzenDataGridColumn>
-                                                }
-                                            </Columns>
-                                        </RadzenDataGrid>
+                    <div class="parser-tabs">
+                        <RadzenTabs Style="height:100%;">
+                            <Tabs>
+                                <RadzenTabsItem Text="Tables">
+                                    <div class="parser-tab-content">
+                                        <div class="parser-panel parser-tab-panel">
+                                            <div class="parser-section-title">Parsed Source Tables</div>
+                                            <div class="parser-grid-frame">
+                                                <div class="parser-grid-scroll">
+                                                    <RadzenDataGrid Data="@ParsedTables"
+                                                                    TItem="SourceTableDto"
+                                                                    AllowPaging="false"
+                                                                    AllowFiltering="true"
+                                                                    AllowColumnResize="true"
+                                                                    FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                                                                    Density="Density.Compact"
+                                                                    Style="height:100%; min-width:1600px;"
+                                                                    RowDoubleClick="@(args => OpenDtoDetails(args.Data, args.Data.PhysicalSourceName, "Table"))">
+                                                        <Columns>
+                                                            @foreach (var prop in TableProperties)
+                                                            {
+                                                                <RadzenDataGridColumn TItem="SourceTableDto"
+                                                                                      Property="@prop.Name"
+                                                                                      Width="@GetColumnWidth(prop.Name, false)">
+                                                                    <HeaderTemplate>
+                                                                        <div class="view-label-blue">
+                                                                            @ReflectionUtils.GetDisplayName(typeof(SourceTableDto), prop.Name)
+                                                                            @{
+                                                                                var description = ReflectionUtils.GetDescription(typeof(SourceTableDto), prop.Name);
+                                                                            }
+                                                                            @if (!string.IsNullOrWhiteSpace(description))
+                                                                            {
+                                                                                <RadzenIcon Icon="help_outline"
+                                                                                            MouseEnter="@(args => TooltipService.Open(args, description))" />
+                                                                            }
+                                                                        </div>
+                                                                    </HeaderTemplate>
+                                                                </RadzenDataGridColumn>
+                                                            }
+                                                        </Columns>
+                                                    </RadzenDataGrid>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                            </div>
-                        </RadzenSplitterPane>
+                                </RadzenTabsItem>
 
-                        <RadzenSplitterPane Size="500px" Min="500px" Max="500px">
-                            <div class="parser-panel parser-right-section">
-                                <div class="parser-section-title">Parsed View Columns</div>
-                                <div class="parser-grid-frame">
-                                    <div class="parser-grid-scroll">
-                                        <RadzenDataGrid Data="@ParsedColumns"
-                                                        TItem="ViewColumnDto"
-                                                        AllowPaging="false"
-                                                        AllowFiltering="true"
-                                                        AllowColumnResize="true"
-                                                        FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
-                                                        Density="Density.Compact"
-                                                        Style="height:100%; min-width:1700px;"
-                                                        RowDoubleClick="@(args => OpenDtoDetails(args.Data, args.Data.ColumnName, "Column"))">
-                                            <Columns>
-                                                @foreach (var prop in ColumnProperties)
-                                                {
-                                                    <RadzenDataGridColumn TItem="ViewColumnDto"
-                                                                          Property="@prop.Name"
-                                                                          Width="@GetColumnWidth(prop.Name, true)">
-                                                        <HeaderTemplate>
-                                                            <div class="view-label-blue">
-                                                                @ReflectionUtils.GetDisplayName(typeof(ViewColumnDto), prop.Name)
-                                                                @{
-                                                                    var description = ReflectionUtils.GetDescription(typeof(ViewColumnDto), prop.Name);
-                                                                }
-                                                                @if (!string.IsNullOrWhiteSpace(description))
-                                                                {
-                                                                    <RadzenIcon Icon="help_outline"
-                                                                                MouseEnter="@(args => TooltipService.Open(args, description))" />
-                                                                }
-                                                            </div>
-                                                        </HeaderTemplate>
-                                                    </RadzenDataGridColumn>
-                                                }
-                                            </Columns>
-                                        </RadzenDataGrid>
+                                <RadzenTabsItem Text="Columns">
+                                    <div class="parser-tab-content">
+                                        <div class="parser-panel parser-tab-panel">
+                                            <div class="parser-section-title">Parsed View Columns</div>
+                                            <div class="parser-grid-frame">
+                                                <div class="parser-grid-scroll">
+                                                    <RadzenDataGrid Data="@ParsedColumns"
+                                                                    TItem="ViewColumnDto"
+                                                                    AllowPaging="false"
+                                                                    AllowFiltering="true"
+                                                                    AllowColumnResize="true"
+                                                                    FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                                                                    Density="Density.Compact"
+                                                                    Style="height:100%; min-width:1700px;"
+                                                                    RowDoubleClick="@(args => OpenDtoDetails(args.Data, args.Data.ColumnName, "Column"))">
+                                                        <Columns>
+                                                            @foreach (var prop in ColumnProperties)
+                                                            {
+                                                                <RadzenDataGridColumn TItem="ViewColumnDto"
+                                                                                      Property="@prop.Name"
+                                                                                      Width="@GetColumnWidth(prop.Name, true)">
+                                                                    <HeaderTemplate>
+                                                                        <div class="view-label-blue">
+                                                                            @ReflectionUtils.GetDisplayName(typeof(ViewColumnDto), prop.Name)
+                                                                            @{
+                                                                                var description = ReflectionUtils.GetDescription(typeof(ViewColumnDto), prop.Name);
+                                                                            }
+                                                                            @if (!string.IsNullOrWhiteSpace(description))
+                                                                            {
+                                                                                <RadzenIcon Icon="help_outline"
+                                                                                            MouseEnter="@(args => TooltipService.Open(args, description))" />
+                                                                            }
+                                                                        </div>
+                                                                    </HeaderTemplate>
+                                                                </RadzenDataGridColumn>
+                                                            }
+                                                        </Columns>
+                                                    </RadzenDataGrid>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                            </div>
-                        </RadzenSplitterPane>
-                    </RadzenSplitter>
+                                </RadzenTabsItem>
+
+                                <RadzenTabsItem Text="AI Markdown">
+                                    <div class="parser-tab-content">
+                                        <div class="parser-panel parser-tab-panel">
+                                            <div class="parser-section-title">AI Markdown</div>
+                                            <div class="parser-placeholder">
+                                                AI Markdown preview will land here once we wire the generated parser notes into this workspace.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </RadzenTabsItem>
+                            </Tabs>
+                        </RadzenTabs>
+                    </div>
                 </div>
             </RadzenSplitterPane>
         </RadzenSplitter>
