@@ -49,7 +49,7 @@
     }
 
     .parser-workspace {
-        height: 900px;
+        height: min(760px, calc(100vh - 230px));
     }
 
     .parser-left-pane {
@@ -67,6 +67,21 @@
         display: flex;
         flex-direction: column;
         height: 100%;
+    }
+
+    .parser-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-bottom: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    .parser-toolbar-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
     }
 
     .parser-section-title {
@@ -93,7 +108,7 @@
 
 <PageTitle>Parser Test Area</PageTitle>
 
-@* 2026-04-15 03:46 PM CDT AI parser lab marker: resolve the parser through DI so parse, reload, and clear-cache actions share one scoped cache-backed service instance. *@
+@* 2026-04-15 04:01 PM CDT AI parser lab marker: parse on view selection, move parser actions into a top toolbar, and tighten the parser workspace height. *@
 
 <RadzenStack Gap="1rem">
     <RadzenCard Variant="Variant.Flat" Class="rz-p-3">
@@ -104,7 +119,7 @@
     </RadzenCard>
 
     <div class="parser-workspace">
-        <RadzenSplitter Style="height:900px;">
+        <RadzenSplitter Style="height:100%;">
             <RadzenSplitterPane Size="400px" Min="400px" Max="400px">
                 <div class="parser-panel parser-left-pane">
                     <div class="parser-section-title">Select View</div>
@@ -166,40 +181,36 @@
                         </RadzenCard>
                     }
 
-                    <div style="margin-top:auto;">
-                        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+                </div>
+            </RadzenSplitterPane>
+
+            <RadzenSplitterPane>
+                <div class="parser-right-pane">
+                    <div class="parser-toolbar">
+                        <RadzenText TextStyle="TextStyle.Body2" Style="color:#495057;">
+                            Selection parses automatically. Use the toolbar for SQL, reload, and cache control.
+                        </RadzenText>
+
+                        <div class="parser-toolbar-actions">
                             <RadzenButton Text="Show SQL"
                                           Icon="code"
-                                          Style="flex:1;"
                                           Disabled="@(SelectedObject == null || IsLoading)"
                                           Click="@ShowParserSqlAsync" />
 
-                            <RadzenButton Text="Parse"
-                                          Icon="play_arrow"
-                                          Style="flex:1;"
-                                          Disabled="@(SelectedObject == null || IsLoading)"
-                                          Click="@ParseSelectedViewAsync" />
-
                             <RadzenButton Text="Reload"
                                           Icon="refresh"
-                                          Style="flex:1;"
                                           Disabled="@(SelectedObject == null || IsLoading)"
                                           Click="@ReloadSelectedViewAsync" />
 
                             <RadzenButton Text="Clear Cache"
                                           Icon="delete_sweep"
                                           ButtonStyle="ButtonStyle.Secondary"
-                                          Style="flex:1;"
                                           Disabled="@IsLoading"
                                           Click="@ClearParserCacheAsync" />
-                        </RadzenStack>
+                        </div>
                     </div>
-                </div>
-            </RadzenSplitterPane>
 
-            <RadzenSplitterPane>
-                <div class="parser-right-pane">
-                    <RadzenSplitter Orientation="Orientation.Vertical" Style="height:900px;">
+                    <RadzenSplitter Orientation="Orientation.Vertical" Style="height:calc(100% - 52px);">
                         <RadzenSplitterPane Size="400px" Min="400px" Max="400px">
                             <div class="parser-panel parser-right-section">
                                 <div class="parser-section-title">Parsed Source Tables</div>
@@ -212,7 +223,7 @@
                                                         AllowColumnResize="true"
                                                         FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
                                                         Density="Density.Compact"
-                                                        Style="height:400px; min-width:1600px;"
+                                                        Style="height:100%; min-width:1600px;"
                                                         RowDoubleClick="@(args => OpenDtoDetails(args.Data, args.Data.PhysicalSourceName, "Table"))">
                                             <Columns>
                                                 @foreach (var prop in TableProperties)
@@ -254,7 +265,7 @@
                                                         AllowColumnResize="true"
                                                         FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
                                                         Density="Density.Compact"
-                                                        Style="height:500px; min-width:1700px;"
+                                                        Style="height:100%; min-width:1700px;"
                                                         RowDoubleClick="@(args => OpenDtoDetails(args.Data, args.Data.ColumnName, "Column"))">
                                             <Columns>
                                                 @foreach (var prop in ColumnProperties)
@@ -370,10 +381,6 @@
         SelectedObject = await _schemaRepo.GetByIdAsync(objId);
         ParsedTables.Clear();
         ParsedColumns.Clear();
-    }
-
-    private async Task ParseSelectedViewAsync()
-    {
         await ParseSelectedViewInternalAsync(reloadSelectedView: false);
     }
 
