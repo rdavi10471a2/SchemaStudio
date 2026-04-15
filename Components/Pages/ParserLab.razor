@@ -19,6 +19,14 @@
 @inject ViewParsingService ParserService
 
 <style>
+    .parser-page-shell {
+        background: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        padding: 1rem;
+        box-shadow: none !important;
+    }
+
     .parser-panel {
         background: #fff;
         border: 1px solid #dee2e6;
@@ -26,6 +34,7 @@
         padding: 1rem;
         height: 100%;
         box-sizing: border-box;
+        box-shadow: none !important;
     }
 
     .parser-grid-frame {
@@ -33,12 +42,15 @@
         border-radius: 4px;
         overflow: auto;
         height: 100%;
+        flex: 1 1 auto;
+        min-height: 460px;
     }
 
     .parser-grid-scroll {
         overflow-x: scroll;
         overflow-y: auto;
         height: 100%;
+        min-height: 100%;
     }
 
     .parser-picker-frame {
@@ -67,16 +79,19 @@
         display: flex;
         flex-direction: column;
         height: 100%;
+        min-height: 100%;
     }
 
     .parser-tabs {
         height: calc(100% - 52px);
+        min-height: 0;
     }
 
     .parser-tab-content {
         height: calc(100% - 48px);
         display: flex;
         flex-direction: column;
+        min-height: 0;
     }
 
     .parser-placeholder {
@@ -113,6 +128,29 @@
         min-height: 0;
     }
 
+    .parser-tabs .rz-tabview,
+    .parser-tabs .rz-tabview-panels,
+    .parser-tabs .rz-tabview-panel {
+        height: 100%;
+        min-height: 0;
+    }
+
+    .parser-tabs .rz-tabview-panels {
+        padding: 0;
+        border: none;
+        background: transparent;
+        box-shadow: none !important;
+    }
+
+    .parser-tabs .rz-tabview-panel {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .parser-tabs .rz-tabview-nav li a {
+        box-shadow: none !important;
+    }
+
     .parser-section-title {
         color: var(--rz-primary);
         font-size: 1rem;
@@ -137,10 +175,10 @@
 
 <PageTitle>Parser Test Area</PageTitle>
 
-@* 2026-04-15 04:06 PM CDT AI parser lab marker: replace the RHS splitter with tabs for tables, columns, and a placeholder AI Markdown pane. *@
+@* 2026-04-15 04:19 PM CDT AI parser lab marker: make the tab workspace full height and remove shadow-heavy card styling from the parser page. *@
 
 <RadzenStack Gap="1rem">
-    <RadzenCard Variant="Variant.Flat" Class="rz-p-3">
+    <RadzenCard Variant="Variant.Flat" Class="parser-page-shell">
         <RadzenText TextStyle="TextStyle.H5" Class="rz-m-0">Parser Test Area</RadzenText>
         <RadzenText TextStyle="TextStyle.Body2" Style="color:#495057;">
             Select a source view on the left to parse it and inspect parser-derived source tables and projected columns on the right.
