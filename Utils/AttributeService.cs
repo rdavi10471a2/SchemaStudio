@@ -31,9 +31,11 @@
                 var typeName = parts[0];
                 var propName = parts[1];
 
-                // Resolve metadata by simple type name so DTOs outside SchemaStudioWebViewer.Models
-                // still use their Display/Description attributes in shared detail views.
-                var type = typeof(SchemaObjectModel).Assembly.GetTypes()
+                // Resolve metadata across loaded assemblies so shared DTOs from the parser DLL
+                // can participate in the same detail-view metadata path as local web models.
+                var type = AppDomain.CurrentDomain.GetAssemblies()
+                    .Where(a => !a.IsDynamic)
+                    .SelectMany(SafeGetTypes)
                     .FirstOrDefault(t => string.Equals(t.Name, typeName, StringComparison.Ordinal));
 
                 if (type != null)
@@ -51,6 +53,18 @@
         {
             var key = $"{type}.{prop}.{suffix}";
             return _cache.GetOrAdd(key, _ => fetcher() ?? "");
+        }
+
+        private static Type[] SafeGetTypes(Assembly assembly)
+        {
+            try
+            {
+                return assembly.GetTypes();
+            }
+            catch (ReflectionTypeLoadException ex)
+            {
+                return ex.Types.Where(t => t != null).Cast<Type>().ToArray();
+            }
         }
     }
 }
