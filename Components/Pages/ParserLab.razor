@@ -40,15 +40,14 @@
     .parser-grid-frame {
         border: 1px solid #dee2e6;
         border-radius: 4px;
-        overflow: auto;
+        overflow: hidden;
         height: 100%;
         flex: 1 1 auto;
         min-height: 0;
     }
 
     .parser-grid-scroll {
-        overflow-x: scroll;
-        overflow-y: auto;
+        overflow: hidden;
         height: 100%;
         min-height: 100%;
         display: flex;
@@ -63,7 +62,7 @@
     }
 
     .parser-workspace {
-        height: min(760px, calc(100vh - 230px));
+        height: min(880px, calc(100vh - 110px));
     }
 
     .parser-left-pane {
@@ -135,6 +134,7 @@
         flex: 1 1 auto;
         height: 100% !important;
         min-height: 100% !important;
+        width: 100% !important;
     }
 
     .parser-tabs .rz-tabview,
@@ -158,6 +158,10 @@
 
     .parser-tabs .rz-tabview-nav li a {
         box-shadow: none !important;
+    }
+
+    .parser-left-pane .rz-listbox {
+        overflow-y: auto;
     }
 
     .parser-section-title {
