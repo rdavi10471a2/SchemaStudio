@@ -46,14 +46,6 @@
         min-height: 0;
     }
 
-    .parser-grid-scroll {
-        overflow: hidden;
-        height: 100%;
-        min-height: 100%;
-        display: flex;
-        flex-direction: column;
-    }
-
     .parser-picker-frame {
         border: 1px solid #dee2e6;
         border-radius: 4px;
@@ -185,6 +177,12 @@
         height: 180px;
     }
 
+    .parser-listbox-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
     .parser-listbox-derived-wrap {
         display: flex;
         flex-direction: column;
@@ -232,105 +230,105 @@
 
     <div class="parser-workspace">
         <div class="parser-panel parser-left-pane">
-                    <div class="parser-section-title">Select View</div>
+            <div class="parser-section-title">Select View</div>
 
-                    <RadzenStack Gap="0.75rem">
-                        <RadzenDropDown Data="@Databases"
-                                        TextProperty="DatabaseName"
-                                        ValueProperty="DatabaseId"
-                                        Placeholder="Database"
-                                        @bind-Value="@SelectedDatabaseId"
-                                        Change="@OnDatabaseChanged"
-                                        Style="width:100%;"
-                                        AllowClear="true" />
+            <RadzenStack Gap="0.75rem">
+                <RadzenDropDown Data="@Databases"
+                                TextProperty="DatabaseName"
+                                ValueProperty="DatabaseId"
+                                Placeholder="Database"
+                                @bind-Value="@SelectedDatabaseId"
+                                Change="@OnDatabaseChanged"
+                                Style="width:100%;"
+                                AllowClear="true" />
 
-                        <RadzenDropDown Data="@Domains"
-                                        TextProperty="Domain"
-                                        ValueProperty="Domain"
-                                        Placeholder="Business Domain"
-                                        @bind-Value="@SelectedDomain"
-                                        Change="@OnDomainChanged"
-                                        Disabled="@(!SelectedDatabaseId.HasValue)"
-                                        Style="width:100%;"
-                                        AllowClear="true" />
-                    </RadzenStack>
+                <RadzenDropDown Data="@Domains"
+                                TextProperty="Domain"
+                                ValueProperty="Domain"
+                                Placeholder="Business Domain"
+                                @bind-Value="@SelectedDomain"
+                                Change="@OnDomainChanged"
+                                Disabled="@(!SelectedDatabaseId.HasValue)"
+                                Style="width:100%;"
+                                AllowClear="true" />
+            </RadzenStack>
 
-                    <div class="parser-picker-frame">
-                        <div>
-                        <div class="parser-section-title" style="font-size:0.85rem;margin-bottom:0.5rem;">Base Objects</div>
-                        <RadzenListBox Data="@BaseDisplayObjects"
-                                       TextProperty="DisplayName"
-                                       ValueProperty="SchemaObjectId"
-                                       TValue="int?"
-                                       @bind-Value="@SelectedObjectId"
-                                       Change="@OnObjectChanged"
-                                       Disabled="@string.IsNullOrWhiteSpace(SelectedDomain)"
-                                       Class="parser-listbox parser-listbox-base" />
-                        </div>
+            <div class="parser-picker-frame">
+                <div class="parser-listbox-group">
+                    <div class="parser-section-title" style="font-size:0.85rem;margin-bottom:0;">Base Objects</div>
+                    <RadzenListBox Data="@BaseDisplayObjects"
+                                   TextProperty="DisplayName"
+                                   ValueProperty="SchemaObjectId"
+                                   TValue="int?"
+                                   @bind-Value="@SelectedObjectId"
+                                   Change="@OnObjectChanged"
+                                   Disabled="@string.IsNullOrWhiteSpace(SelectedDomain)"
+                                   Class="parser-listbox parser-listbox-base" />
+                </div>
 
-                        <div class="parser-listbox-derived-wrap">
-                        <div class="parser-section-title" style="font-size:0.85rem;margin-bottom:0.5rem;">Derived Views</div>
-                        <RadzenListBox Data="@DerivedDisplayObjects"
-                                       TextProperty="DisplayName"
-                                       ValueProperty="SchemaObjectId"
-                                       TValue="int?"
-                                       @bind-Value="@SelectedObjectId"
-                                       Change="@OnObjectChanged"
-                                       Disabled="@string.IsNullOrWhiteSpace(SelectedDomain)"
-                                       Class="parser-listbox parser-listbox-derived" />
-                        </div>
-                    </div>
-
-                    @if (SelectedObject != null)
-                    {
-                        <div class="parser-page-shell" style="padding:0.75rem;">
-                            <RadzenText TextStyle="TextStyle.Overline" Style="font-weight:700;color:var(--rz-primary);">
-                                Selected View
-                            </RadzenText>
-                            <RadzenText TextStyle="TextStyle.H6" Class="rz-mb-1">@SelectedObject.BusinessName</RadzenText>
-                            <RadzenText TextStyle="TextStyle.Body2">@SelectedObject.SourceDatabaseName.@SelectedObject.SourceSchemaName.@SelectedObject.SourceObjectName</RadzenText>
-                            <RadzenText TextStyle="TextStyle.Body2" Style="margin-top:0.75rem;color:#495057;">
-                                Tables: @ParsedTables.Count | Columns: @ParsedColumns.Count
-                            </RadzenText>
-                        </div>
-                    }
-
+                <div class="parser-listbox-derived-wrap">
+                    <div class="parser-section-title" style="font-size:0.85rem;margin-bottom:0.5rem;">Derived Views</div>
+                    <RadzenListBox Data="@DerivedDisplayObjects"
+                                   TextProperty="DisplayName"
+                                   ValueProperty="SchemaObjectId"
+                                   TValue="int?"
+                                   @bind-Value="@SelectedObjectId"
+                                   Change="@OnObjectChanged"
+                                   Disabled="@string.IsNullOrWhiteSpace(SelectedDomain)"
+                                   Class="parser-listbox parser-listbox-derived" />
+                </div>
+            </div>
         </div>
 
         <div class="parser-right-pane">
-                    <div class="parser-toolbar">
+            <div class="parser-toolbar">
+                <div>
+                    @if (SelectedObject != null)
+                    {
+                        <RadzenText TextStyle="TextStyle.Body1" Style="font-weight:600;">
+                            @SelectedObject.BusinessName
+                        </RadzenText>
+                        <RadzenText TextStyle="TextStyle.Body2" Style="color:#495057;">
+                            @SelectedObject.SourceDatabaseName.@SelectedObject.SourceSchemaName.@SelectedObject.SourceObjectName
+                            | Tables: @ParsedTables.Count | Columns: @ParsedColumns.Count
+                        </RadzenText>
+                    }
+                    else
+                    {
                         <RadzenText TextStyle="TextStyle.Body2" Style="color:#495057;">
                             Selection parses automatically. Use the toolbar for SQL, reload, and cache control.
                         </RadzenText>
+                    }
+                </div>
 
-                        <div class="parser-toolbar-actions">
-                            <RadzenButton Text="Show SQL"
-                                          Icon="code"
-                                          Disabled="@(SelectedObject == null || IsLoading)"
-                                          Click="@ShowParserSqlAsync" />
+                <div class="parser-toolbar-actions">
+                    <RadzenButton Text="Show SQL"
+                                  Icon="code"
+                                  Disabled="@(SelectedObject == null || IsLoading)"
+                                  Click="@ShowParserSqlAsync" />
 
-                            <RadzenButton Text="Reload"
-                                          Icon="refresh"
-                                          Disabled="@(SelectedObject == null || IsLoading)"
-                                          Click="@ReloadSelectedViewAsync" />
+                    <RadzenButton Text="Reload"
+                                  Icon="refresh"
+                                  Disabled="@(SelectedObject == null || IsLoading)"
+                                  Click="@ReloadSelectedViewAsync" />
 
-                            <RadzenButton Text="Clear Cache"
-                                          Icon="delete_sweep"
-                                          ButtonStyle="ButtonStyle.Secondary"
-                                          Disabled="@IsLoading"
-                                          Click="@ClearParserCacheAsync" />
-                        </div>
-                    </div>
+                    <RadzenButton Text="Clear Cache"
+                                  Icon="delete_sweep"
+                                  ButtonStyle="ButtonStyle.Secondary"
+                                  Disabled="@IsLoading"
+                                  Click="@ClearParserCacheAsync" />
+                </div>
+            </div>
 
-        <div class="parser-tabs">
-                        <RadzenTabs Style="height:100%;">
-                            <Tabs>
-                                <RadzenTabsItem Text="Tables">
-                                    <div class="parser-tab-content">
-                                        <div class="parser-panel parser-tab-panel parser-data-host">
-                                            <div class="parser-section-title">Parsed Source Tables</div>
-                                            <div class="parser-grid-frame">
-                                                    <RadzenDataGrid Data="@ParsedTables"
+            <div class="parser-tabs">
+                <RadzenTabs Style="height:100%;">
+                    <Tabs>
+                        <RadzenTabsItem Text="Tables">
+                            <div class="parser-tab-content">
+                                <div class="parser-panel parser-tab-panel parser-data-host">
+                                    <div class="parser-section-title">Parsed Source Tables</div>
+                                    <div class="parser-grid-frame">
+                                        <RadzenDataGrid Data="@ParsedTables"
                                                                     TItem="SourceTableDto"
                                                                     Class="parser-data-grid"
                                                                     AllowPaging="false"
@@ -362,18 +360,18 @@
                                                                 </RadzenDataGridColumn>
                                                             }
                                                         </Columns>
-                                                    </RadzenDataGrid>
-                                            </div>
-                                        </div>
+                                        </RadzenDataGrid>
                                     </div>
-                                </RadzenTabsItem>
+                                </div>
+                            </div>
+                        </RadzenTabsItem>
 
-                                <RadzenTabsItem Text="Columns">
-                                    <div class="parser-tab-content">
-                                        <div class="parser-panel parser-tab-panel parser-data-host">
-                                            <div class="parser-section-title">Parsed View Columns</div>
-                                            <div class="parser-grid-frame">
-                                                    <RadzenDataGrid Data="@ParsedColumns"
+                        <RadzenTabsItem Text="Columns">
+                            <div class="parser-tab-content">
+                                <div class="parser-panel parser-tab-panel parser-data-host">
+                                    <div class="parser-section-title">Parsed View Columns</div>
+                                    <div class="parser-grid-frame">
+                                        <RadzenDataGrid Data="@ParsedColumns"
                                                                     TItem="ViewColumnDto"
                                                                     Class="parser-data-grid"
                                                                     AllowPaging="false"
@@ -405,25 +403,25 @@
                                                                 </RadzenDataGridColumn>
                                                             }
                                                         </Columns>
-                                                    </RadzenDataGrid>
-                                            </div>
-                                        </div>
+                                        </RadzenDataGrid>
                                     </div>
-                                </RadzenTabsItem>
+                                </div>
+                            </div>
+                        </RadzenTabsItem>
 
-                                <RadzenTabsItem Text="AI Markdown">
-                                    <div class="parser-tab-content">
-                                        <div class="parser-panel parser-tab-panel">
-                                            <div class="parser-section-title">AI Markdown</div>
-                                            <div class="parser-placeholder">
-                                                AI Markdown preview will land here once we wire the generated parser notes into this workspace.
-                                            </div>
-                                        </div>
+                        <RadzenTabsItem Text="AI Markdown">
+                            <div class="parser-tab-content">
+                                <div class="parser-panel parser-tab-panel">
+                                    <div class="parser-section-title">AI Markdown</div>
+                                    <div class="parser-placeholder">
+                                        AI Markdown preview will land here once we wire the generated parser notes into this workspace.
                                     </div>
-                                </RadzenTabsItem>
-                            </Tabs>
-                        </RadzenTabs>
-                    </div>
+                                </div>
+                            </div>
+                        </RadzenTabsItem>
+                    </Tabs>
+                </RadzenTabs>
+            </div>
         </div>
     </div>
 </RadzenStack>
