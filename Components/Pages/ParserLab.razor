@@ -17,28 +17,26 @@
 @inject TooltipService TooltipService
 
 <style>
-    .parser-lab-shell {
-        display: grid;
-        grid-template-columns: minmax(280px, 340px) 1fr;
-        gap: 1rem;
-    }
-
     .parser-panel {
         background: #fff;
         border: 1px solid #dee2e6;
         border-radius: 6px;
         padding: 1rem;
+        height: 100%;
+        box-sizing: border-box;
     }
 
     .parser-grid-frame {
         border: 1px solid #dee2e6;
         border-radius: 4px;
-        overflow: hidden;
+        overflow: auto;
+        height: 100%;
     }
 
     .parser-grid-scroll {
         overflow-x: scroll;
-        overflow-y: hidden;
+        overflow-y: auto;
+        height: 100%;
     }
 
     .parser-picker-frame {
@@ -46,6 +44,27 @@
         border-radius: 4px;
         padding: 0.5rem;
         background: #fafbfc;
+    }
+
+    .parser-workspace {
+        height: 900px;
+    }
+
+    .parser-left-pane {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        height: 100%;
+    }
+
+    .parser-right-pane {
+        height: 100%;
+    }
+
+    .parser-right-section {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
     }
 
     .parser-section-title {
@@ -68,11 +87,6 @@
         min-height: 24px;
     }
 
-    @@media (max-width: 1100px) {
-        .parser-lab-shell {
-            grid-template-columns: 1fr;
-        }
-    }
 </style>
 
 <PageTitle>Parser Test Area</PageTitle>
@@ -87,154 +101,169 @@
         </RadzenText>
     </RadzenCard>
 
-    <div class="parser-lab-shell">
-        <div class="parser-panel">
-            <div class="parser-section-title">Select View</div>
+    <div class="parser-workspace">
+        <RadzenSplitter Style="height:900px;">
+            <RadzenSplitterPane Size="400px" Min="400px" Max="400px">
+                <div class="parser-panel parser-left-pane">
+                    <div class="parser-section-title">Select View</div>
 
-            <RadzenStack Gap="0.75rem">
-                <RadzenDropDown Data="@Databases"
-                                TextProperty="DatabaseName"
-                                ValueProperty="DatabaseId"
-                                Placeholder="Database"
-                                @bind-Value="@SelectedDatabaseId"
-                                Change="@OnDatabaseChanged"
-                                Style="width:100%;"
-                                AllowClear="true" />
+                    <RadzenStack Gap="0.75rem">
+                        <RadzenDropDown Data="@Databases"
+                                        TextProperty="DatabaseName"
+                                        ValueProperty="DatabaseId"
+                                        Placeholder="Database"
+                                        @bind-Value="@SelectedDatabaseId"
+                                        Change="@OnDatabaseChanged"
+                                        Style="width:100%;"
+                                        AllowClear="true" />
 
-                <RadzenDropDown Data="@Domains"
-                                TextProperty="Domain"
-                                ValueProperty="Domain"
-                                Placeholder="Business Domain"
-                                @bind-Value="@SelectedDomain"
-                                Change="@OnDomainChanged"
-                                Disabled="@(!SelectedDatabaseId.HasValue)"
-                                Style="width:100%;"
-                                AllowClear="true" />
+                        <RadzenDropDown Data="@Domains"
+                                        TextProperty="Domain"
+                                        ValueProperty="Domain"
+                                        Placeholder="Business Domain"
+                                        @bind-Value="@SelectedDomain"
+                                        Change="@OnDomainChanged"
+                                        Disabled="@(!SelectedDatabaseId.HasValue)"
+                                        Style="width:100%;"
+                                        AllowClear="true" />
+                    </RadzenStack>
 
-            </RadzenStack>
+                    <div class="parser-picker-frame">
+                        <div class="parser-section-title" style="font-size:0.85rem;margin-bottom:0.5rem;">Base Objects</div>
+                        <RadzenListBox Data="@BaseDisplayObjects"
+                                       TextProperty="DisplayName"
+                                       ValueProperty="SchemaObjectId"
+                                       TValue="int?"
+                                       @bind-Value="@SelectedObjectId"
+                                       Change="@OnObjectChanged"
+                                       Disabled="@string.IsNullOrWhiteSpace(SelectedDomain)"
+                                       Style="width:100%; height:180px;" />
 
-            <div class="parser-picker-frame rz-mt-3">
-                <div class="parser-section-title" style="font-size:0.85rem;margin-bottom:0.5rem;">Base Objects</div>
-                <RadzenListBox Data="@BaseDisplayObjects"
-                               TextProperty="DisplayName"
-                               ValueProperty="SchemaObjectId"
-                               TValue="int?"
-                               @bind-Value="@SelectedObjectId"
-                               Change="@OnObjectChanged"
-                               Disabled="@string.IsNullOrWhiteSpace(SelectedDomain)"
-                               Style="width:100%; height:180px;" />
+                        <div class="parser-section-title rz-mt-3" style="font-size:0.85rem;margin-bottom:0.5rem;">Derived Views</div>
+                        <RadzenListBox Data="@DerivedDisplayObjects"
+                                       TextProperty="DisplayName"
+                                       ValueProperty="SchemaObjectId"
+                                       TValue="int?"
+                                       @bind-Value="@SelectedObjectId"
+                                       Change="@OnObjectChanged"
+                                       Disabled="@string.IsNullOrWhiteSpace(SelectedDomain)"
+                                       Style="width:100%; height:220px;" />
+                    </div>
 
-                <div class="parser-section-title rz-mt-3" style="font-size:0.85rem;margin-bottom:0.5rem;">Derived Views</div>
-                <RadzenListBox Data="@DerivedDisplayObjects"
-                               TextProperty="DisplayName"
-                               ValueProperty="SchemaObjectId"
-                               TValue="int?"
-                               @bind-Value="@SelectedObjectId"
-                               Change="@OnObjectChanged"
-                               Disabled="@string.IsNullOrWhiteSpace(SelectedDomain)"
-                               Style="width:100%; height:220px;" />
-            </div>
+                    @if (SelectedObject != null)
+                    {
+                        <RadzenCard Variant="Variant.Outlined" Class="rz-p-3">
+                            <RadzenText TextStyle="TextStyle.Overline" Style="font-weight:700;color:var(--rz-primary);">
+                                Selected View
+                            </RadzenText>
+                            <RadzenText TextStyle="TextStyle.H6" Class="rz-mb-1">@SelectedObject.BusinessName</RadzenText>
+                            <RadzenText TextStyle="TextStyle.Body2">@SelectedObject.SourceDatabaseName.@SelectedObject.SourceSchemaName.@SelectedObject.SourceObjectName</RadzenText>
+                            <RadzenText TextStyle="TextStyle.Body2" Style="margin-top:0.75rem;color:#495057;">
+                                Tables: @ParsedTables.Count | Columns: @ParsedColumns.Count
+                            </RadzenText>
+                        </RadzenCard>
+                    }
 
-            @if (SelectedObject != null)
-            {
-                <RadzenCard Variant="Variant.Outlined" Class="rz-mt-3 rz-p-3">
-                    <RadzenText TextStyle="TextStyle.Overline" Style="font-weight:700;color:var(--rz-primary);">
-                        Selected View
-                    </RadzenText>
-                    <RadzenText TextStyle="TextStyle.H6" Class="rz-mb-1">@SelectedObject.BusinessName</RadzenText>
-                    <RadzenText TextStyle="TextStyle.Body2">@SelectedObject.SourceDatabaseName.@SelectedObject.SourceSchemaName.@SelectedObject.SourceObjectName</RadzenText>
-                    <RadzenText TextStyle="TextStyle.Body2" Style="margin-top:0.75rem;color:#495057;">
-                        Tables: @ParsedTables.Count | Columns: @ParsedColumns.Count
-                    </RadzenText>
-                </RadzenCard>
-            }
-
-            <RadzenButton Text="Parse Selected View"
-                          Icon="play_arrow"
-                          Class="rz-mt-3"
-                          Disabled="@(SelectedObject == null || IsLoading)"
-                          Click="@ParseSelectedViewAsync" />
-        </div>
-
-        <div class="rz-display-flex rz-flex-column" style="gap:1rem;">
-            <div class="parser-panel">
-                <div class="parser-section-title">Parsed Source Tables</div>
-                <div class="parser-grid-frame">
-                    <div class="parser-grid-scroll">
-                        <RadzenDataGrid Data="@ParsedTables"
-                                        TItem="SourceTableDto"
-                                        AllowPaging="false"
-                                        AllowFiltering="true"
-                                        FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
-                                        Density="Density.Compact"
-                                        Style="height:300px; min-width:1600px;"
-                                        RowDoubleClick="@(args => OpenDtoDetails(args.Data, args.Data.PhysicalSourceName, "Table"))">
-                            <Columns>
-                                @foreach (var prop in TableProperties)
-                                {
-                                    <RadzenDataGridColumn TItem="SourceTableDto"
-                                                          Property="@prop.Name"
-                                                          Width="@GetColumnWidth(prop.Name, false)">
-                                        <HeaderTemplate>
-                                            <div class="view-label-blue">
-                                                @ReflectionUtils.GetDisplayName(typeof(SourceTableDto), prop.Name)
-                                                @{
-                                                    var description = ReflectionUtils.GetDescription(typeof(SourceTableDto), prop.Name);
-                                                }
-                                                @if (!string.IsNullOrWhiteSpace(description))
-                                                {
-                                                    <RadzenIcon Icon="help_outline"
-                                                                MouseEnter="@(args => TooltipService.Open(args, description))" />
-                                                }
-                                            </div>
-                                        </HeaderTemplate>
-                                    </RadzenDataGridColumn>
-                                }
-                            </Columns>
-                        </RadzenDataGrid>
+                    <div style="margin-top:auto;">
+                        <RadzenButton Text="Parse Selected View"
+                                      Icon="play_arrow"
+                                      Style="width:100%;"
+                                      Disabled="@(SelectedObject == null || IsLoading)"
+                                      Click="@ParseSelectedViewAsync" />
                     </div>
                 </div>
-            </div>
+            </RadzenSplitterPane>
 
-            <div class="parser-panel">
-                <div class="parser-section-title">Parsed View Columns</div>
-                <div class="parser-grid-frame">
-                    <div class="parser-grid-scroll">
-                        <RadzenDataGrid Data="@ParsedColumns"
-                                        TItem="ViewColumnDto"
-                                        AllowPaging="false"
-                                        AllowFiltering="true"
-                                        FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
-                                        Density="Density.Compact"
-                                        Style="height:320px; min-width:1700px;"
-                                        RowDoubleClick="@(args => OpenDtoDetails(args.Data, args.Data.ColumnName, "Column"))">
-                            <Columns>
-                                @foreach (var prop in ColumnProperties)
-                                {
-                                    <RadzenDataGridColumn TItem="ViewColumnDto"
-                                                          Property="@prop.Name"
-                                                          Width="@GetColumnWidth(prop.Name, true)">
-                                        <HeaderTemplate>
-                                            <div class="view-label-blue">
-                                                @ReflectionUtils.GetDisplayName(typeof(ViewColumnDto), prop.Name)
-                                                @{
-                                                    var description = ReflectionUtils.GetDescription(typeof(ViewColumnDto), prop.Name);
-                                                }
-                                                @if (!string.IsNullOrWhiteSpace(description))
+            <RadzenSplitterPane>
+                <div class="parser-right-pane">
+                    <RadzenSplitter Orientation="Orientation.Vertical" Style="height:900px;">
+                        <RadzenSplitterPane Size="400px" Min="400px" Max="400px">
+                            <div class="parser-panel parser-right-section">
+                                <div class="parser-section-title">Parsed Source Tables</div>
+                                <div class="parser-grid-frame">
+                                    <div class="parser-grid-scroll">
+                                        <RadzenDataGrid Data="@ParsedTables"
+                                                        TItem="SourceTableDto"
+                                                        AllowPaging="false"
+                                                        AllowFiltering="true"
+                                                        AllowColumnResize="true"
+                                                        FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                                                        Density="Density.Compact"
+                                                        Style="height:400px; min-width:1600px;"
+                                                        RowDoubleClick="@(args => OpenDtoDetails(args.Data, args.Data.PhysicalSourceName, "Table"))">
+                                            <Columns>
+                                                @foreach (var prop in TableProperties)
                                                 {
-                                                    <RadzenIcon Icon="help_outline"
-                                                                MouseEnter="@(args => TooltipService.Open(args, description))" />
+                                                    <RadzenDataGridColumn TItem="SourceTableDto"
+                                                                          Property="@prop.Name"
+                                                                          Width="@GetColumnWidth(prop.Name, false)">
+                                                        <HeaderTemplate>
+                                                            <div class="view-label-blue">
+                                                                @ReflectionUtils.GetDisplayName(typeof(SourceTableDto), prop.Name)
+                                                                @{
+                                                                    var description = ReflectionUtils.GetDescription(typeof(SourceTableDto), prop.Name);
+                                                                }
+                                                                @if (!string.IsNullOrWhiteSpace(description))
+                                                                {
+                                                                    <RadzenIcon Icon="help_outline"
+                                                                                MouseEnter="@(args => TooltipService.Open(args, description))" />
+                                                                }
+                                                            </div>
+                                                        </HeaderTemplate>
+                                                    </RadzenDataGridColumn>
                                                 }
-                                            </div>
-                                        </HeaderTemplate>
-                                    </RadzenDataGridColumn>
-                                }
-                            </Columns>
-                        </RadzenDataGrid>
-                    </div>
+                                            </Columns>
+                                        </RadzenDataGrid>
+                                    </div>
+                                </div>
+                            </div>
+                        </RadzenSplitterPane>
+
+                        <RadzenSplitterPane Size="500px" Min="500px" Max="500px">
+                            <div class="parser-panel parser-right-section">
+                                <div class="parser-section-title">Parsed View Columns</div>
+                                <div class="parser-grid-frame">
+                                    <div class="parser-grid-scroll">
+                                        <RadzenDataGrid Data="@ParsedColumns"
+                                                        TItem="ViewColumnDto"
+                                                        AllowPaging="false"
+                                                        AllowFiltering="true"
+                                                        AllowColumnResize="true"
+                                                        FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                                                        Density="Density.Compact"
+                                                        Style="height:500px; min-width:1700px;"
+                                                        RowDoubleClick="@(args => OpenDtoDetails(args.Data, args.Data.ColumnName, "Column"))">
+                                            <Columns>
+                                                @foreach (var prop in ColumnProperties)
+                                                {
+                                                    <RadzenDataGridColumn TItem="ViewColumnDto"
+                                                                          Property="@prop.Name"
+                                                                          Width="@GetColumnWidth(prop.Name, true)">
+                                                        <HeaderTemplate>
+                                                            <div class="view-label-blue">
+                                                                @ReflectionUtils.GetDisplayName(typeof(ViewColumnDto), prop.Name)
+                                                                @{
+                                                                    var description = ReflectionUtils.GetDescription(typeof(ViewColumnDto), prop.Name);
+                                                                }
+                                                                @if (!string.IsNullOrWhiteSpace(description))
+                                                                {
+                                                                    <RadzenIcon Icon="help_outline"
+                                                                                MouseEnter="@(args => TooltipService.Open(args, description))" />
+                                                                }
+                                                            </div>
+                                                        </HeaderTemplate>
+                                                    </RadzenDataGridColumn>
+                                                }
+                                            </Columns>
+                                        </RadzenDataGrid>
+                                    </div>
+                                </div>
+                            </div>
+                        </RadzenSplitterPane>
+                    </RadzenSplitter>
                 </div>
-            </div>
-        </div>
+            </RadzenSplitterPane>
+        </RadzenSplitter>
     </div>
 </RadzenStack>
 
