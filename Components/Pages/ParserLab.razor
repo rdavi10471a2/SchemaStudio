@@ -438,6 +438,7 @@
     private int? SelectedObjectId;
     private SchemaObjectModel? SelectedObject;
     private bool IsLoading;
+    private int _parseRequestVersion;
 
     private readonly DatabaseRepository _dbRepo =
         new(AppConfig.Current.ConnectionStrings.DefaultConnection);
@@ -457,6 +458,8 @@
 
     private async Task OnDatabaseChanged(object value)
     {
+        _parseRequestVersion++;
+
         if (!int.TryParse(value?.ToString(), out var dbId))
         {
             ResetSelection(clearDatabase: true);
@@ -475,6 +478,7 @@
 
     private async Task OnDomainChanged(object value)
     {
+        _parseRequestVersion++;
         SelectedDomain = value?.ToString() ?? string.Empty;
         SelectedObjectId = null;
         SelectedObject = null;
@@ -493,6 +497,8 @@
 
     private async Task OnObjectChanged(object value)
     {
+        _parseRequestVersion++;
+
         if (!int.TryParse(value?.ToString(), out var objId) || objId <= 0)
         {
             SelectedObjectId = null;
@@ -569,19 +575,32 @@
             return;
         }
 
+        var requestVersion = _parseRequestVersion;
+        var selectedObjectId = SelectedObject.SchemaObjectId;
+        var sourceDatabaseName = SelectedObject.SourceDatabaseName ?? string.Empty;
+        var sourceSchemaName = SelectedObject.SourceSchemaName;
+        var sourceObjectName = SelectedObject.SourceObjectName;
+
         IsLoading = true;
 
         try
         {
             var parsed = reloadSelectedView
                 ? ParserService.ReloadView(
-                    SelectedObject.SourceDatabaseName ?? string.Empty,
-                    SelectedObject.SourceSchemaName,
-                    SelectedObject.SourceObjectName)
+                    sourceDatabaseName,
+                    sourceSchemaName,
+                    sourceObjectName)
                 : ParserService.ParseView(
-                    SelectedObject.SourceDatabaseName ?? string.Empty,
-                    SelectedObject.SourceSchemaName,
-                    SelectedObject.SourceObjectName);
+                    sourceDatabaseName,
+                    sourceSchemaName,
+                    sourceObjectName);
+
+            if (requestVersion != _parseRequestVersion ||
+                SelectedObject == null ||
+                SelectedObject.SchemaObjectId != selectedObjectId)
+            {
+                return;
+            }
 
             ParsedTables = parsed?.SourceTables.ToSourceTableDtos() ?? new List<SourceTableDto>();
             ParsedColumns = parsed?.Columns.ToViewColumnDtos() ?? new List<ViewColumnDto>();
@@ -596,8 +615,11 @@
         }
         catch (Exception ex)
         {
-            ParsedTables.Clear();
-            ParsedColumns.Clear();
+            if (requestVersion == _parseRequestVersion)
+            {
+                ParsedTables.Clear();
+                ParsedColumns.Clear();
+            }
             NotificationService.Notify(
                 NotificationSeverity.Error,
                 "Parser failed",
