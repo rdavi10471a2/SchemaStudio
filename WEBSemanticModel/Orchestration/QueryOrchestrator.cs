@@ -3,7 +3,6 @@ using SchemaStudioWebViewer.WEBSemanticModel.Diagnostics;
 using SchemaStudioWebViewer.WEBSemanticModel.Model;
 using SchemaStudioWebViewer.WEBSemanticModel.Parsing;
 using SchemaStudioWebViewer.WEBSemanticModel.Providers;
-using SchemaStudioWebViewer.WEBSemanticModel.Parsing;
 using SchemaStudio.AIHelpers;
 
 namespace SchemaStudioWebViewer.WEBSemanticModel.Orchestration
