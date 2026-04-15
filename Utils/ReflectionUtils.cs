@@ -66,7 +66,10 @@ namespace SchemaStudioWebViewer.Utils
 
             // Look for your custom attribute specifically in the Models namespace
             var attr = prop.GetCustomAttribute<Models.MultilineDisplayRequiredAttribute>();
-            return attr?.IsMultiline ?? false;
+            if (attr?.IsMultiline == true) return true;
+
+            var dataType = prop.GetCustomAttribute<DataTypeAttribute>();
+            return dataType?.DataType == DataType.MultilineText;
         }
 
         public static bool IsDetailViewOnly<T>(string propertyName)

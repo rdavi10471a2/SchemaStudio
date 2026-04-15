@@ -10,7 +10,6 @@
     <PackageReference Include="Dapper" Version="2.1.72" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.5" />
-    <PackageReference Include="Microsoft.SqlServer.TransactSql.ScriptDom" Version="170.191.0" />
     <PackageReference Include="ModelContextProtocol" Version="1.2.0" />
     <PackageReference Include="ModelContextProtocol.AspNetCore" Version="1.2.0" />
     <PackageReference Include="Radzen.Blazor" Version="10.2.2" />
@@ -18,26 +17,22 @@
 
   <ItemGroup>
     <Folder Include="Components\Fragments\" />
-    <Folder Include="WEBSemanticModel\" />
-    <Folder Include="WEBSemanticModel\Binding\" />
-    <Folder Include="WEBSemanticModel\Diagnostics\" />
-    <Folder Include="WEBSemanticModel\DTO\" />
-    <Folder Include="WEBSemanticModel\Model\" />
-    <Folder Include="WEBSemanticModel\Orchestration\" />
-    <Folder Include="WEBSemanticModel\Parsing\" />
-    <Folder Include="WEBSemanticModel\Providers\" />
-    <Folder Include="WEBSemanticModel\Services\" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="SchemaStudio.AIHelpers\SchemaStudio.AIHelpers.csproj" />
+    <ProjectReference Include="WEBSemanticModel\SchemaStudioWebViewer.WEBSemanticModel.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <Compile Remove="SchemaStudio.AIHelpers\**\*.cs" />
+    <Compile Remove="WEBSemanticModel\**\*.cs" />
     <Content Remove="SchemaStudio.AIHelpers\**\*" />
+    <Content Remove="WEBSemanticModel\**\*" />
     <EmbeddedResource Remove="SchemaStudio.AIHelpers\**\*" />
+    <EmbeddedResource Remove="WEBSemanticModel\**\*" />
     <None Remove="SchemaStudio.AIHelpers\**\*" />
+    <None Remove="WEBSemanticModel\**\*" />
   </ItemGroup>
 
   <!-- AI 2026-04-15 10:36: restored post-build Git checkpoint hook for build snapshots. -->
