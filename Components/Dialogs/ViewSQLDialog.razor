@@ -1,20 +1,15 @@
 ﻿@using SchemaStudioWebViewer.Models
 @inject IJSRuntime JSRuntime
 
-<RadzenStack Gap="1rem" Style="padding: 10px; height: 100%; overflow: hidden;">
-    <RadzenRow AlignItems="AlignItems.Center">
-        <RadzenColumn Size="6">
-            <RadzenText TextStyle="TextStyle.Caption">Modified: @(ModifyDate?.ToString("yyyy-MM-dd HH:mm") ?? "N/A")</RadzenText>
-        </RadzenColumn>
-        @if (IsMock)
-        {
-            <RadzenColumn Size="6" class="rz-text-align-right">
-                <RadzenBadge BadgeStyle="BadgeStyle.Danger" Text="VIEW RETRIEVAL FAILED Sample SQL Used" Variant="Variant.Flat" />
-            </RadzenColumn>
-        }
-    </RadzenRow>
+<RadzenStack Gap="0.75rem" Style="padding: 10px; height: 100%; overflow: hidden;">
+    @if (IsMock)
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Danger" Shade="Shade.Light">
+            View retrieval failed. Sample SQL is being shown instead.
+        </RadzenAlert>
+    }
 
-    <div class="sql-code-container" style="flex-grow: 1; border: @(IsMock ? "2px solid red" : "1px solid #444"); max-height: 600px; overflow: auto;">
+    <div class="sql-code-container" style="flex-grow: 1; border: @(IsMock ? "2px solid #dc3545" : "1px solid #444"); border-radius: 4px; overflow: auto; background:#111827;">
         <pre class="language-sql"><code class="language-sql">@SqlContent</code></pre>
     </div>
 </RadzenStack>
@@ -22,7 +17,6 @@
 @code {
     [Parameter] public string SqlContent { get; set; }
     [Parameter] public bool IsMock { get; set; }
-    [Parameter] public DateTime? ModifyDate { get; set; }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

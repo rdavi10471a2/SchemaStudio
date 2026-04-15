@@ -8,6 +8,7 @@
 @using SchemaStudioWebViewer.Components.Dialogs
 @using SchemaStudioWebViewer.Utils
 @using SchemaStudioWebViewer.WEBSemanticModel.DTO
+@using SchemaStudioWebViewer.WEBSemanticModel.Model
 @using SchemaStudioWebViewer.WEBSemanticModel.Services
 @using Radzen
 @using Radzen.Blazor
@@ -15,6 +16,7 @@
 @inject DialogService DialogService
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
+@inject ViewParsingService ParserService
 
 <style>
     .parser-panel {
@@ -91,7 +93,7 @@
 
 <PageTitle>Parser Test Area</PageTitle>
 
-@* 2026-04-15 03:08 PM CDT AI parser lab marker: this page is a dedicated parser sandbox with attribute-driven tables and columns grids for WEBSemanticModel output. *@
+@* 2026-04-15 03:46 PM CDT AI parser lab marker: resolve the parser through DI so parse, reload, and clear-cache actions share one scoped cache-backed service instance. *@
 
 <RadzenStack Gap="1rem">
     <RadzenCard Variant="Variant.Flat" Class="rz-p-3">
@@ -165,11 +167,32 @@
                     }
 
                     <div style="margin-top:auto;">
-                        <RadzenButton Text="Parse Selected View"
-                                      Icon="play_arrow"
-                                      Style="width:100%;"
-                                      Disabled="@(SelectedObject == null || IsLoading)"
-                                      Click="@ParseSelectedViewAsync" />
+                        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+                            <RadzenButton Text="Show SQL"
+                                          Icon="code"
+                                          Style="flex:1;"
+                                          Disabled="@(SelectedObject == null || IsLoading)"
+                                          Click="@ShowParserSqlAsync" />
+
+                            <RadzenButton Text="Parse"
+                                          Icon="play_arrow"
+                                          Style="flex:1;"
+                                          Disabled="@(SelectedObject == null || IsLoading)"
+                                          Click="@ParseSelectedViewAsync" />
+
+                            <RadzenButton Text="Reload"
+                                          Icon="refresh"
+                                          Style="flex:1;"
+                                          Disabled="@(SelectedObject == null || IsLoading)"
+                                          Click="@ReloadSelectedViewAsync" />
+
+                            <RadzenButton Text="Clear Cache"
+                                          Icon="delete_sweep"
+                                          ButtonStyle="ButtonStyle.Secondary"
+                                          Style="flex:1;"
+                                          Disabled="@IsLoading"
+                                          Click="@ClearParserCacheAsync" />
+                        </RadzenStack>
                     </div>
                 </div>
             </RadzenSplitterPane>
@@ -351,6 +374,64 @@
 
     private async Task ParseSelectedViewAsync()
     {
+        await ParseSelectedViewInternalAsync(reloadSelectedView: false);
+    }
+
+    private async Task ReloadSelectedViewAsync()
+    {
+        await ParseSelectedViewInternalAsync(reloadSelectedView: true);
+    }
+
+    private async Task ShowParserSqlAsync()
+    {
+        if (SelectedObject == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var sqlContent = ParserService.GetViewSql(
+                SelectedObject.SourceDatabaseName ?? string.Empty,
+                SelectedObject.SourceSchemaName,
+                SelectedObject.SourceObjectName) ?? string.Empty;
+
+            if (string.IsNullOrWhiteSpace(sqlContent))
+            {
+                NotificationService.Notify(
+                    NotificationSeverity.Warning,
+                    "Parser SQL unavailable",
+                    "The parser service did not return SQL for the selected view.");
+                return;
+            }
+
+            await DialogService.OpenAsync<ViewSQLDialog>(
+                $"Parser SQL: {SelectedObject.SourceObjectName}",
+                new Dictionary<string, object>
+                {
+                    { "SqlContent", sqlContent },
+                    { "IsMock", false }
+                },
+                new DialogOptions
+                {
+                    Width = "1200px",
+                    Height = "820px",
+                    Resizable = true,
+                    Draggable = true
+                });
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(
+                NotificationSeverity.Error,
+                "Parser SQL failed",
+                ex.Message,
+                5000);
+        }
+    }
+
+    private async Task ParseSelectedViewInternalAsync(bool reloadSelectedView)
+    {
         if (SelectedObject == null)
         {
             return;
@@ -360,18 +441,18 @@
 
         try
         {
-            var parserService = new ViewParsingService(
-                AppConfig.Current.ConnectionStrings.DefaultConnection);
+            var parsed = reloadSelectedView
+                ? ParserService.ReloadView(
+                    SelectedObject.SourceDatabaseName ?? string.Empty,
+                    SelectedObject.SourceSchemaName,
+                    SelectedObject.SourceObjectName)
+                : ParserService.ParseView(
+                    SelectedObject.SourceDatabaseName ?? string.Empty,
+                    SelectedObject.SourceSchemaName,
+                    SelectedObject.SourceObjectName);
 
-            ParsedTables = parserService.GetSourceTableDtos(
-                SelectedObject.SourceDatabaseName ?? string.Empty,
-                SelectedObject.SourceSchemaName,
-                SelectedObject.SourceObjectName);
-
-            ParsedColumns = parserService.GetViewColumnDtos(
-                SelectedObject.SourceDatabaseName ?? string.Empty,
-                SelectedObject.SourceSchemaName,
-                SelectedObject.SourceObjectName);
+            ParsedTables = parsed?.SourceTables.ToSourceTableDtos() ?? new List<SourceTableDto>();
+            ParsedColumns = parsed?.Columns.ToViewColumnDtos() ?? new List<ViewColumnDto>();
 
             if (ParsedTables.Count == 0 && ParsedColumns.Count == 0)
             {
@@ -395,6 +476,19 @@
         {
             IsLoading = false;
         }
+    }
+
+    private Task ClearParserCacheAsync()
+    {
+        ParserService.ClearCache();
+
+        NotificationService.Notify(
+            NotificationSeverity.Info,
+            "Parser cache cleared",
+            "The parser SQL cache has been cleared for this page session.",
+            3000);
+
+        return Task.CompletedTask;
     }
 
     private async Task OpenDtoDetails(object model, string? label, string kind)
