@@ -30,6 +30,7 @@
     <None Remove="SchemaStudio.AIHelpers\**\*" />
   </ItemGroup>
 
+  <!-- AI 2026-04-15 10:36: restored post-build Git checkpoint hook for build snapshots. -->
   <Target Name="PostBuildGitCheckpoint" AfterTargets="Build">
     <Exec
       WorkingDirectory="$(MSBuildProjectDirectory)"
