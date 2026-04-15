@@ -203,25 +203,10 @@
                     @SelectedObject.BusinessName
                 </RadzenText>
 
-                @* 2026-04-15 02:45 PM CDT AI parser integration marker: use raw parser SQL plus attribute-driven popup grids for parser tables and parser columns. *@
+                @* 2026-04-15 03:10 PM CDT AI parser cleanup marker: remove the temporary parser test buttons from Home now that ParserLab owns the parser sandbox workflow. *@
                 <RadzenButton Icon="code"
                               Text="VIEW SQL"
                               Click="@ShowViewDefinition" />
-
-                <RadzenButton Icon="integration_instructions"
-                              Text="PARSER SQL"
-                              Style="margin-left:0.5rem;"
-                              Click="@ShowParserViewDefinition" />
-
-                <RadzenButton Icon="table_rows"
-                              Text="PARSER TABLES"
-                              Style="margin-left:0.5rem;"
-                              Click="@ShowParserTables" />
-
-                <RadzenButton Icon="view_column"
-                              Text="PARSER COLUMNS"
-                              Style="margin-left:0.5rem;"
-                              Click="@ShowParserColumns" />
             </RadzenColumn>
 
             <RadzenColumn Size="12" SizeMD="4">
@@ -605,146 +590,6 @@
             {
                 { "SqlContent", cleanedSql }
             });
-    }
-
-    private async Task ShowParserViewDefinition()
-    {
-        if (SelectedObject == null)
-            return;
-
-        try
-        {
-            var parserService = new ViewParsingService(
-                AppConfig.Current.ConnectionStrings.DefaultConnection);
-
-            string sqlContent = parserService.GetViewSql(
-                SelectedObject.SourceDatabaseName ?? string.Empty,
-                SelectedObject.SourceSchemaName,
-                SelectedObject.SourceObjectName) ?? string.Empty;
-
-            if (string.IsNullOrWhiteSpace(sqlContent))
-            {
-                NotificationService.Notify(
-                    NotificationSeverity.Warning,
-                    "Parser SQL unavailable",
-                    "The parser service did not return SQL for the selected view.");
-                return;
-            }
-
-            await DialogService.OpenAsync<ViewSQLDialog>(
-                $"Parser SQL: {SelectedObject.SourceObjectName}",
-                new Dictionary<string, object>
-                {
-                    { "SqlContent", sqlContent },
-                    { "IsMock", false }
-                });
-        }
-        catch (Exception ex)
-        {
-            NotificationService.Notify(
-                NotificationSeverity.Error,
-                "Parser SQL failed",
-                ex.Message,
-                5000);
-        }
-    }
-
-    private async Task ShowParserTables()
-    {
-        if (SelectedObject == null)
-            return;
-
-        try
-        {
-            var parserService = new ViewParsingService(
-                AppConfig.Current.ConnectionStrings.DefaultConnection);
-
-            var tables = parserService.GetSourceTableDtos(
-                SelectedObject.SourceDatabaseName ?? string.Empty,
-                SelectedObject.SourceSchemaName,
-                SelectedObject.SourceObjectName);
-
-            if (tables.Count == 0)
-            {
-                NotificationService.Notify(
-                    NotificationSeverity.Warning,
-                    "Parser tables unavailable",
-                    "The parser service did not return any source tables for the selected view.");
-                return;
-            }
-
-            await DialogService.OpenAsync<DynamicGridDialog>(
-                $"Parser Tables: {SelectedObject.SourceObjectName} ({tables.Count} total)",
-                new Dictionary<string, object>
-                {
-                    { "Items", tables.Cast<object>().ToList() },
-                    { "EmptyMessage", "The parser service did not return any source tables for the selected view." }
-                },
-                new DialogOptions()
-                {
-                    Width = "1200px",
-                    Height = "800px",
-                    Resizable = true,
-                    Draggable = true
-                });
-        }
-        catch (Exception ex)
-        {
-            NotificationService.Notify(
-                NotificationSeverity.Error,
-                "Parser tables failed",
-                ex.Message,
-                5000);
-        }
-    }
-
-    private async Task ShowParserColumns()
-    {
-        if (SelectedObject == null)
-            return;
-
-        try
-        {
-            var parserService = new ViewParsingService(
-                AppConfig.Current.ConnectionStrings.DefaultConnection);
-
-            var columns = parserService.GetViewColumnDtos(
-                SelectedObject.SourceDatabaseName ?? string.Empty,
-                SelectedObject.SourceSchemaName,
-                SelectedObject.SourceObjectName);
-
-            if (columns.Count == 0)
-            {
-                NotificationService.Notify(
-                    NotificationSeverity.Warning,
-                    "Parser columns unavailable",
-                    "The parser service did not return any parsed columns for the selected view.");
-                return;
-            }
-
-            await DialogService.OpenAsync<DynamicGridDialog>(
-                $"Parser Columns: {SelectedObject.SourceObjectName} ({columns.Count} total)",
-                new Dictionary<string, object>
-                {
-                    { "Items", columns.Cast<object>().ToList() },
-                    { "EmptyMessage", "The parser service did not return any parsed columns for the selected view." }
-                },
-                new DialogOptions()
-                {
-                    Width = "1200px",
-                    Height = "800px",
-                    Resizable = true,
-                    Draggable = true
-                });
-        }
-        catch (Exception ex)
-        {
-            NotificationService.Notify(
-                NotificationSeverity.Error,
-                "Parser columns failed",
-                ex.Message,
-                5000);
-        }
     }
 
     private async Task OpenHelp(string id)

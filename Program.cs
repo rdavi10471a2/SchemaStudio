@@ -3,16 +3,17 @@ using SchemaStudioWebViewer.Components;
 using SchemaStudio.AIHelpers;
 using SchemaStudioWebViewer.Configuration;
 using SchemaStudioWebViewer.Utils;
-using SchemaStudioWebViewer.WEBSemanticModel.Services;
 
 namespace SchemaStudioWebViewer
 {
-    [FileVersion("1.1")]
+    [FileVersion("1.2")]
     [AIFileContext("Program.cs", "Bootstraps the SchemaStudioWebViewer web app, initializes configuration, registers services, and maps the Razor and MCP endpoints.")]
     [AIChange("1.0", "2026-04-13 02:37 PM CDT workflow header test: added the initial file header metadata, version marker, and visible compare marker for Program.cs.", AICommandStatus.Pending)]
     [AIChange("1.1", "2026-04-15 03:00 PM CDT registered the WEBSemanticModel ViewParsingService so Home.razor can request SQL through the parser DLL.", AICommandStatus.Pending)]
+    [AIChange("1.2", "2026-04-15 03:10 PM CDT removed the temporary parser DI registration after moving parser testing onto the dedicated ParserLab page.", AICommandStatus.Pending)]
     // 2026-04-13 02:37 PM CDT AI v1.0 workflow header test marker: added the initial file header and pending metadata for Program.cs review.
     // 2026-04-15 03:00 PM CDT AI v1.1 parser button marker: registered the parser DLL service for Home view SQL retrieval.
+    // 2026-04-15 03:10 PM CDT AI v1.2 parser cleanup marker: ParserLab now instantiates its parser service directly, so Program no longer carries the temporary parser DI registration.
     public class Program
     {
         public static void Main(string[] args)
@@ -38,8 +39,6 @@ namespace SchemaStudioWebViewer
             // registrations internally. Having both causes the UI to stop responding.
             builder.Services.AddRadzenComponents();
             builder.Services.AddScoped<AttributeService>();
-            builder.Services.AddScoped<ViewParsingService>(_ =>
-                new ViewParsingService(AppConfig.Current.ConnectionStrings.DefaultConnection));
 
 
             var app = builder.Build();

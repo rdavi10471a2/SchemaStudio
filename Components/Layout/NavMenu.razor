@@ -2,10 +2,15 @@
 @using Microsoft.AspNetCore.Components.Routing
 
 <RadzenPanelMenu Style="width: 100%;">
+    @* 2026-04-15 03:10 PM CDT AI parser nav marker: add a dedicated parser sandbox entry instead of keeping parser experiments on Home. *@
     <RadzenPanelMenuItem Text="Schema Explorer"
                          Icon="explore"
                          Path="/"
                          Match="NavLinkMatch.All" />
+
+    <RadzenPanelMenuItem Text="Parser Test Area"
+                         Icon="account_tree"
+                         Path="/parser-lab" />
 
     <RadzenPanelMenuItem Text="Help Editor"
                          Icon="settings_applications"

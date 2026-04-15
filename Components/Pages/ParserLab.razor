@@ -1,0 +1,451 @@
+@page "/parser-lab"
+
+@using System.Reflection
+@using System.ComponentModel.DataAnnotations
+@using SchemaStudioWebViewer.Configuration
+@using SchemaStudioWebViewer.Data
+@using SchemaStudioWebViewer.Models
+@using SchemaStudioWebViewer.Components.Dialogs
+@using SchemaStudioWebViewer.Utils
+@using SchemaStudioWebViewer.WEBSemanticModel.DTO
+@using SchemaStudioWebViewer.WEBSemanticModel.Services
+@using Radzen
+@using Radzen.Blazor
+
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+@inject TooltipService TooltipService
+
+<style>
+    .parser-lab-shell {
+        display: grid;
+        grid-template-columns: minmax(280px, 340px) 1fr;
+        gap: 1rem;
+    }
+
+    .parser-panel {
+        background: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        padding: 1rem;
+    }
+
+    .parser-grid-frame {
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .parser-section-title {
+        color: var(--rz-primary);
+        font-size: 1rem;
+        font-weight: 700;
+        margin-bottom: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .view-label-blue {
+        color: var(--rz-primary) !important;
+        font-weight: 400 !important;
+        text-transform: uppercase !important;
+        font-size: 0.75rem !important;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        min-height: 24px;
+    }
+
+    @@media (max-width: 1100px) {
+        .parser-lab-shell {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<PageTitle>Parser Test Area</PageTitle>
+
+@* 2026-04-15 03:08 PM CDT AI parser lab marker: this page is a dedicated parser sandbox with attribute-driven tables and columns grids for WEBSemanticModel output. *@
+
+<RadzenStack Gap="1rem">
+    <RadzenCard Variant="Variant.Flat" Class="rz-p-3">
+        <RadzenText TextStyle="TextStyle.H5" Class="rz-m-0">Parser Test Area</RadzenText>
+        <RadzenText TextStyle="TextStyle.Body2" Style="color:#495057;">
+            Select a source view on the left to parse it and inspect parser-derived source tables and projected columns on the right.
+        </RadzenText>
+    </RadzenCard>
+
+    <div class="parser-lab-shell">
+        <div class="parser-panel">
+            <div class="parser-section-title">Select View</div>
+
+            <RadzenStack Gap="0.75rem">
+                <RadzenDropDown Data="@Databases"
+                                TextProperty="DatabaseName"
+                                ValueProperty="DatabaseId"
+                                Placeholder="Database"
+                                @bind-Value="@SelectedDatabaseId"
+                                Change="@OnDatabaseChanged"
+                                Style="width:100%;"
+                                AllowClear="true" />
+
+                <RadzenDropDown Data="@Domains"
+                                TextProperty="Domain"
+                                ValueProperty="Domain"
+                                Placeholder="Business Domain"
+                                @bind-Value="@SelectedDomain"
+                                Change="@OnDomainChanged"
+                                Disabled="@(!SelectedDatabaseId.HasValue)"
+                                Style="width:100%;"
+                                AllowClear="true" />
+
+                <RadzenDropDown Data="@DisplayObjects"
+                                TextProperty="DisplayName"
+                                ValueProperty="SchemaObjectId"
+                                Placeholder="View"
+                                @bind-Value="@SelectedObjectId"
+                                Change="@OnObjectChanged"
+                                Disabled="@string.IsNullOrWhiteSpace(SelectedDomain)"
+                                Style="width:100%;"
+                                AllowClear="true">
+                    <Template Context="obj">
+                        @{
+                            var item = obj as DisplaySchemaObject;
+                        }
+
+                        @if (item?.IsHeader == true)
+                        {
+                            <div style="font-weight:700;color:#888;background:#f5f5f5;padding:.35rem .5rem;">
+                                @item.DisplayName
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="rz-display-flex rz-align-items-center" style="gap:.5rem;">
+                                @if (item?.IsBaseObject == true)
+                                {
+                                    <RadzenIcon Icon="layers"
+                                                Style="font-size:14px;color:var(--rz-primary);" />
+                                }
+
+                                <span>@item?.DisplayName</span>
+                            </div>
+                        }
+                    </Template>
+                </RadzenDropDown>
+
+                <RadzenButton Text="Parse Selected View"
+                              Icon="play_arrow"
+                              Disabled="@(SelectedObject == null || IsLoading)"
+                              Click="@ParseSelectedViewAsync" />
+            </RadzenStack>
+
+            @if (SelectedObject != null)
+            {
+                <RadzenCard Variant="Variant.Outlined" Class="rz-mt-3 rz-p-3">
+                    <RadzenText TextStyle="TextStyle.Overline" Style="font-weight:700;color:var(--rz-primary);">
+                        Selected View
+                    </RadzenText>
+                    <RadzenText TextStyle="TextStyle.H6" Class="rz-mb-1">@SelectedObject.BusinessName</RadzenText>
+                    <RadzenText TextStyle="TextStyle.Body2">@SelectedObject.SourceDatabaseName.@SelectedObject.SourceSchemaName.@SelectedObject.SourceObjectName</RadzenText>
+                    <RadzenText TextStyle="TextStyle.Body2" Style="margin-top:0.75rem;color:#495057;">
+                        Tables: @ParsedTables.Count | Columns: @ParsedColumns.Count
+                    </RadzenText>
+                </RadzenCard>
+            }
+        </div>
+
+        <div class="rz-display-flex rz-flex-column" style="gap:1rem;">
+            <div class="parser-panel">
+                <div class="parser-section-title">Parsed Source Tables</div>
+                <div class="parser-grid-frame">
+                    <RadzenDataGrid Data="@ParsedTables"
+                                    TItem="SourceTableDto"
+                                    AllowPaging="false"
+                                    AllowFiltering="true"
+                                    FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                                    Density="Density.Compact"
+                                    Style="height:300px;"
+                                    RowDoubleClick="@(args => OpenDtoDetails(args.Data, args.Data.PhysicalSourceName, "Table"))">
+                        <Columns>
+                            @foreach (var prop in TableProperties)
+                            {
+                                <RadzenDataGridColumn TItem="SourceTableDto" Property="@prop.Name">
+                                    <HeaderTemplate>
+                                        <div class="view-label-blue">
+                                            @ReflectionUtils.GetDisplayName(typeof(SourceTableDto), prop.Name)
+                                            @{
+                                                var description = ReflectionUtils.GetDescription(typeof(SourceTableDto), prop.Name);
+                                            }
+                                            @if (!string.IsNullOrWhiteSpace(description))
+                                            {
+                                                <RadzenIcon Icon="help_outline"
+                                                            MouseEnter="@(args => TooltipService.Open(args, description))" />
+                                            }
+                                        </div>
+                                    </HeaderTemplate>
+                                </RadzenDataGridColumn>
+                            }
+                        </Columns>
+                    </RadzenDataGrid>
+                </div>
+            </div>
+
+            <div class="parser-panel">
+                <div class="parser-section-title">Parsed View Columns</div>
+                <div class="parser-grid-frame">
+                    <RadzenDataGrid Data="@ParsedColumns"
+                                    TItem="ViewColumnDto"
+                                    AllowPaging="false"
+                                    AllowFiltering="true"
+                                    FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                                    Density="Density.Compact"
+                                    Style="height:320px;"
+                                    RowDoubleClick="@(args => OpenDtoDetails(args.Data, args.Data.ColumnName, "Column"))">
+                        <Columns>
+                            @foreach (var prop in ColumnProperties)
+                            {
+                                <RadzenDataGridColumn TItem="ViewColumnDto" Property="@prop.Name">
+                                    <HeaderTemplate>
+                                        <div class="view-label-blue">
+                                            @ReflectionUtils.GetDisplayName(typeof(ViewColumnDto), prop.Name)
+                                            @{
+                                                var description = ReflectionUtils.GetDescription(typeof(ViewColumnDto), prop.Name);
+                                            }
+                                            @if (!string.IsNullOrWhiteSpace(description))
+                                            {
+                                                <RadzenIcon Icon="help_outline"
+                                                            MouseEnter="@(args => TooltipService.Open(args, description))" />
+                                            }
+                                        </div>
+                                    </HeaderTemplate>
+                                </RadzenDataGridColumn>
+                            }
+                        </Columns>
+                    </RadzenDataGrid>
+                </div>
+            </div>
+        </div>
+    </div>
+</RadzenStack>
+
+@code {
+    private List<DatabaseModel> Databases = new();
+    private List<DatabaseDomainModel> Domains = new();
+    private List<DisplaySchemaObject> DisplayObjects = new();
+    private List<SourceTableDto> ParsedTables = new();
+    private List<ViewColumnDto> ParsedColumns = new();
+
+    private int? SelectedDatabaseId;
+    private string SelectedDomain = string.Empty;
+    private int? SelectedObjectId;
+    private SchemaObjectModel? SelectedObject;
+    private bool IsLoading;
+
+    private readonly DatabaseRepository _dbRepo =
+        new(AppConfig.Current.ConnectionStrings.DefaultConnection);
+
+    private readonly SchemaObjectRepository _schemaRepo =
+        new(AppConfig.Current.ConnectionStrings.DefaultConnection);
+
+    private List<PropertyInfo> TableProperties => GetVisibleGridProperties(typeof(SourceTableDto)).ToList();
+    private List<PropertyInfo> ColumnProperties => GetVisibleGridProperties(typeof(ViewColumnDto)).ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        Databases = await _dbRepo.GetAllAsync();
+    }
+
+    private async Task OnDatabaseChanged(object value)
+    {
+        if (!int.TryParse(value?.ToString(), out var dbId))
+        {
+            ResetSelection(clearDatabase: true);
+            return;
+        }
+
+        SelectedDatabaseId = dbId;
+        SelectedDomain = string.Empty;
+        SelectedObjectId = null;
+        SelectedObject = null;
+        ParsedTables.Clear();
+        ParsedColumns.Clear();
+        DisplayObjects.Clear();
+        Domains = await _dbRepo.GetDomainsAsync(dbId);
+    }
+
+    private async Task OnDomainChanged(object value)
+    {
+        SelectedDomain = value?.ToString() ?? string.Empty;
+        SelectedObjectId = null;
+        SelectedObject = null;
+        ParsedTables.Clear();
+        ParsedColumns.Clear();
+        DisplayObjects.Clear();
+
+        if (!SelectedDatabaseId.HasValue || string.IsNullOrWhiteSpace(SelectedDomain))
+        {
+            return;
+        }
+
+        var raw = await _schemaRepo.GetByDatabaseAsync(SelectedDatabaseId.Value);
+        BuildDisplayObjects(raw);
+    }
+
+    private async Task OnObjectChanged(object value)
+    {
+        if (!int.TryParse(value?.ToString(), out var objId) || objId <= 0)
+        {
+            SelectedObjectId = null;
+            SelectedObject = null;
+            ParsedTables.Clear();
+            ParsedColumns.Clear();
+            return;
+        }
+
+        SelectedObjectId = objId;
+        SelectedObject = await _schemaRepo.GetByIdAsync(objId);
+        ParsedTables.Clear();
+        ParsedColumns.Clear();
+    }
+
+    private async Task ParseSelectedViewAsync()
+    {
+        if (SelectedObject == null)
+        {
+            return;
+        }
+
+        IsLoading = true;
+
+        try
+        {
+            var parserService = new ViewParsingService(
+                AppConfig.Current.ConnectionStrings.DefaultConnection);
+
+            ParsedTables = parserService.GetSourceTableDtos(
+                SelectedObject.SourceDatabaseName ?? string.Empty,
+                SelectedObject.SourceSchemaName,
+                SelectedObject.SourceObjectName);
+
+            ParsedColumns = parserService.GetViewColumnDtos(
+                SelectedObject.SourceDatabaseName ?? string.Empty,
+                SelectedObject.SourceSchemaName,
+                SelectedObject.SourceObjectName);
+
+            if (ParsedTables.Count == 0 && ParsedColumns.Count == 0)
+            {
+                NotificationService.Notify(
+                    NotificationSeverity.Warning,
+                    "Parser returned no data",
+                    "The parser completed, but it did not return any tables or columns for the selected view.");
+            }
+        }
+        catch (Exception ex)
+        {
+            ParsedTables.Clear();
+            ParsedColumns.Clear();
+            NotificationService.Notify(
+                NotificationSeverity.Error,
+                "Parser failed",
+                ex.Message,
+                5000);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task OpenDtoDetails(object model, string? label, string kind)
+    {
+        await DialogService.OpenAsync<DynamicDetailForm>(
+            $"{kind} Details: {label}",
+            new Dictionary<string, object>
+            {
+                { "Model", model }
+            },
+            new DialogOptions
+            {
+                Width = "900px",
+                Height = "800px",
+                Resizable = true,
+                Draggable = true
+            });
+    }
+
+    private static IEnumerable<PropertyInfo> GetVisibleGridProperties(Type type)
+    {
+        return type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Select(prop => new
+            {
+                Property = prop,
+                Display = prop.GetCustomAttribute<DisplayAttribute>(),
+                DetailOnly = prop.GetCustomAttribute<DetailViewOnlyAttribute>()
+            })
+            .Where(x =>
+                x.Display != null &&
+                x.Display.GetAutoGenerateField() != false &&
+                (x.DetailOnly == null || x.DetailOnly.IsDetailOnly == false))
+            .OrderBy(x => x.Display?.GetOrder() ?? 99)
+            .Select(x => x.Property);
+    }
+
+    private void BuildDisplayObjects(List<SchemaObjectModel> raw)
+    {
+        var filtered = raw.Where(x => x.Domain == SelectedDomain)
+            .OrderByDescending(x => x.IsBaseObject)
+            .ThenBy(x => x.BusinessName)
+            .ToList();
+
+        var baseItems = filtered.Where(x => x.IsBaseObject).ToList();
+        var derivedItems = filtered.Where(x => !x.IsBaseObject).ToList();
+
+        DisplayObjects.Add(new DisplaySchemaObject
+        {
+            SchemaObjectId = -1,
+            DisplayName = "━━ BASE OBJECTS ━━",
+            IsHeader = true
+        });
+
+        DisplayObjects.AddRange(baseItems.Select(x => new DisplaySchemaObject
+        {
+            SchemaObjectId = x.SchemaObjectId,
+            DisplayName = x.BusinessName,
+            IsBaseObject = true
+        }));
+
+        if (derivedItems.Any())
+        {
+            DisplayObjects.Add(new DisplaySchemaObject
+            {
+                SchemaObjectId = -2,
+                DisplayName = "━━ DERIVED VIEWS ━━",
+                IsHeader = true
+            });
+
+            DisplayObjects.AddRange(derivedItems.Select(x => new DisplaySchemaObject
+            {
+                SchemaObjectId = x.SchemaObjectId,
+                DisplayName = x.BusinessName,
+                IsBaseObject = false
+            }));
+        }
+    }
+
+    private void ResetSelection(bool clearDatabase)
+    {
+        if (clearDatabase)
+        {
+            SelectedDatabaseId = null;
+            Domains.Clear();
+        }
+
+        SelectedDomain = string.Empty;
+        SelectedObjectId = null;
+        SelectedObject = null;
+        DisplayObjects.Clear();
+        ParsedTables.Clear();
+        ParsedColumns.Clear();
+    }
+}
