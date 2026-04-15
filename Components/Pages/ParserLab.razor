@@ -43,7 +43,7 @@
         overflow: auto;
         height: 100%;
         flex: 1 1 auto;
-        min-height: 460px;
+        min-height: 0;
     }
 
     .parser-grid-scroll {
@@ -91,6 +91,12 @@
         height: calc(100% - 48px);
         display: flex;
         flex-direction: column;
+        min-height: 0;
+    }
+
+    .parser-data-host {
+        flex: 0 0 95%;
+        height: 95%;
         min-height: 0;
     }
 
