@@ -51,6 +51,8 @@
         overflow-y: auto;
         height: 100%;
         min-height: 100%;
+        display: flex;
+        flex-direction: column;
     }
 
     .parser-picker-frame {
@@ -129,9 +131,10 @@
         flex-wrap: wrap;
     }
 
-    .parser-data-host {
+    .parser-data-grid {
         flex: 1 1 auto;
-        min-height: 0;
+        height: 100% !important;
+        min-height: 100% !important;
     }
 
     .parser-tabs .rz-tabview,
@@ -193,7 +196,7 @@
 
     <div class="parser-workspace">
         <RadzenSplitter Style="height:100%;">
-            <RadzenSplitterPane Size="400px" Min="400px" Max="400px">
+            <RadzenSplitterPane Size="240px" Min="240px" Max="240px">
                 <div class="parser-panel parser-left-pane">
                     <div class="parser-section-title">Select View</div>
 
@@ -294,12 +297,13 @@
                                                 <div class="parser-grid-scroll">
                                                     <RadzenDataGrid Data="@ParsedTables"
                                                                     TItem="SourceTableDto"
+                                                                    Class="parser-data-grid"
                                                                     AllowPaging="false"
                                                                     AllowFiltering="true"
                                                                     AllowColumnResize="true"
                                                                     FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
                                                                     Density="Density.Compact"
-                                                                    Style="height:100%; min-width:1600px;"
+                                                                    Style="min-width:1600px;"
                                                                     RowDoubleClick="@(args => OpenDtoDetails(args.Data, args.Data.PhysicalSourceName, "Table"))">
                                                         <Columns>
                                                             @foreach (var prop in TableProperties)
@@ -338,12 +342,13 @@
                                                 <div class="parser-grid-scroll">
                                                     <RadzenDataGrid Data="@ParsedColumns"
                                                                     TItem="ViewColumnDto"
+                                                                    Class="parser-data-grid"
                                                                     AllowPaging="false"
                                                                     AllowFiltering="true"
                                                                     AllowColumnResize="true"
                                                                     FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
                                                                     Density="Density.Compact"
-                                                                    Style="height:100%; min-width:1700px;"
+                                                                    Style="min-width:1700px;"
                                                                     RowDoubleClick="@(args => OpenDtoDetails(args.Data, args.Data.ColumnName, "Column"))">
                                                         <Columns>
                                                             @foreach (var prop in ColumnProperties)
