@@ -470,9 +470,10 @@
         SelectedDomain = string.Empty;
         SelectedObjectId = null;
         SelectedObject = null;
-        ParsedTables.Clear();
-        ParsedColumns.Clear();
+        ParsedTables = new();
+        ParsedColumns = new();
         DisplayObjects.Clear();
+        await InvokeAsync(StateHasChanged);
         Domains = await _dbRepo.GetDomainsAsync(dbId);
     }
 
@@ -482,9 +483,10 @@
         SelectedDomain = value?.ToString() ?? string.Empty;
         SelectedObjectId = null;
         SelectedObject = null;
-        ParsedTables.Clear();
-        ParsedColumns.Clear();
+        ParsedTables = new();
+        ParsedColumns = new();
         DisplayObjects.Clear();
+        await InvokeAsync(StateHasChanged);
 
         if (!SelectedDatabaseId.HasValue || string.IsNullOrWhiteSpace(SelectedDomain))
         {
@@ -503,15 +505,17 @@
         {
             SelectedObjectId = null;
             SelectedObject = null;
-            ParsedTables.Clear();
-            ParsedColumns.Clear();
+            ParsedTables = new();
+            ParsedColumns = new();
+            await InvokeAsync(StateHasChanged);
             return;
         }
 
         SelectedObjectId = objId;
         SelectedObject = await _schemaRepo.GetByIdAsync(objId);
-        ParsedTables.Clear();
-        ParsedColumns.Clear();
+        ParsedTables = new();
+        ParsedColumns = new();
+        await InvokeAsync(StateHasChanged);
         await ParseSelectedViewInternalAsync(reloadSelectedView: false);
     }
 
@@ -617,8 +621,8 @@
         {
             if (requestVersion == _parseRequestVersion)
             {
-                ParsedTables.Clear();
-                ParsedColumns.Clear();
+                ParsedTables = new();
+                ParsedColumns = new();
             }
             NotificationService.Notify(
                 NotificationSeverity.Error,
@@ -760,7 +764,7 @@
         SelectedObjectId = null;
         SelectedObject = null;
         DisplayObjects.Clear();
-        ParsedTables.Clear();
-        ParsedColumns.Clear();
+        ParsedTables = new();
+        ParsedColumns = new();
     }
 }
