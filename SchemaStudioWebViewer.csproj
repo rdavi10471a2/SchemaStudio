@@ -18,6 +18,15 @@
 
   <ItemGroup>
     <Folder Include="Components\Fragments\" />
+    <Folder Include="WEBSemanticModel\" />
+    <Folder Include="WEBSemanticModel\Binding\" />
+    <Folder Include="WEBSemanticModel\Diagnostics\" />
+    <Folder Include="WEBSemanticModel\DTO\" />
+    <Folder Include="WEBSemanticModel\Model\" />
+    <Folder Include="WEBSemanticModel\Orchestration\" />
+    <Folder Include="WEBSemanticModel\Parsing\" />
+    <Folder Include="WEBSemanticModel\Providers\" />
+    <Folder Include="WEBSemanticModel\Services\" />
   </ItemGroup>
 
   <ItemGroup>
