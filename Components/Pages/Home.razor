@@ -16,7 +16,6 @@
 @inject TooltipService TooltipService
 @inject IJSRuntime JSRuntime
 @inject NavigationManager NavigationManager
-@inject ViewParsingService ParserService
 
 <style>
     .view-label-blue {
@@ -204,7 +203,7 @@
                     @SelectedObject.BusinessName
                 </RadzenText>
 
-                @* 2026-04-15 03:01 PM CDT AI parser integration marker: test the forked parser path directly from the view details card. *@
+                @* 2026-04-15 02:11 PM CDT AI parser integration marker: instantiate the WEB parser service directly like DBV2 and show raw parser SQL in the dialog. *@
                 <RadzenButton Icon="code"
                               Text="VIEW SQL"
                               Click="@ShowViewDefinition" />
@@ -605,7 +604,10 @@
 
         try
         {
-            string sqlContent = ParserService.GetViewSql(
+            var parserService = new ViewParsingService(
+                AppConfig.Current.ConnectionStrings.DefaultConnection);
+
+            string sqlContent = parserService.GetViewSql(
                 SelectedObject.SourceDatabaseName ?? string.Empty,
                 SelectedObject.SourceSchemaName,
                 SelectedObject.SourceObjectName) ?? string.Empty;
@@ -619,13 +621,11 @@
                 return;
             }
 
-            string cleanedSql = ViewRepo.CleanSqlDefinition(sqlContent);
-
             await DialogService.OpenAsync<ViewSQLDialog>(
                 $"Parser SQL: {SelectedObject.SourceObjectName}",
                 new Dictionary<string, object>
                 {
-                    { "SqlContent", cleanedSql },
+                    { "SqlContent", sqlContent },
                     { "IsMock", false }
                 });
         }
