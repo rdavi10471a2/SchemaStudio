@@ -153,10 +153,6 @@
 
                                         <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.75rem">
                                             <RadzenButton Icon="refresh" Text="Reset" ButtonStyle="ButtonStyle.Light" Click="@ResetDomainEdit" />
-                                            <RadzenButton Icon="delete"
-                                                          Text="Delete"
-                                                          ButtonStyle="ButtonStyle.Danger"
-                                                          Click="@DeleteDomain" />
                                             <RadzenButton Icon="save" Text="Save Domain" ButtonType="ButtonType.Submit" ButtonStyle="ButtonStyle.Primary" />
                                         </RadzenStack>
                                     </RadzenTemplateForm>
@@ -415,7 +411,7 @@
             return;
 
         var confirmed = await DialogService.Confirm(
-            "Delete this database? This will also delete all child records tied to it, including database domains and any other dependent metadata enforced by database relationships.",
+            "Delete this database? The database constraints will also delete all domains and schema objects within this database.",
             "Delete Database",
             new ConfirmOptions { OkButtonText = "Delete", CancelButtonText = "Cancel" });
 
@@ -519,32 +515,6 @@
             Notify(NotificationSeverity.Success, "Domain created.");
             selectedDomain = domain;
             isNewDomainDialogOpen = false;
-            await LoadDomainsAsync(selectedDatabase.DatabaseId);
-        }
-        catch (Exception ex)
-        {
-            Notify(NotificationSeverity.Error, FriendlyError(ex));
-        }
-    }
-
-    private async Task DeleteDomain()
-    {
-        if (selectedDatabase is null || editDomain.DatabaseDomainId == 0)
-            return;
-
-        var confirmed = await DialogService.Confirm(
-            "Delete this database domain? This may also delete or orphan child records tied to this domain, depending on database relationships.",
-            "Delete Domain",
-            new ConfirmOptions { OkButtonText = "Delete", CancelButtonText = "Cancel" });
-
-        if (confirmed != true)
-            return;
-
-        try
-        {
-            await DomainRepository.DeleteAsync(editDomain.DatabaseDomainId);
-            Notify(NotificationSeverity.Success, "Domain deleted.");
-            selectedDomain = null;
             await LoadDomainsAsync(selectedDatabase.DatabaseId);
         }
         catch (Exception ex)
