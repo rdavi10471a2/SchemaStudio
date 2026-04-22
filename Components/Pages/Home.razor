@@ -20,7 +20,9 @@
 @inject IJSRuntime JSRuntime
 @inject NavigationManager NavigationManager
 
-@attribute [FileVersion("1.0")]
+@attribute [FileVersion("1.2")]
+@attribute [AIChange("1.2", "2026-04-22 11:30 AM CDT added Auth.InDebug autofill for the temporary admin login form.", AICommandStatus.Pending)]
+@attribute [AIChange("1.1", "2026-04-22 11:26 AM CDT added simple admin login/logout controls and gated the normal Home route while leaving kiosk content shared.", AICommandStatus.Pending)]
 @attribute [AIChange("1.0", "2026-04-22 11:06 AM CDT added the /kiosk route alias so kiosk mode can load the Home view through layout policy.", AICommandStatus.Pending)]
 
 <style>
@@ -77,8 +79,21 @@
        /* border-bottom: 2px solid var(--rz-primary);*/
         padding-bottom: 4px;
     }
+
+    .login-panel {
+        max-width: 420px;
+        margin: 1rem auto;
+    }
+
+    .login-error {
+        color: #b32121;
+        font-weight: 600;
+        margin-top: .5rem;
+    }
 </style>
 
+@* 2026-04-22 11:30 AM CDT AI v1.2 debug autofill marker: Auth.InDebug can prefill the temporary admin credentials for local testing. *@
+@* 2026-04-22 11:26 AM CDT AI v1.1 login marker: the shared Home component gates only the normal route and lets kiosk login flow return to /. *@
 @* 2026-04-22 11:06 AM CDT AI v1.0 kiosk route marker: /kiosk intentionally renders the same Home workflow while MainLayout decides whether navigation chrome is shown. *@
 <PageTitle>Choose View</PageTitle>
 
@@ -86,22 +101,34 @@
 
     <RadzenRow Class="rz-mb-2 rz-px-1">
 
-        <RadzenColumn Size="10">
+        <RadzenColumn Size="8">
             <RadzenText TextStyle="TextStyle.Caption"
                         Style="color:#212529;font-weight:700;font-style:normal;">
                 Choose a source Database, Business Domain, and view to see its details.
             </RadzenText>
         </RadzenColumn>
 
-        <RadzenColumn Size="2" Class="rz-text-align-right">
-            <RadzenIcon Icon="help_outline"
-                        Style="cursor:help;color:var(--rz-primary);font-size:1.25rem;"
-                        @onclick="@(() => OpenHelp("system-overview"))"
-                        @ondblclick="@EnterAdminMode" />
+        <RadzenColumn Size="4">
+            <RadzenStack Orientation="Orientation.Horizontal"
+                         AlignItems="AlignItems.Center"
+                         JustifyContent="JustifyContent.End"
+                         Gap="0.5rem">
+                <RadzenButton Size="ButtonSize.Small"
+                              Variant="Variant.Text"
+                              Icon="@(IsAuthenticated ? "logout" : "login")"
+                              Text="@(IsAuthenticated ? "Logout" : "Login")"
+                              Click="@OnAuthButtonClick" />
+                <RadzenIcon Icon="help_outline"
+                            Style="cursor:help;color:var(--rz-primary);font-size:1.25rem;"
+                            @onclick="@(() => OpenHelp("system-overview"))"
+                            @ondblclick="@EnterAdminMode" />
+            </RadzenStack>
         </RadzenColumn>
 
     </RadzenRow>
 
+    @if (CanShowHomeContent)
+    {
     <RadzenRow Gap="0.5rem" AlignItems="AlignItems.Center">
 @* 
         <RadzenColumn Size="12" SizeMD="2">
@@ -179,14 +206,35 @@
         </RadzenColumn>
 
     </RadzenRow>
+    }
 </RadzenCard>
 
-@if (IsLoading)
+@if (ShowLoginPanel)
+{
+    <RadzenCard Variant="Variant.Flat" Class="login-panel rz-p-4">
+        <RadzenStack Gap="0.75rem">
+            <RadzenText TextStyle="TextStyle.H6" Class="rz-m-0">Login</RadzenText>
+            <RadzenTextBox Placeholder="Username"
+                           @bind-Value="@LoginUserName"
+                           Style="width:100%;" />
+            <input class="rz-textbox" type="password" placeholder="Password" @bind="LoginPassword" style="width:100%;" />
+            <RadzenButton Icon="login"
+                          Text="Login"
+                          Click="@LoginAsync" />
+            @if (!string.IsNullOrWhiteSpace(LoginError))
+            {
+                <div class="login-error">@LoginError</div>
+            }
+        </RadzenStack>
+    </RadzenCard>
+}
+
+@if (CanShowHomeContent && IsLoading)
 {
     <RadzenProgressBar Mode="ProgressBarMode.Indeterminate" Class="rz-mb-2" />
 }
 
-@if (SelectedObject != null)
+@if (CanShowHomeContent && SelectedObject != null)
 {
     <div class="section-header">
         VIEW DETAILS
@@ -343,6 +391,16 @@
     private SchemaObjectModel? SelectedObject;
 
     private bool IsLoading = false;
+    private bool IsAuthenticated = false;
+    private bool IsLoginFormVisible = false;
+    private string LoginUserName = "";
+    private string LoginPassword = "";
+    private string LoginError = "";
+
+    private const string AuthStorageKey = "simpleAuth";
+    private const string AuthenticatedValue = "true";
+    private const string AdminUserName = "admin";
+    private const string AdminPassword = "admin123";
 
     private DatabaseRepository DbRepo =
         new(AppConfig.Current.ConnectionStrings.DefaultConnection);
@@ -355,7 +413,10 @@
 
     protected override async Task OnInitializedAsync()
     {
-        Databases = await DbRepo.GetAllAsync();
+        if (CanShowHomeContent)
+        {
+            Databases = await DbRepo.GetAllAsync();
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -365,9 +426,47 @@
 
         await Task.Delay(100);
 
-        await LoadStateAsync();
+        await LoadAuthStateAsync();
+
+        if (CanShowHomeContent)
+        {
+            await LoadStateAsync();
+        }
 
         await InvokeAsync(StateHasChanged);
+    }
+
+    private bool IsKioskRoute =>
+        string.Equals(CurrentRelativePath, AppConfig.Current.Kiosk.Route.Trim('/'), StringComparison.OrdinalIgnoreCase);
+
+    private bool IsNormalHomeRoute => string.IsNullOrWhiteSpace(CurrentRelativePath);
+
+    private bool ShouldBlockNormalHome =>
+        AppConfig.Current.Auth.Enabled &&
+        AppConfig.Current.Auth.RequireLoginForHome &&
+        IsNormalHomeRoute &&
+        !IsAuthenticated;
+
+    private bool ShowLoginPanel => IsLoginFormVisible || ShouldBlockNormalHome;
+
+    private bool CanShowHomeContent => !ShouldBlockNormalHome;
+
+    private string CurrentRelativePath
+    {
+        get
+        {
+            var relative = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+            var queryIndex = relative.IndexOf('?', StringComparison.Ordinal);
+            return (queryIndex >= 0 ? relative[..queryIndex] : relative).Trim('/');
+        }
+    }
+
+    private async Task LoadAuthStateAsync()
+    {
+        var authValue = await JSRuntime.InvokeAsync<string>("stateManager.load", AuthStorageKey);
+        IsAuthenticated = string.Equals(authValue, AuthenticatedValue, StringComparison.OrdinalIgnoreCase);
+        IsLoginFormVisible = ShouldBlockNormalHome;
+        AutofillDebugCredentials();
     }
 
     private async Task LoadStateAsync()
@@ -439,6 +538,82 @@
             SelectedObject = await SchemaRepo.GetByIdAsync(objId);
             Columns = await SchemaRepo.GetColumnsAsync(objId);
             IsLoading = false;
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task OnAuthButtonClick()
+    {
+        if (IsAuthenticated)
+        {
+            await LogoutAsync();
+            return;
+        }
+
+        LoginError = "";
+        IsLoginFormVisible = true;
+        AutofillDebugCredentials();
+    }
+
+    private void AutofillDebugCredentials()
+    {
+        if (!AppConfig.Current.Auth.InDebug || IsAuthenticated)
+            return;
+
+        LoginUserName = AdminUserName;
+        LoginPassword = AdminPassword;
+    }
+
+    private async Task LoginAsync()
+    {
+        if (!string.Equals(LoginUserName, AdminUserName, StringComparison.Ordinal) ||
+            !string.Equals(LoginPassword, AdminPassword, StringComparison.Ordinal))
+        {
+            LoginError = "Invalid username or password.";
+            return;
+        }
+
+        IsAuthenticated = true;
+        IsLoginFormVisible = false;
+        LoginError = "";
+        LoginPassword = "";
+
+        await JSRuntime.InvokeVoidAsync("stateManager.save", AuthStorageKey, AuthenticatedValue);
+
+        if (IsKioskRoute)
+        {
+            NavigationManager.NavigateTo("/");
+            return;
+        }
+
+        if (!Databases.Any())
+        {
+            Databases = await DbRepo.GetAllAsync();
+        }
+
+        await LoadStateAsync();
+    }
+
+    private async Task LogoutAsync()
+    {
+        IsAuthenticated = false;
+        IsLoginFormVisible = ShouldBlockNormalHome;
+        LoginUserName = "";
+        LoginPassword = "";
+        LoginError = "";
+
+        if (IsNormalHomeRoute)
+        {
+            ClearChildSelections();
+        }
+
+        await JSRuntime.InvokeVoidAsync("stateManager.save", AuthStorageKey, "");
+
+        if (!IsNormalHomeRoute)
+        {
+            await InvokeAsync(StateHasChanged);
+            return;
         }
 
         await InvokeAsync(StateHasChanged);

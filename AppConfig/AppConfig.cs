@@ -1,11 +1,16 @@
 ﻿using Microsoft.Extensions.Configuration;
+using System.Diagnostics;
 using SchemaStudio.AIHelpers;
 
 namespace SchemaStudioWebViewer.Configuration
 {
-    [FileVersion("1.0")]
+    [FileVersion("1.2")]
+    [AIChange("1.2", "2026-04-22 11:34 AM CDT guarded Auth.InDebug with Debugger.IsAttached so debug autofill is disabled outside an active debugger session.", AICommandStatus.Pending)]
+    [AIChange("1.1", "2026-04-22 11:30 AM CDT added Auth.InDebug so the temporary login form can autofill debug credentials when configured.", AICommandStatus.Pending)]
     [AIFileContext("AppConfig/AppConfig.cs", "Loads strongly typed application settings for database, MCP, kiosk, and simple-auth policy switches.")]
     [AIChange("1.0", "2026-04-22 11:14 AM CDT added kiosk and simple-auth configuration switches with top-level usings and explicit configuration reads.", AICommandStatus.Pending)]
+    // 2026-04-22 11:34 AM CDT AI v1.2 config marker: Auth.InDebug is ignored unless a debugger is attached, even if config is left true.
+    // 2026-04-22 11:30 AM CDT AI v1.1 config marker: Auth.InDebug controls local autofill for the temporary simple login form.
     // 2026-04-22 11:14 AM CDT AI v1.0 config marker: kiosk and simple-auth switches keep unsettled login/display policy configurable.
     public class AppConfig
     {
@@ -44,6 +49,7 @@ namespace SchemaStudioWebViewer.Configuration
                 Auth = new SimpleAuthConfig
                 {
                     Enabled = ReadBool(configuration, "Auth:Enabled", false),
+                    InDebug = ReadBool(configuration, "Auth:InDebug", false) && Debugger.IsAttached,
                     RequireLoginForHome = ReadBool(configuration, "Auth:RequireLoginForHome", false),
                     RequireLoginForAdmin = ReadBool(configuration, "Auth:RequireLoginForAdmin", true),
                     LoginPath = ReadString(configuration, "Auth:LoginPath", "/login")
@@ -106,6 +112,8 @@ namespace SchemaStudioWebViewer.Configuration
     public class SimpleAuthConfig
     {
         public bool Enabled { get; set; } = false;
+
+        public bool InDebug { get; set; } = false;
 
         public bool RequireLoginForHome { get; set; } = false;
 
