@@ -314,6 +314,11 @@
                                   Disabled="@(SelectedObject == null || IsLoading)"
                                   Click="@ReloadSelectedViewAsync" />
 
+                    <RadzenButton Text="Dependencies"
+                                  Icon="account_tree"
+                                  Disabled="@(CurrentParsedView == null || IsLoading)"
+                                  Click="@ShowParsedDependenciesAsync" />
+
                     <RadzenButton Text="Clear Cache"
                                   Icon="delete_sweep"
                                   ButtonStyle="ButtonStyle.Secondary"
@@ -434,6 +439,7 @@
     private List<DisplaySchemaObject> DisplayObjects = new();
     private List<SourceTableDto> ParsedTables = new();
     private List<ViewColumnDto> ParsedColumns = new();
+    private ParsedQuery? CurrentParsedView;
 
     private int? SelectedDatabaseId;
     private string SelectedDomain = string.Empty;
@@ -479,6 +485,7 @@
         SelectedObject = null;
         ParsedTables = new();
         ParsedColumns = new();
+        CurrentParsedView = null;
         DisplayObjects.Clear();
         await InvokeAsync(StateHasChanged);
         try
@@ -504,6 +511,7 @@
         SelectedObject = null;
         ParsedTables = new();
         ParsedColumns = new();
+        CurrentParsedView = null;
         DisplayObjects.Clear();
         await InvokeAsync(StateHasChanged);
 
@@ -537,6 +545,7 @@
             SelectedObject = null;
             ParsedTables = new();
             ParsedColumns = new();
+            CurrentParsedView = null;
             await InvokeAsync(StateHasChanged);
             return;
         }
@@ -544,7 +553,7 @@
         SelectedObjectId = objId;
         try
         {
-            SelectedObject = await SchemaObjectRepository.GetByIdAsync(objId);
+        SelectedObject = await SchemaObjectRepository.GetByIdAsync(objId);
         }
         catch (Exception ex)
         {
@@ -569,6 +578,7 @@
 
         ParsedTables = new();
         ParsedColumns = new();
+        CurrentParsedView = null;
         await InvokeAsync(StateHasChanged);
         await ParseSelectedViewInternalAsync(reloadSelectedView: false);
     }
@@ -662,6 +672,7 @@
 
             ParsedTables = parsed?.SourceTables.ToSourceTableDtos() ?? new List<SourceTableDto>();
             ParsedColumns = parsed?.Columns.ToViewColumnDtos() ?? new List<ViewColumnDto>();
+            CurrentParsedView = parsed;
 
             if (ParsedTables.Count == 0 && ParsedColumns.Count == 0)
             {
@@ -677,6 +688,7 @@
             {
                 ParsedTables = new();
                 ParsedColumns = new();
+                CurrentParsedView = null;
             }
             NotificationService.Notify(
                 NotificationSeverity.Error,
@@ -701,6 +713,35 @@
             3000);
 
         return Task.CompletedTask;
+    }
+
+    private async Task ShowParsedDependenciesAsync()
+    {
+        var dependencies = CurrentParsedView.GetResolvedDependencies();
+
+        if (dependencies.Count == 0)
+        {
+            NotificationService.Notify(
+                NotificationSeverity.Info,
+                "No dependencies",
+                "The current parser result does not contain named object dependencies.",
+                3000);
+            return;
+        }
+
+        await DialogService.OpenAsync<ParsedDependenciesDialog>(
+            $"Parsed Dependencies: {SelectedObject?.SourceObjectName}",
+            new Dictionary<string, object>
+            {
+                { "Dependencies", dependencies }
+            },
+            new DialogOptions
+            {
+                Width = "1100px",
+                Height = "760px",
+                Resizable = true,
+                Draggable = true
+            });
     }
 
     private async Task OpenDtoDetails(object model, string? label, string kind)
@@ -832,5 +873,6 @@
         DisplayObjects.Clear();
         ParsedTables = new();
         ParsedColumns = new();
+        CurrentParsedView = null;
     }
 }
