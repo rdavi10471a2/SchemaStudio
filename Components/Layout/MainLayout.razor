@@ -6,11 +6,11 @@
 @using SchemaStudioWebViewer.Configuration
 @inject NavigationManager NavigationManager
 
-@attribute [FileVersion("1.0")]
+@attribute [FileVersion("1.1")]
+@attribute [AIChange("1.1", "2026-04-22 06:04 PM CDT kept Radzen dialog providers in the page circuit so DialogService calls render shared dialogs.", AICommandStatus.Pending)]
 @attribute [AIChange("1.0", "2026-04-22 11:06 AM CDT added config-driven kiosk chrome suppression for the /kiosk route.", AICommandStatus.Pending)]
 
-<RadzenComponents @rendermode="InteractiveServer" />
-<RadzenTooltip /> @* Explicitly added for tooltip rendering *@
+<RadzenComponents />
 
 <style>
     :root {
@@ -51,6 +51,7 @@
 </style>
 
 <RadzenLayout Class="@LayoutClass" Style="@LayoutStyle">
+    @* 2026-04-22 06:04 PM CDT AI v1.1 dialog-provider marker: RadzenComponents stays in the active page circuit so dialogs, notifications, tooltips, and context menus share the caller's services. *@
     @* 2026-04-22 11:06 AM CDT AI v1.0 kiosk layout marker: config can hide navigation chrome for /kiosk while Home remains the shared content surface. *@
     @if (!HideNavigationChrome)
     {
