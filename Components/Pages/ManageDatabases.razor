@@ -39,33 +39,42 @@
 
     <RadzenRow Gap="1rem">
         <RadzenColumn Size="12" SizeLG="5">
-            <RadzenDataGrid Data="@databases"
-                            TItem="DatabaseDefinition"
-                            AllowFiltering="true"
-                            AllowSorting="true"
-                            AllowPaging="true"
-                            PageSize="12"
-                            SelectionMode="DataGridSelectionMode.Single"
-                            @bind-Value="@selectedDatabases"
-                            RowSelect="@SelectDatabase"
-                            Style="height: calc(100vh - 210px);">
-                <Columns>
-                    <RadzenDataGridColumn TItem="DatabaseDefinition" Property="DatabaseName" Title="Database" />
-                    <RadzenDataGridColumn TItem="DatabaseDefinition" Property="BusinessName" Title="Business Name" />
-                    <RadzenDataGridColumn TItem="DatabaseDefinition" Property="Active" Title="Active" Width="90px">
-                        <Template Context="database">
-                            <RadzenCheckBox Value="@database.Active" Disabled="true" />
-                        </Template>
-                    </RadzenDataGridColumn>
-                </Columns>
-            </RadzenDataGrid>
+            @if (databases.Count == 0 && !isLoading)
+            {
+                <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat">
+                    No databases exist yet. Use New Database to create the first one.
+                </RadzenAlert>
+            }
+            else
+            {
+                <RadzenDataGrid Data="@databases"
+                                TItem="DatabaseDefinition"
+                                AllowFiltering="true"
+                                AllowSorting="true"
+                                AllowPaging="true"
+                                PageSize="12"
+                                SelectionMode="DataGridSelectionMode.Single"
+                                @bind-Value="@selectedDatabases"
+                                RowSelect="@SelectDatabase"
+                                Style="height: calc(100vh - 210px);">
+                    <Columns>
+                        <RadzenDataGridColumn TItem="DatabaseDefinition" Property="DatabaseName" Title="Database" />
+                        <RadzenDataGridColumn TItem="DatabaseDefinition" Property="BusinessName" Title="Business Name" />
+                        <RadzenDataGridColumn TItem="DatabaseDefinition" Property="Active" Title="Active" Width="90px">
+                            <Template Context="database">
+                                <RadzenCheckBox Value="@database.Active" Disabled="true" />
+                            </Template>
+                        </RadzenDataGridColumn>
+                    </Columns>
+                </RadzenDataGrid>
+            }
         </RadzenColumn>
 
         <RadzenColumn Size="12" SizeLG="7">
             @if (selectedDatabase is null)
             {
                 <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat">
-                    Select a database from the list or create a new database.
+                    No database is selected. Create a database to begin maintaining domains.
                 </RadzenAlert>
             }
             else
@@ -103,48 +112,55 @@
                                     <RadzenButton Icon="add"
                                                   Text="Add Domain"
                                                   ButtonStyle="ButtonStyle.Primary"
-                                                  Click="@AddDomainToSelectedDatabase" />
+                                                  Click="@OpenNewDomainDialog" />
                                 </RadzenStack>
 
-                                <RadzenDataGrid Data="@domains"
-                                                TItem="DatabaseDomainDefinition"
-                                                AllowSorting="true"
-                                                SelectionMode="DataGridSelectionMode.Single"
-                                                @bind-Value="@selectedDomains"
-                                                RowSelect="@SelectDomain"
-                                                Style="height: 220px;">
-                                    <Columns>
-                                        <RadzenDataGridColumn TItem="DatabaseDomainDefinition" Property="Domain" Title="Domain" />
-                                        <RadzenDataGridColumn TItem="DatabaseDomainDefinition" Property="Description" Title="Description" />
-                                    </Columns>
-                                </RadzenDataGrid>
+                                @if (domains.Count == 0)
+                                {
+                                    <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat">
+                                        This database does not have any domains yet. Use Add Domain to create the first one.
+                                    </RadzenAlert>
+                                }
+                                else
+                                {
+                                    <RadzenDataGrid Data="@domains"
+                                                    TItem="DatabaseDomainDefinition"
+                                                    AllowSorting="true"
+                                                    SelectionMode="DataGridSelectionMode.Single"
+                                                    @bind-Value="@selectedDomains"
+                                                    RowSelect="@SelectDomain"
+                                                    Style="height: 220px;">
+                                        <Columns>
+                                            <RadzenDataGridColumn TItem="DatabaseDomainDefinition" Property="Domain" Title="Domain" />
+                                            <RadzenDataGridColumn TItem="DatabaseDomainDefinition" Property="Description" Title="Description" />
+                                        </Columns>
+                                    </RadzenDataGrid>
+                                }
 
-                                <RadzenTemplateForm TItem="DatabaseDomainDefinition"
-                                                    Data="@editDomain"
-                                                    Submit="@SaveDomain">
-                                    <DataAnnotationsValidator />
-
-                                    <RadzenStack Gap="1rem">
-                                        <RadzenFormField Text="Domain" Style="width:100%;">
-                                            <RadzenTextBox Name="Domain" @bind-Value="@editDomain.Domain" Style="width:100%;" MaxLength="128" />
-                                        </RadzenFormField>
-                                        <RadzenRequiredValidator Component="Domain" Text="Domain is required." />
-
-                                        <RadzenFormField Text="Description" Style="width:100%;">
-                                            <RadzenTextArea @bind-Value="@editDomain.Description" Style="width:100%;" Rows="4" MaxLength="500" />
-                                        </RadzenFormField>
+                                @if (selectedDomain is null)
+                                {
+                                    <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat">
+                                        Select a domain to edit it.
+                                    </RadzenAlert>
+                                }
+                                else
+                                {
+                                    <RadzenTemplateForm TItem="DatabaseDomainDefinition"
+                                                        Data="@editDomain"
+                                                        Submit="@SaveDomain">
+                                        <DataAnnotationsValidator />
+                                        @DomainFormFields(editDomain)
 
                                         <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.75rem">
                                             <RadzenButton Icon="refresh" Text="Reset" ButtonStyle="ButtonStyle.Light" Click="@ResetDomainEdit" />
                                             <RadzenButton Icon="delete"
                                                           Text="Delete"
                                                           ButtonStyle="ButtonStyle.Danger"
-                                                          Disabled="@(editDomain.DatabaseDomainId == 0)"
                                                           Click="@DeleteDomain" />
                                             <RadzenButton Icon="save" Text="Save Domain" ButtonType="ButtonType.Submit" ButtonStyle="ButtonStyle.Primary" />
                                         </RadzenStack>
-                                    </RadzenStack>
-                                </RadzenTemplateForm>
+                                    </RadzenTemplateForm>
+                                }
                             </RadzenStack>
                         </RadzenTabsItem>
                     </Tabs>
@@ -181,6 +197,38 @@
     </div>
 }
 
+@if (isNewDomainDialogOpen && selectedDatabase is not null)
+{
+    <div class="database-modal-backdrop">
+        <RadzenCard class="database-modal rz-p-0">
+            <RadzenStack Orientation="Orientation.Horizontal"
+                         AlignItems="AlignItems.Center"
+                         JustifyContent="JustifyContent.SpaceBetween"
+                         class="rz-p-4 rz-border-bottom">
+                <RadzenStack Gap="0.25rem">
+                    <RadzenText TextStyle="TextStyle.H5" class="rz-m-0">Add Domain</RadzenText>
+                    <RadzenText TextStyle="TextStyle.Body2" Style="color:#495057;">@selectedDatabase.DatabaseName</RadzenText>
+                </RadzenStack>
+                <RadzenButton Icon="close" Variant="Variant.Text" ButtonStyle="ButtonStyle.Light" Click="@CloseNewDomainDialog" />
+            </RadzenStack>
+
+            <RadzenTemplateForm TItem="DatabaseDomainDefinition"
+                                Data="@newDomain"
+                                Submit="@CreateDomain">
+                <DataAnnotationsValidator />
+                <RadzenStack Gap="1rem" class="rz-p-4">
+                    @DomainFormFields(newDomain)
+                </RadzenStack>
+
+                <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.75rem" class="rz-px-4 rz-pb-4">
+                    <RadzenButton Icon="close" Text="Cancel" ButtonStyle="ButtonStyle.Light" Click="@CloseNewDomainDialog" />
+                    <RadzenButton Icon="save" Text="Create Domain" ButtonType="ButtonType.Submit" ButtonStyle="ButtonStyle.Primary" />
+                </RadzenStack>
+            </RadzenTemplateForm>
+        </RadzenCard>
+    </div>
+}
+
 <style>
     .database-modal-backdrop {
         position: fixed;
@@ -210,9 +258,11 @@
     private DatabaseDefinition newDatabase = NewDatabaseDefinition();
     private DatabaseDefinition? selectedDatabase;
     private DatabaseDomainDefinition editDomain = new();
+    private DatabaseDomainDefinition newDomain = new();
     private DatabaseDomainDefinition? selectedDomain;
     private bool isLoading;
     private bool isNewDatabaseDialogOpen;
+    private bool isNewDomainDialogOpen;
     private string loadError = "";
 
     protected override async Task OnInitializedAsync()
@@ -266,6 +316,7 @@
         {
             domains = (await DomainRepository.GetByDatabaseIdAsync(databaseId)).ToList();
             selectedDomain = domains.FirstOrDefault(x => selectedDomain is not null && x.DatabaseDomainId == selectedDomain.DatabaseDomainId);
+            selectedDomain ??= domains.FirstOrDefault();
 
             if (selectedDomain is not null)
             {
@@ -274,7 +325,8 @@
             }
             else
             {
-                AddDomainToSelectedDatabase();
+                selectedDomains.Clear();
+                editDomain = new DatabaseDomainDefinition { DatabaseId = databaseId };
             }
         }
         catch (Exception ex)
@@ -304,6 +356,8 @@
         selectedDomains.Clear();
         editDatabase = NewDatabaseDefinition();
         editDomain = new DatabaseDomainDefinition();
+        newDomain = new DatabaseDomainDefinition();
+        isNewDomainDialogOpen = false;
     }
 
     private void OpenNewDatabaseDialog()
@@ -387,14 +441,21 @@
         editDomain = Clone(domain);
     }
 
-    private void AddDomainToSelectedDatabase()
+    private void OpenNewDomainDialog()
     {
-        selectedDomain = null;
-        selectedDomains.Clear();
-        editDomain = new DatabaseDomainDefinition
+        if (selectedDatabase is null)
+            return;
+
+        newDomain = new DatabaseDomainDefinition
         {
-            DatabaseId = selectedDatabase?.DatabaseId ?? 0
+            DatabaseId = selectedDatabase.DatabaseId
         };
+        isNewDomainDialogOpen = true;
+    }
+
+    private void CloseNewDomainDialog()
+    {
+        isNewDomainDialogOpen = false;
     }
 
     private void ResetDomainEdit()
@@ -431,6 +492,33 @@
             }
 
             selectedDomain = domain;
+            await LoadDomainsAsync(selectedDatabase.DatabaseId);
+        }
+        catch (Exception ex)
+        {
+            Notify(NotificationSeverity.Error, FriendlyError(ex));
+        }
+    }
+
+    private async Task CreateDomain(DatabaseDomainDefinition domain)
+    {
+        if (selectedDatabase is null)
+            return;
+
+        domain.DatabaseId = selectedDatabase.DatabaseId;
+
+        if (HasDuplicateDomain(domain))
+        {
+            Notify(NotificationSeverity.Warning, "That domain already exists for this database. Domain names must be unique, ignoring case.");
+            return;
+        }
+
+        try
+        {
+            await DomainRepository.CreateAsync(domain);
+            Notify(NotificationSeverity.Success, "Domain created.");
+            selectedDomain = domain;
+            isNewDomainDialogOpen = false;
             await LoadDomainsAsync(selectedDatabase.DatabaseId);
         }
         catch (Exception ex)
@@ -500,6 +588,17 @@
             <RadzenCheckBox @bind-Value="@database.Active" TValue="bool" />
             <RadzenLabel Text="Active" />
         </RadzenStack>
+    </RadzenStack>;
+
+    private RenderFragment DomainFormFields(DatabaseDomainDefinition domain) => @<RadzenStack Gap="1rem">
+        <RadzenFormField Text="Domain" Style="width:100%;">
+            <RadzenTextBox Name="Domain" @bind-Value="@domain.Domain" Style="width:100%;" MaxLength="128" />
+        </RadzenFormField>
+        <RadzenRequiredValidator Component="Domain" Text="Domain is required." />
+
+        <RadzenFormField Text="Description" Style="width:100%;">
+            <RadzenTextArea @bind-Value="@domain.Description" Style="width:100%;" Rows="4" MaxLength="500" />
+        </RadzenFormField>
     </RadzenStack>;
 
     private static DatabaseDefinition NewDatabaseDefinition() =>
