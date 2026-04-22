@@ -79,7 +79,7 @@
             }
             else
             {
-                <RadzenTabs>
+                <RadzenTabs @bind-SelectedIndex="@selectedTabIndex">
                     <Tabs>
                         <RadzenTabsItem Text="Database" Icon="database">
                             <RadzenTemplateForm TItem="DatabaseDefinition"
@@ -259,6 +259,7 @@
     private bool isLoading;
     private bool isNewDatabaseDialogOpen;
     private bool isNewDomainDialogOpen;
+    private int selectedTabIndex;
     private string loadError = "";
 
     protected override async Task OnInitializedAsync()
@@ -340,6 +341,7 @@
         selectedDatabase = database;
         editDatabase = Clone(database);
         selectedDomain = null;
+        selectedTabIndex = 0;
         await LoadDomainsAsync(database.DatabaseId);
     }
 
