@@ -15,9 +15,9 @@ public sealed class DatabaseDomainRepository
 
     public async Task<IReadOnlyList<DatabaseDomainDefinition>> GetByDatabaseIdAsync(int databaseId)
     {
-        await using var connection = new SqlConnection(_connectionString);
-
-        const string sql = """
+        await using (var connection = new SqlConnection(_connectionString))
+        {
+            const string sql = """
 SELECT
     DatabaseDomainId,
     DatabaseId,
@@ -28,15 +28,16 @@ WHERE DatabaseId = @databaseId
 ORDER BY Domain;
 """;
 
-        var rows = await connection.QueryAsync<DatabaseDomainDefinition>(sql, new { databaseId });
-        return rows.ToList();
+            var rows = await connection.QueryAsync<DatabaseDomainDefinition>(sql, new { databaseId });
+            return rows.ToList();
+        }
     }
 
     public async Task<DatabaseDomainDefinition?> GetByIdAsync(int databaseDomainId)
     {
-        await using var connection = new SqlConnection(_connectionString);
-
-        const string sql = """
+        await using (var connection = new SqlConnection(_connectionString))
+        {
+            const string sql = """
 SELECT
     DatabaseDomainId,
     DatabaseId,
@@ -46,14 +47,15 @@ FROM dbo.DatabaseDomain
 WHERE DatabaseDomainId = @databaseDomainId;
 """;
 
-        return await connection.QueryFirstOrDefaultAsync<DatabaseDomainDefinition>(sql, new { databaseDomainId });
+            return await connection.QueryFirstOrDefaultAsync<DatabaseDomainDefinition>(sql, new { databaseDomainId });
+        }
     }
 
     public async Task<int> CreateAsync(DatabaseDomainDefinition domain)
     {
-        await using var connection = new SqlConnection(_connectionString);
-
-        const string sql = """
+        await using (var connection = new SqlConnection(_connectionString))
+        {
+            const string sql = """
 INSERT INTO dbo.DatabaseDomain
 (
     DatabaseId,
@@ -69,16 +71,17 @@ VALUES
 );
 """;
 
-        var databaseDomainId = await connection.ExecuteScalarAsync<int>(sql, domain);
-        domain.DatabaseDomainId = databaseDomainId;
-        return databaseDomainId;
+            var databaseDomainId = await connection.ExecuteScalarAsync<int>(sql, domain);
+            domain.DatabaseDomainId = databaseDomainId;
+            return databaseDomainId;
+        }
     }
 
     public async Task UpdateAsync(DatabaseDomainDefinition domain)
     {
-        await using var connection = new SqlConnection(_connectionString);
-
-        const string sql = """
+        await using (var connection = new SqlConnection(_connectionString))
+        {
+            const string sql = """
 UPDATE dbo.DatabaseDomain
 SET
     Domain = @Domain,
@@ -86,18 +89,20 @@ SET
 WHERE DatabaseDomainId = @DatabaseDomainId;
 """;
 
-        await connection.ExecuteAsync(sql, domain);
+            await connection.ExecuteAsync(sql, domain);
+        }
     }
 
     public async Task DeleteAsync(int databaseDomainId)
     {
-        await using var connection = new SqlConnection(_connectionString);
-
-        const string sql = """
+        await using (var connection = new SqlConnection(_connectionString))
+        {
+            const string sql = """
 DELETE FROM dbo.DatabaseDomain
 WHERE DatabaseDomainId = @databaseDomainId;
 """;
 
-        await connection.ExecuteAsync(sql, new { databaseDomainId });
+            await connection.ExecuteAsync(sql, new { databaseDomainId });
+        }
     }
 }

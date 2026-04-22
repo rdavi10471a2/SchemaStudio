@@ -231,17 +231,28 @@
 
     private async Task LoadDomainsAsync(int databaseId)
     {
-        domains = (await DomainRepository.GetByDatabaseIdAsync(databaseId)).ToList();
-        selectedDomain = domains.FirstOrDefault(x => selectedDomain is not null && x.DatabaseDomainId == selectedDomain.DatabaseDomainId);
+        try
+        {
+            domains = (await DomainRepository.GetByDatabaseIdAsync(databaseId)).ToList();
+            selectedDomain = domains.FirstOrDefault(x => selectedDomain is not null && x.DatabaseDomainId == selectedDomain.DatabaseDomainId);
 
-        if (selectedDomain is not null)
-        {
-            selectedDomains = new List<DatabaseDomainDefinition> { selectedDomain };
-            editDomain = Clone(selectedDomain);
+            if (selectedDomain is not null)
+            {
+                selectedDomains = new List<DatabaseDomainDefinition> { selectedDomain };
+                editDomain = Clone(selectedDomain);
+            }
+            else
+            {
+                NewDomain();
+            }
         }
-        else
+        catch (Exception ex)
         {
-            NewDomain();
+            domains.Clear();
+            selectedDomain = null;
+            selectedDomains.Clear();
+            editDomain = new DatabaseDomainDefinition { DatabaseId = databaseId };
+            Notify(NotificationSeverity.Error, FriendlyError(ex));
         }
     }
 

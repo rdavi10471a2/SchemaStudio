@@ -15,9 +15,9 @@ public sealed class DatabaseRepository
 
     public async Task<IReadOnlyList<DatabaseDefinition>> GetAllAsync()
     {
-        await using var connection = new SqlConnection(_connectionString);
-
-        const string sql = """
+        await using (var connection = new SqlConnection(_connectionString))
+        {
+            const string sql = """
 SELECT
     DatabaseId,
     DatabaseName,
@@ -30,15 +30,16 @@ FROM dbo.Databases
 ORDER BY DatabaseName;
 """;
 
-        var rows = await connection.QueryAsync<DatabaseDefinition>(sql);
-        return rows.ToList();
+            var rows = await connection.QueryAsync<DatabaseDefinition>(sql);
+            return rows.ToList();
+        }
     }
 
     public async Task<DatabaseDefinition?> GetByIdAsync(int databaseId)
     {
-        await using var connection = new SqlConnection(_connectionString);
-
-        const string sql = """
+        await using (var connection = new SqlConnection(_connectionString))
+        {
+            const string sql = """
 SELECT
     DatabaseId,
     DatabaseName,
@@ -51,14 +52,15 @@ FROM dbo.Databases
 WHERE DatabaseId = @databaseId;
 """;
 
-        return await connection.QueryFirstOrDefaultAsync<DatabaseDefinition>(sql, new { databaseId });
+            return await connection.QueryFirstOrDefaultAsync<DatabaseDefinition>(sql, new { databaseId });
+        }
     }
 
     public async Task<int> CreateAsync(DatabaseDefinition database)
     {
-        await using var connection = new SqlConnection(_connectionString);
-
-        const string sql = """
+        await using (var connection = new SqlConnection(_connectionString))
+        {
+            const string sql = """
 INSERT INTO dbo.Databases
 (
     DatabaseName,
@@ -80,16 +82,17 @@ VALUES
 );
 """;
 
-        var databaseId = await connection.ExecuteScalarAsync<int>(sql, database);
-        database.DatabaseId = databaseId;
-        return databaseId;
+            var databaseId = await connection.ExecuteScalarAsync<int>(sql, database);
+            database.DatabaseId = databaseId;
+            return databaseId;
+        }
     }
 
     public async Task UpdateAsync(DatabaseDefinition database)
     {
-        await using var connection = new SqlConnection(_connectionString);
-
-        const string sql = """
+        await using (var connection = new SqlConnection(_connectionString))
+        {
+            const string sql = """
 UPDATE dbo.Databases
 SET
     DatabaseName = @DatabaseName,
@@ -101,18 +104,20 @@ SET
 WHERE DatabaseId = @DatabaseId;
 """;
 
-        await connection.ExecuteAsync(sql, database);
+            await connection.ExecuteAsync(sql, database);
+        }
     }
 
     public async Task DeleteAsync(int databaseId)
     {
-        await using var connection = new SqlConnection(_connectionString);
-
-        const string sql = """
+        await using (var connection = new SqlConnection(_connectionString))
+        {
+            const string sql = """
 DELETE FROM dbo.Databases
 WHERE DatabaseId = @databaseId;
 """;
 
-        await connection.ExecuteAsync(sql, new { databaseId });
+            await connection.ExecuteAsync(sql, new { databaseId });
+        }
     }
 }
