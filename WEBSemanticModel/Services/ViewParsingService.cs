@@ -1,4 +1,4 @@
-﻿using SchemaStudioWebViewer.WEBSemanticModel.DTO;
+using SchemaStudio.Data.Models;
 using SchemaStudioWebViewer.WEBSemanticModel.Diagnostics;
 using SchemaStudioWebViewer.WEBSemanticModel.Model;
 using SchemaStudioWebViewer.WEBSemanticModel.Orchestration;
@@ -8,31 +8,17 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Services
 {
     public class ViewParsingService
     {
-        //-----------------------------------------
-        // 🔥 CHANGE: INTERFACE TYPE
-        //-----------------------------------------
         private readonly IViewDefinitionProvider _provider;
-
         private readonly IQueryLogger _logger;
 
-        //-----------------------------------------
-        // EXISTING CONSTRUCTOR (UNCHANGED BEHAVIOR)
-        //-----------------------------------------
         public ViewParsingService(string connectionString, IQueryLogger logger = null)
         {
             _logger = logger ?? new NullQueryLogger();
-
-            //-----------------------------------------
-            // 🔥 STILL USES SQL PROVIDER
-            //-----------------------------------------
             _provider = new ViewDefinitionProvider(connectionString, _logger);
 
             _logger.Info("ViewParsingService initialized");
         }
 
-        //-----------------------------------------
-        // 🔥 NEW: INJECTION CONSTRUCTOR (FOR TESTS)
-        //-----------------------------------------
         public ViewParsingService(IViewDefinitionProvider provider, IQueryLogger logger = null)
         {
             _logger = logger ?? new NullQueryLogger();
@@ -41,9 +27,6 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Services
             _logger.Info("ViewParsingService initialized (external provider)");
         }
 
-        //-----------------------------------------
-        // GET RAW SQL
-        //-----------------------------------------
         public string GetViewSql(string database, string schema, string viewName)
         {
             _logger.Info($"GetViewSql: {database}.{schema}.{viewName}");
@@ -70,26 +53,19 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Services
             }
         }
 
-        //-----------------------------------------
-        // PARSE VIEW
-        //-----------------------------------------
         public ParsedQuery ParseView(string database, string schema, string viewName)
         {
             _logger.Info($"ParseView START: {database}.{schema}.{viewName}");
 
             try
             {
-                //-----------------------------------------
-                // 1. GET ROOT VIEW SQL
-                //-----------------------------------------
                 var sql = GetViewSql(database, schema, viewName);
 
                 if (string.IsNullOrWhiteSpace(sql))
+                {
                     throw new Exception($"View not found: {database}.{schema}.{viewName}");
+                }
 
-                //-----------------------------------------
-                // 2. EXECUTE FULL PIPELINE
-                //-----------------------------------------
                 _logger.Info("Calling QueryOrchestrator.ParseFully");
 
                 var result = QueryOrchestrator.ParseFully(
@@ -98,12 +74,8 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Services
                     schema,
                     viewName,
                     _provider,
-                    _logger // 🔥 FORCE LOGGER DOWNSTREAM
-                );
+                    _logger);
 
-                //-----------------------------------------
-                // VERIFY RESULT
-                //-----------------------------------------
                 if (result == null)
                 {
                     _logger.Warning("ParseFully returned null");
@@ -111,16 +83,11 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Services
                 }
 
                 _logger.Info($"ParseFully complete: {result.SourceTables.Count} tables, {result.SelectItems.Count} select items");
-
-                //-----------------------------------------
-                // COLUMN PROJECTION
-                //-----------------------------------------
                 _logger.Info("Projecting columns");
 
                 result.Columns = result.ToColumns(database, schema, viewName);
 
                 _logger.Info($"Columns projected: {result.Columns?.Count ?? 0}");
-
                 _logger.Info($"ParseView COMPLETE: {database}.{schema}.{viewName}");
 
                 return result;
@@ -144,9 +111,6 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Services
             return parsed?.Columns.ToViewColumnDtos() ?? new List<ViewColumnDto>();
         }
 
-        //-----------------------------------------
-        // RELOAD SINGLE VIEW
-        //-----------------------------------------
         public ParsedQuery ReloadView(string database, string schema, string viewName)
         {
             _logger.Info($"ReloadView: {database}.{schema}.{viewName}");
@@ -175,9 +139,6 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Services
             return parsed?.Columns.ToViewColumnDtos() ?? new List<ViewColumnDto>();
         }
 
-        //-----------------------------------------
-        // RELOAD FULL CHAIN
-        //-----------------------------------------
         public ParsedQuery ReloadViewChain(string database, string schema, string viewName)
         {
             _logger.Info($"ReloadViewChain: {database}.{schema}.{viewName}");
@@ -206,9 +167,6 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Services
             return parsed?.Columns.ToViewColumnDtos() ?? new List<ViewColumnDto>();
         }
 
-        //-----------------------------------------
-        // CLEAR CACHE
-        //-----------------------------------------
         public void ClearCache()
         {
             _logger.Info("ClearCache");
@@ -225,9 +183,6 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Services
             }
         }
 
-        //-----------------------------------------
-        // GET VIEW LIST
-        //-----------------------------------------
         public List<string> GetViews(string database, string schema)
         {
             _logger.Info($"GetViews Function: {database}.{schema}");
@@ -250,4 +205,3 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Services
         }
     }
 }
-

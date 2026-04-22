@@ -1,4 +1,4 @@
-﻿using SchemaStudioWebViewer.WEBSemanticModel.DTO;
+using SchemaStudio.Data.Models;
 
 namespace SchemaStudioWebViewer.WEBSemanticModel.Model;
 
@@ -7,7 +7,9 @@ public static class ExportMappers
     public static List<SourceTableDto> ToSourceTableDtos(this IEnumerable<SourceTable>? sourceTables)
     {
         if (sourceTables == null)
+        {
             return new List<SourceTableDto>();
+        }
 
         return sourceTables
             .Select(source => new SourceTableDto
@@ -17,7 +19,6 @@ public static class ExportMappers
                 Schema = source.Schema,
                 Table = source.Table,
                 Alias = source.Alias,
-              
                 ParentAlias = source.ParentAlias,
                 JoinType = source.JoinType,
                 ResolvedOrder = source.ResolvedOrder,
@@ -37,7 +38,9 @@ public static class ExportMappers
     public static List<ViewColumnDto> ToViewColumnDtos(this IEnumerable<ViewSourcedColumnDefinition>? columns)
     {
         if (columns == null)
+        {
             return new List<ViewColumnDto>();
+        }
 
         return columns
             .Select(column => new ViewColumnDto
@@ -54,7 +57,6 @@ public static class ExportMappers
                 BaseSchema = column.BaseSchema,
                 BaseTable = column.BaseTable,
                 BaseColumn = column.BaseColumn,
-              //  CanInheritBase = column.CanInheritBase,
                 BusinessName = column.BusinessName,
                 BusinessDescription = column.BusinessDescription,
                 DeveloperNotes = column.DeveloperNotes,
@@ -65,4 +67,3 @@ public static class ExportMappers
             .ToList();
     }
 }
-
