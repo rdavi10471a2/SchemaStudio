@@ -8,8 +8,9 @@ using SchemaStudioWebViewer.WEBSemanticModel.Services;
 
 namespace SchemaStudioWebViewer
 {
-    [FileVersion("1.3")]
+    [FileVersion("1.4")]
     [AIFileContext("Program.cs", "Bootstraps the SchemaStudioWebViewer web app, initializes configuration, registers services, and maps the Razor and MCP endpoints.")]
+    [AIChange("1.4", "2026-04-22 04:27 PM CDT registered schema object repositories from the new data layer so object metadata can be loaded and saved asynchronously.", AICommandStatus.Pending)]
     [AIChange("1.0", "2026-04-13 02:37 PM CDT workflow header test: added the initial file header metadata, version marker, and visible compare marker for Program.cs.", AICommandStatus.Pending)]
     [AIChange("1.1", "2026-04-15 03:00 PM CDT registered the WEBSemanticModel ViewParsingService so Home.razor can request SQL through the parser DLL.", AICommandStatus.Pending)]
     [AIChange("1.2", "2026-04-15 03:10 PM CDT removed the temporary parser DI registration after moving parser testing onto the dedicated ParserLab page.", AICommandStatus.Pending)]
@@ -49,6 +50,11 @@ namespace SchemaStudioWebViewer
                 new DatabaseRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
             builder.Services.AddScoped(_ =>
                 new DatabaseDomainRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
+            // 2026-04-22 04:27 PM CDT AI v1.4 data-layer marker: register async schema object repositories for the imported object metadata layer.
+            builder.Services.AddScoped(_ =>
+                new SchemaObjectRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
+            builder.Services.AddScoped(_ =>
+                new SchemaObjectColumnRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
 
             var app = builder.Build();
 

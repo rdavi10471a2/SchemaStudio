@@ -1,0 +1,218 @@
+using Dapper;
+using Microsoft.Data.SqlClient;
+using SchemaStudio.Data.Models;
+
+namespace SchemaStudio.Data.Repositories;
+
+public sealed class SchemaObjectRepository
+{
+    private readonly string _connectionString;
+
+    public SchemaObjectRepository(string connectionString)
+    {
+        _connectionString = connectionString;
+    }
+
+    public async Task<IReadOnlyList<SchemaObjectDefinition>> GetByDatabaseAsync(int databaseId)
+    {
+        await using (var connection = new SqlConnection(_connectionString))
+        {
+            const string sql = """
+SELECT
+    SchemaObjectId,
+    DatabaseId,
+    SourceDatabaseName,
+    SourceSchemaName,
+    SourceObjectName,
+    IsBaseObject,
+    Domain,
+    BusinessName,
+    BusinessDescription,
+    DeveloperNotes,
+    IsActive,
+    LastSynced
+FROM dbo.SchemaObject
+WHERE DatabaseId = @databaseId
+ORDER BY SourceSchemaName, SourceObjectName;
+""";
+
+            var rows = await connection.QueryAsync<SchemaObjectDefinition>(sql, new { databaseId });
+            return rows.Select(ClearDirty).ToList();
+        }
+    }
+
+    public async Task<SchemaObjectDefinition?> GetByIdAsync(int schemaObjectId)
+    {
+        await using (var connection = new SqlConnection(_connectionString))
+        {
+            const string sql = """
+SELECT
+    SchemaObjectId,
+    DatabaseId,
+    SourceDatabaseName,
+    SourceSchemaName,
+    SourceObjectName,
+    IsBaseObject,
+    Domain,
+    BusinessName,
+    BusinessDescription,
+    DeveloperNotes,
+    IsActive,
+    LastSynced
+FROM dbo.SchemaObject
+WHERE SchemaObjectId = @schemaObjectId;
+""";
+
+            var item = await connection.QueryFirstOrDefaultAsync<SchemaObjectDefinition>(sql, new { schemaObjectId });
+            item?.ClearDirty();
+            return item;
+        }
+    }
+
+    public async Task<SchemaObjectDefinition?> GetBySourceAsync(
+        int databaseId,
+        string? sourceDatabaseName,
+        string sourceSchemaName,
+        string sourceObjectName)
+    {
+        await using (var connection = new SqlConnection(_connectionString))
+        {
+            const string sql = """
+SELECT TOP (1)
+    SchemaObjectId,
+    DatabaseId,
+    SourceDatabaseName,
+    SourceSchemaName,
+    SourceObjectName,
+    IsBaseObject,
+    Domain,
+    BusinessName,
+    BusinessDescription,
+    DeveloperNotes,
+    IsActive,
+    LastSynced
+FROM dbo.SchemaObject
+WHERE DatabaseId = @databaseId
+  AND ISNULL(SourceDatabaseName, '') = ISNULL(@sourceDatabaseName, '')
+  AND SourceSchemaName = @sourceSchemaName
+  AND SourceObjectName = @sourceObjectName;
+""";
+
+            var item = await connection.QueryFirstOrDefaultAsync<SchemaObjectDefinition>(
+                sql,
+                new
+                {
+                    databaseId,
+                    sourceDatabaseName,
+                    sourceSchemaName,
+                    sourceObjectName
+                });
+
+            item?.ClearDirty();
+            return item;
+        }
+    }
+
+    public async Task<int> CreateAsync(SchemaObjectDefinition model)
+    {
+        await using (var connection = new SqlConnection(_connectionString))
+        {
+            const string sql = """
+INSERT INTO dbo.SchemaObject
+(
+    DatabaseId,
+    SourceDatabaseName,
+    SourceSchemaName,
+    SourceObjectName,
+    IsBaseObject,
+    Domain,
+    BusinessName,
+    BusinessDescription,
+    DeveloperNotes,
+    IsActive,
+    LastSynced
+)
+OUTPUT INSERTED.SchemaObjectId
+VALUES
+(
+    @DatabaseId,
+    @SourceDatabaseName,
+    @SourceSchemaName,
+    @SourceObjectName,
+    @IsBaseObject,
+    @Domain,
+    @BusinessName,
+    @BusinessDescription,
+    @DeveloperNotes,
+    @IsActive,
+    SYSDATETIME()
+);
+""";
+
+            var id = await connection.ExecuteScalarAsync<int>(sql, model);
+            model.SchemaObjectId = id;
+            model.ClearDirty();
+            return id;
+        }
+    }
+
+    public async Task UpdateAsync(SchemaObjectDefinition model)
+    {
+        await using (var connection = new SqlConnection(_connectionString))
+        {
+            const string sql = """
+UPDATE dbo.SchemaObject
+SET
+    DatabaseId = @DatabaseId,
+    SourceDatabaseName = @SourceDatabaseName,
+    SourceSchemaName = @SourceSchemaName,
+    SourceObjectName = @SourceObjectName,
+    IsBaseObject = @IsBaseObject,
+    Domain = @Domain,
+    BusinessName = @BusinessName,
+    BusinessDescription = @BusinessDescription,
+    DeveloperNotes = @DeveloperNotes,
+    IsActive = @IsActive,
+    LastSynced = SYSDATETIME()
+WHERE SchemaObjectId = @SchemaObjectId;
+""";
+
+            await connection.ExecuteAsync(sql, model);
+            model.ClearDirty();
+        }
+    }
+
+    public async Task DeleteAsync(int schemaObjectId)
+    {
+        await using (var connection = new SqlConnection(_connectionString))
+        {
+            const string sql = """
+DELETE FROM dbo.SchemaObject
+WHERE SchemaObjectId = @schemaObjectId;
+""";
+
+            await connection.ExecuteAsync(sql, new { schemaObjectId });
+        }
+    }
+
+    public async Task SaveAllAsync(IEnumerable<SchemaObjectDefinition> models)
+    {
+        foreach (var model in models.Where(item => item.IsDirty || item.SchemaObjectId == 0))
+        {
+            if (model.SchemaObjectId == 0)
+            {
+                await CreateAsync(model);
+            }
+            else
+            {
+                await UpdateAsync(model);
+            }
+        }
+    }
+
+    private static SchemaObjectDefinition ClearDirty(SchemaObjectDefinition item)
+    {
+        item.ClearDirty();
+        return item;
+    }
+}
