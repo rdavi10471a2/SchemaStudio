@@ -86,6 +86,10 @@
                                                 Data="@editDatabase"
                                                 Submit="@SaveDatabase">
                                 <DataAnnotationsValidator />
+                                <RadzenStack Gap="0.25rem" class="rz-px-4 rz-pt-4">
+                                    <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-m-0">Edit Selected Database</RadzenText>
+                                    <RadzenText TextStyle="TextStyle.Body2" Style="color:#495057;">@selectedDatabase.DatabaseName</RadzenText>
+                                </RadzenStack>
                                 @DatabaseFormFields(editDatabase)
 
                                 <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.75rem" class="rz-px-4 rz-pb-4">
@@ -94,7 +98,7 @@
                                                   Text="Delete"
                                                   ButtonStyle="ButtonStyle.Danger"
                                                   Click="@DeleteDatabase" />
-                                    <RadzenButton Icon="save" Text="Save" ButtonType="ButtonType.Submit" ButtonStyle="ButtonStyle.Primary" />
+                                    <RadzenButton Icon="save" Text="Save Selected Database" ButtonType="ButtonType.Submit" ButtonStyle="ButtonStyle.Primary" />
                                 </RadzenStack>
                             </RadzenTemplateForm>
                         </RadzenTabsItem>
@@ -149,11 +153,15 @@
                                                         Data="@editDomain"
                                                         Submit="@SaveDomain">
                                         <DataAnnotationsValidator />
+                                        <RadzenStack Gap="0.25rem">
+                                            <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-m-0">Edit Selected Domain</RadzenText>
+                                            <RadzenText TextStyle="TextStyle.Body2" Style="color:#495057;">@editDomain.Domain</RadzenText>
+                                        </RadzenStack>
                                         @DomainFormFields(editDomain)
 
                                         <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.75rem">
                                             <RadzenButton Icon="refresh" Text="Reset" ButtonStyle="ButtonStyle.Light" Click="@ResetDomainEdit" />
-                                            <RadzenButton Icon="save" Text="Save Domain" ButtonType="ButtonType.Submit" ButtonStyle="ButtonStyle.Primary" />
+                                            <RadzenButton Icon="save" Text="Save Selected Domain" ButtonType="ButtonType.Submit" ButtonStyle="ButtonStyle.Primary" />
                                         </RadzenStack>
                                     </RadzenTemplateForm>
                                 }
