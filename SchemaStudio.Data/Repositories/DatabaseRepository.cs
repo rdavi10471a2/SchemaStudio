@@ -1,0 +1,118 @@
+using Dapper;
+using Microsoft.Data.SqlClient;
+using SchemaStudio.Data.Models;
+
+namespace SchemaStudio.Data.Repositories;
+
+public sealed class DatabaseRepository
+{
+    private readonly string _connectionString;
+
+    public DatabaseRepository(string connectionString)
+    {
+        _connectionString = connectionString;
+    }
+
+    public async Task<IReadOnlyList<DatabaseDefinition>> GetAllAsync()
+    {
+        await using var connection = new SqlConnection(_connectionString);
+
+        const string sql = """
+SELECT
+    DatabaseId,
+    DatabaseName,
+    DefaultSchema,
+    BusinessName,
+    BusinessDescription,
+    DeveloperNotes,
+    Active
+FROM dbo.Databases
+ORDER BY DatabaseName;
+""";
+
+        var rows = await connection.QueryAsync<DatabaseDefinition>(sql);
+        return rows.ToList();
+    }
+
+    public async Task<DatabaseDefinition?> GetByIdAsync(int databaseId)
+    {
+        await using var connection = new SqlConnection(_connectionString);
+
+        const string sql = """
+SELECT
+    DatabaseId,
+    DatabaseName,
+    DefaultSchema,
+    BusinessName,
+    BusinessDescription,
+    DeveloperNotes,
+    Active
+FROM dbo.Databases
+WHERE DatabaseId = @databaseId;
+""";
+
+        return await connection.QueryFirstOrDefaultAsync<DatabaseDefinition>(sql, new { databaseId });
+    }
+
+    public async Task<int> CreateAsync(DatabaseDefinition database)
+    {
+        await using var connection = new SqlConnection(_connectionString);
+
+        const string sql = """
+INSERT INTO dbo.Databases
+(
+    DatabaseName,
+    DefaultSchema,
+    BusinessName,
+    BusinessDescription,
+    DeveloperNotes,
+    Active
+)
+OUTPUT INSERTED.DatabaseId
+VALUES
+(
+    @DatabaseName,
+    @DefaultSchema,
+    @BusinessName,
+    @BusinessDescription,
+    @DeveloperNotes,
+    @Active
+);
+""";
+
+        var databaseId = await connection.ExecuteScalarAsync<int>(sql, database);
+        database.DatabaseId = databaseId;
+        return databaseId;
+    }
+
+    public async Task UpdateAsync(DatabaseDefinition database)
+    {
+        await using var connection = new SqlConnection(_connectionString);
+
+        const string sql = """
+UPDATE dbo.Databases
+SET
+    DatabaseName = @DatabaseName,
+    DefaultSchema = @DefaultSchema,
+    BusinessName = @BusinessName,
+    BusinessDescription = @BusinessDescription,
+    DeveloperNotes = @DeveloperNotes,
+    Active = @Active
+WHERE DatabaseId = @DatabaseId;
+""";
+
+        await connection.ExecuteAsync(sql, database);
+    }
+
+    public async Task DeleteAsync(int databaseId)
+    {
+        await using var connection = new SqlConnection(_connectionString);
+
+        const string sql = """
+DELETE FROM dbo.Databases
+WHERE DatabaseId = @databaseId;
+""";
+
+        await connection.ExecuteAsync(sql, new { databaseId });
+    }
+}

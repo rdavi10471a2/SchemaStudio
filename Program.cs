@@ -1,4 +1,5 @@
-﻿using Radzen;
+using Radzen;
+using SchemaStudio.Data.Repositories;
 using SchemaStudioWebViewer.Components;
 using SchemaStudio.AIHelpers;
 using SchemaStudioWebViewer.Configuration;
@@ -38,13 +39,16 @@ namespace SchemaStudioWebViewer
             }
 
             // 2. IMPORTANT: Remove the manual AddScoped<DialogService> lines.
-            // builder.Services.AddRadzenComponents() handles all of these 
+            // builder.Services.AddRadzenComponents() handles all of these
             // registrations internally. Having both causes the UI to stop responding.
             builder.Services.AddRadzenComponents();
             builder.Services.AddScoped<AttributeService>();
             builder.Services.AddScoped<ViewParsingService>(_ =>
                 new ViewParsingService(AppConfig.Current.ConnectionStrings.DefaultConnection));
-
+            builder.Services.AddScoped(_ =>
+                new DatabaseRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
+            builder.Services.AddScoped(_ =>
+                new DatabaseDomainRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
 
             var app = builder.Build();
 

@@ -21,17 +21,22 @@
 
   <ItemGroup>
     <ProjectReference Include="SchemaStudio.AIHelpers\SchemaStudio.AIHelpers.csproj" />
+    <ProjectReference Include="SchemaStudio.Data\SchemaStudio.Data.csproj" />
     <ProjectReference Include="WEBSemanticModel\SchemaStudioWebViewer.WEBSemanticModel.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <Compile Remove="SchemaStudio.AIHelpers\**\*.cs" />
+    <Compile Remove="SchemaStudio.Data\**\*.cs" />
     <Compile Remove="WEBSemanticModel\**\*.cs" />
     <Content Remove="SchemaStudio.AIHelpers\**\*" />
+    <Content Remove="SchemaStudio.Data\**\*" />
     <Content Remove="WEBSemanticModel\**\*" />
     <EmbeddedResource Remove="SchemaStudio.AIHelpers\**\*" />
+    <EmbeddedResource Remove="SchemaStudio.Data\**\*" />
     <EmbeddedResource Remove="WEBSemanticModel\**\*" />
     <None Remove="SchemaStudio.AIHelpers\**\*" />
+    <None Remove="SchemaStudio.Data\**\*" />
     <None Remove="WEBSemanticModel\**\*" />
   </ItemGroup>
 

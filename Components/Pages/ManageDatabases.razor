@@ -1,0 +1,450 @@
+@page "/manage-databases"
+@using Microsoft.Data.SqlClient
+@inject DatabaseRepository DatabaseRepository
+@inject DatabaseDomainRepository DomainRepository
+@inject NotificationService NotificationService
+@inject DialogService DialogService
+
+<PageTitle>Manage Databases</PageTitle>
+
+<RadzenStack Gap="1rem">
+    <RadzenStack Orientation="Orientation.Horizontal"
+                 AlignItems="AlignItems.Center"
+                 JustifyContent="JustifyContent.SpaceBetween"
+                 Gap="1rem">
+        <RadzenStack Gap="0.25rem">
+            <RadzenText TextStyle="TextStyle.H4" class="rz-m-0">Manage Databases</RadzenText>
+            <RadzenText TextStyle="TextStyle.Body2" Style="color:#495057;">
+                Create and edit database records and their business domains.
+            </RadzenText>
+        </RadzenStack>
+
+        <RadzenButton Icon="add"
+                      Text="New Database"
+                      ButtonStyle="ButtonStyle.Primary"
+                      Click="@NewDatabase" />
+    </RadzenStack>
+
+    @if (!string.IsNullOrWhiteSpace(loadError))
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Danger" Variant="Variant.Flat">
+            @loadError
+        </RadzenAlert>
+    }
+
+    @if (isLoading)
+    {
+        <RadzenProgressBar Mode="ProgressBarMode.Indeterminate" />
+    }
+
+    <RadzenRow Gap="1rem">
+        <RadzenColumn Size="12" SizeLG="5">
+            <RadzenDataGrid Data="@databases"
+                            TItem="DatabaseDefinition"
+                            AllowFiltering="true"
+                            AllowSorting="true"
+                            AllowPaging="true"
+                            PageSize="12"
+                            SelectionMode="DataGridSelectionMode.Single"
+                            @bind-Value="@selectedDatabases"
+                            RowSelect="@SelectDatabase"
+                            Style="height: calc(100vh - 210px);">
+                <Columns>
+                    <RadzenDataGridColumn TItem="DatabaseDefinition" Property="DatabaseName" Title="Database" />
+                    <RadzenDataGridColumn TItem="DatabaseDefinition" Property="BusinessName" Title="Business Name" />
+                    <RadzenDataGridColumn TItem="DatabaseDefinition" Property="Active" Title="Active" Width="90px">
+                        <Template Context="database">
+                            <RadzenCheckBox Value="@database.Active" Disabled="true" />
+                        </Template>
+                    </RadzenDataGridColumn>
+                </Columns>
+            </RadzenDataGrid>
+        </RadzenColumn>
+
+        <RadzenColumn Size="12" SizeLG="7">
+            <RadzenTabs>
+                <Tabs>
+                    <RadzenTabsItem Text="Database" Icon="database">
+                        <RadzenTemplateForm TItem="DatabaseDefinition"
+                                            Data="@editDatabase"
+                                            Submit="@SaveDatabase">
+                            <DataAnnotationsValidator />
+
+                            <RadzenStack Gap="1rem" class="rz-p-4">
+                                <RadzenRow Gap="1rem">
+                                    <RadzenColumn Size="12" SizeMD="6">
+                                        <RadzenFormField Text="Database Name" Style="width:100%;">
+                                            <RadzenTextBox Name="DatabaseName" @bind-Value="@editDatabase.DatabaseName" Style="width:100%;" MaxLength="128" />
+                                        </RadzenFormField>
+                                        <RadzenRequiredValidator Component="DatabaseName" Text="Database name is required." />
+                                    </RadzenColumn>
+
+                                    <RadzenColumn Size="12" SizeMD="6">
+                                        <RadzenFormField Text="Default Schema" Style="width:100%;">
+                                            <RadzenTextBox Name="DefaultSchema" @bind-Value="@editDatabase.DefaultSchema" Style="width:100%;" MaxLength="128" />
+                                        </RadzenFormField>
+                                        <RadzenRequiredValidator Component="DefaultSchema" Text="Default schema is required." />
+                                    </RadzenColumn>
+                                </RadzenRow>
+
+                                <RadzenFormField Text="Business Name" Style="width:100%;">
+                                    <RadzenTextBox Name="BusinessName" @bind-Value="@editDatabase.BusinessName" Style="width:100%;" MaxLength="128" />
+                                </RadzenFormField>
+                                <RadzenRequiredValidator Component="BusinessName" Text="Business name is required." />
+
+                                <RadzenFormField Text="Business Description" Style="width:100%;">
+                                    <RadzenTextArea Name="BusinessDescription" @bind-Value="@editDatabase.BusinessDescription" Style="width:100%;" Rows="4" MaxLength="500" />
+                                </RadzenFormField>
+                                <RadzenRequiredValidator Component="BusinessDescription" Text="Business description is required." />
+
+                                <RadzenFormField Text="Developer Notes" Style="width:100%;">
+                                    <RadzenTextArea @bind-Value="@editDatabase.DeveloperNotes" Style="width:100%;" Rows="6" MaxLength="4000" />
+                                </RadzenFormField>
+
+                                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                                    <RadzenCheckBox @bind-Value="@editDatabase.Active" TValue="bool" />
+                                    <RadzenLabel Text="Active" />
+                                </RadzenStack>
+
+                                <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.75rem">
+                                    <RadzenButton Icon="refresh" Text="Reset" ButtonStyle="ButtonStyle.Light" Click="@ResetDatabaseEdit" />
+                                    <RadzenButton Icon="delete"
+                                                  Text="Delete"
+                                                  ButtonStyle="ButtonStyle.Danger"
+                                                  Disabled="@(editDatabase.DatabaseId == 0)"
+                                                  Click="@DeleteDatabase" />
+                                    <RadzenButton Icon="save" Text="Save" ButtonType="ButtonType.Submit" ButtonStyle="ButtonStyle.Primary" />
+                                </RadzenStack>
+                            </RadzenStack>
+                        </RadzenTemplateForm>
+                    </RadzenTabsItem>
+
+                    <RadzenTabsItem Text="Domains" Icon="category" Disabled="@(editDatabase.DatabaseId == 0)">
+                        <RadzenStack Gap="1rem" class="rz-p-4">
+                            <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End">
+                                <RadzenButton Icon="add"
+                                              Text="New Domain"
+                                              ButtonStyle="ButtonStyle.Primary"
+                                              Disabled="@(editDatabase.DatabaseId == 0)"
+                                              Click="@NewDomain" />
+                            </RadzenStack>
+
+                            <RadzenDataGrid Data="@domains"
+                                            TItem="DatabaseDomainDefinition"
+                                            AllowSorting="true"
+                                            SelectionMode="DataGridSelectionMode.Single"
+                                            @bind-Value="@selectedDomains"
+                                            RowSelect="@SelectDomain"
+                                            Style="height: 220px;">
+                                <Columns>
+                                    <RadzenDataGridColumn TItem="DatabaseDomainDefinition" Property="Domain" Title="Domain" />
+                                    <RadzenDataGridColumn TItem="DatabaseDomainDefinition" Property="Description" Title="Description" />
+                                </Columns>
+                            </RadzenDataGrid>
+
+                            <RadzenTemplateForm TItem="DatabaseDomainDefinition"
+                                                Data="@editDomain"
+                                                Submit="@SaveDomain">
+                                <DataAnnotationsValidator />
+
+                                <RadzenStack Gap="1rem">
+                                    <RadzenFormField Text="Domain" Style="width:100%;">
+                                        <RadzenTextBox Name="Domain" @bind-Value="@editDomain.Domain" Style="width:100%;" MaxLength="128" />
+                                    </RadzenFormField>
+                                    <RadzenRequiredValidator Component="Domain" Text="Domain is required." />
+
+                                    <RadzenFormField Text="Description" Style="width:100%;">
+                                        <RadzenTextArea @bind-Value="@editDomain.Description" Style="width:100%;" Rows="4" MaxLength="500" />
+                                    </RadzenFormField>
+
+                                    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.75rem">
+                                        <RadzenButton Icon="refresh" Text="Reset" ButtonStyle="ButtonStyle.Light" Click="@ResetDomainEdit" />
+                                        <RadzenButton Icon="delete"
+                                                      Text="Delete"
+                                                      ButtonStyle="ButtonStyle.Danger"
+                                                      Disabled="@(editDomain.DatabaseDomainId == 0)"
+                                                      Click="@DeleteDomain" />
+                                        <RadzenButton Icon="save" Text="Save Domain" ButtonType="ButtonType.Submit" ButtonStyle="ButtonStyle.Primary" />
+                                    </RadzenStack>
+                                </RadzenStack>
+                            </RadzenTemplateForm>
+                        </RadzenStack>
+                    </RadzenTabsItem>
+                </Tabs>
+            </RadzenTabs>
+        </RadzenColumn>
+    </RadzenRow>
+</RadzenStack>
+
+@code {
+    private List<DatabaseDefinition> databases = new();
+    private IList<DatabaseDefinition> selectedDatabases = new List<DatabaseDefinition>();
+    private List<DatabaseDomainDefinition> domains = new();
+    private IList<DatabaseDomainDefinition> selectedDomains = new List<DatabaseDomainDefinition>();
+    private DatabaseDefinition editDatabase = NewDatabaseDefinition();
+    private DatabaseDefinition? selectedDatabase;
+    private DatabaseDomainDefinition editDomain = new();
+    private DatabaseDomainDefinition? selectedDomain;
+    private bool isLoading;
+    private string loadError = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDatabasesAsync();
+    }
+
+    private async Task LoadDatabasesAsync()
+    {
+        isLoading = true;
+        loadError = "";
+
+        try
+        {
+            databases = (await DatabaseRepository.GetAllAsync()).ToList();
+
+            if (selectedDatabase is not null)
+            {
+                selectedDatabase = databases.FirstOrDefault(x => x.DatabaseId == selectedDatabase.DatabaseId);
+            }
+
+            if (selectedDatabase is not null)
+            {
+                selectedDatabases = new List<DatabaseDefinition> { selectedDatabase };
+                editDatabase = Clone(selectedDatabase);
+                await LoadDomainsAsync(selectedDatabase.DatabaseId);
+            }
+            else
+            {
+                selectedDatabases.Clear();
+                NewDatabase();
+            }
+        }
+        catch (Exception ex)
+        {
+            loadError = FriendlyError(ex);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadDomainsAsync(int databaseId)
+    {
+        domains = (await DomainRepository.GetByDatabaseIdAsync(databaseId)).ToList();
+        selectedDomain = domains.FirstOrDefault(x => selectedDomain is not null && x.DatabaseDomainId == selectedDomain.DatabaseDomainId);
+
+        if (selectedDomain is not null)
+        {
+            selectedDomains = new List<DatabaseDomainDefinition> { selectedDomain };
+            editDomain = Clone(selectedDomain);
+        }
+        else
+        {
+            NewDomain();
+        }
+    }
+
+    private async Task SelectDatabase(DatabaseDefinition database)
+    {
+        selectedDatabase = database;
+        editDatabase = Clone(database);
+        selectedDomain = null;
+        await LoadDomainsAsync(database.DatabaseId);
+    }
+
+    private void NewDatabase()
+    {
+        selectedDatabase = null;
+        selectedDatabases.Clear();
+        domains.Clear();
+        selectedDomain = null;
+        selectedDomains.Clear();
+        editDatabase = NewDatabaseDefinition();
+        editDomain = new DatabaseDomainDefinition();
+    }
+
+    private void ResetDatabaseEdit()
+    {
+        editDatabase = selectedDatabase is null
+            ? NewDatabaseDefinition()
+            : Clone(selectedDatabase);
+    }
+
+    private async Task SaveDatabase(DatabaseDefinition database)
+    {
+        try
+        {
+            if (database.DatabaseId == 0)
+            {
+                await DatabaseRepository.CreateAsync(database);
+                Notify(NotificationSeverity.Success, "Database created.");
+            }
+            else
+            {
+                await DatabaseRepository.UpdateAsync(database);
+                Notify(NotificationSeverity.Success, "Database updated.");
+            }
+
+            selectedDatabase = database;
+            await LoadDatabasesAsync();
+        }
+        catch (Exception ex)
+        {
+            Notify(NotificationSeverity.Error, FriendlyError(ex));
+        }
+    }
+
+    private async Task DeleteDatabase()
+    {
+        if (editDatabase.DatabaseId == 0)
+            return;
+
+        var confirmed = await DialogService.Confirm(
+            "Delete this database and all of its domains?",
+            "Delete Database",
+            new ConfirmOptions { OkButtonText = "Delete", CancelButtonText = "Cancel" });
+
+        if (confirmed != true)
+            return;
+
+        try
+        {
+            await DatabaseRepository.DeleteAsync(editDatabase.DatabaseId);
+            Notify(NotificationSeverity.Success, "Database deleted.");
+            NewDatabase();
+            await LoadDatabasesAsync();
+        }
+        catch (Exception ex)
+        {
+            Notify(NotificationSeverity.Error, FriendlyError(ex));
+        }
+    }
+
+    private void SelectDomain(DatabaseDomainDefinition domain)
+    {
+        selectedDomain = domain;
+        editDomain = Clone(domain);
+    }
+
+    private void NewDomain()
+    {
+        selectedDomain = null;
+        selectedDomains.Clear();
+        editDomain = new DatabaseDomainDefinition
+        {
+            DatabaseId = editDatabase.DatabaseId
+        };
+    }
+
+    private void ResetDomainEdit()
+    {
+        editDomain = selectedDomain is null
+            ? new DatabaseDomainDefinition { DatabaseId = editDatabase.DatabaseId }
+            : Clone(selectedDomain);
+    }
+
+    private async Task SaveDomain(DatabaseDomainDefinition domain)
+    {
+        if (editDatabase.DatabaseId == 0)
+            return;
+
+        domain.DatabaseId = editDatabase.DatabaseId;
+
+        try
+        {
+            if (domain.DatabaseDomainId == 0)
+            {
+                await DomainRepository.CreateAsync(domain);
+                Notify(NotificationSeverity.Success, "Domain created.");
+            }
+            else
+            {
+                await DomainRepository.UpdateAsync(domain);
+                Notify(NotificationSeverity.Success, "Domain updated.");
+            }
+
+            selectedDomain = domain;
+            await LoadDomainsAsync(editDatabase.DatabaseId);
+        }
+        catch (Exception ex)
+        {
+            Notify(NotificationSeverity.Error, FriendlyError(ex));
+        }
+    }
+
+    private async Task DeleteDomain()
+    {
+        if (editDomain.DatabaseDomainId == 0)
+            return;
+
+        var confirmed = await DialogService.Confirm(
+            "Delete this database domain?",
+            "Delete Domain",
+            new ConfirmOptions { OkButtonText = "Delete", CancelButtonText = "Cancel" });
+
+        if (confirmed != true)
+            return;
+
+        try
+        {
+            await DomainRepository.DeleteAsync(editDomain.DatabaseDomainId);
+            Notify(NotificationSeverity.Success, "Domain deleted.");
+            selectedDomain = null;
+            await LoadDomainsAsync(editDatabase.DatabaseId);
+        }
+        catch (Exception ex)
+        {
+            Notify(NotificationSeverity.Error, FriendlyError(ex));
+        }
+    }
+
+    private static DatabaseDefinition NewDatabaseDefinition() =>
+        new()
+        {
+            DefaultSchema = "dbo",
+            Active = true
+        };
+
+    private static DatabaseDefinition Clone(DatabaseDefinition database) =>
+        new()
+        {
+            DatabaseId = database.DatabaseId,
+            DatabaseName = database.DatabaseName,
+            DefaultSchema = database.DefaultSchema,
+            BusinessName = database.BusinessName,
+            BusinessDescription = database.BusinessDescription,
+            DeveloperNotes = database.DeveloperNotes,
+            Active = database.Active
+        };
+
+    private static DatabaseDomainDefinition Clone(DatabaseDomainDefinition domain) =>
+        new()
+        {
+            DatabaseDomainId = domain.DatabaseDomainId,
+            DatabaseId = domain.DatabaseId,
+            Domain = domain.Domain,
+            Description = domain.Description
+        };
+
+    private void Notify(NotificationSeverity severity, string detail)
+    {
+        NotificationService.Notify(new NotificationMessage
+        {
+            Severity = severity,
+            Summary = severity == NotificationSeverity.Error ? "Save failed" : "Manage Databases",
+            Detail = detail,
+            Duration = 3500
+        });
+    }
+
+    private static string FriendlyError(Exception ex)
+    {
+        if (ex is SqlException sqlException && sqlException.Number is 2601 or 2627)
+        {
+            return "A database domain with that name already exists for this database.";
+        }
+
+        return ex.Message;
+    }
+}
