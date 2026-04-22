@@ -22,7 +22,8 @@
 @inject IJSRuntime JSRuntime
 @inject NavigationManager NavigationManager
 
-@attribute [FileVersion("1.3")]
+@attribute [FileVersion("1.4")]
+@attribute [AIChange("1.4", "2026-04-22 11:43 AM CDT redirected logout to the configured kiosk route after clearing auth and selected-view state.", AICommandStatus.Pending)]
 @attribute [AIChange("1.3", "2026-04-22 11:40 AM CDT stabilized kiosk/home route transitions and cleared view state on logout so stale details do not remain behind the login form.", AICommandStatus.Pending)]
 @attribute [AIChange("1.2", "2026-04-22 11:30 AM CDT added Auth.InDebug autofill for the temporary admin login form.", AICommandStatus.Pending)]
 @attribute [AIChange("1.1", "2026-04-22 11:26 AM CDT added simple admin login/logout controls and gated the normal Home route while leaving kiosk content shared.", AICommandStatus.Pending)]
@@ -95,6 +96,7 @@
     }
 </style>
 
+@* 2026-04-22 11:43 AM CDT AI v1.4 logout redirect marker: logout clears state and returns the user to the configured kiosk route. *@
 @* 2026-04-22 11:40 AM CDT AI v1.3 route/logout marker: route changes refresh auth gating and logout clears stale selected-view state. *@
 @* 2026-04-22 11:30 AM CDT AI v1.2 debug autofill marker: Auth.InDebug can prefill the temporary admin credentials for local testing. *@
 @* 2026-04-22 11:26 AM CDT AI v1.1 login marker: the shared Home component gates only the normal route and lets kiosk login flow return to /. *@
@@ -631,7 +633,7 @@
 
         await JSRuntime.InvokeVoidAsync("stateManager.save", AuthStorageKey, "");
 
-        await InvokeAsync(StateHasChanged);
+        NavigationManager.NavigateTo(AppConfig.Current.Kiosk.Route);
     }
 
     private async Task SaveStateAsync()
