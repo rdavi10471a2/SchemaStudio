@@ -19,6 +19,7 @@
 @inject DatabaseRepository DatabaseRepository
 @inject DatabaseDomainRepository DatabaseDomainRepository
 @inject SchemaObjectRepository SchemaObjectRepository
+@inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
 <style>
     .parser-page-shell {
@@ -318,6 +319,11 @@
                                   Icon="account_tree"
                                   Disabled="@(CurrentParsedView == null || IsLoading)"
                                   Click="@ShowParsedDependenciesAsync" />
+
+                    <RadzenButton Text="Where Used"
+                                  Icon="travel_explore"
+                                  Disabled="@(SelectedObject == null || IsLoading)"
+                                  Click="@ShowWhereUsedAsync" />
 
                     <RadzenButton Text="Clear Cache"
                                   Icon="delete_sweep"
@@ -742,6 +748,55 @@
                 Resizable = true,
                 Draggable = true
             });
+    }
+
+    private async Task ShowWhereUsedAsync()
+    {
+        if (SelectedObject == null)
+        {
+            return;
+        }
+
+        try
+        {
+            // 2026-04-22 06:20 PM CDT AI where-used marker: use SQL Server dependency metadata for the reverse "who uses this object" side.
+            var dependencies = await SqlObjectDependencyRepository.GetWhereUsedAsync(
+                SelectedObject.SourceDatabaseName ?? string.Empty,
+                SelectedObject.SourceSchemaName,
+                SelectedObject.SourceObjectName);
+
+            if (dependencies.Count == 0)
+            {
+                NotificationService.Notify(
+                    NotificationSeverity.Info,
+                    "No where-used rows",
+                    "SQL Server dependency metadata does not list any objects using the selected object.",
+                    3000);
+                return;
+            }
+
+            await DialogService.OpenAsync<SqlObjectDependenciesDialog>(
+                $"Where Used: {SelectedObject.SourceObjectName}",
+                new Dictionary<string, object?>
+                {
+                    { "Dependencies", dependencies }
+                },
+                new DialogOptions
+                {
+                    Width = "1100px",
+                    Height = "620px",
+                    Resizable = true,
+                    Draggable = true
+                });
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(
+                NotificationSeverity.Error,
+                "Where-used lookup failed",
+                ex.Message,
+                5000);
+        }
     }
 
     private async Task OpenDtoDetails(object model, string? label, string kind)

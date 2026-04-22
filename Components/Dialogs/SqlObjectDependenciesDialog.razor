@@ -1,0 +1,24 @@
+@using SchemaStudio.Data.Models
+
+<RadzenStack Gap="0.75rem" Style="height:100%; min-height:420px; padding:10px;">
+    <RadzenDataGrid Data="@Dependencies"
+                    TItem="SqlObjectDependency"
+                    AllowPaging="false"
+                    AllowFiltering="true"
+                    AllowColumnResize="true"
+                    FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                    Density="Density.Compact"
+                    Style="height:100%;">
+        <Columns>
+            <RadzenDataGridColumn TItem="SqlObjectDependency" Property="@nameof(SqlObjectDependency.Direction)" Title="Direction" Width="120px" />
+            <RadzenDataGridColumn TItem="SqlObjectDependency" Property="@nameof(SqlObjectDependency.FullName)" Title="Full Name" Width="360px" />
+            <RadzenDataGridColumn TItem="SqlObjectDependency" Property="@nameof(SqlObjectDependency.DatabaseName)" Title="Database" Width="180px" />
+            <RadzenDataGridColumn TItem="SqlObjectDependency" Property="@nameof(SqlObjectDependency.SchemaName)" Title="Schema" Width="120px" />
+            <RadzenDataGridColumn TItem="SqlObjectDependency" Property="@nameof(SqlObjectDependency.ObjectName)" Title="Object" Width="260px" />
+        </Columns>
+    </RadzenDataGrid>
+</RadzenStack>
+
+@code {
+    [Parameter] public IReadOnlyList<SqlObjectDependency> Dependencies { get; set; } = Array.Empty<SqlObjectDependency>();
+}

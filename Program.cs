@@ -8,8 +8,9 @@ using SchemaStudioWebViewer.WEBSemanticModel.Services;
 
 namespace SchemaStudioWebViewer
 {
-    [FileVersion("1.4")]
+    [FileVersion("1.5")]
     [AIFileContext("Program.cs", "Bootstraps the SchemaStudioWebViewer web app, initializes configuration, registers services, and maps the Razor and MCP endpoints.")]
+    [AIChange("1.5", "2026-04-22 06:20 PM CDT registered SQL Server dependency metadata repository for ParserLab where-used lookups.", AICommandStatus.Pending)]
     [AIChange("1.4", "2026-04-22 04:27 PM CDT registered schema object repositories from the new data layer so object metadata can be loaded and saved asynchronously.", AICommandStatus.Pending)]
     [AIChange("1.0", "2026-04-13 02:37 PM CDT workflow header test: added the initial file header metadata, version marker, and visible compare marker for Program.cs.", AICommandStatus.Pending)]
     [AIChange("1.1", "2026-04-15 03:00 PM CDT registered the WEBSemanticModel ViewParsingService so Home.razor can request SQL through the parser DLL.", AICommandStatus.Pending)]
@@ -55,6 +56,9 @@ namespace SchemaStudioWebViewer
                 new SchemaObjectRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
             builder.Services.AddScoped(_ =>
                 new SchemaObjectColumnRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
+            // 2026-04-22 06:20 PM CDT AI v1.5 dependency-repository marker: ParserLab can ask SQL Server metadata which views use the selected object.
+            builder.Services.AddScoped(_ =>
+                new SqlObjectDependencyRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
 
             var app = builder.Build();
 
