@@ -2,12 +2,11 @@
 
 @using System.Reflection
 @using System.ComponentModel.DataAnnotations
-@using SchemaStudioWebViewer.Configuration
-@using SchemaStudioWebViewer.Data
 @using SchemaStudioWebViewer.Models
 @using SchemaStudioWebViewer.Components.Dialogs
 @using SchemaStudioWebViewer.Utils
 @using SchemaStudio.Data.Models
+@using SchemaStudio.Data.Repositories
 @using SchemaStudioWebViewer.WEBSemanticModel.Model
 @using SchemaStudioWebViewer.WEBSemanticModel.Services
 @using Radzen
@@ -17,6 +16,9 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 @inject ViewParsingService ParserService
+@inject DatabaseRepository DatabaseRepository
+@inject DatabaseDomainRepository DatabaseDomainRepository
+@inject SchemaObjectRepository SchemaObjectRepository
 
 <style>
     .parser-page-shell {
@@ -427,8 +429,8 @@
 </RadzenStack>
 
 @code {
-    private List<DatabaseModel> Databases = new();
-    private List<DatabaseDomainModel> Domains = new();
+    private List<DatabaseDefinition> Databases = new();
+    private List<DatabaseDomainDefinition> Domains = new();
     private List<DisplaySchemaObject> DisplayObjects = new();
     private List<SourceTableDto> ParsedTables = new();
     private List<ViewColumnDto> ParsedColumns = new();
@@ -436,15 +438,9 @@
     private int? SelectedDatabaseId;
     private string SelectedDomain = string.Empty;
     private int? SelectedObjectId;
-    private SchemaObjectModel? SelectedObject;
+    private SchemaObjectDefinition? SelectedObject;
     private bool IsLoading;
     private int _parseRequestVersion;
-
-    private readonly ReadOnlyDatabaseRepository _dbRepo =
-        new(AppConfig.Current.ConnectionStrings.DefaultConnection);
-
-    private readonly ReadOnlySchemaObjectRepository _schemaRepo =
-        new(AppConfig.Current.ConnectionStrings.DefaultConnection);
 
     private List<PropertyInfo> TableProperties => GetVisibleGridProperties(typeof(SourceTableDto)).ToList();
     private List<PropertyInfo> ColumnProperties => GetVisibleGridProperties(typeof(ViewColumnDto)).ToList();
@@ -453,7 +449,18 @@
 
     protected override async Task OnInitializedAsync()
     {
-        Databases = await _dbRepo.GetAllAsync();
+        try
+        {
+            Databases = (await DatabaseRepository.GetAllAsync()).ToList();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(
+                NotificationSeverity.Error,
+                "Database load failed",
+                ex.Message,
+                5000);
+        }
     }
 
     private async Task OnDatabaseChanged(object value)
@@ -474,7 +481,19 @@
         ParsedColumns = new();
         DisplayObjects.Clear();
         await InvokeAsync(StateHasChanged);
-        Domains = await _dbRepo.GetDomainsAsync(dbId);
+        try
+        {
+            Domains = (await DatabaseDomainRepository.GetByDatabaseIdAsync(dbId)).ToList();
+        }
+        catch (Exception ex)
+        {
+            Domains = new();
+            NotificationService.Notify(
+                NotificationSeverity.Error,
+                "Domain load failed",
+                ex.Message,
+                5000);
+        }
     }
 
     private async Task OnDomainChanged(object value)
@@ -493,8 +512,19 @@
             return;
         }
 
-        var raw = await _schemaRepo.GetByDatabaseAsync(SelectedDatabaseId.Value);
-        BuildDisplayObjects(raw);
+        try
+        {
+            var raw = await SchemaObjectRepository.GetByDatabaseAsync(SelectedDatabaseId.Value);
+            BuildDisplayObjects(raw);
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(
+                NotificationSeverity.Error,
+                "Object load failed",
+                ex.Message,
+                5000);
+        }
     }
 
     private async Task OnObjectChanged(object value)
@@ -512,7 +542,31 @@
         }
 
         SelectedObjectId = objId;
-        SelectedObject = await _schemaRepo.GetByIdAsync(objId);
+        try
+        {
+            SelectedObject = await SchemaObjectRepository.GetByIdAsync(objId);
+        }
+        catch (Exception ex)
+        {
+            SelectedObject = null;
+            NotificationService.Notify(
+                NotificationSeverity.Error,
+                "Object load failed",
+                ex.Message,
+                5000);
+            return;
+        }
+
+        if (SelectedObject == null)
+        {
+            NotificationService.Notify(
+                NotificationSeverity.Warning,
+                "Object unavailable",
+                "The selected object was not found in the metadata repository.",
+                3000);
+            return;
+        }
+
         ParsedTables = new();
         ParsedColumns = new();
         await InvokeAsync(StateHasChanged);
@@ -710,7 +764,7 @@
         };
     }
 
-    private void BuildDisplayObjects(List<SchemaObjectModel> raw)
+    private void BuildDisplayObjects(IReadOnlyList<SchemaObjectDefinition> raw)
     {
         var filtered = raw.Where(x => x.Domain == SelectedDomain)
             .OrderByDescending(x => x.IsBaseObject)
@@ -730,7 +784,7 @@
         DisplayObjects.AddRange(baseItems.Select(x => new DisplaySchemaObject
         {
             SchemaObjectId = x.SchemaObjectId,
-            DisplayName = x.BusinessName,
+            DisplayName = GetObjectDisplayName(x),
             IsBaseObject = true
         }));
 
@@ -746,10 +800,22 @@
             DisplayObjects.AddRange(derivedItems.Select(x => new DisplaySchemaObject
             {
                 SchemaObjectId = x.SchemaObjectId,
-                DisplayName = x.BusinessName,
+                DisplayName = GetObjectDisplayName(x),
                 IsBaseObject = false
             }));
         }
+    }
+
+    private static string GetObjectDisplayName(SchemaObjectDefinition item)
+    {
+        if (!string.IsNullOrWhiteSpace(item.BusinessName))
+        {
+            return item.BusinessName;
+        }
+
+        return string.Join(".",
+            new[] { item.SourceDatabaseName, item.SourceSchemaName, item.SourceObjectName }
+                .Where(part => !string.IsNullOrWhiteSpace(part)));
     }
 
     private void ResetSelection(bool clearDatabase)

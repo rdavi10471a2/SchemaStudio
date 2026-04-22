@@ -23,6 +23,7 @@ public static class ExportMappers
                 JoinType = source.JoinType,
                 ResolvedOrder = source.ResolvedOrder,
                 JoinExpression = source.JoinExpression,
+                IsBaseTable = source.Kind == SourceKind.NamedObject,
                 JoinKeys = source.JoinKeys?
                     .Select(key => new JoinKeyDto
                     {
