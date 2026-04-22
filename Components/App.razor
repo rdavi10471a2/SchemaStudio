@@ -1,4 +1,10 @@
-﻿<!DOCTYPE html>
+﻿@using SchemaStudio.AIHelpers
+
+@attribute [FileVersion("1.0")]
+@attribute [AIFileContext("Components/App.razor", "Defines the root HTML shell, shared browser-side state helpers, script references, and global client behaviors for the Blazor app.")]
+@attribute [AIChange("1.0", "2026-04-22 11:51 AM CDT added session-scoped auth storage and page-unload cleanup so browser close/reload starts logged out.", AICommandStatus.Pending)]
+
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
@@ -28,6 +34,29 @@
                 return localStorage.getItem(key);
             }
         };
+
+        // 2026-04-22 11:51 AM CDT AI v1.0 auth-session marker: auth is tab/window scoped and is cleared on browser close or full page reload.
+        window.authStateManager = {
+            save: function (key, value) {
+                sessionStorage.setItem(key, value);
+            },
+            load: function (key) {
+                return sessionStorage.getItem(key);
+            },
+            clear: function (key) {
+                sessionStorage.removeItem(key);
+            },
+            clearLogoutState: function () {
+                sessionStorage.removeItem("simpleAuth");
+                localStorage.removeItem("dbId");
+                localStorage.removeItem("dom");
+                localStorage.removeItem("objId");
+            }
+        };
+
+        window.addEventListener("pagehide", function () {
+            window.authStateManager.clearLogoutState();
+        });
 
         // --- 2. Prism SQL Highlighting Logic ---
         const delay = ms => new Promise(res => setTimeout(res, ms));

@@ -22,7 +22,8 @@
 @inject IJSRuntime JSRuntime
 @inject NavigationManager NavigationManager
 
-@attribute [FileVersion("1.5")]
+@attribute [FileVersion("1.6")]
+@attribute [AIChange("1.6", "2026-04-22 11:51 AM CDT moved simple auth state to session-scoped browser storage so close, reload, or debug restart starts logged out.", AICommandStatus.Pending)]
 @attribute [AIChange("1.5", "2026-04-22 11:47 AM CDT added a login cancel action so the inline kiosk login panel can collapse without clearing the current selection.", AICommandStatus.Pending)]
 @attribute [AIChange("1.4", "2026-04-22 11:43 AM CDT redirected logout to the configured kiosk route after clearing auth and selected-view state.", AICommandStatus.Pending)]
 @attribute [AIChange("1.3", "2026-04-22 11:40 AM CDT stabilized kiosk/home route transitions and cleared view state on logout so stale details do not remain behind the login form.", AICommandStatus.Pending)]
@@ -97,6 +98,7 @@
     }
 </style>
 
+@* 2026-04-22 11:51 AM CDT AI v1.6 auth-session marker: simple auth uses session storage so browser close/reload/debug restart begins logged out. *@
 @* 2026-04-22 11:47 AM CDT AI v1.5 login cancel marker: cancel collapses the inline login panel without disturbing the current kiosk selection. *@
 @* 2026-04-22 11:43 AM CDT AI v1.4 logout redirect marker: logout clears state and returns the user to the configured kiosk route. *@
 @* 2026-04-22 11:40 AM CDT AI v1.3 route/logout marker: route changes refresh auth gating and logout clears stale selected-view state. *@
@@ -478,7 +480,7 @@
 
     private async Task LoadAuthStateAsync()
     {
-        var authValue = await JSRuntime.InvokeAsync<string>("stateManager.load", AuthStorageKey);
+        var authValue = await JSRuntime.InvokeAsync<string>("authStateManager.load", AuthStorageKey);
         IsAuthenticated = string.Equals(authValue, AuthenticatedValue, StringComparison.OrdinalIgnoreCase);
         IsLoginFormVisible = ShouldBlockNormalHome;
         AutofillDebugCredentials();
@@ -626,7 +628,7 @@
         LoginError = "";
         LoginPassword = "";
 
-        await JSRuntime.InvokeVoidAsync("stateManager.save", AuthStorageKey, AuthenticatedValue);
+        await JSRuntime.InvokeVoidAsync("authStateManager.save", AuthStorageKey, AuthenticatedValue);
 
         if (IsKioskRoute)
         {
@@ -650,7 +652,7 @@
 
         await ClearPersistedSelectionStateAsync();
 
-        await JSRuntime.InvokeVoidAsync("stateManager.save", AuthStorageKey, "");
+        await JSRuntime.InvokeVoidAsync("authStateManager.clear", AuthStorageKey);
 
         NavigationManager.NavigateTo(AppConfig.Current.Kiosk.Route);
     }
