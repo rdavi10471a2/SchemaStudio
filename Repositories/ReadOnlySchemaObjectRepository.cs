@@ -4,11 +4,11 @@ using SchemaStudioWebViewer.Models;
 
 namespace SchemaStudioWebViewer.Data
 {
-    public class SchemaObjectRepository
+    public class ReadOnlySchemaObjectRepository
     {
         private readonly string _connectionString;
 
-        public SchemaObjectRepository(string connectionString)
+        public ReadOnlySchemaObjectRepository(string connectionString)
         {
             _connectionString = connectionString;
         }

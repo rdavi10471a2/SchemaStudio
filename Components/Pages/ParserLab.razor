@@ -440,10 +440,10 @@
     private bool IsLoading;
     private int _parseRequestVersion;
 
-    private readonly DatabaseRepository _dbRepo =
+    private readonly ReadOnlyDatabaseRepository _dbRepo =
         new(AppConfig.Current.ConnectionStrings.DefaultConnection);
 
-    private readonly SchemaObjectRepository _schemaRepo =
+    private readonly ReadOnlySchemaObjectRepository _schemaRepo =
         new(AppConfig.Current.ConnectionStrings.DefaultConnection);
 
     private List<PropertyInfo> TableProperties => GetVisibleGridProperties(typeof(SourceTableDto)).ToList();

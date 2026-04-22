@@ -421,13 +421,13 @@
     private const string AdminUserName = "admin";
     private const string AdminPassword = "admin123";
 
-    private DatabaseRepository DbRepo =
+    private ReadOnlyDatabaseRepository DbRepo =
         new(AppConfig.Current.ConnectionStrings.DefaultConnection);
 
-    private SchemaObjectRepository SchemaRepo =
+    private ReadOnlySchemaObjectRepository SchemaRepo =
         new(AppConfig.Current.ConnectionStrings.DefaultConnection);
 
-    private ViewDefinitionRepository ViewRepo =
+    private ReadOnlyViewDefinitionRepository ViewRepo =
         new(AppConfig.Current.ConnectionStrings.DefaultConnection);
 
     protected override void OnInitialized()

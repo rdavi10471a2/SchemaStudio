@@ -5,11 +5,11 @@ using System.Text.RegularExpressions;
 
 namespace SchemaStudioWebViewer.Data
 {
-    public class ViewDefinitionRepository
+    public class ReadOnlyViewDefinitionRepository
     {
         private readonly string _connectionString;
 
-        public ViewDefinitionRepository(string connectionString)
+        public ReadOnlyViewDefinitionRepository(string connectionString)
         {
             _connectionString = connectionString;
         }
