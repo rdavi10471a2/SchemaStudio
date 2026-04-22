@@ -1,5 +1,13 @@
 ﻿@inherits LayoutComponentBase
+@implements IDisposable
+@using Microsoft.AspNetCore.Components.Routing
 @using Radzen.Blazor
+@using SchemaStudio.AIHelpers
+@using SchemaStudioWebViewer.Configuration
+@inject NavigationManager NavigationManager
+
+@attribute [FileVersion("1.0")]
+@attribute [AIChange("1.0", "2026-04-22 11:06 AM CDT added config-driven kiosk chrome suppression for the /kiosk route.", AICommandStatus.Pending)]
 
 <RadzenComponents @rendermode="InteractiveServer" />
 <RadzenTooltip /> @* Explicitly added for tooltip rendering *@
@@ -25,6 +33,10 @@
             border: 1px solid var(--rz-divider);
         }
 
+    .kiosk-shell .rz-body > .rz-p-4 {
+        min-height: calc(100vh - 2rem);
+    }
+
     .rz-sidebar {
         background-color: #26272b !important;
         transition: width 0.3s ease-in-out;
@@ -38,21 +50,25 @@
     }
 </style>
 
-<RadzenLayout Style="grid-template-areas: 'rz-header rz-header' 'rz-sidebar rz-body'; height: 100vh;">
-    <RadzenHeader>
-        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0">
-            <RadzenSidebarToggle Click="@ToggleSidebar" />
-            <RadzenText TextStyle="TextStyle.H6" class="rz-mb-0 rz-ml-2">Schema Studio Web</RadzenText>
-        </RadzenStack>
-    </RadzenHeader>
+<RadzenLayout Class="@LayoutClass" Style="@LayoutStyle">
+    @* 2026-04-22 11:06 AM CDT AI v1.0 kiosk layout marker: config can hide navigation chrome for /kiosk while Home remains the shared content surface. *@
+    @if (!HideNavigationChrome)
+    {
+        <RadzenHeader>
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0">
+                <RadzenSidebarToggle Click="@ToggleSidebar" />
+                <RadzenText TextStyle="TextStyle.H6" class="rz-mb-0 rz-ml-2">Schema Studio Web</RadzenText>
+            </RadzenStack>
+        </RadzenHeader>
 
-    <RadzenSidebar @bind-Expanded="@sidebarExpanded"
-                   Responsive="false"
-                   Style="@(sidebarExpanded ? "width: 250px;" : "width: 0px; overflow: hidden;")">
-        <RadzenStack Gap="0" class="rz-py-4 rz-ph-4">
-            <NavMenu />
-        </RadzenStack>
-    </RadzenSidebar>
+        <RadzenSidebar @bind-Expanded="@sidebarExpanded"
+                       Responsive="false"
+                       Style="@(sidebarExpanded ? "width: 250px;" : "width: 0px; overflow: hidden;")">
+            <RadzenStack Gap="0" class="rz-py-4 rz-ph-4">
+                <NavMenu />
+            </RadzenStack>
+        </RadzenSidebar>
+    }
 
     <RadzenBody>
         <div class="rz-p-4">
@@ -64,8 +80,47 @@
 @code {
     bool sidebarExpanded = false;
 
+    private bool IsKioskRoute =>
+        AppConfig.Current.Kiosk.Enabled &&
+        string.Equals(CurrentRelativePath, AppConfig.Current.Kiosk.Route.Trim('/'), StringComparison.OrdinalIgnoreCase);
+
+    private bool HideNavigationChrome =>
+        IsKioskRoute &&
+        AppConfig.Current.Kiosk.HideNavigationChrome;
+
+    private string LayoutClass => HideNavigationChrome ? "kiosk-shell" : string.Empty;
+
+    private string LayoutStyle => HideNavigationChrome
+        ? "grid-template-areas: 'rz-body'; grid-template-columns: 1fr; height: 100vh;"
+        : "grid-template-areas: 'rz-header rz-header' 'rz-sidebar rz-body'; height: 100vh;";
+
+    private string CurrentRelativePath
+    {
+        get
+        {
+            var relative = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+            var queryIndex = relative.IndexOf('?', StringComparison.Ordinal);
+            return (queryIndex >= 0 ? relative[..queryIndex] : relative).Trim('/');
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        NavigationManager.LocationChanged += OnLocationChanged;
+    }
+
     void ToggleSidebar()
     {
         sidebarExpanded = !sidebarExpanded;
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs args)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
     }
 }

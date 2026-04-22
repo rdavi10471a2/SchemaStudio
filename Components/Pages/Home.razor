@@ -1,5 +1,8 @@
 ﻿@page "/"
 
+@page "/kiosk"
+
+@using SchemaStudio.AIHelpers
 @using SchemaStudioWebViewer.Configuration
 @using SchemaStudioWebViewer.Data
 @using SchemaStudioWebViewer.Models
@@ -16,6 +19,9 @@
 @inject TooltipService TooltipService
 @inject IJSRuntime JSRuntime
 @inject NavigationManager NavigationManager
+
+@attribute [FileVersion("1.0")]
+@attribute [AIChange("1.0", "2026-04-22 11:06 AM CDT added the /kiosk route alias so kiosk mode can load the Home view through layout policy.", AICommandStatus.Pending)]
 
 <style>
     .view-label-blue {
@@ -73,6 +79,7 @@
     }
 </style>
 
+@* 2026-04-22 11:06 AM CDT AI v1.0 kiosk route marker: /kiosk intentionally renders the same Home workflow while MainLayout decides whether navigation chrome is shown. *@
 <PageTitle>Choose View</PageTitle>
 
 <RadzenCard Variant="Variant.Flat" Class="rz-p-2 rz-mb-2">
