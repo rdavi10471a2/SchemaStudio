@@ -22,7 +22,7 @@ SELECT
     DatabaseDomainId,
     DatabaseId,
     Domain,
-    Decription AS Description
+    Description
 FROM dbo.DatabaseDomain
 WHERE DatabaseId = @databaseId
 ORDER BY Domain;
@@ -41,7 +41,7 @@ SELECT
     DatabaseDomainId,
     DatabaseId,
     Domain,
-    Decription AS Description
+    Description
 FROM dbo.DatabaseDomain
 WHERE DatabaseDomainId = @databaseDomainId;
 """;
@@ -58,7 +58,7 @@ INSERT INTO dbo.DatabaseDomain
 (
     DatabaseId,
     Domain,
-    Decription
+    Description
 )
 OUTPUT INSERTED.DatabaseDomainId
 VALUES
@@ -82,7 +82,7 @@ VALUES
 UPDATE dbo.DatabaseDomain
 SET
     Domain = @Domain,
-    Decription = @Description
+    Description = @Description
 WHERE DatabaseDomainId = @DatabaseDomainId;
 """;
 
