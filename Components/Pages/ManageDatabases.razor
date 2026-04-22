@@ -312,7 +312,7 @@
             return;
 
         var confirmed = await DialogService.Confirm(
-            "Delete this database and all of its domains?",
+            "Delete this database? This will also delete all child records tied to it, including database domains and any other dependent metadata enforced by database relationships.",
             "Delete Database",
             new ConfirmOptions { OkButtonText = "Delete", CancelButtonText = "Cancel" });
 
@@ -362,6 +362,12 @@
 
         domain.DatabaseId = editDatabase.DatabaseId;
 
+        if (HasDuplicateDomain(domain))
+        {
+            Notify(NotificationSeverity.Warning, "That domain already exists for this database. Domain names must be unique, ignoring case.");
+            return;
+        }
+
         try
         {
             if (domain.DatabaseDomainId == 0)
@@ -390,7 +396,7 @@
             return;
 
         var confirmed = await DialogService.Confirm(
-            "Delete this database domain?",
+            "Delete this database domain? This may also delete or orphan child records tied to this domain, depending on database relationships.",
             "Delete Domain",
             new ConfirmOptions { OkButtonText = "Delete", CancelButtonText = "Cancel" });
 
@@ -437,6 +443,15 @@
             Domain = domain.Domain,
             Description = domain.Description
         };
+
+    private bool HasDuplicateDomain(DatabaseDomainDefinition domain)
+    {
+        var candidate = domain.Domain.Trim();
+
+        return domains.Any(existing =>
+            existing.DatabaseDomainId != domain.DatabaseDomainId &&
+            string.Equals(existing.Domain.Trim(), candidate, StringComparison.OrdinalIgnoreCase));
+    }
 
     private void Notify(NotificationSeverity severity, string detail)
     {
