@@ -1,9 +1,17 @@
 @page "/manage-databases"
 @using Microsoft.Data.SqlClient
+@using SchemaStudio.AIHelpers
+@using SchemaStudioWebViewer.Components.HelpSystem
+@using SchemaStudioWebViewer.Utils
 @inject DatabaseRepository DatabaseRepository
 @inject DatabaseDomainRepository DomainRepository
 @inject NotificationService NotificationService
 @inject DialogService DialogService
+@inject TooltipService TooltipService
+@inject AttributeService Attr
+
+@attribute [FileVersion("1.0")]
+@attribute [AIChange("1.0", "2026-04-22 06:31 PM CDT added help links and field-level info icons to database and domain maintenance forms.", AICommandStatus.Pending)]
 
 <PageTitle>Manage Databases</PageTitle>
 
@@ -13,7 +21,12 @@
                  JustifyContent="JustifyContent.SpaceBetween"
                  Gap="1rem">
         <RadzenStack Gap="0.25rem">
-            <RadzenText TextStyle="TextStyle.H4" class="rz-m-0">Manage Databases</RadzenText>
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                <RadzenText TextStyle="TextStyle.H4" class="rz-m-0">Manage Databases</RadzenText>
+                <RadzenIcon Icon="help_outline"
+                            Style="cursor:pointer;color:var(--rz-primary);font-size:1.25rem;"
+                            @onclick="@(() => OpenHelp("manage-databases"))" />
+            </RadzenStack>
             <RadzenText TextStyle="TextStyle.Body2" Style="color:#495057;">
                 Create and edit database records and their business domains.
             </RadzenText>
@@ -250,6 +263,23 @@
         max-height: calc(100vh - 6rem);
         overflow-y: auto;
         border-radius: 8px;
+    }
+
+    .manage-field-label {
+        color: var(--rz-primary);
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        min-height: 20px;
+        text-transform: uppercase;
+    }
+
+    .manage-field-label .rzi {
+        cursor: help;
+        font-size: 1rem;
     }
 </style>
 
@@ -534,52 +564,75 @@
     }
 
     private RenderFragment DatabaseFormFields(DatabaseDefinition database) => @<RadzenStack Gap="1rem" class="rz-p-4">
+        @* 2026-04-22 06:31 PM CDT AI v1.0 manage-database-help marker: field labels use model Display/Description metadata for consistent help tooltips. *@
         <RadzenRow Gap="1rem">
             <RadzenColumn Size="12" SizeMD="6">
-                <RadzenFormField Text="Database Name" Style="width:100%;">
-                    <RadzenTextBox Name="DatabaseName" @bind-Value="@database.DatabaseName" Style="width:100%;" MaxLength="128" />
-                </RadzenFormField>
+                @FieldLabel(typeof(DatabaseDefinition), nameof(DatabaseDefinition.DatabaseName))
+                <RadzenTextBox Name="DatabaseName" @bind-Value="@database.DatabaseName" Style="width:100%;" MaxLength="128" />
                 <RadzenRequiredValidator Component="DatabaseName" Text="Database name is required." />
             </RadzenColumn>
 
             <RadzenColumn Size="12" SizeMD="6">
-                <RadzenFormField Text="Default Schema" Style="width:100%;">
-                    <RadzenTextBox Name="DefaultSchema" @bind-Value="@database.DefaultSchema" Style="width:100%;" MaxLength="128" />
-                </RadzenFormField>
+                @FieldLabel(typeof(DatabaseDefinition), nameof(DatabaseDefinition.DefaultSchema))
+                <RadzenTextBox Name="DefaultSchema" @bind-Value="@database.DefaultSchema" Style="width:100%;" MaxLength="128" />
                 <RadzenRequiredValidator Component="DefaultSchema" Text="Default schema is required." />
             </RadzenColumn>
         </RadzenRow>
 
-        <RadzenFormField Text="Business Name" Style="width:100%;">
-            <RadzenTextBox Name="BusinessName" @bind-Value="@database.BusinessName" Style="width:100%;" MaxLength="128" />
-        </RadzenFormField>
+        @FieldLabel(typeof(DatabaseDefinition), nameof(DatabaseDefinition.BusinessName))
+        <RadzenTextBox Name="BusinessName" @bind-Value="@database.BusinessName" Style="width:100%;" MaxLength="128" />
         <RadzenRequiredValidator Component="BusinessName" Text="Business name is required." />
 
-        <RadzenFormField Text="Business Description" Style="width:100%;">
-            <RadzenTextArea Name="BusinessDescription" @bind-Value="@database.BusinessDescription" Style="width:100%;" Rows="4" MaxLength="500" />
-        </RadzenFormField>
+        @FieldLabel(typeof(DatabaseDefinition), nameof(DatabaseDefinition.BusinessDescription))
+        <RadzenTextArea Name="BusinessDescription" @bind-Value="@database.BusinessDescription" Style="width:100%;" Rows="4" MaxLength="500" />
         <RadzenRequiredValidator Component="BusinessDescription" Text="Business description is required." />
 
-        <RadzenFormField Text="Developer Notes" Style="width:100%;">
-            <RadzenTextArea @bind-Value="@database.DeveloperNotes" Style="width:100%;" Rows="6" MaxLength="4000" />
-        </RadzenFormField>
+        @FieldLabel(typeof(DatabaseDefinition), nameof(DatabaseDefinition.DeveloperNotes))
+        <RadzenTextArea @bind-Value="@database.DeveloperNotes" Style="width:100%;" Rows="6" MaxLength="4000" />
 
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
             <RadzenCheckBox @bind-Value="@database.Active" TValue="bool" />
-            <RadzenLabel Text="Active" />
+            @FieldLabel(typeof(DatabaseDefinition), nameof(DatabaseDefinition.Active))
         </RadzenStack>
     </RadzenStack>;
 
     private RenderFragment DomainFormFields(DatabaseDomainDefinition domain) => @<RadzenStack Gap="1rem">
-        <RadzenFormField Text="Domain" Style="width:100%;">
-            <RadzenTextBox Name="Domain" @bind-Value="@domain.Domain" Style="width:100%;" MaxLength="128" />
-        </RadzenFormField>
+        @FieldLabel(typeof(DatabaseDomainDefinition), nameof(DatabaseDomainDefinition.Domain))
+        <RadzenTextBox Name="Domain" @bind-Value="@domain.Domain" Style="width:100%;" MaxLength="128" />
         <RadzenRequiredValidator Component="Domain" Text="Domain is required." />
 
-        <RadzenFormField Text="Description" Style="width:100%;">
-            <RadzenTextArea @bind-Value="@domain.Description" Style="width:100%;" Rows="4" MaxLength="500" />
-        </RadzenFormField>
+        @FieldLabel(typeof(DatabaseDomainDefinition), nameof(DatabaseDomainDefinition.Description))
+        <RadzenTextArea @bind-Value="@domain.Description" Style="width:100%;" Rows="4" MaxLength="500" />
     </RadzenStack>;
+
+    private RenderFragment FieldLabel(Type modelType, string propertyName) => @<div class="manage-field-label">
+        @Attr.GetName($"{modelType.Name}.{propertyName}")
+        @{
+            var description = Attr.GetDesc($"{modelType.Name}.{propertyName}");
+        }
+        @if (!string.IsNullOrWhiteSpace(description))
+        {
+            <RadzenIcon Icon="help_outline"
+                        MouseEnter="@(args => TooltipService.Open(args, description))" />
+        }
+    </div>;
+
+    private async Task OpenHelp(string id)
+    {
+        await DialogService.OpenAsync<HelpDialog>(
+            "Schema Studio Help Console",
+            new Dictionary<string, object?>
+            {
+                { "InitialSubjectId", id }
+            },
+            new DialogOptions
+            {
+                Width = "1200px",
+                Height = "800px",
+                Resizable = true,
+                Draggable = true
+            });
+    }
 
     private static DatabaseDefinition NewDatabaseDefinition() =>
         new()

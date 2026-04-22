@@ -70,5 +70,37 @@
         "CustomFragmentName": ""
       }
     ]
+  },
+  {
+    "Id": "manage-databases",
+    "Title": "Manage Databases",
+    "Subtitle": "Database and domain maintenance",
+    "Icon": "database",
+    "Details": [
+      {
+        "Id": "database-records",
+        "Label": "Database Records",
+        "Subtitle": "Section: database identity and business context",
+        "Description": "Use the Database tab to maintain one catalog record per source database.\n\nDatabase Name is the physical SQL Server database name used by metadata imports and dependency checks.\n\nDefault Schema is used when source object metadata does not provide a schema. For most SQL Server sources this remains dbo.\n\nBusiness Name and Business Description are required because they are the user-facing context shown in Schema Studio.\n\nDeveloper Notes are optional technical notes for maintainers.",
+        "Icon": "storage",
+        "CustomFragmentName": ""
+      },
+      {
+        "Id": "domain-records",
+        "Label": "Domain Records",
+        "Subtitle": "Section: business grouping inside a database",
+        "Description": "Use the Domains tab to group source objects into functional areas such as Service, Accounting, Parts, Payroll, or Shared.\n\nDomain names are unique within the selected database. The page checks for duplicates case-insensitively before saving.\n\nDeleting a domain is intentionally not available here because existing object records can still carry that domain value outside a database-enforced relationship.",
+        "Icon": "category",
+        "CustomFragmentName": ""
+      },
+      {
+        "Id": "delete-database",
+        "Label": "Deleting Databases",
+        "Subtitle": "Section: cascade behavior",
+        "Description": "Deleting a database record removes the database from Schema Studio metadata maintenance.\n\nThe database constraints also delete child domain and object records tied to that database. Use this only when the catalog record and its imported metadata should be removed together.",
+        "Icon": "delete",
+        "CustomFragmentName": ""
+      }
+    ]
   }
 ]
