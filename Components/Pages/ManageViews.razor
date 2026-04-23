@@ -1,0 +1,976 @@
+@page "/manage-views"
+
+@using System.ComponentModel.DataAnnotations
+@using System.Reflection
+@using Radzen
+@using Radzen.Blazor
+@using SchemaStudio.AIHelpers
+@using SchemaStudio.Data.Models
+@using SchemaStudio.Data.Repositories
+@using SchemaStudioWebViewer.Utils
+@using SchemaStudioWebViewer.WEBSemanticModel.Model
+@using SchemaStudioWebViewer.WEBSemanticModel.Services
+
+@inject DatabaseRepository DatabaseRepository
+@inject DatabaseDomainRepository DatabaseDomainRepository
+@inject SchemaObjectRepository SchemaObjectRepository
+@inject SchemaObjectColumnRepository SchemaObjectColumnRepository
+@inject SourceViewRepository SourceViewRepository
+@inject ViewParsingService ParserService
+@inject NotificationService NotificationService
+@inject TooltipService TooltipService
+
+@attribute [FileVersion("1.0")]
+@attribute [AIFileContext("Components/Pages/ManageViews.razor", "Hosts the new import-and-edit workspace for existing and available views, including view metadata editing and a first-pass parser-versus-existing column review surface.")]
+@attribute [AIChange("1.0", "2026-04-23 01:29 PM CDT added the first pass of the new manage-views workspace with a guided RHS editor and available-view filtering driven by the database ViewNameFilter field.", AICommandStatus.Pending)]
+
+<PageTitle>Manage Views</PageTitle>
+
+<style>
+    .manage-views-shell {
+        display: grid;
+        grid-template-columns: 320px minmax(0, 1fr);
+        gap: 1rem;
+        min-height: calc(100vh - 180px);
+    }
+
+    .manage-views-panel {
+        background: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        padding: 1rem;
+        box-sizing: border-box;
+        box-shadow: none !important;
+    }
+
+    .manage-views-left {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        min-height: 0;
+    }
+
+    .manage-views-right {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        min-height: 0;
+    }
+
+    .manage-views-list-frame {
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 0.75rem;
+        min-height: 200px;
+        background: #fafbfc;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .manage-views-list {
+        width: 100%;
+        min-height: 180px;
+    }
+
+    .manage-views-section-title {
+        color: var(--rz-primary);
+        font-size: 0.82rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .manage-views-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .manage-views-banner {
+        border: 1px solid #d7dee6;
+        border-radius: 4px;
+        padding: 0.75rem 1rem;
+        background: #f8fafc;
+    }
+
+    .manage-views-form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .manage-views-form-span-2 {
+        grid-column: 1 / -1;
+    }
+
+    .manage-views-field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+    }
+
+    .manage-views-field-label {
+        color: var(--rz-primary);
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .manage-views-grid-host {
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        overflow: hidden;
+        min-height: 380px;
+    }
+
+    .manage-views-grid {
+        width: 100%;
+    }
+
+    .column-preview {
+        max-height: 150px;
+        overflow: auto;
+        white-space: pre-wrap;
+        font-size: 0.85rem;
+        line-height: 1.35;
+    }
+
+    .column-summary {
+        font-size: 0.85rem;
+        line-height: 1.35;
+    }
+
+    .workspace-placeholder {
+        border: 1px dashed #cbd3da;
+        border-radius: 4px;
+        background: #fafbfc;
+        color: #6c757d;
+        text-align: center;
+        padding: 3rem 1.5rem;
+    }
+
+    @@media (max-width: 1200px) {
+        .manage-views-shell {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @@media (max-width: 900px) {
+        .manage-views-form-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+@* 2026-04-23 01:29 PM CDT AI v1.0 manage-views marker: first pass of the new RHS workspace lets users edit view metadata directly and review parser-vs-existing columns without falling back into the old docked WinForms shape. *@
+
+<RadzenStack Gap="1rem">
+    <RadzenCard Variant="Variant.Flat" class="manage-views-panel">
+        <div class="manage-views-header">
+            <div>
+                <RadzenText TextStyle="TextStyle.H4" class="rz-m-0">Manage Views</RadzenText>
+                <RadzenText TextStyle="TextStyle.Body2" Style="color:#495057;">
+                    Select an existing or available view on the left, edit the view metadata on the right, and review the parser snapshot before wiring the full merge workflow.
+                </RadzenText>
+            </div>
+
+            <RadzenButton Text="Reload"
+                          Icon="refresh"
+                          Click="@ReloadCurrentDatabaseAsync"
+                          Disabled="@(!SelectedDatabaseId.HasValue || IsBusy)" />
+        </div>
+    </RadzenCard>
+
+    @if (!string.IsNullOrWhiteSpace(LoadError))
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Danger" Variant="Variant.Flat">
+            @LoadError
+        </RadzenAlert>
+    }
+
+    <div class="manage-views-shell">
+        <div class="manage-views-left">
+            <div class="manage-views-panel">
+                <div class="manage-views-field">
+                    @FieldLabel(typeof(DatabaseDefinition), nameof(DatabaseDefinition.DatabaseName))
+                    <RadzenDropDown Data="@Databases"
+                                    TextProperty="DatabaseName"
+                                    ValueProperty="DatabaseId"
+                                    @bind-Value="@SelectedDatabaseId"
+                                    Change="@OnDatabaseChanged"
+                                    Style="width:100%;"
+                                    Placeholder="Database" />
+                </div>
+
+                @if (SelectedDatabase != null)
+                {
+                    <div class="rz-mt-3">
+                        <RadzenText TextStyle="TextStyle.Body2" Style="font-weight:600;">
+                            @SelectedDatabase.BusinessName
+                        </RadzenText>
+                        <RadzenText TextStyle="TextStyle.Caption" Style="color:#6c757d;">
+                            Filter: @(string.IsNullOrWhiteSpace(SelectedDatabase.ViewNameFilter) ? "All views" : SelectedDatabase.ViewNameFilter)
+                        </RadzenText>
+                    </div>
+                }
+            </div>
+
+            <div class="manage-views-panel">
+                <div class="manage-views-section-title">Existing Views</div>
+                <div class="manage-views-list-frame">
+                    <RadzenListBox Data="@ExistingViewItems"
+                                   TextProperty="DisplayName"
+                                   ValueProperty="SelectionKey"
+                                   TValue="string"
+                                   @bind-Value="@SelectedViewKey"
+                                   Change="@OnViewSelectionChanged"
+                                   Class="manage-views-list" />
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color:#6c757d;">
+                        @($"{ExistingViewItems.Count} imported")
+                    </RadzenText>
+                </div>
+            </div>
+
+            <div class="manage-views-panel">
+                <div class="manage-views-section-title">Available</div>
+                <div class="manage-views-list-frame">
+                    <RadzenListBox Data="@AvailableViewItems"
+                                   TextProperty="DisplayName"
+                                   ValueProperty="SelectionKey"
+                                   TValue="string"
+                                   @bind-Value="@SelectedViewKey"
+                                   Change="@OnViewSelectionChanged"
+                                   Class="manage-views-list" />
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color:#6c757d;">
+                        @($"{AvailableViewItems.Count} candidates after filter")
+                    </RadzenText>
+                </div>
+            </div>
+        </div>
+
+        <div class="manage-views-right">
+            @if (SelectedViewItem == null || EditableObject == null)
+            {
+                <div class="manage-views-panel workspace-placeholder">
+                    Select a view on the left to add or edit it.
+                </div>
+            }
+            else
+            {
+                <div class="manage-views-panel">
+                    <div class="manage-views-header">
+                        <div>
+                            <RadzenText TextStyle="TextStyle.H5" class="rz-m-0">@SelectedViewItem.DisplayName</RadzenText>
+                            <RadzenText TextStyle="TextStyle.Body2" Style="color:#495057;">
+                                @CurrentSourceFullName
+                            </RadzenText>
+                        </div>
+
+                        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+                            <RadzenButton Text="Reset"
+                                          Icon="restart_alt"
+                                          ButtonStyle="ButtonStyle.Light"
+                                          Click="@ResetEditorAsync"
+                                          Disabled="@IsBusy" />
+
+                            <RadzenButton Text="Save View"
+                                          Icon="save"
+                                          Click="@SaveViewAsync"
+                                          Disabled="@IsBusy" />
+                        </RadzenStack>
+                    </div>
+
+                    <div class="manage-views-banner rz-mt-3">
+                        <RadzenText TextStyle="TextStyle.Body2" Style="font-weight:600;">
+                            @(SelectedViewItem.IsExisting ? "Existing Schema Studio definition" : "Available source view")
+                        </RadzenText>
+                        <RadzenText TextStyle="TextStyle.Caption" Style="color:#6c757d;">
+                            @WorkspaceBannerText
+                        </RadzenText>
+                    </div>
+                </div>
+
+                <div class="manage-views-panel">
+                    <div class="manage-views-section-title">View Metadata</div>
+                    <div class="manage-views-form-grid rz-mt-3">
+                        <div class="manage-views-field">
+                            @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.SourceDatabaseName))
+                            <RadzenTextBox Value="@EditableObject.SourceDatabaseName" ReadOnly="true" Style="width:100%;" />
+                        </div>
+
+                        <div class="manage-views-field">
+                            @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.SourceSchemaName))
+                            <RadzenTextBox Value="@EditableObject.SourceSchemaName" ReadOnly="true" Style="width:100%;" />
+                        </div>
+
+                        <div class="manage-views-field">
+                            @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.SourceObjectName))
+                            <RadzenTextBox Value="@EditableObject.SourceObjectName" ReadOnly="true" Style="width:100%;" />
+                        </div>
+
+                        <div class="manage-views-field">
+                            @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.Domain))
+                            <RadzenDropDown Data="@Domains"
+                                            TextProperty="Domain"
+                                            ValueProperty="Domain"
+                                            @bind-Value="@EditableObject.Domain"
+                                            Style="width:100%;"
+                                            AllowClear="true"
+                                            Placeholder="Domain" />
+                        </div>
+
+                        <div class="manage-views-field">
+                            @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.BusinessName))
+                            <RadzenTextBox @bind-Value="@EditableObject.BusinessName" Style="width:100%;" MaxLength="128" />
+                        </div>
+
+                        <div class="manage-views-field" style="justify-content:flex-end;">
+                            @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.IsBaseObject))
+                            <RadzenCheckBox @bind-Value="@EditableObject.IsBaseObject" TValue="bool" />
+                        </div>
+
+                        <div class="manage-views-field manage-views-form-span-2">
+                            @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.BusinessDescription))
+                            <RadzenTextArea @bind-Value="@EditableObject.BusinessDescription"
+                                            Style="width:100%; min-height:120px;"
+                                            MaxLength="500" />
+                        </div>
+
+                        <div class="manage-views-field manage-views-form-span-2">
+                            @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.DeveloperNotes))
+                            <RadzenTextArea @bind-Value="@EditableObject.DeveloperNotes"
+                                            Style="width:100%; min-height:160px;"
+                                            MaxLength="3200" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="manage-views-panel">
+                    <div class="manage-views-header">
+                        <div>
+                            <div class="manage-views-section-title">Column Review</div>
+                            <RadzenText TextStyle="TextStyle.Caption" Style="color:#6c757d;">
+                                @ColumnSummaryText
+                            </RadzenText>
+                        </div>
+
+                        <div class="manage-views-field" style="min-width:180px;">
+                            <div class="manage-views-field-label">Review Filter</div>
+                            <RadzenDropDown Data="@ReviewFilters"
+                                            TextProperty="Label"
+                                            ValueProperty="Value"
+                                            @bind-Value="@SelectedReviewFilter"
+                                            Style="width:100%;" />
+                        </div>
+                    </div>
+
+                    <div class="manage-views-grid-host rz-mt-3">
+                        <RadzenDataGrid Data="@FilteredReviewRows"
+                                        TItem="ColumnReviewRow"
+                                        Class="manage-views-grid"
+                                        AllowPaging="false"
+                                        AllowSorting="true"
+                                        AllowFiltering="false"
+                                        Density="Density.Compact">
+                            <Columns>
+                                <RadzenDataGridColumn TItem="ColumnReviewRow" Property="Status" Title="Status" Width="120px" />
+                                <RadzenDataGridColumn TItem="ColumnReviewRow" Property="ColumnName" Title="Column" Width="180px" />
+                                <RadzenDataGridColumn TItem="ColumnReviewRow" Property="ChangeSummary" Title="Change Summary" Width="220px">
+                                    <Template Context="row">
+                                        <div class="column-summary">@row.ChangeSummary</div>
+                                    </Template>
+                                </RadzenDataGridColumn>
+                                <RadzenDataGridColumn TItem="ColumnReviewRow" Property="ParsedPreview" Title="Parsed" Width="300px">
+                                    <Template Context="row">
+                                        <div class="column-preview">@row.ParsedPreview</div>
+                                    </Template>
+                                </RadzenDataGridColumn>
+                                <RadzenDataGridColumn TItem="ColumnReviewRow" Property="ExistingPreview" Title="Existing" Width="300px">
+                                    <Template Context="row">
+                                        <div class="column-preview">@row.ExistingPreview</div>
+                                    </Template>
+                                </RadzenDataGridColumn>
+                                <RadzenDataGridColumn TItem="ColumnReviewRow" Title="Accept" Width="90px" Sortable="false" Filterable="false">
+                                    <Template Context="row">
+                                        <RadzenCheckBox @bind-Value="@row.AcceptMerge" TValue="bool" />
+                                    </Template>
+                                </RadzenDataGridColumn>
+                            </Columns>
+                        </RadzenDataGrid>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</RadzenStack>
+
+@code {
+    private List<DatabaseDefinition> Databases = new();
+    private List<DatabaseDomainDefinition> Domains = new();
+    private List<ViewWorkspaceItem> ExistingViewItems = new();
+    private List<ViewWorkspaceItem> AvailableViewItems = new();
+    private List<ColumnReviewRow> ReviewRows = new();
+    private readonly List<FilterOption> ReviewFilters =
+    [
+        new("all", "All"),
+        new("changed", "Changed Only"),
+        new("added", "Added Only"),
+        new("removed", "Removed Only")
+    ];
+
+    private int? SelectedDatabaseId;
+    private string? SelectedViewKey;
+    private string SelectedReviewFilter = "changed";
+    private DatabaseDefinition? SelectedDatabase;
+    private ViewWorkspaceItem? SelectedViewItem;
+    private SchemaObjectDefinition? EditableObject;
+    private ParsedQuery? CurrentParsedView;
+    private bool IsBusy;
+    private string LoadError = string.Empty;
+
+    private string WorkspaceBannerText =>
+        SelectedViewItem == null
+            ? string.Empty
+            : SelectedViewItem.IsExisting
+                ? "This record already exists in Schema Studio. Edit the metadata directly, then review the parser snapshot below."
+                : "This source view is available to add. Fill in the business metadata on the right before saving the first Schema Studio definition.";
+
+    private string CurrentSourceFullName =>
+        EditableObject == null
+            ? string.Empty
+            : string.Join(".",
+                new[] { EditableObject.SourceDatabaseName, EditableObject.SourceSchemaName, EditableObject.SourceObjectName }
+                    .Where(part => !string.IsNullOrWhiteSpace(part)));
+
+    private string ColumnSummaryText
+    {
+        get
+        {
+            var added = ReviewRows.Count(x => x.Status == "Added");
+            var changed = ReviewRows.Count(x => x.Status == "Changed");
+            var removed = ReviewRows.Count(x => x.Status == "Removed");
+            var unchanged = ReviewRows.Count(x => x.Status == "Unchanged");
+            return $"{ReviewRows.Count} rows | Added: {added} | Changed: {changed} | Removed: {removed} | Unchanged: {unchanged}";
+        }
+    }
+
+    private IEnumerable<ColumnReviewRow> FilteredReviewRows =>
+        SelectedReviewFilter switch
+        {
+            "added" => ReviewRows.Where(x => x.Status == "Added"),
+            "removed" => ReviewRows.Where(x => x.Status == "Removed"),
+            "changed" => ReviewRows.Where(x => x.Status == "Changed"),
+            _ => ReviewRows
+        };
+
+    protected override async Task OnInitializedAsync()
+    {
+        IsBusy = true;
+
+        try
+        {
+            Databases = (await DatabaseRepository.GetAllAsync()).ToList();
+            LoadError = string.Empty;
+
+            if (Databases.Count > 0)
+            {
+                SelectedDatabaseId = Databases[0].DatabaseId;
+                await LoadWorkspaceAsync(Databases[0].DatabaseId, null);
+            }
+        }
+        catch (Exception ex)
+        {
+            NotifyFailure("Manage Views load failed", ex);
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private async Task OnDatabaseChanged(object value)
+    {
+        if (!int.TryParse(value?.ToString(), out var databaseId))
+        {
+            SelectedDatabaseId = null;
+            SelectedDatabase = null;
+            Domains.Clear();
+            ExistingViewItems.Clear();
+            AvailableViewItems.Clear();
+            SelectedViewItem = null;
+            EditableObject = null;
+            ReviewRows.Clear();
+            return;
+        }
+
+        SelectedDatabaseId = databaseId;
+        await LoadWorkspaceAsync(databaseId, null);
+    }
+
+    private async Task OnViewSelectionChanged(object value)
+    {
+        var key = value?.ToString();
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            return;
+        }
+
+        await SelectViewAsync(key);
+    }
+
+    private async Task ReloadCurrentDatabaseAsync()
+    {
+        if (!SelectedDatabaseId.HasValue)
+        {
+            return;
+        }
+
+        await LoadWorkspaceAsync(SelectedDatabaseId.Value, SelectedViewKey);
+    }
+
+    private async Task ResetEditorAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(SelectedViewKey))
+        {
+            await SelectViewAsync(SelectedViewKey);
+        }
+    }
+
+    private async Task LoadWorkspaceAsync(int databaseId, string? preferredSelectionKey)
+    {
+        IsBusy = true;
+
+        try
+        {
+            SelectedDatabase = Databases.FirstOrDefault(x => x.DatabaseId == databaseId);
+            Domains = (await DatabaseDomainRepository.GetByDatabaseIdAsync(databaseId)).ToList();
+
+            var existingObjects = (await SchemaObjectRepository.GetByDatabaseAsync(databaseId)).ToList();
+            var availableSources = SelectedDatabase == null
+                ? new List<SourceViewDefinition>()
+                : (await SourceViewRepository.GetByDatabaseAsync(
+                    SelectedDatabase.DatabaseName,
+                    SelectedDatabase.ViewNameFilter)).ToList();
+
+            ExistingViewItems = existingObjects
+                .OrderBy(x => string.IsNullOrWhiteSpace(x.BusinessName) ? x.SourceObjectName : x.BusinessName)
+                .Select(x => new ViewWorkspaceItem
+                {
+                    SelectionKey = $"existing:{x.SchemaObjectId}",
+                    IsExisting = true,
+                    SchemaObjectId = x.SchemaObjectId,
+                    SourceDatabaseName = x.SourceDatabaseName ?? SelectedDatabase?.DatabaseName ?? string.Empty,
+                    SourceSchemaName = x.SourceSchemaName,
+                    SourceObjectName = x.SourceObjectName,
+                    DisplayName = string.IsNullOrWhiteSpace(x.BusinessName) ? x.SourceObjectName : x.BusinessName!,
+                    Subtitle = $"{x.SourceSchemaName}.{x.SourceObjectName}"
+                })
+                .ToList();
+
+            var existingKeys = existingObjects
+                .Select(x => $"{x.SourceSchemaName}.{x.SourceObjectName}")
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            AvailableViewItems = availableSources
+                .Where(x => !existingKeys.Contains($"{x.SchemaName}.{x.ObjectName}"))
+                .OrderBy(x => x.SchemaName)
+                .ThenBy(x => x.ObjectName)
+                .Select(x => new ViewWorkspaceItem
+                {
+                    SelectionKey = $"available:{x.SchemaName}.{x.ObjectName}",
+                    IsExisting = false,
+                    SourceDatabaseName = x.DatabaseName,
+                    SourceSchemaName = x.SchemaName,
+                    SourceObjectName = x.ObjectName,
+                    DisplayName = x.ObjectName,
+                    Subtitle = x.FullName
+                })
+                .ToList();
+
+            LoadError = string.Empty;
+
+            var nextSelection = preferredSelectionKey;
+            if (string.IsNullOrWhiteSpace(nextSelection) ||
+                !ExistingViewItems.Concat(AvailableViewItems).Any(x => x.SelectionKey == nextSelection))
+            {
+                nextSelection = ExistingViewItems.FirstOrDefault()?.SelectionKey
+                    ?? AvailableViewItems.FirstOrDefault()?.SelectionKey;
+            }
+
+            SelectedViewKey = nextSelection;
+
+            if (!string.IsNullOrWhiteSpace(nextSelection))
+            {
+                await SelectViewAsync(nextSelection);
+            }
+            else
+            {
+                SelectedViewItem = null;
+                EditableObject = null;
+                CurrentParsedView = null;
+                ReviewRows.Clear();
+            }
+        }
+        catch (Exception ex)
+        {
+            NotifyFailure("Workspace reload failed", ex);
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private async Task SelectViewAsync(string selectionKey)
+    {
+        IsBusy = true;
+
+        try
+        {
+            SelectedViewKey = selectionKey;
+            SelectedViewItem = ExistingViewItems.Concat(AvailableViewItems)
+                .FirstOrDefault(x => string.Equals(x.SelectionKey, selectionKey, StringComparison.Ordinal));
+
+            if (SelectedViewItem == null)
+            {
+                EditableObject = null;
+                ReviewRows.Clear();
+                CurrentParsedView = null;
+                return;
+            }
+
+            if (SelectedViewItem.IsExisting && SelectedViewItem.SchemaObjectId.HasValue)
+            {
+                var existing = await SchemaObjectRepository.GetByIdAsync(SelectedViewItem.SchemaObjectId.Value);
+                EditableObject = existing == null ? null : CloneObject(existing);
+
+                var existingColumns = existing == null
+                    ? new List<SchemaObjectColumnDefinition>()
+                    : (await SchemaObjectColumnRepository.GetByObjectAsync(existing.SchemaObjectId)).ToList();
+
+                await ParseAndBuildReviewAsync(existingColumns);
+            }
+            else
+            {
+                EditableObject = CreateNewObjectDraft(SelectedViewItem);
+                await ParseAndBuildReviewAsync(Array.Empty<SchemaObjectColumnDefinition>());
+            }
+
+            if (EditableObject != null &&
+                string.IsNullOrWhiteSpace(EditableObject.Domain) &&
+                Domains.Count > 0)
+            {
+                EditableObject.Domain = Domains[0].Domain;
+            }
+
+            LoadError = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            NotifyFailure("View selection failed", ex);
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private async Task ParseAndBuildReviewAsync(IEnumerable<SchemaObjectColumnDefinition> existingColumns)
+    {
+        if (EditableObject == null)
+        {
+            CurrentParsedView = null;
+            ReviewRows.Clear();
+            return;
+        }
+
+        CurrentParsedView = ParserService.ParseView(
+            EditableObject.SourceDatabaseName ?? string.Empty,
+            EditableObject.SourceSchemaName,
+            EditableObject.SourceObjectName);
+
+        var parsedColumns = CurrentParsedView?.Columns.ToViewColumnDtos() ?? new List<ViewColumnDto>();
+        ReviewRows = BuildColumnReviewRows(parsedColumns, existingColumns).ToList();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task SaveViewAsync()
+    {
+        if (EditableObject == null || SelectedDatabaseId == null)
+        {
+            return;
+        }
+
+        var validationMessage = ValidateEditableObject(EditableObject);
+        if (!string.IsNullOrWhiteSpace(validationMessage))
+        {
+            NotificationService.Notify(NotificationSeverity.Warning, "Save blocked", validationMessage, 4000);
+            return;
+        }
+
+        IsBusy = true;
+
+        try
+        {
+            EditableObject.DatabaseId = SelectedDatabaseId.Value;
+            EditableObject.SourceDatabaseName ??= SelectedDatabase?.DatabaseName;
+            EditableObject.IsActive = true;
+
+            if (EditableObject.SchemaObjectId == 0)
+            {
+                var newId = await SchemaObjectRepository.CreateAsync(EditableObject);
+                SelectedViewKey = $"existing:{newId}";
+            }
+            else
+            {
+                await SchemaObjectRepository.UpdateAsync(EditableObject);
+                SelectedViewKey = $"existing:{EditableObject.SchemaObjectId}";
+            }
+
+            NotificationService.Notify(NotificationSeverity.Success, "View saved", "View metadata was saved successfully.", 2500);
+            await LoadWorkspaceAsync(SelectedDatabaseId.Value, SelectedViewKey);
+        }
+        catch (Exception ex)
+        {
+            NotifyFailure("Save failed", ex);
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private SchemaObjectDefinition CreateNewObjectDraft(ViewWorkspaceItem item)
+    {
+        return new SchemaObjectDefinition
+        {
+            DatabaseId = SelectedDatabaseId ?? 0,
+            SourceDatabaseName = item.SourceDatabaseName,
+            SourceSchemaName = item.SourceSchemaName,
+            SourceObjectName = item.SourceObjectName,
+            Domain = Domains.FirstOrDefault()?.Domain,
+            BusinessName = item.SourceObjectName,
+            IsActive = true
+        };
+    }
+
+    private static SchemaObjectDefinition CloneObject(SchemaObjectDefinition source)
+    {
+        var clone = new SchemaObjectDefinition
+        {
+            SchemaObjectId = source.SchemaObjectId,
+            DatabaseId = source.DatabaseId,
+            SourceDatabaseName = source.SourceDatabaseName,
+            SourceSchemaName = source.SourceSchemaName,
+            SourceObjectName = source.SourceObjectName,
+            IsBaseObject = source.IsBaseObject,
+            Domain = source.Domain,
+            BusinessName = source.BusinessName,
+            BusinessDescription = source.BusinessDescription,
+            DeveloperNotes = source.DeveloperNotes,
+            IsActive = source.IsActive,
+            LastSynced = source.LastSynced
+        };
+
+        clone.ClearDirty();
+        return clone;
+    }
+
+    private static IEnumerable<ColumnReviewRow> BuildColumnReviewRows(
+        IReadOnlyList<ViewColumnDto> parsedColumns,
+        IEnumerable<SchemaObjectColumnDefinition> existingColumns)
+    {
+        var parsedByName = parsedColumns
+            .Where(x => !string.IsNullOrWhiteSpace(x.ColumnName))
+            .GroupBy(x => x.ColumnName!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+
+        var existingByName = existingColumns
+            .Where(x => !string.IsNullOrWhiteSpace(x.SourceColumnName))
+            .GroupBy(x => x.SourceColumnName, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+
+        var allNames = parsedByName.Keys
+            .Union(existingByName.Keys, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(name => parsedByName.TryGetValue(name, out var parsed) ? parsed.OrdinalPosition : int.MaxValue)
+            .ThenBy(name => name, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var name in allNames)
+        {
+            parsedByName.TryGetValue(name, out var parsed);
+            existingByName.TryGetValue(name, out var existing);
+
+            var status = GetStatus(parsed, existing);
+            yield return new ColumnReviewRow
+            {
+                ColumnName = name,
+                Status = status,
+                ChangeSummary = BuildChangeSummary(parsed, existing, status),
+                ParsedPreview = BuildParsedPreview(parsed),
+                ExistingPreview = BuildExistingPreview(existing),
+                AcceptMerge = status is "Added" or "Changed"
+            };
+        }
+    }
+
+    private static string GetStatus(ViewColumnDto? parsed, SchemaObjectColumnDefinition? existing)
+    {
+        if (parsed != null && existing == null)
+        {
+            return "Added";
+        }
+
+        if (parsed == null && existing != null)
+        {
+            return "Removed";
+        }
+
+        if (parsed == null || existing == null)
+        {
+            return "Unchanged";
+        }
+
+        return string.Equals(parsed.BusinessName, existing.BusinessName, StringComparison.Ordinal) &&
+               string.Equals(parsed.BusinessDescription, existing.BusinessDescription, StringComparison.Ordinal) &&
+               string.Equals(parsed.DeveloperNotes, existing.DeveloperNotes, StringComparison.Ordinal)
+            ? "Unchanged"
+            : "Changed";
+    }
+
+    private static string BuildChangeSummary(ViewColumnDto? parsed, SchemaObjectColumnDefinition? existing, string status)
+    {
+        return status switch
+        {
+            "Added" => "Parser found a new column that is not yet in Schema Studio.",
+            "Removed" => "Existing column is not present in the current parser result.",
+            "Changed" => BuildChangedFieldSummary(parsed, existing),
+            _ => "Business metadata matches the current saved record."
+        };
+    }
+
+    private static string BuildChangedFieldSummary(ViewColumnDto? parsed, SchemaObjectColumnDefinition? existing)
+    {
+        var changes = new List<string>();
+
+        if (!string.Equals(parsed?.BusinessName, existing?.BusinessName, StringComparison.Ordinal))
+        {
+            changes.Add("Business Name");
+        }
+
+        if (!string.Equals(parsed?.BusinessDescription, existing?.BusinessDescription, StringComparison.Ordinal))
+        {
+            changes.Add("Description");
+        }
+
+        if (!string.Equals(parsed?.DeveloperNotes, existing?.DeveloperNotes, StringComparison.Ordinal))
+        {
+            changes.Add("Developer Notes");
+        }
+
+        return changes.Count == 0
+            ? "Parser and existing values differ."
+            : $"{string.Join(", ", changes)} differ.";
+    }
+
+    private static string BuildParsedPreview(ViewColumnDto? parsed)
+    {
+        if (parsed == null)
+        {
+            return "Not present in parser output.";
+        }
+
+        return $"Business Name: {parsed.BusinessName ?? "(blank)"}{Environment.NewLine}" +
+               $"Description: {parsed.BusinessDescription ?? "(blank)"}{Environment.NewLine}" +
+               $"Developer Notes: {parsed.DeveloperNotes ?? parsed.Comment ?? "(blank)"}";
+    }
+
+    private static string BuildExistingPreview(SchemaObjectColumnDefinition? existing)
+    {
+        if (existing == null)
+        {
+            return "Not yet saved in Schema Studio.";
+        }
+
+        return $"Business Name: {existing.BusinessName ?? "(blank)"}{Environment.NewLine}" +
+               $"Description: {existing.BusinessDescription ?? "(blank)"}{Environment.NewLine}" +
+               $"Developer Notes: {existing.DeveloperNotes ?? "(blank)"}{Environment.NewLine}" +
+               $"Disable Inheritance: {existing.DisableInheritance}";
+    }
+
+    private static string? ValidateEditableObject(SchemaObjectDefinition model)
+    {
+        if (string.IsNullOrWhiteSpace(model.SourceSchemaName) || string.IsNullOrWhiteSpace(model.SourceObjectName))
+        {
+            return "Source schema and object are required.";
+        }
+
+        if (string.IsNullOrWhiteSpace(model.BusinessName))
+        {
+            return "Business Name is required.";
+        }
+
+        if (string.IsNullOrWhiteSpace(model.Domain))
+        {
+            return "Select a domain for the view.";
+        }
+
+        return null;
+    }
+
+    private RenderFragment FieldLabel(Type modelType, string propertyName) => builder =>
+    {
+        var displayName = ReflectionUtils.GetDisplayName(modelType, propertyName);
+        var description = ReflectionUtils.GetDescription(modelType, propertyName);
+
+        builder.OpenElement(0, "div");
+        builder.AddAttribute(1, "class", "manage-views-field-label");
+        builder.AddContent(2, displayName);
+
+        if (!string.IsNullOrWhiteSpace(description))
+        {
+            builder.OpenComponent<RadzenIcon>(3);
+            builder.AddAttribute(4, "Icon", "help_outline");
+            builder.AddAttribute(5, "MouseEnter", EventCallback.Factory.Create<ElementReference>(this, args => TooltipService.Open(args, description)));
+            builder.CloseComponent();
+        }
+
+        builder.CloseElement();
+    };
+
+    private void NotifyFailure(string summary, Exception ex)
+    {
+        LoadError = ex.Message;
+        NotificationService.Notify(NotificationSeverity.Error, summary, ex.Message, 5000);
+    }
+
+    private sealed class ViewWorkspaceItem
+    {
+        public string SelectionKey { get; set; } = string.Empty;
+        public bool IsExisting { get; set; }
+        public int? SchemaObjectId { get; set; }
+        public string SourceDatabaseName { get; set; } = string.Empty;
+        public string SourceSchemaName { get; set; } = string.Empty;
+        public string SourceObjectName { get; set; } = string.Empty;
+        public string DisplayName { get; set; } = string.Empty;
+        public string Subtitle { get; set; } = string.Empty;
+    }
+
+    private sealed class ColumnReviewRow
+    {
+        public string ColumnName { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public string ChangeSummary { get; set; } = string.Empty;
+        public string ParsedPreview { get; set; } = string.Empty;
+        public string ExistingPreview { get; set; } = string.Empty;
+        public bool AcceptMerge { get; set; }
+    }
+
+    private sealed record FilterOption(string Value, string Label);
+}

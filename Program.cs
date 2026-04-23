@@ -8,7 +8,8 @@ using SchemaStudioWebViewer.WEBSemanticModel.Services;
 
 namespace SchemaStudioWebViewer
 {
-    [FileVersion("1.5")]
+    [FileVersion("1.6")]
+    [AIChange("1.6", "2026-04-23 01:29 PM CDT registered the source-view repository for the new manage-views workspace so available import candidates can be queried by database and ViewNameFilter.", AICommandStatus.Pending)]
     [AIFileContext("Program.cs", "Bootstraps the SchemaStudioWebViewer web app, initializes configuration, registers services, and maps the Razor and MCP endpoints.")]
     [AIChange("1.5", "2026-04-22 06:20 PM CDT registered SQL Server dependency metadata repository for ParserLab where-used lookups.", AICommandStatus.Pending)]
     [AIChange("1.4", "2026-04-22 04:27 PM CDT registered schema object repositories from the new data layer so object metadata can be loaded and saved asynchronously.", AICommandStatus.Pending)]
@@ -16,6 +17,7 @@ namespace SchemaStudioWebViewer
     [AIChange("1.1", "2026-04-15 03:00 PM CDT registered the WEBSemanticModel ViewParsingService so Home.razor can request SQL through the parser DLL.", AICommandStatus.Pending)]
     [AIChange("1.2", "2026-04-15 03:10 PM CDT removed the temporary parser DI registration after moving parser testing onto the dedicated ParserLab page.", AICommandStatus.Pending)]
     [AIChange("1.3", "2026-04-15 03:46 PM CDT restored scoped ViewParsingService registration so ParserLab can use DI for cache-backed parser actions.", AICommandStatus.Pending)]
+    // 2026-04-23 01:29 PM CDT AI v1.6 source-view DI marker: Manage Views can now query available source views through the dedicated repository.
     // 2026-04-13 02:37 PM CDT AI v1.0 workflow header test marker: added the initial file header and pending metadata for Program.cs review.
     // 2026-04-15 03:00 PM CDT AI v1.1 parser button marker: registered the parser DLL service for Home view SQL retrieval.
     // 2026-04-15 03:10 PM CDT AI v1.2 parser cleanup marker: ParserLab now instantiates its parser service directly, so Program no longer carries the temporary parser DI registration.
@@ -51,6 +53,8 @@ namespace SchemaStudioWebViewer
                 new DatabaseRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
             builder.Services.AddScoped(_ =>
                 new DatabaseDomainRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
+            builder.Services.AddScoped(_ =>
+                new SourceViewRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
             // 2026-04-22 04:27 PM CDT AI v1.4 data-layer marker: register async schema object repositories for the imported object metadata layer.
             builder.Services.AddScoped(_ =>
                 new SchemaObjectRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
