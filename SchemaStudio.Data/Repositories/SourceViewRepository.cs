@@ -29,7 +29,7 @@ public sealed class SourceViewRepository
         {
             var quotedDatabase = QuoteSqlIdentifier(databaseName);
             var hasFilter = !string.IsNullOrWhiteSpace(viewNameFilter);
-            var normalizedFilter = NormalizeFilter(viewNameFilter);
+            var normalizedFilter = NormalizeStartsWithFilter(viewNameFilter);
 
             var sql = $"""
 SELECT
@@ -57,25 +57,14 @@ ORDER BY s.name, v.name;
         }
     }
 
-    private static string NormalizeFilter(string? value)
+    private static string NormalizeStartsWithFilter(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
         {
             return "%";
         }
 
-        var trimmed = value.Trim();
-        if (ContainsLikePattern(trimmed))
-        {
-            return trimmed;
-        }
-
-        return EscapeLike(trimmed) + "%";
-    }
-
-    private static bool ContainsLikePattern(string value)
-    {
-        return value.IndexOfAny(['%', '_', '[']) >= 0;
+        return EscapeLike(value.Trim()) + "%";
     }
 
     private static string EscapeLike(string value)

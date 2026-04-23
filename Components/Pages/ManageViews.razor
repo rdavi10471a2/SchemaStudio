@@ -20,8 +20,9 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.0")]
+@attribute [FileVersion("1.1")]
 @attribute [AIFileContext("Components/Pages/ManageViews.razor", "Hosts the new import-and-edit workspace for existing and available views, including view metadata editing and a first-pass parser-versus-existing column review surface.")]
+@attribute [AIChange("1.1", "2026-04-23 02:03 PM CDT trimmed the RHS metadata form to user-owned fields only and tightened available-view filtering to explicit starts-with behavior.", AICommandStatus.Pending)]
 @attribute [AIChange("1.0", "2026-04-23 01:29 PM CDT added the first pass of the new manage-views workspace with a guided RHS editor and available-view filtering driven by the database ViewNameFilter field.", AICommandStatus.Pending)]
 
 <PageTitle>Manage Views</PageTitle>
@@ -169,6 +170,7 @@
     }
 </style>
 
+@* 2026-04-23 02:03 PM CDT AI v1.1 manage-views marker: the RHS view metadata form now only shows user-owned fields, and available view filtering is explicit starts-with behavior. *@
 @* 2026-04-23 01:29 PM CDT AI v1.0 manage-views marker: first pass of the new RHS workspace lets users edit view metadata directly and review parser-vs-existing columns without falling back into the old docked WinForms shape. *@
 
 <RadzenStack Gap="1rem">
@@ -301,21 +303,6 @@
                     <div class="manage-views-section-title">View Metadata</div>
                     <div class="manage-views-form-grid rz-mt-3">
                         <div class="manage-views-field">
-                            @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.SourceDatabaseName))
-                            <RadzenTextBox Value="@EditableObject.SourceDatabaseName" ReadOnly="true" Style="width:100%;" />
-                        </div>
-
-                        <div class="manage-views-field">
-                            @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.SourceSchemaName))
-                            <RadzenTextBox Value="@EditableObject.SourceSchemaName" ReadOnly="true" Style="width:100%;" />
-                        </div>
-
-                        <div class="manage-views-field">
-                            @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.SourceObjectName))
-                            <RadzenTextBox Value="@EditableObject.SourceObjectName" ReadOnly="true" Style="width:100%;" />
-                        </div>
-
-                        <div class="manage-views-field">
                             @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.Domain))
                             <RadzenDropDown Data="@Domains"
                                             TextProperty="Domain"
@@ -327,13 +314,13 @@
                         </div>
 
                         <div class="manage-views-field">
-                            @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.BusinessName))
-                            <RadzenTextBox @bind-Value="@EditableObject.BusinessName" Style="width:100%;" MaxLength="128" />
-                        </div>
-
-                        <div class="manage-views-field" style="justify-content:flex-end;">
                             @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.IsBaseObject))
                             <RadzenCheckBox @bind-Value="@EditableObject.IsBaseObject" TValue="bool" />
+                        </div>
+
+                        <div class="manage-views-field">
+                            @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.BusinessName))
+                            <RadzenTextBox @bind-Value="@EditableObject.BusinessName" Style="width:100%;" MaxLength="128" />
                         </div>
 
                         <div class="manage-views-field manage-views-form-span-2">
