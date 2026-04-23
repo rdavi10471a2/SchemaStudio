@@ -5,6 +5,7 @@
 @using Radzen
 @using Radzen.Blazor
 @using SchemaStudio.AIHelpers
+@using SchemaStudioWebViewer.Components.Dialogs
 @using SchemaStudio.Data.Models
 @using SchemaStudio.Data.Repositories
 @using SchemaStudioWebViewer.Utils
@@ -19,9 +20,12 @@
 @inject ViewParsingService ParserService
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
+@inject DialogService DialogService
+@inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("1.9")]
+@attribute [FileVersion("2.0")]
 @attribute [AIFileContext("Components/Pages/ManageViews.razor", "Hosts the new import-and-edit workspace for existing and available views, including view metadata editing and a first-pass parser-versus-existing column review surface.")]
+@attribute [AIChange("2.0", "2026-04-23 03:41 PM CDT reorganized the RHS into View Definition and Manage Columns tabs, added dependency-tool actions beneath the header editor, and blocked navigation away from dirty header edits until they are saved or reset.", AICommandStatus.Pending)]
 @attribute [AIChange("1.9", "2026-04-23 03:27 PM CDT collapsed the left rail into a single container, removed the extra filter summary text, and trimmed the available-view display names by the configured prefix so SQL-style naming tax stays out of the selector.", AICommandStatus.Pending)]
 @attribute [AIChange("1.8", "2026-04-23 03:18 PM CDT removed the extra summary text, combined existing and available views into a shared tabbed selector, and made database/domain filter changes clear the current selection state instead of silently keeping stale view details.", AICommandStatus.Pending)]
 @attribute [AIChange("1.7", "2026-04-23 02:52 PM CDT removed extra summary weight from the manage-views header and rearranged metadata into a name-domain-base row above side-by-side description and notes editors.", AICommandStatus.Pending)]
@@ -214,6 +218,19 @@
         gap: 1rem;
     }
 
+    .manage-views-note {
+        color: #6c757d;
+        font-size: 0.85rem;
+        line-height: 1.35;
+    }
+
+    .manage-views-summary-card {
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 1rem;
+        background: #fafbfc;
+    }
+
     @@media (max-width: 1200px) {
         .manage-views-shell {
             grid-template-columns: 1fr;
@@ -227,6 +244,7 @@
     }
 </style>
 
+@* 2026-04-23 03:41 PM CDT AI v2.0 manage-views marker: the RHS now uses View Definition and Manage Columns tabs, and dirty header edits must be saved or reset before navigating away. *@
 @* 2026-04-23 03:27 PM CDT AI v1.9 manage-views marker: the left rail is one container now, and available view names are trimmed by the configured prefix for display. *@
 @* 2026-04-23 03:18 PM CDT AI v1.8 manage-views marker: the left selector now uses tabs instead of stacked lists, and database/domain filter changes explicitly clear the current view selection so stale RHS details do not linger. *@
 @* 2026-04-23 02:52 PM CDT AI v1.7 manage-views marker: summary chrome is reduced and metadata now uses a name-domain-base row above paired description and notes editors. *@
@@ -350,111 +368,153 @@
                                           Click="@ResetEditorAsync"
                                           Disabled="@IsBusy" />
 
-                            <RadzenButton Text="Save View"
+                            <RadzenButton Text="Save View Definition"
                                           Icon="save"
                                           Click="@SaveViewAsync"
                                           Disabled="@IsBusy" />
+
+                            <RadzenButton Text="Delete View"
+                                          Icon="delete"
+                                          ButtonStyle="ButtonStyle.Danger"
+                                          Click="@DeleteViewAsync"
+                                          Disabled="@(!CanDeleteCurrentView || IsBusy)" />
                         </RadzenStack>
                     </div>
-                </div>
 
-                <div class="manage-views-panel manage-views-meta-card">
-                    <div class="manage-views-section-title">View Metadata</div>
-                    <div class="manage-views-form-grid rz-mt-3">
-                        <div class="manage-views-field">
-                            @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.BusinessName))
-                            <RadzenTextBox @bind-Value="@EditableObject.BusinessName" Style="width:100%;" MaxLength="128" />
-                        </div>
-
-                        <div class="manage-views-field">
-                            @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.Domain))
-                            <RadzenDropDown Data="@Domains"
-                                            TextProperty="Domain"
-                                            ValueProperty="Domain"
-                                            @bind-Value="@EditableObject.Domain"
-                                            Style="width:100%;"
-                                            AllowClear="true"
-                                            Placeholder="Domain" />
-                        </div>
-
-                        <div class="manage-views-inline-flag">
-                            @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.IsBaseObject))
-                            <RadzenCheckBox @bind-Value="@EditableObject.IsBaseObject" TValue="bool" />
-                        </div>
-                    </div>
-
-                    <div class="manage-views-secondary-grid rz-mt-3">
-                        <div class="manage-views-field">
-                            @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.BusinessDescription))
-                            <RadzenTextArea @bind-Value="@EditableObject.BusinessDescription"
-                                            Style="width:100%;"
-                                            class="manage-views-equal-textarea"
-                                            MaxLength="500" />
-                        </div>
-
-                        <div class="manage-views-field">
-                            @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.DeveloperNotes))
-                            <RadzenTextArea @bind-Value="@EditableObject.DeveloperNotes"
-                                            Style="width:100%;"
-                                            class="manage-views-equal-textarea"
-                                            MaxLength="3200" />
-                        </div>
-                    </div>
+                    @if (!string.IsNullOrWhiteSpace(HeaderMessage))
+                    {
+                        <RadzenAlert AlertStyle="@HeaderMessageStyle" Variant="Variant.Flat" class="rz-mt-3">
+                            @HeaderMessage
+                        </RadzenAlert>
+                    }
                 </div>
 
                 <div class="manage-views-panel">
-                    <div class="manage-views-header">
-                        <div>
-                            <div class="manage-views-section-title">Column Review</div>
-                            <RadzenText TextStyle="TextStyle.Caption" Style="color:#6c757d;">
-                                @ColumnSummaryText
-                            </RadzenText>
-                        </div>
+                    <RadzenTabs @bind-SelectedIndex="@SelectedEditorTabIndex">
+                        <Tabs>
+                            <RadzenTabsItem Text="View Definition">
+                                <div class="manage-views-meta-card">
+                                    <div class="manage-views-section-title">View Definition</div>
+                                    <div class="manage-views-form-grid rz-mt-3">
+                                        <div class="manage-views-field">
+                                            @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.BusinessName))
+                                            <RadzenTextBox @bind-Value="@EditableObject.BusinessName" Style="width:100%;" MaxLength="128" />
+                                        </div>
 
-                        <div class="manage-views-field" style="min-width:180px;">
-                            <div class="manage-views-field-label">Review Filter</div>
-                            <RadzenDropDown Data="@ReviewFilters"
-                                            TextProperty="Label"
-                                            ValueProperty="Value"
-                                            @bind-Value="@SelectedReviewFilter"
-                                            Style="width:100%;" />
-                        </div>
-                    </div>
+                                        <div class="manage-views-field">
+                                            @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.Domain))
+                                            <RadzenDropDown Data="@Domains"
+                                                            TextProperty="Domain"
+                                                            ValueProperty="Domain"
+                                                            @bind-Value="@EditableObject.Domain"
+                                                            Style="width:100%;"
+                                                            AllowClear="true"
+                                                            Placeholder="Domain" />
+                                        </div>
 
-                    <div class="manage-views-grid-host rz-mt-3">
-                        <RadzenDataGrid Data="@FilteredReviewRows"
-                                        TItem="ColumnReviewRow"
-                                        Class="manage-views-grid"
-                                        AllowPaging="false"
-                                        AllowSorting="true"
-                                        AllowFiltering="false"
-                                        Density="Density.Compact">
-                            <Columns>
-                                <RadzenDataGridColumn TItem="ColumnReviewRow" Property="Status" Title="Status" Width="120px" />
-                                <RadzenDataGridColumn TItem="ColumnReviewRow" Property="ColumnName" Title="Column" Width="180px" />
-                                <RadzenDataGridColumn TItem="ColumnReviewRow" Property="ChangeSummary" Title="Change Summary" Width="220px">
-                                    <Template Context="row">
-                                        <div class="column-summary">@row.ChangeSummary</div>
-                                    </Template>
-                                </RadzenDataGridColumn>
-                                <RadzenDataGridColumn TItem="ColumnReviewRow" Property="ParsedPreview" Title="Parsed" Width="300px">
-                                    <Template Context="row">
-                                        <div class="column-preview">@row.ParsedPreview</div>
-                                    </Template>
-                                </RadzenDataGridColumn>
-                                <RadzenDataGridColumn TItem="ColumnReviewRow" Property="ExistingPreview" Title="Existing" Width="300px">
-                                    <Template Context="row">
-                                        <div class="column-preview">@row.ExistingPreview</div>
-                                    </Template>
-                                </RadzenDataGridColumn>
-                                <RadzenDataGridColumn TItem="ColumnReviewRow" Title="Accept" Width="90px" Sortable="false" Filterable="false">
-                                    <Template Context="row">
-                                        <RadzenCheckBox @bind-Value="@row.AcceptMerge" TValue="bool" />
-                                    </Template>
-                                </RadzenDataGridColumn>
-                            </Columns>
-                        </RadzenDataGrid>
-                    </div>
+                                        <div class="manage-views-inline-flag">
+                                            @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.IsBaseObject))
+                                            <RadzenCheckBox @bind-Value="@EditableObject.IsBaseObject" TValue="bool" />
+                                        </div>
+                                    </div>
+
+                                    <div class="manage-views-secondary-grid rz-mt-3">
+                                        <div class="manage-views-field">
+                                            @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.BusinessDescription))
+                                            <RadzenTextArea @bind-Value="@EditableObject.BusinessDescription"
+                                                            Style="width:100%;"
+                                                            class="manage-views-equal-textarea"
+                                                            MaxLength="500" />
+                                        </div>
+
+                                        <div class="manage-views-field">
+                                            @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.DeveloperNotes))
+                                            <RadzenTextArea @bind-Value="@EditableObject.DeveloperNotes"
+                                                            Style="width:100%;"
+                                                            class="manage-views-equal-textarea"
+                                                            MaxLength="3200" />
+                                        </div>
+                                    </div>
+
+                                    <div class="manage-views-section-title rz-mt-4">Dependency Tools</div>
+                                    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" Wrap="FlexWrap.Wrap" class="rz-mt-3">
+                                        <RadzenButton Text="Dependencies" Icon="account_tree" ButtonStyle="ButtonStyle.Light" Click="@ShowParsedDependenciesAsync" Disabled="@(!CanOpenDependencyTools || IsBusy)" />
+                                        <RadzenButton Text="Where Used" Icon="device_hub" ButtonStyle="ButtonStyle.Light" Click="@ShowWhereUsedAsync" Disabled="@(!CanOpenDependencyTools || IsBusy)" />
+                                        <RadzenButton Text="Show SQL" Icon="code" ButtonStyle="ButtonStyle.Light" Click="@ShowSqlAsync" Disabled="@(!CanOpenDependencyTools || IsBusy)" />
+                                    </RadzenStack>
+
+                                    <div class="manage-views-note rz-mt-3">
+                                        Reset clears unsaved header changes and any save-blocking validation message. View definition saves independently from column merge decisions.
+                                    </div>
+
+                                    <div class="manage-views-summary-card rz-mt-4">
+                                        <div class="manage-views-section-title">Column Merge Summary</div>
+                                        <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-2">@ColumnSummarySentence</RadzenText>
+                                        <RadzenButton Text="Open Column Editor" Icon="edit_note" Click="@(() => SelectedEditorTabIndex = 1)" class="rz-mt-3" Disabled="@IsBusy" />
+                                        <div class="manage-views-note rz-mt-2">Columns save independently.</div>
+                                    </div>
+                                </div>
+                            </RadzenTabsItem>
+                            <RadzenTabsItem Text="Manage Columns">
+                                <div class="manage-views-header">
+                                    <div>
+                                        <div class="manage-views-section-title">Manage Columns</div>
+                                        <RadzenText TextStyle="TextStyle.Caption" Style="color:#6c757d;">
+                                            @ColumnSummaryText
+                                        </RadzenText>
+                                    </div>
+
+                                    <div class="manage-views-field" style="min-width:180px;">
+                                        <div class="manage-views-field-label">Review Filter</div>
+                                        <RadzenDropDown Data="@ReviewFilters"
+                                                        TextProperty="Label"
+                                                        ValueProperty="Value"
+                                                        @bind-Value="@SelectedReviewFilter"
+                                                        Style="width:100%;" />
+                                    </div>
+                                </div>
+
+                                <div class="manage-views-note rz-mt-2">
+                                    Column merge decisions are separate from the view definition save.
+                                </div>
+
+                                <div class="manage-views-grid-host rz-mt-3">
+                                    <RadzenDataGrid Data="@FilteredReviewRows"
+                                                    TItem="ColumnReviewRow"
+                                                    Class="manage-views-grid"
+                                                    AllowPaging="false"
+                                                    AllowSorting="true"
+                                                    AllowFiltering="false"
+                                                    Density="Density.Compact">
+                                        <Columns>
+                                            <RadzenDataGridColumn TItem="ColumnReviewRow" Property="Status" Title="Status" Width="120px" />
+                                            <RadzenDataGridColumn TItem="ColumnReviewRow" Property="ColumnName" Title="Column" Width="180px" />
+                                            <RadzenDataGridColumn TItem="ColumnReviewRow" Property="ChangeSummary" Title="Change Summary" Width="220px">
+                                                <Template Context="row">
+                                                    <div class="column-summary">@row.ChangeSummary</div>
+                                                </Template>
+                                            </RadzenDataGridColumn>
+                                            <RadzenDataGridColumn TItem="ColumnReviewRow" Property="ParsedPreview" Title="Parsed" Width="300px">
+                                                <Template Context="row">
+                                                    <div class="column-preview">@row.ParsedPreview</div>
+                                                </Template>
+                                            </RadzenDataGridColumn>
+                                            <RadzenDataGridColumn TItem="ColumnReviewRow" Property="ExistingPreview" Title="Existing" Width="300px">
+                                                <Template Context="row">
+                                                    <div class="column-preview">@row.ExistingPreview</div>
+                                                </Template>
+                                            </RadzenDataGridColumn>
+                                            <RadzenDataGridColumn TItem="ColumnReviewRow" Title="Accept" Width="90px" Sortable="false" Filterable="false">
+                                                <Template Context="row">
+                                                    <RadzenCheckBox @bind-Value="@row.AcceptMerge" TValue="bool" />
+                                                </Template>
+                                            </RadzenDataGridColumn>
+                                        </Columns>
+                                    </RadzenDataGrid>
+                                </div>
+                            </RadzenTabsItem>
+                        </Tabs>
+                    </RadzenTabs>
                 </div>
             }
         </div>
@@ -479,6 +539,7 @@
     private string? SelectedViewKey;
     private string? SelectedDomainFilter;
     private int SelectedViewTabIndex;
+    private int SelectedEditorTabIndex;
     private string SelectedReviewFilter = "changed";
     private DatabaseDefinition? SelectedDatabase;
     private ViewWorkspaceItem? SelectedViewItem;
@@ -493,6 +554,34 @@
             : string.Join(".",
                 new[] { EditableObject.SourceDatabaseName, EditableObject.SourceSchemaName, EditableObject.SourceObjectName }
                     .Where(part => !string.IsNullOrWhiteSpace(part)));
+
+    private bool IsViewDefinitionDirty => EditableObject?.IsDirty ?? false;
+    private bool CanDeleteCurrentView => SelectedViewItem?.IsExisting == true && EditableObject?.SchemaObjectId > 0;
+    private bool CanOpenDependencyTools => EditableObject != null;
+    private string HeaderValidationMessage = string.Empty;
+    private string HeaderMessage =>
+        !string.IsNullOrWhiteSpace(LoadError)
+            ? LoadError
+            : !string.IsNullOrWhiteSpace(HeaderValidationMessage)
+                ? HeaderValidationMessage
+                : IsViewDefinitionDirty
+                    ? "Save or discard view changes before selecting another view."
+                    : string.Empty;
+    private AlertStyle HeaderMessageStyle =>
+        !string.IsNullOrWhiteSpace(LoadError)
+            ? AlertStyle.Danger
+            : AlertStyle.Warning;
+    private string ColumnSummarySentence
+    {
+        get
+        {
+            var added = ReviewRows.Count(x => x.Status == "Added");
+            var changed = ReviewRows.Count(x => x.Status == "Changed");
+            var removed = ReviewRows.Count(x => x.Status == "Removed");
+            var unchanged = ReviewRows.Count(x => x.Status == "Unchanged");
+            return $"{changed} changed, {added} added, {removed} removed, {unchanged} unchanged";
+        }
+    }
 
     private string ColumnSummaryText
     {
@@ -554,6 +643,12 @@
 
     private async Task OnDatabaseChanged(object value)
     {
+        if (IsViewDefinitionDirty)
+        {
+            NotificationService.Notify(NotificationSeverity.Warning, "Unsaved changes", "Save or reset the current view definition before changing databases.", 4000);
+            return;
+        }
+
         if (!int.TryParse(value?.ToString(), out var databaseId))
         {
             SelectedDatabaseId = null;
@@ -574,6 +669,12 @@
 
     private Task OnDomainFilterChanged(object value)
     {
+        if (IsViewDefinitionDirty)
+        {
+            NotificationService.Notify(NotificationSeverity.Warning, "Unsaved changes", "Save or reset the current view definition before changing domains.", 4000);
+            return Task.CompletedTask;
+        }
+
         SelectedDomainFilter = value?.ToString();
         ClearSelectedViewState();
 
@@ -582,6 +683,12 @@
 
     private async Task OnViewSelectionChanged(object value)
     {
+        if (IsViewDefinitionDirty)
+        {
+            NotificationService.Notify(NotificationSeverity.Warning, "Unsaved changes", "Save or reset the current view definition before selecting another view.", 4000);
+            return;
+        }
+
         var key = value?.ToString();
         if (string.IsNullOrWhiteSpace(key))
         {
@@ -605,6 +712,7 @@
     {
         if (!string.IsNullOrWhiteSpace(SelectedViewKey))
         {
+            HeaderValidationMessage = string.Empty;
             await SelectViewAsync(SelectedViewKey);
         }
     }
@@ -739,6 +847,7 @@
             }
 
             LoadError = string.Empty;
+            HeaderValidationMessage = string.Empty;
         }
         catch (Exception ex)
         {
@@ -757,6 +866,8 @@
         EditableObject = null;
         CurrentParsedView = null;
         ReviewRows.Clear();
+        HeaderValidationMessage = string.Empty;
+        SelectedEditorTabIndex = 0;
     }
 
     private string GetAvailableDisplayName(string? objectName)
@@ -806,6 +917,7 @@
         var validationMessage = ValidateEditableObject(EditableObject);
         if (!string.IsNullOrWhiteSpace(validationMessage))
         {
+            HeaderValidationMessage = validationMessage;
             NotificationService.Notify(NotificationSeverity.Warning, "Save blocked", validationMessage, 4000);
             return;
         }
@@ -830,11 +942,48 @@
             }
 
             NotificationService.Notify(NotificationSeverity.Success, "View saved", "View metadata was saved successfully.", 2500);
+            HeaderValidationMessage = string.Empty;
             await LoadWorkspaceAsync(SelectedDatabaseId.Value, SelectedViewKey);
         }
         catch (Exception ex)
         {
             NotifyFailure("Save failed", ex);
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private async Task DeleteViewAsync()
+    {
+        if (!CanDeleteCurrentView || EditableObject == null || SelectedDatabaseId == null)
+        {
+            return;
+        }
+
+        var confirmed = await DialogService.Confirm(
+            "Delete this view definition? Column records tied to this imported view will also be removed.",
+            "Delete View",
+            new ConfirmOptions { OkButtonText = "Delete", CancelButtonText = "Cancel" });
+
+        if (confirmed != true)
+        {
+            return;
+        }
+
+        IsBusy = true;
+
+        try
+        {
+            await SchemaObjectRepository.DeleteAsync(EditableObject.SchemaObjectId);
+            NotificationService.Notify(NotificationSeverity.Success, "View deleted", "The saved view definition was removed.", 2500);
+            ClearSelectedViewState();
+            await LoadWorkspaceAsync(SelectedDatabaseId.Value, null, autoSelectFirst: false);
+        }
+        catch (Exception ex)
+        {
+            NotifyFailure("Delete failed", ex);
         }
         finally
         {
@@ -1046,6 +1195,117 @@
 
         builder.CloseElement();
     };
+
+    private async Task ShowSqlAsync()
+    {
+        if (EditableObject == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var sqlContent = ParserService.GetViewSql(
+                EditableObject.SourceDatabaseName ?? string.Empty,
+                EditableObject.SourceSchemaName,
+                EditableObject.SourceObjectName) ?? string.Empty;
+
+            if (string.IsNullOrWhiteSpace(sqlContent))
+            {
+                NotificationService.Notify(NotificationSeverity.Warning, "Parser SQL unavailable", "The parser service did not return SQL for the selected view.");
+                return;
+            }
+
+            await DialogService.OpenAsync<ViewSQLDialog>(
+                $"Parser SQL: {EditableObject.SourceObjectName}",
+                new Dictionary<string, object?>
+                {
+                    { "SqlContent", sqlContent },
+                    { "IsMock", false }
+                },
+                new DialogOptions
+                {
+                    Width = "1200px",
+                    Height = "820px",
+                    Resizable = true,
+                    Draggable = true
+                });
+        }
+        catch (Exception ex)
+        {
+            NotifyFailure("Parser SQL failed", ex);
+        }
+    }
+
+    private async Task ShowParsedDependenciesAsync()
+    {
+        if (CurrentParsedView == null || EditableObject == null)
+        {
+            return;
+        }
+
+        var dependencies = CurrentParsedView.GetResolvedDependencies();
+
+        if (dependencies.Count == 0)
+        {
+            NotificationService.Notify(NotificationSeverity.Info, "No dependencies", "The current parser result does not contain named object dependencies.", 3000);
+            return;
+        }
+
+        await DialogService.OpenAsync<ParsedDependenciesDialog>(
+            $"Parsed Dependencies: {EditableObject.SourceObjectName}",
+            new Dictionary<string, object?>
+            {
+                { "Dependencies", dependencies }
+            },
+            new DialogOptions
+            {
+                Width = "1100px",
+                Height = "760px",
+                Resizable = true,
+                Draggable = true
+            });
+    }
+
+    private async Task ShowWhereUsedAsync()
+    {
+        if (EditableObject == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var dependencies = await SqlObjectDependencyRepository.GetWhereUsedAsync(
+                EditableObject.SourceDatabaseName ?? string.Empty,
+                EditableObject.SourceSchemaName,
+                EditableObject.SourceObjectName);
+
+            if (dependencies.Count == 0)
+            {
+                NotificationService.Notify(NotificationSeverity.Info, "No where-used rows", "SQL Server dependency metadata does not list any objects using the selected object.", 3000);
+                return;
+            }
+
+            await DialogService.OpenAsync<SqlObjectDependenciesDialog>(
+                $"Where Used: {EditableObject.SourceObjectName}",
+                new Dictionary<string, object?>
+                {
+                    { "Dependencies", dependencies }
+                },
+                new DialogOptions
+                {
+                    Width = "1100px",
+                    Height = "620px",
+                    Resizable = true,
+                    Draggable = true
+                });
+        }
+        catch (Exception ex)
+        {
+            NotifyFailure("Where-used lookup failed", ex);
+        }
+    }
 
     private void NotifyFailure(string summary, Exception ex)
     {
