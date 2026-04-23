@@ -20,8 +20,9 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.6")]
+@attribute [FileVersion("1.8")]
 @attribute [AIFileContext("Components/Pages/ManageViews.razor", "Hosts the new import-and-edit workspace for existing and available views, including view metadata editing and a first-pass parser-versus-existing column review surface.")]
+@attribute [AIChange("1.8", "2026-04-23 03:18 PM CDT removed the extra summary text, combined existing and available views into a shared tabbed selector, and made database/domain filter changes clear the current selection state instead of silently keeping stale view details.", AICommandStatus.Pending)]
 @attribute [AIChange("1.7", "2026-04-23 02:52 PM CDT removed extra summary weight from the manage-views header and rearranged metadata into a name-domain-base row above side-by-side description and notes editors.", AICommandStatus.Pending)]
 @attribute [AIChange("1.6", "2026-04-23 02:46 PM CDT moved the left-side domain filter under the database picker and aligned business name and description into equal-height side-by-side fields.", AICommandStatus.Pending)]
 @attribute [AIChange("1.5", "2026-04-23 02:39 PM CDT tightened the manage-views layout so the header, status banner, and metadata form consume less vertical space and leave more room for the review workspace.", AICommandStatus.Pending)]
@@ -68,7 +69,7 @@
         border: 1px solid #dee2e6;
         border-radius: 4px;
         padding: 0.75rem;
-        min-height: 200px;
+        min-height: 520px;
         background: #fafbfc;
         display: flex;
         flex-direction: column;
@@ -77,7 +78,7 @@
 
     .manage-views-list {
         width: 100%;
-        min-height: 180px;
+        min-height: 445px;
     }
 
     .manage-views-section-title {
@@ -212,11 +213,6 @@
         gap: 1rem;
     }
 
-    .manage-views-subtle-summary {
-        color: #6c757d;
-        font-size: 0.8rem;
-    }
-
     @@media (max-width: 1200px) {
         .manage-views-shell {
             grid-template-columns: 1fr;
@@ -230,6 +226,7 @@
     }
 </style>
 
+@* 2026-04-23 03:18 PM CDT AI v1.8 manage-views marker: the left selector now uses tabs instead of stacked lists, and database/domain filter changes explicitly clear the current view selection so stale RHS details do not linger. *@
 @* 2026-04-23 02:52 PM CDT AI v1.7 manage-views marker: summary chrome is reduced and metadata now uses a name-domain-base row above paired description and notes editors. *@
 @* 2026-04-23 02:46 PM CDT AI v1.6 manage-views marker: the left domain filter now sits under database, and business name/description share a compact two-column row. *@
 @* 2026-04-23 02:39 PM CDT AI v1.5 manage-views marker: header and metadata sections are compressed so the column review workspace gets more of the viewport. *@
@@ -241,13 +238,10 @@
 
 <RadzenStack Gap="1rem">
     <RadzenCard Variant="Variant.Flat" class="manage-views-panel">
-        <div class="manage-views-header">
-            <div>
-                <RadzenText TextStyle="TextStyle.H4" class="rz-m-0">Manage Views</RadzenText>
-                <RadzenText TextStyle="TextStyle.Body2" Style="color:#495057;">
-                    Select an existing or available view on the left, edit the view metadata on the right, and review the parser snapshot before wiring the full merge workflow.
-                </RadzenText>
-            </div>
+            <div class="manage-views-header">
+                <div>
+                    <RadzenText TextStyle="TextStyle.H4" class="rz-m-0">Manage Views</RadzenText>
+                </div>
 
             <RadzenButton Text="Reload"
                           Icon="refresh"
@@ -291,48 +285,38 @@
                     </div>
                 </div>
 
-                @if (SelectedDatabase != null)
-                {
-                    <div class="rz-mt-3">
-                        <RadzenText TextStyle="TextStyle.Body2" Style="font-weight:600;">
-                            @SelectedDatabase.BusinessName
-                        </RadzenText>
-                        <RadzenText TextStyle="TextStyle.Caption" class="manage-views-subtle-summary">
-                            Filter: @(string.IsNullOrWhiteSpace(SelectedDatabase.ViewNameFilter) ? "All views" : SelectedDatabase.ViewNameFilter)
-                        </RadzenText>
-                    </div>
-                }
             </div>
 
             <div class="manage-views-panel">
-                <div class="manage-views-section-title">Existing Views</div>
                 <div class="manage-views-list-frame">
-                    <RadzenListBox Data="@FilteredExistingViewItems"
-                                   TextProperty="DisplayName"
-                                   ValueProperty="SelectionKey"
-                                   TValue="string"
-                                   @bind-Value="@SelectedViewKey"
-                                   Change="@OnViewSelectionChanged"
-                                   Class="manage-views-list" />
-                    <RadzenText TextStyle="TextStyle.Caption" Style="color:#6c757d;">
-                        @($"{FilteredExistingViewItems.Count} shown of {ExistingViewItems.Count} imported")
-                    </RadzenText>
-                </div>
-            </div>
-
-            <div class="manage-views-panel">
-                <div class="manage-views-section-title">Available</div>
-                <div class="manage-views-list-frame">
-                    <RadzenListBox Data="@AvailableViewItems"
-                                   TextProperty="DisplayName"
-                                   ValueProperty="SelectionKey"
-                                   TValue="string"
-                                   @bind-Value="@SelectedViewKey"
-                                   Change="@OnViewSelectionChanged"
-                                   Class="manage-views-list" />
-                    <RadzenText TextStyle="TextStyle.Caption" Style="color:#6c757d;">
-                        @($"{AvailableViewItems.Count} candidates after filter")
-                    </RadzenText>
+                    <RadzenTabs @bind-SelectedIndex="@SelectedViewTabIndex">
+                        <Tabs>
+                            <RadzenTabsItem Text="Existing">
+                                <RadzenListBox Data="@FilteredExistingViewItems"
+                                               TextProperty="DisplayName"
+                                               ValueProperty="SelectionKey"
+                                               TValue="string"
+                                               @bind-Value="@SelectedViewKey"
+                                               Change="@OnViewSelectionChanged"
+                                               Class="manage-views-list" />
+                                <RadzenText TextStyle="TextStyle.Caption" Style="color:#6c757d;">
+                                    @($"{FilteredExistingViewItems.Count} shown of {ExistingViewItems.Count} imported")
+                                </RadzenText>
+                            </RadzenTabsItem>
+                            <RadzenTabsItem Text="Available">
+                                <RadzenListBox Data="@AvailableViewItems"
+                                               TextProperty="DisplayName"
+                                               ValueProperty="SelectionKey"
+                                               TValue="string"
+                                               @bind-Value="@SelectedViewKey"
+                                               Change="@OnViewSelectionChanged"
+                                               Class="manage-views-list" />
+                                <RadzenText TextStyle="TextStyle.Caption" Style="color:#6c757d;">
+                                    @($"{AvailableViewItems.Count} candidates after filter")
+                                </RadzenText>
+                            </RadzenTabsItem>
+                        </Tabs>
+                    </RadzenTabs>
                 </div>
             </div>
         </div>
@@ -373,10 +357,6 @@
                                           Disabled="@IsBusy" />
                         </RadzenStack>
                     </div>
-
-                    <RadzenText TextStyle="TextStyle.Caption" class="manage-views-subtle-summary rz-mt-2">
-                        @WorkspaceBannerText
-                    </RadzenText>
                 </div>
 
                 <div class="manage-views-panel manage-views-meta-card">
@@ -499,6 +479,7 @@
     private int? SelectedDatabaseId;
     private string? SelectedViewKey;
     private string? SelectedDomainFilter;
+    private int SelectedViewTabIndex;
     private string SelectedReviewFilter = "changed";
     private DatabaseDefinition? SelectedDatabase;
     private ViewWorkspaceItem? SelectedViewItem;
@@ -506,13 +487,6 @@
     private ParsedQuery? CurrentParsedView;
     private bool IsBusy;
     private string LoadError = string.Empty;
-
-    private string WorkspaceBannerText =>
-        SelectedViewItem == null
-            ? string.Empty
-            : SelectedViewItem.IsExisting
-                ? "This record already exists in Schema Studio. Edit the metadata directly, then review the parser snapshot below."
-                : "This source view is available to add. Fill in the business metadata on the right before saving the first Schema Studio definition.";
 
     private string CurrentSourceFullName =>
         EditableObject == null
@@ -586,29 +560,23 @@
             SelectedDatabaseId = null;
             SelectedDatabase = null;
             SelectedDomainFilter = null;
+            SelectedViewTabIndex = 0;
             Domains.Clear();
             ExistingViewItems.Clear();
             AvailableViewItems.Clear();
-            SelectedViewItem = null;
-            EditableObject = null;
-            ReviewRows.Clear();
+            ClearSelectedViewState();
             return;
         }
 
         SelectedDatabaseId = databaseId;
-        await LoadWorkspaceAsync(databaseId, null);
+        ClearSelectedViewState();
+        await LoadWorkspaceAsync(databaseId, null, autoSelectFirst: false);
     }
 
     private Task OnDomainFilterChanged(object value)
     {
         SelectedDomainFilter = value?.ToString();
-
-        if (!string.IsNullOrWhiteSpace(SelectedViewKey) &&
-            !FilteredExistingViewItems.Any(x => x.SelectionKey == SelectedViewKey) &&
-            ExistingViewItems.Any(x => x.SelectionKey == SelectedViewKey))
-        {
-            SelectedViewKey = null;
-        }
+        ClearSelectedViewState();
 
         return InvokeAsync(StateHasChanged);
     }
@@ -642,7 +610,7 @@
         }
     }
 
-    private async Task LoadWorkspaceAsync(int databaseId, string? preferredSelectionKey)
+    private async Task LoadWorkspaceAsync(int databaseId, string? preferredSelectionKey, bool autoSelectFirst = true)
     {
         IsBusy = true;
 
@@ -702,8 +670,9 @@
             LoadError = string.Empty;
 
             var nextSelection = preferredSelectionKey;
-            if (string.IsNullOrWhiteSpace(nextSelection) ||
-                !ExistingViewItems.Concat(AvailableViewItems).Any(x => x.SelectionKey == nextSelection))
+            if (autoSelectFirst &&
+                (string.IsNullOrWhiteSpace(nextSelection) ||
+                 !ExistingViewItems.Concat(AvailableViewItems).Any(x => x.SelectionKey == nextSelection)))
             {
                 nextSelection = ExistingViewItems.FirstOrDefault()?.SelectionKey
                     ?? AvailableViewItems.FirstOrDefault()?.SelectionKey;
@@ -717,10 +686,7 @@
             }
             else
             {
-                SelectedViewItem = null;
-                EditableObject = null;
-                CurrentParsedView = null;
-                ReviewRows.Clear();
+                ClearSelectedViewState();
             }
         }
         catch (Exception ex)
@@ -742,12 +708,11 @@
             SelectedViewKey = selectionKey;
             SelectedViewItem = ExistingViewItems.Concat(AvailableViewItems)
                 .FirstOrDefault(x => string.Equals(x.SelectionKey, selectionKey, StringComparison.Ordinal));
+            SelectedViewTabIndex = SelectedViewItem?.IsExisting == false ? 1 : 0;
 
             if (SelectedViewItem == null)
             {
-                EditableObject = null;
-                ReviewRows.Clear();
-                CurrentParsedView = null;
+                ClearSelectedViewState();
                 return;
             }
 
@@ -784,6 +749,15 @@
         {
             IsBusy = false;
         }
+    }
+
+    private void ClearSelectedViewState()
+    {
+        SelectedViewKey = null;
+        SelectedViewItem = null;
+        EditableObject = null;
+        CurrentParsedView = null;
+        ReviewRows.Clear();
     }
 
     private async Task ParseAndBuildReviewAsync(IEnumerable<SchemaObjectColumnDefinition> existingColumns)
