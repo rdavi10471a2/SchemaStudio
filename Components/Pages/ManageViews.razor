@@ -629,7 +629,7 @@
                 ? new List<SourceViewDefinition>()
                 : (await SourceViewRepository.GetByDatabaseAsync(
                     sourceCatalogDatabase,
-                    SelectedDatabase.ViewNameFilter)).ToList();
+                    SelectedDatabase?.ViewNameFilter)).ToList();
 
             ExistingViewItems = existingObjects
                 .OrderBy(x => string.IsNullOrWhiteSpace(x.BusinessName) ? x.SourceObjectName : x.BusinessName)
