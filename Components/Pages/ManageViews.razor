@@ -25,7 +25,7 @@
 
 @attribute [FileVersion("2.4")]
 @attribute [AIFileContext("Components/Pages/ManageViews.razor", "Hosts the new import-and-edit workspace for existing and available views, including view metadata editing and a first-pass parser-versus-existing column review surface.")]
-@attribute [AIChange("2.4", "2026-04-23 04:34 PM CDT removed developer notes from the manage-views workflow so the view-definition editor and column-review previews no longer treat notes as part of this merge path.", AICommandStatus.Pending)]
+@attribute [AIChange("2.4", "2026-04-23 04:34 PM CDT kept developer notes editable on the view definition while leaving them out of the column-review merge path and parser-driven comparison rules.", AICommandStatus.Pending)]
 @attribute [AIChange("2.3", "2026-04-23 04:07 PM CDT removed parser ownership of developer notes from the column merge review so parsed comments no longer show up as imported developer-note changes.", AICommandStatus.Pending)]
 @attribute [AIChange("2.2", "2026-04-23 04:01 PM CDT replaced the dirty-state yellow banner with discard-confirm popups, stopped defaulting business name for available drafts, and flattened the joined left-side selector layout again.", AICommandStatus.Pending)]
 @attribute [AIChange("2.1", "2026-04-23 03:49 PM CDT fixed the new-available draft workflow so brand new view definitions start clean instead of dirty, and hid delete for items that do not yet exist in Schema Studio.", AICommandStatus.Pending)]
@@ -248,7 +248,7 @@
     }
 </style>
 
-@* 2026-04-23 04:34 PM CDT AI v2.4 manage-views marker: developer notes are removed from the manage-views workflow so the header editor and column review focus only on view metadata and merge state. *@
+@* 2026-04-23 04:34 PM CDT AI v2.4 manage-views marker: developer notes remain editable on the view definition, but column review no longer treats them as parser-driven merge input. *@
 @* 2026-04-23 04:07 PM CDT AI v2.3 manage-views marker: parser-side developer notes/comments are no longer treated as imported merge data for column review. *@
 @* 2026-04-23 04:01 PM CDT AI v2.2 manage-views marker: dirty navigation now uses a confirm popup, new available drafts do not prefill business name, and the left selector reads as one joined surface again. *@
 @* 2026-04-23 03:49 PM CDT AI v2.1 manage-views marker: new available drafts now start clean, and delete is hidden until the view actually exists in Schema Studio. *@
@@ -430,6 +430,14 @@
                                                             Style="width:100%;"
                                                             class="manage-views-equal-textarea"
                                                             MaxLength="500" />
+                                        </div>
+
+                                        <div class="manage-views-field">
+                                            @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.DeveloperNotes))
+                                            <RadzenTextArea @bind-Value="@EditableObject.DeveloperNotes"
+                                                            Style="width:100%;"
+                                                            class="manage-views-equal-textarea"
+                                                            MaxLength="3200" />
                                         </div>
 
                                     </div>
