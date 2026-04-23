@@ -23,8 +23,9 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("2.1")]
+@attribute [FileVersion("2.2")]
 @attribute [AIFileContext("Components/Pages/ManageViews.razor", "Hosts the new import-and-edit workspace for existing and available views, including view metadata editing and a first-pass parser-versus-existing column review surface.")]
+@attribute [AIChange("2.2", "2026-04-23 04:01 PM CDT replaced the dirty-state yellow banner with discard-confirm popups, stopped defaulting business name for available drafts, and flattened the joined left-side selector layout again.", AICommandStatus.Pending)]
 @attribute [AIChange("2.1", "2026-04-23 03:49 PM CDT fixed the new-available draft workflow so brand new view definitions start clean instead of dirty, and hid delete for items that do not yet exist in Schema Studio.", AICommandStatus.Pending)]
 @attribute [AIChange("2.0", "2026-04-23 03:41 PM CDT reorganized the RHS into View Definition and Manage Columns tabs, added dependency-tool actions beneath the header editor, and blocked navigation away from dirty header edits until they are saved or reset.", AICommandStatus.Pending)]
 @attribute [AIChange("1.9", "2026-04-23 03:27 PM CDT collapsed the left rail into a single container, removed the extra filter summary text, and trimmed the available-view display names by the configured prefix so SQL-style naming tax stays out of the selector.", AICommandStatus.Pending)]
@@ -72,11 +73,11 @@
     }
 
     .manage-views-list-frame {
-        border: 1px solid #dee2e6;
-        border-radius: 4px;
-        padding: 0.75rem;
+        border: 0;
+        border-radius: 0;
+        padding: 0.75rem 0 0 0;
         min-height: 520px;
-        background: #fafbfc;
+        background: transparent;
         display: flex;
         flex-direction: column;
         gap: 0.5rem;
@@ -245,6 +246,7 @@
     }
 </style>
 
+@* 2026-04-23 04:01 PM CDT AI v2.2 manage-views marker: dirty navigation now uses a confirm popup, new available drafts do not prefill business name, and the left selector reads as one joined surface again. *@
 @* 2026-04-23 03:49 PM CDT AI v2.1 manage-views marker: new available drafts now start clean, and delete is hidden until the view actually exists in Schema Studio. *@
 @* 2026-04-23 03:41 PM CDT AI v2.0 manage-views marker: the RHS now uses View Definition and Manage Columns tabs, and dirty header edits must be saved or reset before navigating away. *@
 @* 2026-04-23 03:27 PM CDT AI v1.9 manage-views marker: the left rail is one container now, and available view names are trimmed by the configured prefix for display. *@
@@ -386,12 +388,6 @@
                         </RadzenStack>
                     </div>
 
-                    @if (!string.IsNullOrWhiteSpace(HeaderMessage))
-                    {
-                        <RadzenAlert AlertStyle="@HeaderMessageStyle" Variant="Variant.Flat" class="rz-mt-3">
-                            @HeaderMessage
-                        </RadzenAlert>
-                    }
                 </div>
 
                 <div class="manage-views-panel">
@@ -543,6 +539,7 @@
     private int? SelectedDatabaseId;
     private string? SelectedViewKey;
     private string? SelectedDomainFilter;
+    private string? LastAppliedDomainFilter;
     private int SelectedViewTabIndex;
     private int SelectedEditorTabIndex;
     private string SelectedReviewFilter = "changed";
@@ -564,18 +561,6 @@
     private bool CanDeleteCurrentView => SelectedViewItem?.IsExisting == true && EditableObject?.SchemaObjectId > 0;
     private bool CanOpenDependencyTools => EditableObject != null;
     private string HeaderValidationMessage = string.Empty;
-    private string HeaderMessage =>
-        !string.IsNullOrWhiteSpace(LoadError)
-            ? LoadError
-            : !string.IsNullOrWhiteSpace(HeaderValidationMessage)
-                ? HeaderValidationMessage
-                : IsViewDefinitionDirty
-                    ? "Save or discard view changes before selecting another view."
-                    : string.Empty;
-    private AlertStyle HeaderMessageStyle =>
-        !string.IsNullOrWhiteSpace(LoadError)
-            ? AlertStyle.Danger
-            : AlertStyle.Warning;
     private string ColumnSummarySentence
     {
         get
@@ -648,9 +633,11 @@
 
     private async Task OnDatabaseChanged(object value)
     {
-        if (IsViewDefinitionDirty)
+        var previousDatabaseId = SelectedDatabase?.DatabaseId;
+        if (!await ConfirmDiscardChangesAsync("Discard unsaved view definition changes and switch databases?"))
         {
-            NotificationService.Notify(NotificationSeverity.Warning, "Unsaved changes", "Save or reset the current view definition before changing databases.", 4000);
+            SelectedDatabaseId = previousDatabaseId;
+            await InvokeAsync(StateHasChanged);
             return;
         }
 
@@ -659,6 +646,7 @@
             SelectedDatabaseId = null;
             SelectedDatabase = null;
             SelectedDomainFilter = null;
+            LastAppliedDomainFilter = null;
             SelectedViewTabIndex = 0;
             Domains.Clear();
             ExistingViewItems.Clear();
@@ -674,23 +662,32 @@
 
     private Task OnDomainFilterChanged(object value)
     {
-        if (IsViewDefinitionDirty)
+        return OnDomainFilterChangedCoreAsync(value?.ToString());
+    }
+
+    private async Task OnDomainFilterChangedCoreAsync(string? nextFilter)
+    {
+        if (!await ConfirmDiscardChangesAsync("Discard unsaved view definition changes and change the domain filter?"))
         {
-            NotificationService.Notify(NotificationSeverity.Warning, "Unsaved changes", "Save or reset the current view definition before changing domains.", 4000);
-            return Task.CompletedTask;
+            SelectedDomainFilter = LastAppliedDomainFilter;
+            await InvokeAsync(StateHasChanged);
+            return;
         }
 
-        SelectedDomainFilter = value?.ToString();
+        SelectedDomainFilter = nextFilter;
+        LastAppliedDomainFilter = nextFilter;
         ClearSelectedViewState();
 
-        return InvokeAsync(StateHasChanged);
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task OnViewSelectionChanged(object value)
     {
-        if (IsViewDefinitionDirty)
+        var previousSelectionKey = SelectedViewItem?.SelectionKey;
+        if (!await ConfirmDiscardChangesAsync("Discard unsaved view definition changes and open another view?"))
         {
-            NotificationService.Notify(NotificationSeverity.Warning, "Unsaved changes", "Save or reset the current view definition before selecting another view.", 4000);
+            SelectedViewKey = previousSelectionKey;
+            await InvokeAsync(StateHasChanged);
             return;
         }
 
@@ -893,6 +890,26 @@
             : objectName;
     }
 
+    private async Task<bool> ConfirmDiscardChangesAsync(string prompt)
+    {
+        if (!IsViewDefinitionDirty)
+        {
+            return true;
+        }
+
+        var confirmed = await DialogService.Confirm(
+            prompt,
+            "Discard Changes",
+            new ConfirmOptions { OkButtonText = "OK", CancelButtonText = "Cancel" });
+
+        if (confirmed == true)
+        {
+            HeaderValidationMessage = string.Empty;
+        }
+
+        return confirmed == true;
+    }
+
     private async Task ParseAndBuildReviewAsync(IEnumerable<SchemaObjectColumnDefinition> existingColumns)
     {
         if (EditableObject == null)
@@ -1005,7 +1022,6 @@
             SourceSchemaName = item.SourceSchemaName,
             SourceObjectName = item.SourceObjectName,
             Domain = GetPreferredDomain(),
-            BusinessName = item.SourceObjectName,
             IsActive = true
         };
 
