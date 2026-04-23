@@ -22,6 +22,7 @@
 
 @attribute [FileVersion("1.2")]
 @attribute [AIFileContext("Components/Pages/ManageViews.razor", "Hosts the new import-and-edit workspace for existing and available views, including view metadata editing and a first-pass parser-versus-existing column review surface.")]
+@attribute [AIChange("1.3", "2026-04-23 02:20 PM CDT added a left-side domain filter so existing imported views can be narrowed by domain independently of the RHS edit form.", AICommandStatus.Pending)]
 @attribute [AIChange("1.2", "2026-04-23 02:12 PM CDT made domain selection explicitly required for saves and defaulted new view selections to the Unknown domain when that domain exists.", AICommandStatus.Pending)]
 @attribute [AIChange("1.1", "2026-04-23 02:03 PM CDT trimmed the RHS metadata form to user-owned fields only and tightened available-view filtering to explicit starts-with behavior.", AICommandStatus.Pending)]
 @attribute [AIChange("1.0", "2026-04-23 01:29 PM CDT added the first pass of the new manage-views workspace with a guided RHS editor and available-view filtering driven by the database ViewNameFilter field.", AICommandStatus.Pending)]
@@ -171,6 +172,7 @@
     }
 </style>
 
+@* 2026-04-23 02:20 PM CDT AI v1.3 manage-views marker: the left-side domain filter now narrows the existing imported view list without changing the RHS edit selection rules. *@
 @* 2026-04-23 02:12 PM CDT AI v1.2 manage-views marker: domain is required for save and defaults to Unknown when that domain exists in the selected database. *@
 @* 2026-04-23 02:03 PM CDT AI v1.1 manage-views marker: the RHS view metadata form now only shows user-owned fields, and available view filtering is explicit starts-with behavior. *@
 @* 2026-04-23 01:29 PM CDT AI v1.0 manage-views marker: first pass of the new RHS workspace lets users edit view metadata directly and review parser-vs-existing columns without falling back into the old docked WinForms shape. *@
@@ -202,15 +204,30 @@
     <div class="manage-views-shell">
         <div class="manage-views-left">
             <div class="manage-views-panel">
-                <div class="manage-views-field">
+                <div class="manage-views-form-grid">
+                    <div class="manage-views-field">
+                        @FieldLabel(typeof(DatabaseDefinition), nameof(DatabaseDefinition.DatabaseName))
+                        <RadzenDropDown Data="@Databases"
+                                        TextProperty="DatabaseName"
+                                        ValueProperty="DatabaseId"
+                                        @bind-Value="@SelectedDatabaseId"
+                                        Change="@OnDatabaseChanged"
+                                        Style="width:100%;"
+                                        Placeholder="Database" />
+                    </div>
+
                     @FieldLabel(typeof(DatabaseDefinition), nameof(DatabaseDefinition.DatabaseName))
-                    <RadzenDropDown Data="@Databases"
-                                    TextProperty="DatabaseName"
-                                    ValueProperty="DatabaseId"
-                                    @bind-Value="@SelectedDatabaseId"
-                                    Change="@OnDatabaseChanged"
-                                    Style="width:100%;"
-                                    Placeholder="Database" />
+                    <div class="manage-views-field">
+                        @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.Domain))
+                        <RadzenDropDown Data="@LeftFilterDomains"
+                                        TextProperty="Domain"
+                                        ValueProperty="Domain"
+                                        @bind-Value="@SelectedDomainFilter"
+                                        Change="@OnDomainFilterChanged"
+                                        Style="width:100%;"
+                                        AllowClear="true"
+                                        Placeholder="All Domains" />
+                    </div>
                 </div>
 
                 @if (SelectedDatabase != null)
@@ -229,7 +246,7 @@
             <div class="manage-views-panel">
                 <div class="manage-views-section-title">Existing Views</div>
                 <div class="manage-views-list-frame">
-                    <RadzenListBox Data="@ExistingViewItems"
+                    <RadzenListBox Data="@FilteredExistingViewItems"
                                    TextProperty="DisplayName"
                                    ValueProperty="SelectionKey"
                                    TValue="string"
@@ -237,7 +254,7 @@
                                    Change="@OnViewSelectionChanged"
                                    Class="manage-views-list" />
                     <RadzenText TextStyle="TextStyle.Caption" Style="color:#6c757d;">
-                        @($"{ExistingViewItems.Count} imported")
+                        @($"{FilteredExistingViewItems.Count} shown of {ExistingViewItems.Count} imported")
                     </RadzenText>
                 </div>
             </div>
@@ -416,6 +433,7 @@
 
     private int? SelectedDatabaseId;
     private string? SelectedViewKey;
+    private string? SelectedDomainFilter;
     private string SelectedReviewFilter = "changed";
     private DatabaseDefinition? SelectedDatabase;
     private ViewWorkspaceItem? SelectedViewItem;
@@ -459,6 +477,18 @@
             _ => ReviewRows
         };
 
+    private List<DatabaseDomainDefinition> LeftFilterDomains =>
+        Domains
+            .OrderBy(x => x.Domain, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+    private List<ViewWorkspaceItem> FilteredExistingViewItems =>
+        string.IsNullOrWhiteSpace(SelectedDomainFilter)
+            ? ExistingViewItems
+            : ExistingViewItems
+                .Where(x => string.Equals(x.Domain, SelectedDomainFilter, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
     protected override async Task OnInitializedAsync()
     {
         IsBusy = true;
@@ -490,6 +520,7 @@
         {
             SelectedDatabaseId = null;
             SelectedDatabase = null;
+            SelectedDomainFilter = null;
             Domains.Clear();
             ExistingViewItems.Clear();
             AvailableViewItems.Clear();
@@ -501,6 +532,20 @@
 
         SelectedDatabaseId = databaseId;
         await LoadWorkspaceAsync(databaseId, null);
+    }
+
+    private Task OnDomainFilterChanged(object value)
+    {
+        SelectedDomainFilter = value?.ToString();
+
+        if (!string.IsNullOrWhiteSpace(SelectedViewKey) &&
+            !FilteredExistingViewItems.Any(x => x.SelectionKey == SelectedViewKey) &&
+            ExistingViewItems.Any(x => x.SelectionKey == SelectedViewKey))
+        {
+            SelectedViewKey = null;
+        }
+
+        return InvokeAsync(StateHasChanged);
     }
 
     private async Task OnViewSelectionChanged(object value)
@@ -558,6 +603,7 @@
                     SourceDatabaseName = x.SourceDatabaseName ?? SelectedDatabase?.DatabaseName ?? string.Empty,
                     SourceSchemaName = x.SourceSchemaName,
                     SourceObjectName = x.SourceObjectName,
+                    Domain = x.Domain,
                     DisplayName = string.IsNullOrWhiteSpace(x.BusinessName) ? x.SourceObjectName : x.BusinessName!,
                     Subtitle = $"{x.SourceSchemaName}.{x.SourceObjectName}"
                 })
@@ -954,6 +1000,7 @@
         public string SourceDatabaseName { get; set; } = string.Empty;
         public string SourceSchemaName { get; set; } = string.Empty;
         public string SourceObjectName { get; set; } = string.Empty;
+        public string? Domain { get; set; }
         public string DisplayName { get; set; } = string.Empty;
         public string Subtitle { get; set; } = string.Empty;
     }
