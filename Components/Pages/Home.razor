@@ -22,7 +22,8 @@
 @inject IJSRuntime JSRuntime
 @inject NavigationManager NavigationManager
 
-@attribute [FileVersion("1.8")]
+@attribute [FileVersion("1.9")]
+@attribute [AIChange("1.9", "2026-04-23 10:10 AM CDT skipped the duplicate first-render database load on Home when startup already attempted it and no databases were loaded.", AICommandStatus.Pending)]
 @attribute [AIChange("1.8", "2026-04-23 10:00 AM CDT added an inline load-error alert on Home so failed database calls stay visible instead of relying on a toast alone.", AICommandStatus.Pending)]
 @attribute [AIChange("1.7", "2026-04-23 09:51 AM CDT added startup and selection-load error handling so failed database connections show a toast instead of hanging the Home page.", AICommandStatus.Pending)]
 @attribute [AIFileContext("Components/Pages/Home.razor", "Hosts the shared kiosk and normal home selection workflow, simple login state, persisted selection restoration, and the main schema object detail surface.")]
@@ -101,6 +102,7 @@
     }
 </style>
 
+@* 2026-04-23 10:10 AM CDT AI v1.9 startup-retry marker: first render now skips the duplicate database load when startup already tried and failed to populate the database list. *@
 @* 2026-04-23 10:00 AM CDT AI v1.8 inline-error marker: Home now keeps a visible load-error alert on the page so failed database calls are obvious even after the toast fades. *@
 @* 2026-04-23 09:51 AM CDT AI v1.7 startup-error marker: catch initial repository failures on Home and always unwind loading state so broken DB connections show a toast instead of hanging the page. *@
 @* 2026-04-22 11:51 AM CDT AI v1.6 auth-session marker: simple auth uses session storage so browser close/reload/debug restart begins logged out. *@
@@ -430,6 +432,7 @@
     private string LoginPassword = "";
     private string LoginError = "";
     private string LoadError = "";
+    private bool HasAttemptedInitialDatabaseLoad = false;
 
     private const string AuthStorageKey = "simpleAuth";
     private const string AuthenticatedValue = "true";
@@ -456,6 +459,7 @@
         {
             if (CanShowHomeContent)
             {
+                HasAttemptedInitialDatabaseLoad = true;
                 await EnsureDatabasesLoadedAsync();
             }
         }
@@ -521,6 +525,12 @@
                 return;
             }
 
+            if (!Databases.Any() && HasAttemptedInitialDatabaseLoad)
+            {
+                await InvokeAsync(StateHasChanged);
+                return;
+            }
+
             await EnsureDatabasesLoadedAsync();
             await LoadStateAsync();
             await InvokeAsync(StateHasChanged);
@@ -535,6 +545,7 @@
 
     private async Task EnsureDatabasesLoadedAsync()
     {
+        HasAttemptedInitialDatabaseLoad = true;
         if (!Databases.Any())
         {
             Databases = await DbRepo.GetAllAsync();
