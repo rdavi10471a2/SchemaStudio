@@ -22,7 +22,8 @@
 @inject IJSRuntime JSRuntime
 @inject NavigationManager NavigationManager
 
-@attribute [FileVersion("1.7")]
+@attribute [FileVersion("1.8")]
+@attribute [AIChange("1.8", "2026-04-23 10:00 AM CDT added an inline load-error alert on Home so failed database calls stay visible instead of relying on a toast alone.", AICommandStatus.Pending)]
 @attribute [AIChange("1.7", "2026-04-23 09:51 AM CDT added startup and selection-load error handling so failed database connections show a toast instead of hanging the Home page.", AICommandStatus.Pending)]
 @attribute [AIFileContext("Components/Pages/Home.razor", "Hosts the shared kiosk and normal home selection workflow, simple login state, persisted selection restoration, and the main schema object detail surface.")]
 @attribute [AIChange("1.6", "2026-04-22 11:51 AM CDT moved simple auth state to session-scoped browser storage so close, reload, or debug restart starts logged out.", AICommandStatus.Pending)]
@@ -100,6 +101,7 @@
     }
 </style>
 
+@* 2026-04-23 10:00 AM CDT AI v1.8 inline-error marker: Home now keeps a visible load-error alert on the page so failed database calls are obvious even after the toast fades. *@
 @* 2026-04-23 09:51 AM CDT AI v1.7 startup-error marker: catch initial repository failures on Home and always unwind loading state so broken DB connections show a toast instead of hanging the page. *@
 @* 2026-04-22 11:51 AM CDT AI v1.6 auth-session marker: simple auth uses session storage so browser close/reload/debug restart begins logged out. *@
 @* 2026-04-22 11:47 AM CDT AI v1.5 login cancel marker: cancel collapses the inline login panel without disturbing the current kiosk selection. *@
@@ -249,6 +251,15 @@
             }
         </RadzenStack>
     </RadzenCard>
+}
+
+@if (CanShowHomeContent && !string.IsNullOrWhiteSpace(LoadError))
+{
+    <RadzenAlert AlertStyle="AlertStyle.Danger"
+                 Variant="Variant.Flat"
+                 class="rz-mb-2">
+        @LoadError
+    </RadzenAlert>
 }
 
 @if (CanShowHomeContent && IsLoading)
@@ -418,6 +429,7 @@
     private string LoginUserName = "";
     private string LoginPassword = "";
     private string LoginError = "";
+    private string LoadError = "";
 
     private const string AuthStorageKey = "simpleAuth";
     private const string AuthenticatedValue = "true";
@@ -526,11 +538,13 @@
         if (!Databases.Any())
         {
             Databases = await DbRepo.GetAllAsync();
+            LoadError = "";
         }
     }
 
     private async Task LoadStateAsync()
     {
+        LoadError = "";
         var dbStr = await JSRuntime.InvokeAsync<string>("stateManager.load", "dbId");
         var dom = await JSRuntime.InvokeAsync<string>("stateManager.load", "dom");
         var objStr = await JSRuntime.InvokeAsync<string>("stateManager.load", "objId");
@@ -710,6 +724,7 @@
         SelectedDatabaseId = dbId;
 
         ClearChildSelections(true);
+        LoadError = "";
 
         try
         {
@@ -726,6 +741,7 @@
     private async Task OnDomainChanged(object value)
     {
         SelectedDomain = value?.ToString() ?? "";
+        LoadError = "";
 
         DisplayObjects.Clear();
         SelectedObjectId = null;
@@ -811,6 +827,7 @@
 
         SelectedObjectId = objId;
         LastValidObjectId = objId;
+        LoadError = "";
 
         IsLoading = true;
 
@@ -849,6 +866,7 @@
         LastValidObjectId = null;
         SelectedObject = null;
         Columns.Clear();
+        LoadError = "";
     }
 
     private async Task ShowViewDefinition()
@@ -922,6 +940,7 @@
 
     private void NotifyLoadFailure(string summary, Exception ex)
     {
+        LoadError = ex.Message;
         NotificationService.Notify(NotificationSeverity.Error, summary, ex.Message, 5000);
     }
 
