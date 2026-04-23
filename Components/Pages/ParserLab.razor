@@ -2,6 +2,7 @@
 
 @using System.Reflection
 @using System.ComponentModel.DataAnnotations
+@using SchemaStudio.AIHelpers
 @using SchemaStudioWebViewer.Models
 @using SchemaStudioWebViewer.Components.Dialogs
 @using SchemaStudioWebViewer.Utils
@@ -20,6 +21,10 @@
 @inject DatabaseDomainRepository DatabaseDomainRepository
 @inject SchemaObjectRepository SchemaObjectRepository
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
+
+@attribute [FileVersion("1.0")]
+@attribute [AIChange("1.0", "2026-04-23 10:00 AM CDT added a visible parser load-error alert and removed the unused async state from the parser refresh path.", AICommandStatus.Pending)]
+@attribute [AIFileContext("Components/Pages/ParserLab.razor", "Hosts the parser playground for browsing schema objects, running parser previews, and inspecting parser-derived dependencies and where-used details.")]
 
 <style>
     .parser-page-shell {
@@ -221,6 +226,7 @@
 
 <PageTitle>Parser Test Area</PageTitle>
 
+@* 2026-04-23 10:00 AM CDT AI v1.0 parser-inline-error marker: ParserLab now keeps a visible load-error alert and the parser refresh path no longer advertises async work it never awaited. *@
 @* 2026-04-15 04:19 PM CDT AI parser lab marker: make the tab workspace full height and remove shadow-heavy card styling from the parser page. *@
 
 <RadzenStack Gap="1rem">
@@ -230,6 +236,13 @@
             Select a source view on the left to parse it and inspect parser-derived source tables and projected columns on the right.
         </RadzenText>
     </RadzenCard>
+
+    @if (!string.IsNullOrWhiteSpace(LoadError))
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Danger" Variant="Variant.Flat">
+            @LoadError
+        </RadzenAlert>
+    }
 
     <div class="parser-workspace">
         <div class="parser-panel parser-left-pane">
@@ -453,6 +466,7 @@
     private SchemaObjectDefinition? SelectedObject;
     private bool IsLoading;
     private int _parseRequestVersion;
+    private string LoadError = string.Empty;
 
     private List<PropertyInfo> TableProperties => GetVisibleGridProperties(typeof(SourceTableDto)).ToList();
     private List<PropertyInfo> ColumnProperties => GetVisibleGridProperties(typeof(ViewColumnDto)).ToList();
@@ -464,14 +478,11 @@
         try
         {
             Databases = (await DatabaseRepository.GetAllAsync()).ToList();
+            LoadError = string.Empty;
         }
         catch (Exception ex)
         {
-            NotificationService.Notify(
-                NotificationSeverity.Error,
-                "Database load failed",
-                ex.Message,
-                5000);
+            NotifyLoadFailure("Database load failed", ex);
         }
     }
 
@@ -497,15 +508,12 @@
         try
         {
             Domains = (await DatabaseDomainRepository.GetByDatabaseIdAsync(dbId)).ToList();
+            LoadError = string.Empty;
         }
         catch (Exception ex)
         {
             Domains = new();
-            NotificationService.Notify(
-                NotificationSeverity.Error,
-                "Domain load failed",
-                ex.Message,
-                5000);
+            NotifyLoadFailure("Domain load failed", ex);
         }
     }
 
@@ -530,14 +538,11 @@
         {
             var raw = await SchemaObjectRepository.GetByDatabaseAsync(SelectedDatabaseId.Value);
             BuildDisplayObjects(raw);
+            LoadError = string.Empty;
         }
         catch (Exception ex)
         {
-            NotificationService.Notify(
-                NotificationSeverity.Error,
-                "Object load failed",
-                ex.Message,
-                5000);
+            NotifyLoadFailure("Object load failed", ex);
         }
     }
 
@@ -559,16 +564,13 @@
         SelectedObjectId = objId;
         try
         {
-        SelectedObject = await SchemaObjectRepository.GetByIdAsync(objId);
+            SelectedObject = await SchemaObjectRepository.GetByIdAsync(objId);
+            LoadError = string.Empty;
         }
         catch (Exception ex)
         {
             SelectedObject = null;
-            NotificationService.Notify(
-                NotificationSeverity.Error,
-                "Object load failed",
-                ex.Message,
-                5000);
+            NotifyLoadFailure("Object load failed", ex);
             return;
         }
 
@@ -642,11 +644,11 @@
         }
     }
 
-    private async Task ParseSelectedViewInternalAsync(bool reloadSelectedView)
+    private Task ParseSelectedViewInternalAsync(bool reloadSelectedView)
     {
         if (SelectedObject == null)
         {
-            return;
+            return Task.CompletedTask;
         }
 
         var requestVersion = _parseRequestVersion;
@@ -673,12 +675,13 @@
                 SelectedObject == null ||
                 SelectedObject.SchemaObjectId != selectedObjectId)
             {
-                return;
+                return Task.CompletedTask;
             }
 
             ParsedTables = parsed?.SourceTables.ToSourceTableDtos() ?? new List<SourceTableDto>();
             ParsedColumns = parsed?.Columns.ToViewColumnDtos() ?? new List<ViewColumnDto>();
             CurrentParsedView = parsed;
+            LoadError = string.Empty;
 
             if (ParsedTables.Count == 0 && ParsedColumns.Count == 0)
             {
@@ -696,16 +699,14 @@
                 ParsedColumns = new();
                 CurrentParsedView = null;
             }
-            NotificationService.Notify(
-                NotificationSeverity.Error,
-                "Parser failed",
-                ex.Message,
-                5000);
+            NotifyLoadFailure("Parser failed", ex);
         }
         finally
         {
             IsLoading = false;
         }
+
+        return Task.CompletedTask;
     }
 
     private Task ClearParserCacheAsync()
@@ -764,6 +765,7 @@
                 SelectedObject.SourceDatabaseName ?? string.Empty,
                 SelectedObject.SourceSchemaName,
                 SelectedObject.SourceObjectName);
+            LoadError = string.Empty;
 
             if (dependencies.Count == 0)
             {
@@ -791,11 +793,7 @@
         }
         catch (Exception ex)
         {
-            NotificationService.Notify(
-                NotificationSeverity.Error,
-                "Where-used lookup failed",
-                ex.Message,
-                5000);
+            NotifyLoadFailure("Where-used lookup failed", ex);
         }
     }
 
@@ -929,5 +927,15 @@
         ParsedTables = new();
         ParsedColumns = new();
         CurrentParsedView = null;
+    }
+
+    private void NotifyLoadFailure(string summary, Exception ex)
+    {
+        LoadError = ex.Message;
+        NotificationService.Notify(
+            NotificationSeverity.Error,
+            summary,
+            ex.Message,
+            5000);
     }
 }
