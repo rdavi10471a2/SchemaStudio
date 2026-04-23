@@ -10,7 +10,8 @@
 @inject TooltipService TooltipService
 @inject AttributeService Attr
 
-@attribute [FileVersion("1.0")]
+@attribute [FileVersion("1.1")]
+@attribute [AIChange("1.1", "2026-04-23 01:03 PM CDT added the ViewNameFilter field to Manage Databases so per-database integration view filtering can be maintained in the UI.", AICommandStatus.Pending)]
 @attribute [AIChange("1.0", "2026-04-22 06:31 PM CDT added help links and field-level info icons to database and domain maintenance forms.", AICommandStatus.Pending)]
 
 <PageTitle>Manage Databases</PageTitle>
@@ -564,6 +565,7 @@
     }
 
     private RenderFragment DatabaseFormFields(DatabaseDefinition database) => @<RadzenStack Gap="1rem" class="rz-p-4">
+        @* 2026-04-23 01:03 PM CDT AI v1.1 database-filter marker: Manage Databases now exposes the ViewNameFilter field for trimming integration view lists per database. *@
         @* 2026-04-22 06:31 PM CDT AI v1.0 manage-database-help marker: field labels use model Display/Description metadata for consistent help tooltips. *@
         <RadzenRow Gap="1rem">
             <RadzenColumn Size="12" SizeMD="6">
@@ -589,6 +591,9 @@
 
         @FieldLabel(typeof(DatabaseDefinition), nameof(DatabaseDefinition.DeveloperNotes))
         <RadzenTextArea @bind-Value="@database.DeveloperNotes" Style="width:100%;" Rows="6" MaxLength="4000" />
+
+        @FieldLabel(typeof(DatabaseDefinition), nameof(DatabaseDefinition.ViewNameFilter))
+        <RadzenTextBox @bind-Value="@database.ViewNameFilter" Style="width:100%;" MaxLength="256" />
 
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
             <RadzenCheckBox @bind-Value="@database.Active" TValue="bool" />
@@ -650,6 +655,7 @@
             BusinessName = database.BusinessName,
             BusinessDescription = database.BusinessDescription,
             DeveloperNotes = database.DeveloperNotes,
+            ViewNameFilter = database.ViewNameFilter,
             Active = database.Active
         };
 

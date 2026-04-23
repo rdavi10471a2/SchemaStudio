@@ -25,6 +25,7 @@ SELECT
     BusinessName,
     BusinessDescription,
     DeveloperNotes,
+    ViewNameFilter,
     Active
 FROM dbo.Databases
 ORDER BY DatabaseName;
@@ -47,6 +48,7 @@ SELECT
     BusinessName,
     BusinessDescription,
     DeveloperNotes,
+    ViewNameFilter,
     Active
 FROM dbo.Databases
 WHERE DatabaseId = @databaseId;
@@ -68,6 +70,7 @@ INSERT INTO dbo.Databases
     BusinessName,
     BusinessDescription,
     DeveloperNotes,
+    ViewNameFilter,
     Active
 )
 OUTPUT INSERTED.DatabaseId
@@ -78,6 +81,7 @@ VALUES
     @BusinessName,
     @BusinessDescription,
     @DeveloperNotes,
+    @ViewNameFilter,
     @Active
 );
 """;
@@ -100,6 +104,7 @@ SET
     BusinessName = @BusinessName,
     BusinessDescription = @BusinessDescription,
     DeveloperNotes = @DeveloperNotes,
+    ViewNameFilter = @ViewNameFilter,
     Active = @Active
 WHERE DatabaseId = @DatabaseId;
 """;
