@@ -20,8 +20,9 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.2")]
+@attribute [FileVersion("1.3")]
 @attribute [AIFileContext("Components/Pages/ManageViews.razor", "Hosts the new import-and-edit workspace for existing and available views, including view metadata editing and a first-pass parser-versus-existing column review surface.")]
+@attribute [AIChange("1.4", "2026-04-23 02:27 PM CDT removed the stray duplicate left-filter label and changed available-view discovery to prefer the imported source database such as VVGBI_Integrations when one is already established.", AICommandStatus.Pending)]
 @attribute [AIChange("1.3", "2026-04-23 02:20 PM CDT added a left-side domain filter so existing imported views can be narrowed by domain independently of the RHS edit form.", AICommandStatus.Pending)]
 @attribute [AIChange("1.2", "2026-04-23 02:12 PM CDT made domain selection explicitly required for saves and defaulted new view selections to the Unknown domain when that domain exists.", AICommandStatus.Pending)]
 @attribute [AIChange("1.1", "2026-04-23 02:03 PM CDT trimmed the RHS metadata form to user-owned fields only and tightened available-view filtering to explicit starts-with behavior.", AICommandStatus.Pending)]
@@ -172,6 +173,7 @@
     }
 </style>
 
+@* 2026-04-23 02:27 PM CDT AI v1.4 manage-views marker: the left filter no longer shows a duplicate label, and available views prefer the established source catalog instead of blindly querying the local database name. *@
 @* 2026-04-23 02:20 PM CDT AI v1.3 manage-views marker: the left-side domain filter now narrows the existing imported view list without changing the RHS edit selection rules. *@
 @* 2026-04-23 02:12 PM CDT AI v1.2 manage-views marker: domain is required for save and defaults to Unknown when that domain exists in the selected database. *@
 @* 2026-04-23 02:03 PM CDT AI v1.1 manage-views marker: the RHS view metadata form now only shows user-owned fields, and available view filtering is explicit starts-with behavior. *@
@@ -216,7 +218,6 @@
                                         Placeholder="Database" />
                     </div>
 
-                    @FieldLabel(typeof(DatabaseDefinition), nameof(DatabaseDefinition.DatabaseName))
                     <div class="manage-views-field">
                         @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.Domain))
                         <RadzenDropDown Data="@LeftFilterDomains"
@@ -587,10 +588,15 @@
             Domains = (await DatabaseDomainRepository.GetByDatabaseIdAsync(databaseId)).ToList();
 
             var existingObjects = (await SchemaObjectRepository.GetByDatabaseAsync(databaseId)).ToList();
-            var availableSources = SelectedDatabase == null
+            var sourceCatalogDatabase = existingObjects
+                .Select(x => x.SourceDatabaseName)
+                .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x))
+                ?? SelectedDatabase?.DatabaseName;
+
+            var availableSources = string.IsNullOrWhiteSpace(sourceCatalogDatabase)
                 ? new List<SourceViewDefinition>()
                 : (await SourceViewRepository.GetByDatabaseAsync(
-                    SelectedDatabase.DatabaseName,
+                    sourceCatalogDatabase,
                     SelectedDatabase.ViewNameFilter)).ToList();
 
             ExistingViewItems = existingObjects
