@@ -10,7 +10,7 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Parsing
 
         private static readonly Regex NameRegex = new Regex(@"@BusinessName[:\s]*(?<val>.*?)(?=@|$)", CommonOptions);
         private static readonly Regex DescRegex = new Regex(@"@BusinessDescription[:\s]*(?<val>.*?)(?=@|$)", CommonOptions);
-        private static readonly Regex NoteRegex = new Regex(@"@DeveloperNotes[:\s]*(?<val>.*?)(?=@|$)", CommonOptions);
+        // private static readonly Regex NoteRegex = new Regex(@"@DeveloperNotes[:\s]*(?<val>.*?)(?=@|$)", CommonOptions);
 
         public static void Apply(ParsedQuery query)
         {
@@ -29,7 +29,8 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Parsing
 
                 item.BusinessName = ExtractTag(cleanComment, NameRegex);
                 item.BusinessDescription = ExtractTag(cleanComment, DescRegex);
-                item.DeveloperNotes = ExtractTag(cleanComment, NoteRegex);
+                // Developer notes are user-owned in the web workflow now, so leave parser-derived notes blank.
+                // item.DeveloperNotes = ExtractTag(cleanComment, NoteRegex);
             }
         }
 

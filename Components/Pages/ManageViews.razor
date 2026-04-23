@@ -23,8 +23,9 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("2.2")]
+@attribute [FileVersion("2.3")]
 @attribute [AIFileContext("Components/Pages/ManageViews.razor", "Hosts the new import-and-edit workspace for existing and available views, including view metadata editing and a first-pass parser-versus-existing column review surface.")]
+@attribute [AIChange("2.3", "2026-04-23 04:07 PM CDT removed parser ownership of developer notes from the column merge review so parsed comments no longer show up as imported developer-note changes.", AICommandStatus.Pending)]
 @attribute [AIChange("2.2", "2026-04-23 04:01 PM CDT replaced the dirty-state yellow banner with discard-confirm popups, stopped defaulting business name for available drafts, and flattened the joined left-side selector layout again.", AICommandStatus.Pending)]
 @attribute [AIChange("2.1", "2026-04-23 03:49 PM CDT fixed the new-available draft workflow so brand new view definitions start clean instead of dirty, and hid delete for items that do not yet exist in Schema Studio.", AICommandStatus.Pending)]
 @attribute [AIChange("2.0", "2026-04-23 03:41 PM CDT reorganized the RHS into View Definition and Manage Columns tabs, added dependency-tool actions beneath the header editor, and blocked navigation away from dirty header edits until they are saved or reset.", AICommandStatus.Pending)]
@@ -246,6 +247,7 @@
     }
 </style>
 
+@* 2026-04-23 04:07 PM CDT AI v2.3 manage-views marker: parser-side developer notes/comments are no longer treated as imported merge data for column review. *@
 @* 2026-04-23 04:01 PM CDT AI v2.2 manage-views marker: dirty navigation now uses a confirm popup, new available drafts do not prefill business name, and the left selector reads as one joined surface again. *@
 @* 2026-04-23 03:49 PM CDT AI v2.1 manage-views marker: new available drafts now start clean, and delete is hidden until the view actually exists in Schema Studio. *@
 @* 2026-04-23 03:41 PM CDT AI v2.0 manage-views marker: the RHS now uses View Definition and Manage Columns tabs, and dirty header edits must be saved or reset before navigating away. *@
@@ -1106,8 +1108,7 @@
         }
 
         return string.Equals(parsed.BusinessName, existing.BusinessName, StringComparison.Ordinal) &&
-               string.Equals(parsed.BusinessDescription, existing.BusinessDescription, StringComparison.Ordinal) &&
-               string.Equals(parsed.DeveloperNotes, existing.DeveloperNotes, StringComparison.Ordinal)
+               string.Equals(parsed.BusinessDescription, existing.BusinessDescription, StringComparison.Ordinal)
             ? "Unchanged"
             : "Changed";
     }
@@ -1137,11 +1138,6 @@
             changes.Add("Description");
         }
 
-        if (!string.Equals(parsed?.DeveloperNotes, existing?.DeveloperNotes, StringComparison.Ordinal))
-        {
-            changes.Add("Developer Notes");
-        }
-
         return changes.Count == 0
             ? "Parser and existing values differ."
             : $"{string.Join(", ", changes)} differ.";
@@ -1155,8 +1151,7 @@
         }
 
         return $"Business Name: {parsed.BusinessName ?? "(blank)"}{Environment.NewLine}" +
-               $"Description: {parsed.BusinessDescription ?? "(blank)"}{Environment.NewLine}" +
-               $"Developer Notes: {parsed.DeveloperNotes ?? parsed.Comment ?? "(blank)"}";
+               $"Description: {parsed.BusinessDescription ?? "(blank)"}";
     }
 
     private static string BuildExistingPreview(SchemaObjectColumnDefinition? existing)
