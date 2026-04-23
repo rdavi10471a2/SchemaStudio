@@ -22,7 +22,9 @@
 @inject IJSRuntime JSRuntime
 @inject NavigationManager NavigationManager
 
-@attribute [FileVersion("1.6")]
+@attribute [FileVersion("1.7")]
+@attribute [AIChange("1.7", "2026-04-23 09:51 AM CDT added startup and selection-load error handling so failed database connections show a toast instead of hanging the Home page.", AICommandStatus.Pending)]
+@attribute [AIFileContext("Components/Pages/Home.razor", "Hosts the shared kiosk and normal home selection workflow, simple login state, persisted selection restoration, and the main schema object detail surface.")]
 @attribute [AIChange("1.6", "2026-04-22 11:51 AM CDT moved simple auth state to session-scoped browser storage so close, reload, or debug restart starts logged out.", AICommandStatus.Pending)]
 @attribute [AIChange("1.5", "2026-04-22 11:47 AM CDT added a login cancel action so the inline kiosk login panel can collapse without clearing the current selection.", AICommandStatus.Pending)]
 @attribute [AIChange("1.4", "2026-04-22 11:43 AM CDT redirected logout to the configured kiosk route after clearing auth and selected-view state.", AICommandStatus.Pending)]
@@ -98,6 +100,7 @@
     }
 </style>
 
+@* 2026-04-23 09:51 AM CDT AI v1.7 startup-error marker: catch initial repository failures on Home and always unwind loading state so broken DB connections show a toast instead of hanging the page. *@
 @* 2026-04-22 11:51 AM CDT AI v1.6 auth-session marker: simple auth uses session storage so browser close/reload/debug restart begins logged out. *@
 @* 2026-04-22 11:47 AM CDT AI v1.5 login cancel marker: cancel collapses the inline login panel without disturbing the current kiosk selection. *@
 @* 2026-04-22 11:43 AM CDT AI v1.4 logout redirect marker: logout clears state and returns the user to the configured kiosk route. *@
@@ -437,9 +440,16 @@
 
     protected override async Task OnInitializedAsync()
     {
-        if (CanShowHomeContent)
+        try
         {
-            await EnsureDatabasesLoadedAsync();
+            if (CanShowHomeContent)
+            {
+                await EnsureDatabasesLoadedAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            NotifyLoadFailure("Database load failed", ex);
         }
     }
 
@@ -488,18 +498,27 @@
 
     private async Task RefreshRouteStateAsync()
     {
-        await LoadAuthStateAsync();
-
-        if (!CanShowHomeContent)
+        try
         {
+            await LoadAuthStateAsync();
+
+            if (!CanShowHomeContent)
+            {
+                ClearChildSelections();
+                await InvokeAsync(StateHasChanged);
+                return;
+            }
+
+            await EnsureDatabasesLoadedAsync();
+            await LoadStateAsync();
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            NotifyLoadFailure("Home load failed", ex);
             ClearChildSelections();
             await InvokeAsync(StateHasChanged);
-            return;
         }
-
-        await EnsureDatabasesLoadedAsync();
-        await LoadStateAsync();
-        await InvokeAsync(StateHasChanged);
     }
 
     private async Task EnsureDatabasesLoadedAsync()
@@ -576,9 +595,15 @@
             LastValidObjectId = objId;
 
             IsLoading = true;
-            SelectedObject = await SchemaRepo.GetByIdAsync(objId);
-            Columns = await SchemaRepo.GetColumnsAsync(objId);
-            IsLoading = false;
+            try
+            {
+                SelectedObject = await SchemaRepo.GetByIdAsync(objId);
+                Columns = await SchemaRepo.GetColumnsAsync(objId);
+            }
+            finally
+            {
+                IsLoading = false;
+            }
         }
 
         await InvokeAsync(StateHasChanged);
@@ -636,9 +661,15 @@
             return;
         }
 
-        await EnsureDatabasesLoadedAsync();
-
-        await LoadStateAsync();
+        try
+        {
+            await EnsureDatabasesLoadedAsync();
+            await LoadStateAsync();
+        }
+        catch (Exception ex)
+        {
+            NotifyLoadFailure("Home load failed", ex);
+        }
     }
 
     private async Task LogoutAsync()
@@ -680,9 +711,16 @@
 
         ClearChildSelections(true);
 
-        Domains = await DbRepo.GetDomainsAsync(dbId);
-
-        await SaveStateAsync();
+        try
+        {
+            Domains = await DbRepo.GetDomainsAsync(dbId);
+            await SaveStateAsync();
+        }
+        catch (Exception ex)
+        {
+            Domains.Clear();
+            NotifyLoadFailure("Domain load failed", ex);
+        }
     }
 
     private async Task OnDomainChanged(object value)
@@ -698,45 +736,52 @@
         if (SelectedDatabaseId.HasValue &&
             !string.IsNullOrWhiteSpace(SelectedDomain))
         {
-            var raw = await SchemaRepo.GetByDatabaseAsync(SelectedDatabaseId.Value);
-
-            var filtered = raw.Where(x => x.Domain == SelectedDomain)
-                              .OrderByDescending(x => x.IsBaseObject)
-                              .ThenBy(x => x.BusinessName)
-                              .ToList();
-
-            var baseItems = filtered.Where(x => x.IsBaseObject).ToList();
-            var derivedItems = filtered.Where(x => !x.IsBaseObject).ToList();
-
-            DisplayObjects.Add(new DisplaySchemaObject
+            try
             {
-                SchemaObjectId = -1,
-                DisplayName = "━━ BASE OBJECTS ━━",
-                IsHeader = true
-            });
+                var raw = await SchemaRepo.GetByDatabaseAsync(SelectedDatabaseId.Value);
 
-            DisplayObjects.AddRange(baseItems.Select(x => new DisplaySchemaObject
-            {
-                SchemaObjectId = x.SchemaObjectId,
-                DisplayName = x.BusinessName,
-                IsBaseObject = true
-            }));
+                var filtered = raw.Where(x => x.Domain == SelectedDomain)
+                                  .OrderByDescending(x => x.IsBaseObject)
+                                  .ThenBy(x => x.BusinessName)
+                                  .ToList();
 
-            if (derivedItems.Any())
-            {
+                var baseItems = filtered.Where(x => x.IsBaseObject).ToList();
+                var derivedItems = filtered.Where(x => !x.IsBaseObject).ToList();
+
                 DisplayObjects.Add(new DisplaySchemaObject
                 {
-                    SchemaObjectId = -2,
-                    DisplayName = "━━ DERIVED VIEWS ━━",
+                    SchemaObjectId = -1,
+                    DisplayName = "━━ BASE OBJECTS ━━",
                     IsHeader = true
                 });
 
-                DisplayObjects.AddRange(derivedItems.Select(x => new DisplaySchemaObject
+                DisplayObjects.AddRange(baseItems.Select(x => new DisplaySchemaObject
                 {
                     SchemaObjectId = x.SchemaObjectId,
                     DisplayName = x.BusinessName,
-                    IsBaseObject = false
+                    IsBaseObject = true
                 }));
+
+                if (derivedItems.Any())
+                {
+                    DisplayObjects.Add(new DisplaySchemaObject
+                    {
+                        SchemaObjectId = -2,
+                        DisplayName = "━━ DERIVED VIEWS ━━",
+                        IsHeader = true
+                    });
+
+                    DisplayObjects.AddRange(derivedItems.Select(x => new DisplaySchemaObject
+                    {
+                        SchemaObjectId = x.SchemaObjectId,
+                        DisplayName = x.BusinessName,
+                        IsBaseObject = false
+                    }));
+                }
+            }
+            catch (Exception ex)
+            {
+                NotifyLoadFailure("Object load failed", ex);
             }
         }
 
@@ -769,12 +814,23 @@
 
         IsLoading = true;
 
-        SelectedObject = await SchemaRepo.GetByIdAsync(objId);
-        Columns = await SchemaRepo.GetColumnsAsync(objId);
+        try
+        {
+            SelectedObject = await SchemaRepo.GetByIdAsync(objId);
+            Columns = await SchemaRepo.GetColumnsAsync(objId);
 
-        IsLoading = false;
-
-        await SaveStateAsync();
+            await SaveStateAsync();
+        }
+        catch (Exception ex)
+        {
+            SelectedObject = null;
+            Columns.Clear();
+            NotifyLoadFailure("Column load failed", ex);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
     }
 
 
@@ -862,6 +918,11 @@
     public void Dispose()
     {
         NavigationManager.LocationChanged -= OnLocationChanged;
+    }
+
+    private void NotifyLoadFailure(string summary, Exception ex)
+    {
+        NotificationService.Notify(NotificationSeverity.Error, summary, ex.Message, 5000);
     }
 
     private Task EnterAdminMode()
