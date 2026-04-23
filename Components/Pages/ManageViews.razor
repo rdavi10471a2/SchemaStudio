@@ -20,8 +20,9 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.1")]
+@attribute [FileVersion("1.2")]
 @attribute [AIFileContext("Components/Pages/ManageViews.razor", "Hosts the new import-and-edit workspace for existing and available views, including view metadata editing and a first-pass parser-versus-existing column review surface.")]
+@attribute [AIChange("1.2", "2026-04-23 02:12 PM CDT made domain selection explicitly required for saves and defaulted new view selections to the Unknown domain when that domain exists.", AICommandStatus.Pending)]
 @attribute [AIChange("1.1", "2026-04-23 02:03 PM CDT trimmed the RHS metadata form to user-owned fields only and tightened available-view filtering to explicit starts-with behavior.", AICommandStatus.Pending)]
 @attribute [AIChange("1.0", "2026-04-23 01:29 PM CDT added the first pass of the new manage-views workspace with a guided RHS editor and available-view filtering driven by the database ViewNameFilter field.", AICommandStatus.Pending)]
 
@@ -170,6 +171,7 @@
     }
 </style>
 
+@* 2026-04-23 02:12 PM CDT AI v1.2 manage-views marker: domain is required for save and defaults to Unknown when that domain exists in the selected database. *@
 @* 2026-04-23 02:03 PM CDT AI v1.1 manage-views marker: the RHS view metadata form now only shows user-owned fields, and available view filtering is explicit starts-with behavior. *@
 @* 2026-04-23 01:29 PM CDT AI v1.0 manage-views marker: first pass of the new RHS workspace lets users edit view metadata directly and review parser-vs-existing columns without falling back into the old docked WinForms shape. *@
 
@@ -651,10 +653,9 @@
             }
 
             if (EditableObject != null &&
-                string.IsNullOrWhiteSpace(EditableObject.Domain) &&
-                Domains.Count > 0)
+                string.IsNullOrWhiteSpace(EditableObject.Domain))
             {
-                EditableObject.Domain = Domains[0].Domain;
+                EditableObject.Domain = GetPreferredDomain();
             }
 
             LoadError = string.Empty;
@@ -742,7 +743,7 @@
             SourceDatabaseName = item.SourceDatabaseName,
             SourceSchemaName = item.SourceSchemaName,
             SourceObjectName = item.SourceObjectName,
-            Domain = Domains.FirstOrDefault()?.Domain,
+            Domain = GetPreferredDomain(),
             BusinessName = item.SourceObjectName,
             IsActive = true
         };
@@ -909,6 +910,14 @@
         }
 
         return null;
+    }
+
+    private string? GetPreferredDomain()
+    {
+        var unknown = Domains.FirstOrDefault(x =>
+            string.Equals(x.Domain, "Unknown", StringComparison.OrdinalIgnoreCase));
+
+        return unknown?.Domain ?? Domains.FirstOrDefault()?.Domain;
     }
 
     private RenderFragment FieldLabel(Type modelType, string propertyName) => builder =>
