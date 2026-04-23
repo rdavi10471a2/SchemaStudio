@@ -23,8 +23,9 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("2.0")]
+@attribute [FileVersion("2.1")]
 @attribute [AIFileContext("Components/Pages/ManageViews.razor", "Hosts the new import-and-edit workspace for existing and available views, including view metadata editing and a first-pass parser-versus-existing column review surface.")]
+@attribute [AIChange("2.1", "2026-04-23 03:49 PM CDT fixed the new-available draft workflow so brand new view definitions start clean instead of dirty, and hid delete for items that do not yet exist in Schema Studio.", AICommandStatus.Pending)]
 @attribute [AIChange("2.0", "2026-04-23 03:41 PM CDT reorganized the RHS into View Definition and Manage Columns tabs, added dependency-tool actions beneath the header editor, and blocked navigation away from dirty header edits until they are saved or reset.", AICommandStatus.Pending)]
 @attribute [AIChange("1.9", "2026-04-23 03:27 PM CDT collapsed the left rail into a single container, removed the extra filter summary text, and trimmed the available-view display names by the configured prefix so SQL-style naming tax stays out of the selector.", AICommandStatus.Pending)]
 @attribute [AIChange("1.8", "2026-04-23 03:18 PM CDT removed the extra summary text, combined existing and available views into a shared tabbed selector, and made database/domain filter changes clear the current selection state instead of silently keeping stale view details.", AICommandStatus.Pending)]
@@ -244,6 +245,7 @@
     }
 </style>
 
+@* 2026-04-23 03:49 PM CDT AI v2.1 manage-views marker: new available drafts now start clean, and delete is hidden until the view actually exists in Schema Studio. *@
 @* 2026-04-23 03:41 PM CDT AI v2.0 manage-views marker: the RHS now uses View Definition and Manage Columns tabs, and dirty header edits must be saved or reset before navigating away. *@
 @* 2026-04-23 03:27 PM CDT AI v1.9 manage-views marker: the left rail is one container now, and available view names are trimmed by the configured prefix for display. *@
 @* 2026-04-23 03:18 PM CDT AI v1.8 manage-views marker: the left selector now uses tabs instead of stacked lists, and database/domain filter changes explicitly clear the current view selection so stale RHS details do not linger. *@
@@ -373,11 +375,14 @@
                                           Click="@SaveViewAsync"
                                           Disabled="@IsBusy" />
 
-                            <RadzenButton Text="Delete View"
-                                          Icon="delete"
-                                          ButtonStyle="ButtonStyle.Danger"
-                                          Click="@DeleteViewAsync"
-                                          Disabled="@(!CanDeleteCurrentView || IsBusy)" />
+                            @if (CanDeleteCurrentView)
+                            {
+                                <RadzenButton Text="Delete View"
+                                              Icon="delete"
+                                              ButtonStyle="ButtonStyle.Danger"
+                                              Click="@DeleteViewAsync"
+                                              Disabled="@IsBusy" />
+                            }
                         </RadzenStack>
                     </div>
 
@@ -993,7 +998,7 @@
 
     private SchemaObjectDefinition CreateNewObjectDraft(ViewWorkspaceItem item)
     {
-        return new SchemaObjectDefinition
+        var draft = new SchemaObjectDefinition
         {
             DatabaseId = SelectedDatabaseId ?? 0,
             SourceDatabaseName = item.SourceDatabaseName,
@@ -1003,6 +1008,9 @@
             BusinessName = item.SourceObjectName,
             IsActive = true
         };
+
+        draft.ClearDirty();
+        return draft;
     }
 
     private static SchemaObjectDefinition CloneObject(SchemaObjectDefinition source)
