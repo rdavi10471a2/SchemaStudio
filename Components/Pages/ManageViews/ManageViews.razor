@@ -23,8 +23,9 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("3.1")]
-@attribute [AIFileContext("Components/Pages/ManageViews/ManageViews.razor", "Hosts the new import-and-edit workspace for existing and available views. This page owns the selector shell and view-definition editor while delegating the saved-columns tab to Components/Pages/ManageViews/ManageViewsColumnsTab.razor and the synchronization summary to Components/Pages/ManageViews/ManageViewsColumnSynchronizationSummary.razor.")]
+@attribute [FileVersion("3.2")]
+@attribute [AIFileContext("Components/Pages/ManageViews/ManageViews.razor", "Hosts the new import-and-edit workspace for existing and available views. This page owns the selector shell, view-definition editor, and synchronization launch flow while delegating the saved-columns tab to Components/Pages/ManageViews/ManageViewsColumnsTab.razor, the synchronization summary to Components/Pages/ManageViews/ManageViewsColumnSynchronizationSummary.razor, and the review dialog to Components/Pages/ManageViews/ManageViewsReviewMergeDialog.razor.")]
+@attribute [AIChange("3.2", "2026-04-24 03:03 PM CDT wired Review Merge to the first-pass added-columns dialog so a newly saved parent view can initialize accepted child SchemaObjectColumn rows through SaveAllAsync.", AICommandStatus.Pending)]
 @attribute [AIChange("3.1", "2026-04-24 11:14 AM CDT tightened the manage-views tab layout after the folder move by restoring full-height selector tabs and adding dedicated classes so the selector and editor tab surfaces can be styled independently.", AICommandStatus.Pending)]
 @attribute [AIChange("3.0", "2026-04-24 11:06 AM CDT moved the Manage Views page and its child components into a single ManageViews feature folder so the layout, fragment references, and isolated styles live together without the old sibling-folder split.", AICommandStatus.Pending)]
 @attribute [AIChange("2.9", "2026-04-24 10:46 AM CDT extracted the saved-columns tab into a child fragment, moved page styling into isolated css, and corrected the fragment namespace path to ManageViewsFragments so the page shell is easier to navigate without colliding with the ManageViews component type.", AICommandStatus.Pending)]
@@ -50,6 +51,7 @@
 
 <PageTitle>Manage Views</PageTitle>
 
+@* 2026-04-24 03:03 PM CDT AI v3.2 manage-views marker: Review Merge now opens the first-pass added-columns dialog and saves accepted child SchemaObjectColumn rows under the already-saved parent view. *@
 @* 2026-04-24 11:14 AM CDT AI v3.1 manage-views marker: the selector and editor tabs now have dedicated classes so the left list can fill its panel again and the RHS tab surface can drop the extra nested frame. *@
 @* 2026-04-24 11:06 AM CDT AI v3.0 manage-views marker: the page and both child components now live in one ManageViews feature folder so the folder layout matches the feature boundary and the fragment references stay local. *@
 @* 2026-04-24 10:46 AM CDT AI v2.9 manage-views marker: the page shell now delegates the saved-columns tab to a child fragment under ManageViewsFragments, relies on isolated css, and advertises its child fragments in the header block. *@
@@ -75,6 +77,7 @@
 @* Fragment References:
    - Components/Pages/ManageViews/ManageViewsColumnsTab.razor
    - Components/Pages/ManageViews/ManageViewsColumnSynchronizationSummary.razor
+   - Components/Pages/ManageViews/ManageViewsReviewMergeDialog.razor
 *@
 
 <RadzenStack Gap="1rem">
@@ -308,7 +311,7 @@
     private List<ViewWorkspaceItem> ExistingViewItems = new();
     private List<ViewWorkspaceItem> AvailableViewItems = new();
     private List<SchemaObjectColumnDefinition> SavedColumns = new();
-    private List<ColumnReviewRow> ReviewRows = new();
+    private List<ManageViewsColumnReviewRow> ReviewRows = new();
 
     private int? SelectedDatabaseId;
     private string? SelectedViewKey;
@@ -717,10 +720,83 @@
         return Task.CompletedTask;
     }
 
-    private Task ReviewMergeAsync()
+    private async Task ReviewMergeAsync()
     {
-        NotificationService.Notify(NotificationSeverity.Info, "Merge dialog coming next", "The dedicated synchronization dialog will open from here once we wire the merge workflow.", 3000);
-        return Task.CompletedTask;
+        if (EditableObject == null || SelectedViewItem == null || !SelectedDatabaseId.HasValue)
+        {
+            return;
+        }
+
+        if (EditableObject.SchemaObjectId <= 0)
+        {
+            NotificationService.Notify(NotificationSeverity.Warning, "Save view first", "Save the view definition before initializing child columns from the parser review.", 3500);
+            return;
+        }
+
+        var addedRows = ReviewRows
+            .Where(x => string.Equals(x.Status, "Added", StringComparison.Ordinal))
+            .ToList();
+
+        if (addedRows.Count == 0)
+        {
+            NotificationService.Notify(NotificationSeverity.Info, "No added columns", "The current parser result does not contain any added columns to initialize.", 3000);
+            return;
+        }
+
+        var result = await DialogService.OpenAsync<ManageViewsReviewMergeDialog>(
+            $"{SelectedViewItem.DisplayName} - Review Merge",
+            new Dictionary<string, object?>
+            {
+                { "ViewDisplayName", SelectedViewItem.DisplayName },
+                { "Rows", addedRows }
+            },
+            new DialogOptions
+            {
+                Width = "1100px",
+                Height = "720px",
+                Resizable = true,
+                Draggable = true
+            });
+
+        var acceptedColumnNames = (result as IEnumerable<string>)?
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (acceptedColumnNames == null || acceptedColumnNames.Count == 0)
+        {
+            return;
+        }
+
+        var columnsToSave = BuildAcceptedAddedColumns(acceptedColumnNames);
+        if (columnsToSave.Count == 0)
+        {
+            NotificationService.Notify(NotificationSeverity.Info, "Nothing to save", "No added parser columns remained to save after review.", 3000);
+            return;
+        }
+
+        IsBusy = true;
+
+        try
+        {
+            foreach (var column in columnsToSave)
+            {
+                column.SchemaObjectId = EditableObject.SchemaObjectId;
+            }
+
+            await SchemaObjectColumnRepository.SaveAllAsync(columnsToSave);
+            NotificationService.Notify(NotificationSeverity.Success, "Columns initialized", $"{columnsToSave.Count} added columns were saved to the selected view.", 3000);
+            SelectedEditorTabIndex = 1;
+            await LoadWorkspaceAsync(SelectedDatabaseId.Value, $"existing:{EditableObject.SchemaObjectId}", autoSelectFirst: false);
+        }
+        catch (Exception ex)
+        {
+            NotifyFailure("Merge save failed", ex);
+        }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     private async Task SaveViewAsync()
@@ -845,7 +921,49 @@
         return clone;
     }
 
-    private static IEnumerable<ColumnReviewRow> BuildColumnReviewRows(
+    private List<SchemaObjectColumnDefinition> BuildAcceptedAddedColumns(IReadOnlyCollection<string> acceptedColumnNames)
+    {
+        if (EditableObject == null || CurrentParsedView == null || acceptedColumnNames.Count == 0)
+        {
+            return new List<SchemaObjectColumnDefinition>();
+        }
+
+        var acceptedSet = acceptedColumnNames
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var existingNames = SavedColumns
+            .Where(column => !string.IsNullOrWhiteSpace(column.SourceColumnName))
+            .Select(column => column.SourceColumnName)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        return CurrentParsedView.Columns
+            .ToViewColumnDtos()
+            .Where(column => !string.IsNullOrWhiteSpace(column.ColumnName))
+            .Where(column => acceptedSet.Contains(column.ColumnName!))
+            .Where(column => !existingNames.Contains(column.ColumnName!))
+            .OrderBy(column => column.OrdinalPosition)
+            .Select(column => new SchemaObjectColumnDefinition
+            {
+                SchemaObjectColumnId = 0,
+                SchemaObjectId = EditableObject.SchemaObjectId,
+                OrdinalPosition = column.OrdinalPosition,
+                SourceColumnName = column.ColumnName ?? string.Empty,
+                SourceColumnKind = NormalizeNullableText(column.ColumnKind),
+                BaseDatabaseName = NormalizeNullableText(column.BaseDatabase),
+                BaseSchemaName = NormalizeNullableText(column.BaseSchema),
+                BaseObjectName = NormalizeNullableText(column.BaseTable),
+                BaseColumnName = NormalizeNullableText(column.BaseColumn),
+                IsBaseDefinition = false,
+                DisableInheritance = false,
+                BusinessName = NormalizeNullableText(column.BusinessName),
+                BusinessDescription = NormalizeNullableText(column.BusinessDescription),
+                DeveloperNotes = null
+            })
+            .ToList();
+    }
+
+    private static IEnumerable<ManageViewsColumnReviewRow> BuildColumnReviewRows(
         IReadOnlyList<ViewColumnDto> parsedColumns,
         IEnumerable<SchemaObjectColumnDefinition> existingColumns)
     {
@@ -870,7 +988,7 @@
             existingByName.TryGetValue(name, out var existing);
 
             var status = GetStatus(parsed, existing);
-            yield return new ColumnReviewRow
+            yield return new ManageViewsColumnReviewRow
             {
                 ColumnName = name,
                 Status = status,
@@ -984,6 +1102,11 @@
             string.Equals(x.Domain, "Unknown", StringComparison.OrdinalIgnoreCase));
 
         return unknown?.Domain ?? Domains.FirstOrDefault()?.Domain;
+    }
+
+    private static string? NormalizeNullableText(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
     private RenderFragment FieldLabel(Type modelType, string propertyName) => builder =>
@@ -1136,13 +1259,4 @@
         public string Subtitle { get; set; } = string.Empty;
     }
 
-    private sealed class ColumnReviewRow
-    {
-        public string ColumnName { get; set; } = string.Empty;
-        public string Status { get; set; } = string.Empty;
-        public string ChangeSummary { get; set; } = string.Empty;
-        public string ParsedPreview { get; set; } = string.Empty;
-        public string ExistingPreview { get; set; } = string.Empty;
-        public bool AcceptMerge { get; set; }
-    }
 }
