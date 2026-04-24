@@ -23,8 +23,9 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("2.6")]
+@attribute [FileVersion("2.7")]
 @attribute [AIFileContext("Components/Pages/ManageViews.razor", "Hosts the new import-and-edit workspace for existing and available views, including view metadata editing and a first-pass parser-versus-existing column review surface.")]
+@attribute [AIChange("2.7", "2026-04-24 09:49 AM CDT restored the saved-columns grid to the six requested business columns and added a hide-show toggle for the left selector panel so the main workspace can reclaim horizontal space.", AICommandStatus.Pending)]
 @attribute [AIChange("2.6", "2026-04-24 09:39 AM CDT tightened the saved-columns tab with standard column metadata, 100px scrolling text cells, sticky headers, wrapped header labels, and darker inheritance checkboxes so the grid reads like a real maintenance surface.", AICommandStatus.Pending)]
 @attribute [AIChange("2.5", "2026-04-24 09:20 AM CDT moved the column synchronization summary into its own reusable component and turned the Columns tab into the actual saved-column maintenance surface with a placeholder edit hook.", AICommandStatus.Pending)]
 @attribute [AIChange("2.4", "2026-04-23 04:34 PM CDT kept developer notes editable on the view definition while leaving them out of the column-review merge path and parser-driven comparison rules.", AICommandStatus.Pending)]
@@ -51,6 +52,10 @@
         grid-template-columns: 320px minmax(0, 1fr);
         gap: 1rem;
         min-height: calc(100vh - 180px);
+    }
+
+    .manage-views-shell.manage-views-shell-collapsed {
+        grid-template-columns: minmax(0, 1fr);
     }
 
     .manage-views-panel {
@@ -292,6 +297,7 @@
     }
 </style>
 
+@* 2026-04-24 09:49 AM CDT AI v2.7 manage-views marker: the left selector can collapse now, and the saved-columns grid is back to the six requested business columns. *@
 @* 2026-04-24 09:39 AM CDT AI v2.6 manage-views marker: the saved-columns grid is denser now with standard metadata, sticky headers, compact 100px text cells, and a darker inheritance checkbox. *@
 @* 2026-04-24 09:20 AM CDT AI v2.5 manage-views marker: the summary card is a reusable sync component now, and the Columns tab shows real saved columns with a placeholder edit action instead of the merge grid. *@
 @* 2026-04-23 04:34 PM CDT AI v2.4 manage-views marker: developer notes remain editable on the view definition, but column review no longer treats them as parser-driven merge input. *@
@@ -317,10 +323,16 @@
                     <RadzenText TextStyle="TextStyle.H4" class="rz-m-0">Manage Views</RadzenText>
                 </div>
 
-            <RadzenButton Text="Reload"
-                          Icon="refresh"
-                          Click="@ReloadCurrentDatabaseAsync"
-                          Disabled="@(!SelectedDatabaseId.HasValue || IsBusy)" />
+            <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+                <RadzenButton Text="@(IsLeftPanelHidden ? "Show Selector" : "Hide Selector")"
+                              Icon="@(IsLeftPanelHidden ? "right_panel_open" : "left_panel_close")"
+                              ButtonStyle="ButtonStyle.Light"
+                              Click="@ToggleLeftPanel" />
+                <RadzenButton Text="Reload"
+                              Icon="refresh"
+                              Click="@ReloadCurrentDatabaseAsync"
+                              Disabled="@(!SelectedDatabaseId.HasValue || IsBusy)" />
+            </RadzenStack>
         </div>
     </RadzenCard>
 
@@ -331,7 +343,9 @@
         </RadzenAlert>
     }
 
-    <div class="manage-views-shell">
+    <div class="@(IsLeftPanelHidden ? "manage-views-shell manage-views-shell-collapsed" : "manage-views-shell")">
+        @if (!IsLeftPanelHidden)
+        {
         <div class="manage-views-left">
             <div class="manage-views-panel">
                 <div class="manage-views-compact-filters">
@@ -391,6 +405,7 @@
                 </div>
             </div>
         </div>
+        }
 
         <div class="manage-views-right">
             @if (SelectedViewItem == null || EditableObject == null)
@@ -555,11 +570,6 @@
                                             <Columns>
                                                 <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="OrdinalPosition" Title="Ordinal" Width="90px" />
                                                 <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="SourceColumnName" Title="Column" Width="180px" />
-                                                <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="SourceColumnKind" Title="Kind" Width="120px" />
-                                                <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="BaseDatabaseName" Title="Base Database" Width="140px" />
-                                                <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="BaseSchemaName" Title="Base Schema" Width="130px" />
-                                                <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="BaseObjectName" Title="Base Object" Width="180px" />
-                                                <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="BaseColumnName" Title="Base Column" Width="160px" />
                                                 <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="BusinessName" Title="Business Name" Width="180px" />
                                                 <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="BusinessDescription" Title="Business Description" Width="280px">
                                                     <Template Context="column">
@@ -571,7 +581,7 @@
                                                         <div class="column-preview">@column.DeveloperNotes</div>
                                                     </Template>
                                                 </RadzenDataGridColumn>
-                                                <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="DisableInheritance" Width="140px">
+                                                <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="DisableInheritance" Width="160px">
                                                     <HeaderTemplate>
                                                         <div>Disable<br />Inheritance</div>
                                                     </HeaderTemplate>
@@ -607,6 +617,7 @@
     private string? LastAppliedDomainFilter;
     private int SelectedViewTabIndex;
     private int SelectedEditorTabIndex;
+    private bool IsLeftPanelHidden;
     private DatabaseDefinition? SelectedDatabase;
     private ViewWorkspaceItem? SelectedViewItem;
     private SchemaObjectDefinition? EditableObject;
@@ -760,6 +771,11 @@
         }
 
         await LoadWorkspaceAsync(SelectedDatabaseId.Value, SelectedViewKey);
+    }
+
+    private void ToggleLeftPanel()
+    {
+        IsLeftPanelHidden = !IsLeftPanelHidden;
     }
 
     private async Task ResetEditorAsync()
