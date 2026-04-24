@@ -23,8 +23,9 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("3.2")]
-@attribute [AIFileContext("Components/Pages/ManageViews/ManageViews.razor", "Hosts the new import-and-edit workspace for existing and available views. This page owns the selector shell, view-definition editor, and synchronization launch flow while delegating the saved-columns tab to Components/Pages/ManageViews/ManageViewsColumnsTab.razor, the synchronization summary to Components/Pages/ManageViews/ManageViewsColumnSynchronizationSummary.razor, and the review dialog to Components/Pages/ManageViews/ManageViewsReviewMergeDialog.razor.")]
+@attribute [FileVersion("3.3")]
+@attribute [AIFileContext("Components/Pages/ManageViews/ManageViews.razor", "Hosts the new import-and-edit workspace for existing and available views. This page owns the selector shell, view-definition editor, and synchronization launch flow while delegating the saved-columns tab to Components/Pages/ManageViews/ManageViewsColumnsTab.razor, the synchronization summary to Components/Pages/ManageViews/ManageViewsColumnSynchronizationSummary.razor, and the review dialog to Components/Pages/ManageViews/ManageViewsReviewMergeDialog.razor. Available-source discovery falls back to the default integrations catalog when no existing imported views have established a source database yet.")]
+@attribute [AIChange("3.3", "2026-04-24 04:09 PM CDT fixed the no-existing-views bootstrap path by falling back to the default integrations catalog instead of the metadata database name when discovering available source views.", AICommandStatus.Pending)]
 @attribute [AIChange("3.2", "2026-04-24 03:03 PM CDT wired Review Merge to the first-pass added-columns dialog so a newly saved parent view can initialize accepted child SchemaObjectColumn rows through SaveAllAsync.", AICommandStatus.Pending)]
 @attribute [AIChange("3.1", "2026-04-24 11:14 AM CDT tightened the manage-views tab layout after the folder move by restoring full-height selector tabs and adding dedicated classes so the selector and editor tab surfaces can be styled independently.", AICommandStatus.Pending)]
 @attribute [AIChange("3.0", "2026-04-24 11:06 AM CDT moved the Manage Views page and its child components into a single ManageViews feature folder so the layout, fragment references, and isolated styles live together without the old sibling-folder split.", AICommandStatus.Pending)]
@@ -51,6 +52,7 @@
 
 <PageTitle>Manage Views</PageTitle>
 
+@* 2026-04-24 04:09 PM CDT AI v3.3 manage-views marker: available views now bootstrap from the default integrations catalog when no existing imported rows have established a source database yet. *@
 @* 2026-04-24 03:03 PM CDT AI v3.2 manage-views marker: Review Merge now opens the first-pass added-columns dialog and saves accepted child SchemaObjectColumn rows under the already-saved parent view. *@
 @* 2026-04-24 11:14 AM CDT AI v3.1 manage-views marker: the selector and editor tabs now have dedicated classes so the left list can fill its panel again and the RHS tab surface can drop the extra nested frame. *@
 @* 2026-04-24 11:06 AM CDT AI v3.0 manage-views marker: the page and both child components now live in one ManageViews feature folder so the folder layout matches the feature boundary and the fragment references stay local. *@
@@ -306,6 +308,8 @@
 </RadzenStack>
 
 @code {
+    private const string DefaultSourceCatalogDatabase = "VVGBI_Integrations";
+
     private List<DatabaseDefinition> Databases = new();
     private List<DatabaseDomainDefinition> Domains = new();
     private List<ViewWorkspaceItem> ExistingViewItems = new();
@@ -496,10 +500,7 @@
             Domains = (await DatabaseDomainRepository.GetByDatabaseIdAsync(databaseId)).ToList();
 
             var existingObjects = (await SchemaObjectRepository.GetByDatabaseAsync(databaseId)).ToList();
-            var sourceCatalogDatabase = existingObjects
-                .Select(x => x.SourceDatabaseName)
-                .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x))
-                ?? SelectedDatabase?.DatabaseName;
+            var sourceCatalogDatabase = ResolveSourceCatalogDatabase(existingObjects);
 
             var availableSources = string.IsNullOrWhiteSpace(sourceCatalogDatabase)
                 ? new List<SourceViewDefinition>()
@@ -819,7 +820,7 @@
         try
         {
             EditableObject.DatabaseId = SelectedDatabaseId.Value;
-            EditableObject.SourceDatabaseName ??= SelectedDatabase?.DatabaseName;
+            EditableObject.SourceDatabaseName ??= SelectedViewItem?.SourceDatabaseName;
             EditableObject.IsActive = true;
 
             if (EditableObject.SchemaObjectId == 0)
@@ -1102,6 +1103,20 @@
             string.Equals(x.Domain, "Unknown", StringComparison.OrdinalIgnoreCase));
 
         return unknown?.Domain ?? Domains.FirstOrDefault()?.Domain;
+    }
+
+    private string ResolveSourceCatalogDatabase(IEnumerable<SchemaObjectDefinition> existingObjects)
+    {
+        var establishedSourceDatabase = existingObjects
+            .Select(x => x.SourceDatabaseName)
+            .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
+
+        if (!string.IsNullOrWhiteSpace(establishedSourceDatabase))
+        {
+            return establishedSourceDatabase;
+        }
+
+        return DefaultSourceCatalogDatabase;
     }
 
     private static string? NormalizeNullableText(string? value)
