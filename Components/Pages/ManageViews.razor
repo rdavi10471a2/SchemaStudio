@@ -23,8 +23,9 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("2.5")]
+@attribute [FileVersion("2.6")]
 @attribute [AIFileContext("Components/Pages/ManageViews.razor", "Hosts the new import-and-edit workspace for existing and available views, including view metadata editing and a first-pass parser-versus-existing column review surface.")]
+@attribute [AIChange("2.6", "2026-04-24 09:39 AM CDT tightened the saved-columns tab with standard column metadata, 100px scrolling text cells, sticky headers, wrapped header labels, and darker inheritance checkboxes so the grid reads like a real maintenance surface.", AICommandStatus.Pending)]
 @attribute [AIChange("2.5", "2026-04-24 09:20 AM CDT moved the column synchronization summary into its own reusable component and turned the Columns tab into the actual saved-column maintenance surface with a placeholder edit hook.", AICommandStatus.Pending)]
 @attribute [AIChange("2.4", "2026-04-23 04:34 PM CDT kept developer notes editable on the view definition while leaving them out of the column-review merge path and parser-driven comparison rules.", AICommandStatus.Pending)]
 @attribute [AIChange("2.3", "2026-04-23 04:07 PM CDT removed parser ownership of developer notes from the column merge review so parsed comments no longer show up as imported developer-note changes.", AICommandStatus.Pending)]
@@ -138,7 +139,7 @@
         border: 1px solid #dee2e6;
         border-radius: 4px;
         overflow: hidden;
-        min-height: 380px;
+        min-height: 260px;
     }
 
     .manage-views-grid {
@@ -146,11 +147,12 @@
     }
 
     .column-preview {
-        max-height: 150px;
+        height: 100px;
         overflow: auto;
         white-space: pre-wrap;
         font-size: 0.85rem;
         line-height: 1.35;
+        padding-right: 0.25rem;
     }
 
     .column-summary {
@@ -236,6 +238,47 @@
         background: #fafbfc;
     }
 
+    .manage-views-grid .rz-datatable-scrollable-body,
+    .manage-views-grid .rz-data-grid-data {
+        max-height: calc(100vh - 420px);
+        overflow: auto;
+    }
+
+    .manage-views-grid table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: #f8f9fb;
+        vertical-align: bottom;
+    }
+
+    .manage-views-grid table thead th .rz-column-title,
+    .manage-views-grid table thead th .rz-column-title-content {
+        white-space: normal;
+        line-height: 1.15;
+    }
+
+    .manage-views-grid table thead th,
+    .manage-views-grid table tbody td {
+        padding-top: 0.45rem;
+        padding-bottom: 0.45rem;
+        vertical-align: top;
+    }
+
+    .manage-views-dark-checkbox.rz-state-disabled {
+        opacity: 1;
+    }
+
+    .manage-views-dark-checkbox .rz-chkbox-box {
+        border-color: #6c757d;
+        background: #fff;
+    }
+
+    .manage-views-dark-checkbox.rz-state-active .rz-chkbox-box {
+        background: #495057;
+        border-color: #495057;
+    }
+
     @@media (max-width: 1200px) {
         .manage-views-shell {
             grid-template-columns: 1fr;
@@ -249,6 +292,7 @@
     }
 </style>
 
+@* 2026-04-24 09:39 AM CDT AI v2.6 manage-views marker: the saved-columns grid is denser now with standard metadata, sticky headers, compact 100px text cells, and a darker inheritance checkbox. *@
 @* 2026-04-24 09:20 AM CDT AI v2.5 manage-views marker: the summary card is a reusable sync component now, and the Columns tab shows real saved columns with a placeholder edit action instead of the merge grid. *@
 @* 2026-04-23 04:34 PM CDT AI v2.4 manage-views marker: developer notes remain editable on the view definition, but column review no longer treats them as parser-driven merge input. *@
 @* 2026-04-23 04:07 PM CDT AI v2.3 manage-views marker: parser-side developer notes/comments are no longer treated as imported merge data for column review. *@
@@ -503,6 +547,7 @@
                                                         AllowSorting="true"
                                                         AllowFiltering="false"
                                                         Density="Density.Compact"
+                                                        Style="height: calc(100vh - 430px);"
                                                         SelectionMode="DataGridSelectionMode.Single"
                                                         @bind-Value="@selectedSavedColumns"
                                                         RowSelect="@SelectSavedColumn"
@@ -510,6 +555,11 @@
                                             <Columns>
                                                 <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="OrdinalPosition" Title="Ordinal" Width="90px" />
                                                 <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="SourceColumnName" Title="Column" Width="180px" />
+                                                <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="SourceColumnKind" Title="Kind" Width="120px" />
+                                                <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="BaseDatabaseName" Title="Base Database" Width="140px" />
+                                                <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="BaseSchemaName" Title="Base Schema" Width="130px" />
+                                                <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="BaseObjectName" Title="Base Object" Width="180px" />
+                                                <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="BaseColumnName" Title="Base Column" Width="160px" />
                                                 <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="BusinessName" Title="Business Name" Width="180px" />
                                                 <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="BusinessDescription" Title="Business Description" Width="280px">
                                                     <Template Context="column">
@@ -521,9 +571,12 @@
                                                         <div class="column-preview">@column.DeveloperNotes</div>
                                                     </Template>
                                                 </RadzenDataGridColumn>
-                                                <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="DisableInheritance" Title="Disable Inheritance" Width="140px">
+                                                <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="DisableInheritance" Width="140px">
+                                                    <HeaderTemplate>
+                                                        <div>Disable<br />Inheritance</div>
+                                                    </HeaderTemplate>
                                                     <Template Context="column">
-                                                        <RadzenCheckBox Value="@column.DisableInheritance" Disabled="true" TValue="bool" />
+                                                        <RadzenCheckBox Value="@column.DisableInheritance" Disabled="true" TValue="bool" class="manage-views-dark-checkbox" />
                                                     </Template>
                                                 </RadzenDataGridColumn>
                                             </Columns>
