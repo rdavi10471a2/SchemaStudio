@@ -211,7 +211,11 @@
                                               Click="@DeleteViewAsync"
                                               Disabled="@IsBusy" />
                             }
+
                         </RadzenStack>
+                        <div class="manage-views-note rz-mt-3">
+                            Reset clears unsaved header changes and any save-blocking validation message. View definition saves independently from column merge decisions.
+                        </div>
                     </div>
 
                 </div>
@@ -271,9 +275,7 @@
                                         <RadzenButton Text="Show SQL" Icon="code" ButtonStyle="ButtonStyle.Light" Click="@ShowSqlAsync" Disabled="@(!CanOpenDependencyTools || IsBusy)" />
                                     </RadzenStack>
 
-                                    <div class="manage-views-note rz-mt-3">
-                                        Reset clears unsaved header changes and any save-blocking validation message. View definition saves independently from column merge decisions.
-                                    </div>
+
 
                                     <ManageViewsColumnSynchronizationSummary SummaryTitle="Column Synchronization Summary"
                                                                              SummarySentence="@ColumnSummarySentence"
