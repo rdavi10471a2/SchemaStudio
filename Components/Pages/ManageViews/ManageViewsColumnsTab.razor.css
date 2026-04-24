@@ -1,4 +1,4 @@
-/* 2026-04-24 11:30 AM CDT AI marker: tighten the saved-columns header spacing and make the grid friendlier with resize/filter affordances. */
+/* 2026-04-24 03:01 PM CDT AI marker: switch the saved-columns grid to advanced filters and match the Database editor's blue metadata-header styling so the columns tab is visually consistent. */
 .manage-views-columns-shell {
     min-height: 0;
 }
@@ -27,11 +27,12 @@
 .manage-views-columns-grid-header {
     color: var(--rz-primary) !important;
     font-size: 0.75rem;
-    font-weight: 400;
+    font-weight: 700;
+    letter-spacing: 0.04em;
     line-height: 1.15;
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 0.35rem;
     white-space: normal;
     text-transform: uppercase;
     min-height: 24px;
@@ -40,6 +41,8 @@
 ::deep .manage-views-columns-grid-header .rzi,
 ::deep .manage-views-columns-grid-header .rz-icon {
     color: var(--rz-primary) !important;
+    cursor: help;
+    font-size: 1rem;
 }
 
 .manage-views-columns-preview {
@@ -68,9 +71,22 @@
     vertical-align: bottom;
 }
 
+::deep .manage-views-columns-grid table thead th,
+::deep .manage-views-columns-grid table thead th .rz-column-title,
+::deep .manage-views-columns-grid table thead th .rz-column-title-content,
+::deep .manage-views-columns-grid table thead th .rz-sortable-column {
+    color: var(--rz-primary) !important;
+}
+
 ::deep .manage-views-columns-grid .rz-cell-filter {
     padding-top: 0.25rem;
     padding-bottom: 0.25rem;
+}
+
+::deep .manage-views-columns-grid .rz-cell-filter input,
+::deep .manage-views-columns-grid .rz-cell-filter .rz-dropdown,
+::deep .manage-views-columns-grid .rz-filter-menu {
+    font-size: 0.85rem;
 }
 
 ::deep .manage-views-columns-grid .rz-column-resizer {
