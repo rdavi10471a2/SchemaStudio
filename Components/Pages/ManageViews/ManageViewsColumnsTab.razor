@@ -7,15 +7,17 @@
 
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.1")]
-@attribute [AIFileContext("Components/Pages/ManageViewsFragments/ManageViewsColumnsTab.razor", "Leaf fragment for the Manage Views Columns tab. Renders the saved-column maintenance grid, local selection state, and the placeholder edit launch point while the parent page owns view-level workflow and synchronization summary actions.")]
+@attribute [FileVersion("1.2")]
+@attribute [AIFileContext("Components/Pages/ManageViews/ManageViewsColumnsTab.razor", "Leaf fragment for the Manage Views Columns tab. Renders the saved-column maintenance grid, local selection state, and the placeholder edit launch point while the parent page owns view-level workflow and synchronization summary actions.")]
+@attribute [AIChange("1.2", "2026-04-24 11:06 AM CDT moved the saved-columns tab fragment into the shared ManageViews feature folder so the page, fragment, css, and local notes live together.", AICommandStatus.Pending)]
 @attribute [AIChange("1.1", "2026-04-24 10:56 AM CDT removed header fallback text so the saved-columns grid now follows the parser-grid pattern and reads display/description metadata directly from SchemaObjectColumnDefinition.", AICommandStatus.Pending)]
 @attribute [AIChange("1.0", "2026-04-24 10:34 AM CDT extracted the saved-columns maintenance surface from ManageViews into its own fragment so the page shell can stay focused on view definition and sync-launch workflow.", AICommandStatus.Pending)]
 
+@* 2026-04-24 11:06 AM CDT AI v1.2 manage-views-columns-tab marker: this saved-columns fragment now lives beside the page and summary component in the shared ManageViews feature folder. *@
 @* 2026-04-24 10:56 AM CDT AI v1.1 manage-views-columns-tab marker: the saved-columns grid headers now follow the parser-grid pattern and read display/description metadata directly from SchemaObjectColumnDefinition. *@
 @* 2026-04-24 10:34 AM CDT AI v1.0 manage-views-columns-tab marker: the saved-columns maintenance grid now lives in its own leaf fragment with local selection and tooltip-aware headers. *@
 @* Fragment References:
-   - None. Leaf fragment referenced by Components/Pages/ManageViews.razor.
+   - None. Leaf fragment referenced by Components/Pages/ManageViews/ManageViews.razor.
 *@
 
 <div class="manage-views-columns-shell">

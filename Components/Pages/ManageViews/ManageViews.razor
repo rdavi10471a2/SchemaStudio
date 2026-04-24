@@ -6,7 +6,6 @@
 @using Radzen.Blazor
 @using SchemaStudio.AIHelpers
 @using SchemaStudioWebViewer.Components.Dialogs
-@using SchemaStudioWebViewer.Components.Pages.ManageViewsFragments
 @using SchemaStudio.Data.Models
 @using SchemaStudio.Data.Repositories
 @using SchemaStudioWebViewer.Utils
@@ -24,8 +23,9 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("2.9")]
-@attribute [AIFileContext("Components/Pages/ManageViews.razor", "Hosts the new import-and-edit workspace for existing and available views. This page owns the selector shell and view-definition editor while delegating the saved-columns tab to Components/Pages/ManageViewsFragments/ManageViewsColumnsTab.razor and the synchronization summary to Components/Pages/ManageViewsColumnSynchronizationSummary.razor.")]
+@attribute [FileVersion("3.0")]
+@attribute [AIFileContext("Components/Pages/ManageViews/ManageViews.razor", "Hosts the new import-and-edit workspace for existing and available views. This page owns the selector shell and view-definition editor while delegating the saved-columns tab to Components/Pages/ManageViews/ManageViewsColumnsTab.razor and the synchronization summary to Components/Pages/ManageViews/ManageViewsColumnSynchronizationSummary.razor.")]
+@attribute [AIChange("3.0", "2026-04-24 11:06 AM CDT moved the Manage Views page and its child components into a single ManageViews feature folder so the layout, fragment references, and isolated styles live together without the old sibling-folder split.", AICommandStatus.Pending)]
 @attribute [AIChange("2.9", "2026-04-24 10:46 AM CDT extracted the saved-columns tab into a child fragment, moved page styling into isolated css, and corrected the fragment namespace path to ManageViewsFragments so the page shell is easier to navigate without colliding with the ManageViews component type.", AICommandStatus.Pending)]
 @attribute [AIChange("2.8", "2026-04-24 10:20 AM CDT added parser-style help indicators to the saved-columns grid headers so the maintenance grid exposes the same tooltip cues as the parser grids.", AICommandStatus.Pending)]
 @attribute [AIChange("2.7", "2026-04-24 09:49 AM CDT restored the saved-columns grid to the six requested business columns and added a hide-show toggle for the left selector panel so the main workspace can reclaim horizontal space.", AICommandStatus.Pending)]
@@ -49,6 +49,7 @@
 
 <PageTitle>Manage Views</PageTitle>
 
+@* 2026-04-24 11:06 AM CDT AI v3.0 manage-views marker: the page and both child components now live in one ManageViews feature folder so the folder layout matches the feature boundary and the fragment references stay local. *@
 @* 2026-04-24 10:46 AM CDT AI v2.9 manage-views marker: the page shell now delegates the saved-columns tab to a child fragment under ManageViewsFragments, relies on isolated css, and advertises its child fragments in the header block. *@
 @* 2026-04-24 10:20 AM CDT AI v2.8 manage-views marker: the saved-columns grid headers now use parser-style help indicators so the maintenance grid exposes the same tooltip cues as the parser grids. *@
 @* 2026-04-24 09:49 AM CDT AI v2.7 manage-views marker: the left selector can collapse now, and the saved-columns grid is back to the six requested business columns. *@
@@ -70,8 +71,8 @@
 @* 2026-04-23 02:03 PM CDT AI v1.1 manage-views marker: the RHS view metadata form now only shows user-owned fields, and available view filtering is explicit starts-with behavior. *@
 @* 2026-04-23 01:29 PM CDT AI v1.0 manage-views marker: first pass of the new RHS workspace lets users edit view metadata directly and review parser-vs-existing columns without falling back into the old docked WinForms shape. *@
 @* Fragment References:
-   - Components/Pages/ManageViewsFragments/ManageViewsColumnsTab.razor
-   - Components/Pages/ManageViewsColumnSynchronizationSummary.razor
+   - Components/Pages/ManageViews/ManageViewsColumnsTab.razor
+   - Components/Pages/ManageViews/ManageViewsColumnSynchronizationSummary.razor
 *@
 
 <RadzenStack Gap="1rem">
