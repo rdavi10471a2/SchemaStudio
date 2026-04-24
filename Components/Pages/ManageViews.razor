@@ -23,8 +23,9 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("2.7")]
+@attribute [FileVersion("2.8")]
 @attribute [AIFileContext("Components/Pages/ManageViews.razor", "Hosts the new import-and-edit workspace for existing and available views, including view metadata editing and a first-pass parser-versus-existing column review surface.")]
+@attribute [AIChange("2.8", "2026-04-24 10:20 AM CDT added parser-style help indicators to the saved-columns grid headers so the maintenance grid exposes the same tooltip cues as the parser grids.", AICommandStatus.Pending)]
 @attribute [AIChange("2.7", "2026-04-24 09:49 AM CDT restored the saved-columns grid to the six requested business columns and added a hide-show toggle for the left selector panel so the main workspace can reclaim horizontal space.", AICommandStatus.Pending)]
 @attribute [AIChange("2.6", "2026-04-24 09:39 AM CDT tightened the saved-columns tab with standard column metadata, 100px scrolling text cells, sticky headers, wrapped header labels, and darker inheritance checkboxes so the grid reads like a real maintenance surface.", AICommandStatus.Pending)]
 @attribute [AIChange("2.5", "2026-04-24 09:20 AM CDT moved the column synchronization summary into its own reusable component and turned the Columns tab into the actual saved-column maintenance surface with a placeholder edit hook.", AICommandStatus.Pending)]
@@ -149,6 +150,17 @@
 
     .manage-views-grid {
         width: 100%;
+    }
+
+    .manage-views-grid-header {
+        color: #212529;
+        font-size: 0.82rem;
+        font-weight: 700;
+        line-height: 1.15;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.3rem;
+        white-space: normal;
     }
 
     .column-preview {
@@ -297,6 +309,7 @@
     }
 </style>
 
+@* 2026-04-24 10:20 AM CDT AI v2.8 manage-views marker: the saved-columns grid headers now use parser-style help indicators so the maintenance grid exposes the same tooltip cues as the parser grids. *@
 @* 2026-04-24 09:49 AM CDT AI v2.7 manage-views marker: the left selector can collapse now, and the saved-columns grid is back to the six requested business columns. *@
 @* 2026-04-24 09:39 AM CDT AI v2.6 manage-views marker: the saved-columns grid is denser now with standard metadata, sticky headers, compact 100px text cells, and a darker inheritance checkbox. *@
 @* 2026-04-24 09:20 AM CDT AI v2.5 manage-views marker: the summary card is a reusable sync component now, and the Columns tab shows real saved columns with a placeholder edit action instead of the merge grid. *@
@@ -568,22 +581,40 @@
                                                         RowSelect="@SelectSavedColumn"
                                                         RowDoubleClick="@(args => OpenColumnEditorAsync(args.Data))">
                                             <Columns>
-                                                <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="OrdinalPosition" Title="Ordinal" Width="90px" />
-                                                <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="SourceColumnName" Title="Column" Width="180px" />
-                                                <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="BusinessName" Title="Business Name" Width="180px" />
-                                                <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="BusinessDescription" Title="Business Description" Width="280px">
+                                                <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="OrdinalPosition" Width="90px">
+                                                    <HeaderTemplate>
+                                                        @SavedColumnGridHeader(nameof(SchemaObjectColumnDefinition.OrdinalPosition), "Ordinal position of the saved column within the current view definition.")
+                                                    </HeaderTemplate>
+                                                </RadzenDataGridColumn>
+                                                <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="SourceColumnName" Width="180px">
+                                                    <HeaderTemplate>
+                                                        @SavedColumnGridHeader(nameof(SchemaObjectColumnDefinition.SourceColumnName))
+                                                    </HeaderTemplate>
+                                                </RadzenDataGridColumn>
+                                                <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="BusinessName" Width="180px">
+                                                    <HeaderTemplate>
+                                                        @SavedColumnGridHeader(nameof(SchemaObjectColumnDefinition.BusinessName), "User-facing business label maintained for the saved Schema Studio column.")
+                                                    </HeaderTemplate>
+                                                </RadzenDataGridColumn>
+                                                <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="BusinessDescription" Width="280px">
+                                                    <HeaderTemplate>
+                                                        @SavedColumnGridHeader(nameof(SchemaObjectColumnDefinition.BusinessDescription), "Business-facing description maintained for the saved Schema Studio column.")
+                                                    </HeaderTemplate>
                                                     <Template Context="column">
                                                         <div class="column-preview">@column.BusinessDescription</div>
                                                     </Template>
                                                 </RadzenDataGridColumn>
-                                                <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="DeveloperNotes" Title="Developer Notes" Width="280px">
+                                                <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="DeveloperNotes" Width="280px">
+                                                    <HeaderTemplate>
+                                                        @SavedColumnGridHeader(nameof(SchemaObjectColumnDefinition.DeveloperNotes), "Internal notes owned by the user and preserved independently from parser-driven synchronization.")
+                                                    </HeaderTemplate>
                                                     <Template Context="column">
                                                         <div class="column-preview">@column.DeveloperNotes</div>
                                                     </Template>
                                                 </RadzenDataGridColumn>
                                                 <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="DisableInheritance" Width="160px">
                                                     <HeaderTemplate>
-                                                        <div>Disable<br />Inheritance</div>
+                                                        @SavedColumnGridHeader(nameof(SchemaObjectColumnDefinition.DisableInheritance), "Prevents inheritance-based refresh behavior from overriding the saved column's business metadata.")
                                                     </HeaderTemplate>
                                                     <Template Context="column">
                                                         <RadzenCheckBox Value="@column.DisableInheritance" Disabled="true" TValue="bool" class="manage-views-dark-checkbox" />
@@ -1307,6 +1338,26 @@
 
         builder.OpenElement(0, "div");
         builder.AddAttribute(1, "class", "manage-views-field-label");
+        builder.AddContent(2, displayName);
+
+        if (!string.IsNullOrWhiteSpace(description))
+        {
+            builder.OpenComponent<RadzenIcon>(3);
+            builder.AddAttribute(4, "Icon", "help_outline");
+            builder.AddAttribute(5, "MouseEnter", EventCallback.Factory.Create<ElementReference>(this, args => TooltipService.Open(args, description)));
+            builder.CloseComponent();
+        }
+
+        builder.CloseElement();
+    };
+
+    private RenderFragment SavedColumnGridHeader(string propertyName, string? fallbackDescription = null) => builder =>
+    {
+        var displayName = ReflectionUtils.GetDisplayName(typeof(SchemaObjectColumnDefinition), propertyName);
+        var description = ReflectionUtils.GetDescription(typeof(SchemaObjectColumnDefinition), propertyName) ?? fallbackDescription;
+
+        builder.OpenElement(0, "div");
+        builder.AddAttribute(1, "class", "manage-views-grid-header");
         builder.AddContent(2, displayName);
 
         if (!string.IsNullOrWhiteSpace(description))
