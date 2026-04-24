@@ -1,4 +1,4 @@
-/* 2026-04-24 11:14 AM CDT AI marker: restore full-height selector tabs after the folder move and strip the extra nested frame around the editor tabs. */
+/* 2026-04-24 11:24 AM CDT AI marker: tighten Manage Views selector sizing again and align label/help blue styling with the parser page pattern. */
 .manage-views-shell {
     display: grid;
     grid-template-columns: 320px minmax(0, 1fr);
@@ -88,14 +88,15 @@
 }
 
 .manage-views-field-label {
-    color: var(--rz-primary);
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
+    color: var(--rz-primary) !important;
+    font-size: 0.75rem !important;
+    font-weight: 400 !important;
+    text-transform: uppercase !important;
     letter-spacing: 0.04em;
     display: flex;
     align-items: center;
-    gap: 0.35rem;
+    gap: 4px;
+    min-height: 24px;
 }
 
 .manage-views-title-block {
@@ -160,10 +161,25 @@
     line-height: 1.35;
 }
 
+::deep .manage-views-field-label .rzi,
+::deep .manage-views-field-label .rz-icon,
+::deep .manage-views-section-title .rzi,
+::deep .manage-views-section-title .rz-icon {
+    color: var(--rz-primary) !important;
+}
+
 ::deep .manage-views-selector-tabs {
     height: 100%;
     display: flex;
     flex-direction: column;
+    min-height: 0;
+}
+
+::deep .manage-views-selector-tabs.rz-tabview {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
 }
 
 ::deep .manage-views-selector-tabs .rz-tabview-panels {
@@ -180,10 +196,17 @@
     gap: 0.5rem;
     min-height: 0;
     padding: 0;
+    height: 100%;
 }
 
 ::deep .manage-views-selector-tabs .rz-listbox {
     height: 100%;
+    min-height: 0;
+    width: 100%;
+    flex: 1 1 auto;
+}
+
+::deep .manage-views-selector-tabs .rz-listbox-list {
     min-height: 0;
 }
 
