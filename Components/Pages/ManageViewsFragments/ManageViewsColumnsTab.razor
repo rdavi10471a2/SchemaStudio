@@ -7,10 +7,12 @@
 
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.0")]
+@attribute [FileVersion("1.1")]
 @attribute [AIFileContext("Components/Pages/ManageViewsFragments/ManageViewsColumnsTab.razor", "Leaf fragment for the Manage Views Columns tab. Renders the saved-column maintenance grid, local selection state, and the placeholder edit launch point while the parent page owns view-level workflow and synchronization summary actions.")]
+@attribute [AIChange("1.1", "2026-04-24 10:56 AM CDT removed header fallback text so the saved-columns grid now follows the parser-grid pattern and reads display/description metadata directly from SchemaObjectColumnDefinition.", AICommandStatus.Pending)]
 @attribute [AIChange("1.0", "2026-04-24 10:34 AM CDT extracted the saved-columns maintenance surface from ManageViews into its own fragment so the page shell can stay focused on view definition and sync-launch workflow.", AICommandStatus.Pending)]
 
+@* 2026-04-24 10:56 AM CDT AI v1.1 manage-views-columns-tab marker: the saved-columns grid headers now follow the parser-grid pattern and read display/description metadata directly from SchemaObjectColumnDefinition. *@
 @* 2026-04-24 10:34 AM CDT AI v1.0 manage-views-columns-tab marker: the saved-columns maintenance grid now lives in its own leaf fragment with local selection and tooltip-aware headers. *@
 @* Fragment References:
    - None. Leaf fragment referenced by Components/Pages/ManageViews.razor.
@@ -57,22 +59,22 @@
                 <Columns>
                     <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="OrdinalPosition" Width="90px">
                         <HeaderTemplate>
-                            @GridHeader(nameof(SchemaObjectColumnDefinition.OrdinalPosition), "Ordinal", "Ordinal position of the saved column within the current view definition.")
+                            @GridHeader(nameof(SchemaObjectColumnDefinition.OrdinalPosition))
                         </HeaderTemplate>
                     </RadzenDataGridColumn>
                     <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="SourceColumnName" Width="180px">
                         <HeaderTemplate>
-                            @GridHeader(nameof(SchemaObjectColumnDefinition.SourceColumnName), "Column")
+                            @GridHeader(nameof(SchemaObjectColumnDefinition.SourceColumnName))
                         </HeaderTemplate>
                     </RadzenDataGridColumn>
                     <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="BusinessName" Width="200px">
                         <HeaderTemplate>
-                            @GridHeader(nameof(SchemaObjectColumnDefinition.BusinessName), fallbackDescription: "User-facing business label maintained for the saved Schema Studio column.")
+                            @GridHeader(nameof(SchemaObjectColumnDefinition.BusinessName))
                         </HeaderTemplate>
                     </RadzenDataGridColumn>
                     <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="BusinessDescription" Width="320px">
                         <HeaderTemplate>
-                            @GridHeader(nameof(SchemaObjectColumnDefinition.BusinessDescription), fallbackDescription: "Business-facing description maintained for the saved Schema Studio column.")
+                            @GridHeader(nameof(SchemaObjectColumnDefinition.BusinessDescription))
                         </HeaderTemplate>
                         <Template Context="column">
                             <div class="manage-views-columns-preview">@column.BusinessDescription</div>
@@ -80,7 +82,7 @@
                     </RadzenDataGridColumn>
                     <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="DeveloperNotes" Width="320px">
                         <HeaderTemplate>
-                            @GridHeader(nameof(SchemaObjectColumnDefinition.DeveloperNotes), fallbackDescription: "Internal notes owned by the user and preserved independently from parser-driven synchronization.")
+                            @GridHeader(nameof(SchemaObjectColumnDefinition.DeveloperNotes))
                         </HeaderTemplate>
                         <Template Context="column">
                             <div class="manage-views-columns-preview">@column.DeveloperNotes</div>
@@ -88,7 +90,7 @@
                     </RadzenDataGridColumn>
                     <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="DisableInheritance" Width="165px">
                         <HeaderTemplate>
-                            @GridHeader(nameof(SchemaObjectColumnDefinition.DisableInheritance), fallbackDescription: "Prevents inheritance-based refresh behavior from overriding the saved column's business metadata.")
+                            @GridHeader(nameof(SchemaObjectColumnDefinition.DisableInheritance))
                         </HeaderTemplate>
                         <Template Context="column">
                             <RadzenCheckBox Value="@column.DisableInheritance"
@@ -149,10 +151,10 @@
         return EditColumnRequested.InvokeAsync(SelectedColumn);
     }
 
-    private RenderFragment GridHeader(string propertyName, string? titleOverride = null, string? fallbackDescription = null) => builder =>
+    private RenderFragment GridHeader(string propertyName) => builder =>
     {
-        var displayName = titleOverride ?? ReflectionUtils.GetDisplayName(typeof(SchemaObjectColumnDefinition), propertyName);
-        var description = ReflectionUtils.GetDescription(typeof(SchemaObjectColumnDefinition), propertyName) ?? fallbackDescription;
+        var displayName = ReflectionUtils.GetDisplayName(typeof(SchemaObjectColumnDefinition), propertyName);
+        var description = ReflectionUtils.GetDescription(typeof(SchemaObjectColumnDefinition), propertyName);
 
         builder.OpenElement(0, "div");
         builder.AddAttribute(1, "class", "manage-views-columns-grid-header");

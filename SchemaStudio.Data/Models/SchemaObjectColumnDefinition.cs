@@ -2,9 +2,13 @@ using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Runtime.CompilerServices;
 using System.Text;
+using SchemaStudio.AIHelpers;
 
 namespace SchemaStudio.Data.Models;
 
+[FileVersion("1.0")]
+[AIFileContext("SchemaStudio.Data/Models/SchemaObjectColumnDefinition.cs", "Defines the saved Schema Studio column record used by repositories and the Blazor maintenance grids. Display and description metadata on the user-facing fields are the source of truth for grid headers and tooltip help indicators.")]
+[AIChange("1.0", "2026-04-24 10:56 AM CDT added AI file metadata and completed the display/description attributes for the user-facing saved-column fields so UI grids can use model metadata directly without fallback help text.", AICommandStatus.Pending)]
 public sealed class SchemaObjectColumnDefinition
 {
     private int _schemaObjectColumnId;
@@ -40,8 +44,10 @@ public sealed class SchemaObjectColumnDefinition
         set => SetField(ref _schemaObjectId, value);
     }
 
+    // 2026-04-24 10:56 AM CDT AI v1.0 marker: the visible saved-column grid fields now have explicit display and description metadata so Razor headers can follow the parser-grid pattern without fallback text.
     [Required]
-    [Display(Name = "Order", Order = 10)]
+    [Display(Name = "Ordinal", Order = 10)]
+    [Description("Ordinal position of the saved column within the current view definition.")]
     public int OrdinalPosition
     {
         get => _ordinalPosition;
@@ -50,7 +56,7 @@ public sealed class SchemaObjectColumnDefinition
 
     [Required]
     [StringLength(256)]
-    [Display(Name = "Source Column", Order = 20)]
+    [Display(Name = "Column", Order = 20)]
     [Description("Column name from the parsed source object.")]
     public string SourceColumnName
     {
@@ -107,6 +113,7 @@ public sealed class SchemaObjectColumnDefinition
     }
 
     [Display(Name = "Disable Inheritance", Order = 90)]
+    [Description("Prevents inheritance-based refresh behavior from overriding the saved column's business metadata.")]
     public bool DisableInheritance
     {
         get => _disableInheritance;
@@ -115,6 +122,7 @@ public sealed class SchemaObjectColumnDefinition
 
     [StringLength(128)]
     [Display(Name = "Business Name", Order = 100)]
+    [Description("User-facing business label maintained for the saved Schema Studio column.")]
     public string? BusinessName
     {
         get => _businessName;
@@ -123,6 +131,7 @@ public sealed class SchemaObjectColumnDefinition
 
     [StringLength(500)]
     [Display(Name = "Business Description", Order = 110)]
+    [Description("Business-facing description maintained for the saved Schema Studio column.")]
     public string? BusinessDescription
     {
         get => _businessDescription;
@@ -131,6 +140,7 @@ public sealed class SchemaObjectColumnDefinition
 
     [StringLength(3200)]
     [Display(Name = "Developer Notes", Order = 120)]
+    [Description("Internal notes owned by the user and preserved independently from parser-driven synchronization.")]
     public string? DeveloperNotes
     {
         get => _developerNotes;
