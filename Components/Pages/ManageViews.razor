@@ -23,8 +23,9 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("2.4")]
+@attribute [FileVersion("2.5")]
 @attribute [AIFileContext("Components/Pages/ManageViews.razor", "Hosts the new import-and-edit workspace for existing and available views, including view metadata editing and a first-pass parser-versus-existing column review surface.")]
+@attribute [AIChange("2.5", "2026-04-24 09:20 AM CDT moved the column synchronization summary into its own reusable component and turned the Columns tab into the actual saved-column maintenance surface with a placeholder edit hook.", AICommandStatus.Pending)]
 @attribute [AIChange("2.4", "2026-04-23 04:34 PM CDT kept developer notes editable on the view definition while leaving them out of the column-review merge path and parser-driven comparison rules.", AICommandStatus.Pending)]
 @attribute [AIChange("2.3", "2026-04-23 04:07 PM CDT removed parser ownership of developer notes from the column merge review so parsed comments no longer show up as imported developer-note changes.", AICommandStatus.Pending)]
 @attribute [AIChange("2.2", "2026-04-23 04:01 PM CDT replaced the dirty-state yellow banner with discard-confirm popups, stopped defaulting business name for available drafts, and flattened the joined left-side selector layout again.", AICommandStatus.Pending)]
@@ -248,6 +249,7 @@
     }
 </style>
 
+@* 2026-04-24 09:20 AM CDT AI v2.5 manage-views marker: the summary card is a reusable sync component now, and the Columns tab shows real saved columns with a placeholder edit action instead of the merge grid. *@
 @* 2026-04-23 04:34 PM CDT AI v2.4 manage-views marker: developer notes remain editable on the view definition, but column review no longer treats them as parser-driven merge input. *@
 @* 2026-04-23 04:07 PM CDT AI v2.3 manage-views marker: parser-side developer notes/comments are no longer treated as imported merge data for column review. *@
 @* 2026-04-23 04:01 PM CDT AI v2.2 manage-views marker: dirty navigation now uses a confirm popup, new available drafts do not prefill business name, and the left selector reads as one joined surface again. *@
@@ -453,71 +455,81 @@
                                         Reset clears unsaved header changes and any save-blocking validation message. View definition saves independently from column merge decisions.
                                     </div>
 
-                                    <div class="manage-views-summary-card rz-mt-4">
-                                        <div class="manage-views-section-title">Column Merge Summary</div>
-                                        <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-2">@ColumnSummarySentence</RadzenText>
-                                        <RadzenButton Text="Open Column Editor" Icon="edit_note" Click="@(() => SelectedEditorTabIndex = 1)" class="rz-mt-3" Disabled="@IsBusy" />
-                                        <div class="manage-views-note rz-mt-2">Columns save independently.</div>
-                                    </div>
+                                    <ManageViewsColumnSynchronizationSummary SummaryTitle="Column Synchronization Summary"
+                                                                             SummarySentence="@ColumnSummarySentence"
+                                                                             ReviewButtonText="Review Merge"
+                                                                             ReviewButtonDisabled="@IsBusy"
+                                                                             ReviewButtonClick="@ReviewMergeAsync"
+                                                                             DescriptionLines="@ColumnSynchronizationProcessLines"
+                                                                             class="rz-mt-4" />
                                 </div>
                             </RadzenTabsItem>
-                            <RadzenTabsItem Text="Manage Columns">
+                            <RadzenTabsItem Text="Columns">
                                 <div class="manage-views-header">
                                     <div>
-                                        <div class="manage-views-section-title">Manage Columns</div>
+                                        <div class="manage-views-section-title">Columns</div>
                                         <RadzenText TextStyle="TextStyle.Caption" Style="color:#6c757d;">
-                                            @ColumnSummaryText
+                                            @SavedColumnSummaryText
                                         </RadzenText>
                                     </div>
 
-                                    <div class="manage-views-field" style="min-width:180px;">
-                                        <div class="manage-views-field-label">Review Filter</div>
-                                        <RadzenDropDown Data="@ReviewFilters"
-                                                        TextProperty="Label"
-                                                        ValueProperty="Value"
-                                                        @bind-Value="@SelectedReviewFilter"
-                                                        Style="width:100%;" />
+                                    <RadzenButton Text="Edit Selected Column"
+                                                  Icon="edit_note"
+                                                  ButtonStyle="ButtonStyle.Light"
+                                                  Click="@(() => OpenColumnEditorAsync(SelectedSavedColumn))"
+                                                  Disabled="@(IsBusy || EditableObject?.SchemaObjectId <= 0 || SelectedSavedColumn == null)" />
+                                </div>
+
+                                @if (EditableObject?.SchemaObjectId <= 0)
+                                {
+                                    <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat" class="rz-mt-3">
+                                        Save the view definition first, then edit the saved columns here.
+                                    </RadzenAlert>
+                                }
+                                else if (SavedColumns.Count == 0)
+                                {
+                                    <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat" class="rz-mt-3">
+                                        No saved columns exist for this view yet. Review merge when you are ready to initialize or synchronize columns.
+                                    </RadzenAlert>
+                                }
+                                else
+                                {
+                                    <div class="manage-views-grid-host rz-mt-3">
+                                        <RadzenDataGrid Data="@SavedColumns"
+                                                        TItem="SchemaObjectColumnDefinition"
+                                                        Class="manage-views-grid"
+                                                        AllowPaging="true"
+                                                        PageSize="20"
+                                                        AllowSorting="true"
+                                                        AllowFiltering="false"
+                                                        Density="Density.Compact"
+                                                        SelectionMode="DataGridSelectionMode.Single"
+                                                        @bind-Value="@selectedSavedColumns"
+                                                        RowSelect="@SelectSavedColumn"
+                                                        RowDoubleClick="@(args => OpenColumnEditorAsync(args.Data))">
+                                            <Columns>
+                                                <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="OrdinalPosition" Title="Ordinal" Width="90px" />
+                                                <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="SourceColumnName" Title="Column" Width="180px" />
+                                                <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="BusinessName" Title="Business Name" Width="180px" />
+                                                <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="BusinessDescription" Title="Business Description" Width="280px">
+                                                    <Template Context="column">
+                                                        <div class="column-preview">@column.BusinessDescription</div>
+                                                    </Template>
+                                                </RadzenDataGridColumn>
+                                                <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="DeveloperNotes" Title="Developer Notes" Width="280px">
+                                                    <Template Context="column">
+                                                        <div class="column-preview">@column.DeveloperNotes</div>
+                                                    </Template>
+                                                </RadzenDataGridColumn>
+                                                <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="DisableInheritance" Title="Disable Inheritance" Width="140px">
+                                                    <Template Context="column">
+                                                        <RadzenCheckBox Value="@column.DisableInheritance" Disabled="true" TValue="bool" />
+                                                    </Template>
+                                                </RadzenDataGridColumn>
+                                            </Columns>
+                                        </RadzenDataGrid>
                                     </div>
-                                </div>
-
-                                <div class="manage-views-note rz-mt-2">
-                                    Column merge decisions are separate from the view definition save.
-                                </div>
-
-                                <div class="manage-views-grid-host rz-mt-3">
-                                    <RadzenDataGrid Data="@FilteredReviewRows"
-                                                    TItem="ColumnReviewRow"
-                                                    Class="manage-views-grid"
-                                                    AllowPaging="false"
-                                                    AllowSorting="true"
-                                                    AllowFiltering="false"
-                                                    Density="Density.Compact">
-                                        <Columns>
-                                            <RadzenDataGridColumn TItem="ColumnReviewRow" Property="Status" Title="Status" Width="120px" />
-                                            <RadzenDataGridColumn TItem="ColumnReviewRow" Property="ColumnName" Title="Column" Width="180px" />
-                                            <RadzenDataGridColumn TItem="ColumnReviewRow" Property="ChangeSummary" Title="Change Summary" Width="220px">
-                                                <Template Context="row">
-                                                    <div class="column-summary">@row.ChangeSummary</div>
-                                                </Template>
-                                            </RadzenDataGridColumn>
-                                            <RadzenDataGridColumn TItem="ColumnReviewRow" Property="ParsedPreview" Title="Parsed" Width="300px">
-                                                <Template Context="row">
-                                                    <div class="column-preview">@row.ParsedPreview</div>
-                                                </Template>
-                                            </RadzenDataGridColumn>
-                                            <RadzenDataGridColumn TItem="ColumnReviewRow" Property="ExistingPreview" Title="Existing" Width="300px">
-                                                <Template Context="row">
-                                                    <div class="column-preview">@row.ExistingPreview</div>
-                                                </Template>
-                                            </RadzenDataGridColumn>
-                                            <RadzenDataGridColumn TItem="ColumnReviewRow" Title="Accept" Width="90px" Sortable="false" Filterable="false">
-                                                <Template Context="row">
-                                                    <RadzenCheckBox @bind-Value="@row.AcceptMerge" TValue="bool" />
-                                                </Template>
-                                            </RadzenDataGridColumn>
-                                        </Columns>
-                                    </RadzenDataGrid>
-                                </div>
+                                }
                             </RadzenTabsItem>
                         </Tabs>
                     </RadzenTabs>
@@ -532,14 +544,9 @@
     private List<DatabaseDomainDefinition> Domains = new();
     private List<ViewWorkspaceItem> ExistingViewItems = new();
     private List<ViewWorkspaceItem> AvailableViewItems = new();
+    private List<SchemaObjectColumnDefinition> SavedColumns = new();
+    private IList<SchemaObjectColumnDefinition> selectedSavedColumns = new List<SchemaObjectColumnDefinition>();
     private List<ColumnReviewRow> ReviewRows = new();
-    private readonly List<FilterOption> ReviewFilters =
-    [
-        new("all", "All"),
-        new("changed", "Changed Only"),
-        new("added", "Added Only"),
-        new("removed", "Removed Only")
-    ];
 
     private int? SelectedDatabaseId;
     private string? SelectedViewKey;
@@ -547,7 +554,6 @@
     private string? LastAppliedDomainFilter;
     private int SelectedViewTabIndex;
     private int SelectedEditorTabIndex;
-    private string SelectedReviewFilter = "changed";
     private DatabaseDefinition? SelectedDatabase;
     private ViewWorkspaceItem? SelectedViewItem;
     private SchemaObjectDefinition? EditableObject;
@@ -565,7 +571,14 @@
     private bool IsViewDefinitionDirty => EditableObject?.IsDirty ?? false;
     private bool CanDeleteCurrentView => SelectedViewItem?.IsExisting == true && EditableObject?.SchemaObjectId > 0;
     private bool CanOpenDependencyTools => EditableObject != null;
+    private SchemaObjectColumnDefinition? SelectedSavedColumn => selectedSavedColumns.FirstOrDefault();
     private string HeaderValidationMessage = string.Empty;
+    private IReadOnlyList<string> ColumnSynchronizationProcessLines =>
+    [
+        "Reviews parser-detected added, changed, and removed columns for the selected view.",
+        "Saves synchronization decisions separately from the view definition.",
+        "Edit saved column business attributes from the Columns tab after synchronization review."
+    ];
     private string ColumnSummarySentence
     {
         get
@@ -578,26 +591,7 @@
         }
     }
 
-    private string ColumnSummaryText
-    {
-        get
-        {
-            var added = ReviewRows.Count(x => x.Status == "Added");
-            var changed = ReviewRows.Count(x => x.Status == "Changed");
-            var removed = ReviewRows.Count(x => x.Status == "Removed");
-            var unchanged = ReviewRows.Count(x => x.Status == "Unchanged");
-            return $"{ReviewRows.Count} rows | Added: {added} | Changed: {changed} | Removed: {removed} | Unchanged: {unchanged}";
-        }
-    }
-
-    private IEnumerable<ColumnReviewRow> FilteredReviewRows =>
-        SelectedReviewFilter switch
-        {
-            "added" => ReviewRows.Where(x => x.Status == "Added"),
-            "removed" => ReviewRows.Where(x => x.Status == "Removed"),
-            "changed" => ReviewRows.Where(x => x.Status == "Changed"),
-            _ => ReviewRows
-        };
+    private string SavedColumnSummaryText => $"{SavedColumns.Count} saved columns";
 
     private List<DatabaseDomainDefinition> LeftFilterDomains =>
         Domains
@@ -838,12 +832,19 @@
                 var existingColumns = existing == null
                     ? new List<SchemaObjectColumnDefinition>()
                     : (await SchemaObjectColumnRepository.GetByObjectAsync(existing.SchemaObjectId)).ToList();
+                SavedColumns = existingColumns
+                    .OrderBy(x => x.OrdinalPosition)
+                    .ThenBy(x => x.SourceColumnName, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                selectedSavedColumns = new List<SchemaObjectColumnDefinition>();
 
                 await ParseAndBuildReviewAsync(existingColumns);
             }
             else
             {
                 EditableObject = CreateNewObjectDraft(SelectedViewItem);
+                SavedColumns.Clear();
+                selectedSavedColumns.Clear();
                 await ParseAndBuildReviewAsync(Array.Empty<SchemaObjectColumnDefinition>());
             }
 
@@ -872,6 +873,8 @@
         SelectedViewItem = null;
         EditableObject = null;
         CurrentParsedView = null;
+        SavedColumns.Clear();
+        selectedSavedColumns.Clear();
         ReviewRows.Clear();
         HeaderValidationMessage = string.Empty;
         SelectedEditorTabIndex = 0;
@@ -932,6 +935,37 @@
         var parsedColumns = CurrentParsedView?.Columns.ToViewColumnDtos() ?? new List<ViewColumnDto>();
         ReviewRows = BuildColumnReviewRows(parsedColumns, existingColumns).ToList();
         await InvokeAsync(StateHasChanged);
+    }
+
+    private void SelectSavedColumn(SchemaObjectColumnDefinition column)
+    {
+        selectedSavedColumns = column == null
+            ? new List<SchemaObjectColumnDefinition>()
+            : new List<SchemaObjectColumnDefinition> { column };
+    }
+
+    private Task OpenColumnEditorAsync(SchemaObjectColumnDefinition? column)
+    {
+        if (EditableObject?.SchemaObjectId <= 0)
+        {
+            NotificationService.Notify(NotificationSeverity.Warning, "Save view first", "Save the view definition before editing saved columns.", 3000);
+            return Task.CompletedTask;
+        }
+
+        if (column == null)
+        {
+            NotificationService.Notify(NotificationSeverity.Info, "Select a column", "Choose a saved column first. We will hang the popup editor off this action next.", 3000);
+            return Task.CompletedTask;
+        }
+
+        NotificationService.Notify(NotificationSeverity.Info, "Column editor coming next", $"Placeholder click handler for {column.SourceColumnName}. We can wire the popup editor here next.", 3000);
+        return Task.CompletedTask;
+    }
+
+    private Task ReviewMergeAsync()
+    {
+        NotificationService.Notify(NotificationSeverity.Info, "Merge dialog coming next", "The dedicated synchronization dialog will open from here once we wire the merge workflow.", 3000);
+        return Task.CompletedTask;
     }
 
     private async Task SaveViewAsync()
@@ -1356,6 +1390,4 @@
         public string ExistingPreview { get; set; } = string.Empty;
         public bool AcceptMerge { get; set; }
     }
-
-    private sealed record FilterOption(string Value, string Label);
 }
