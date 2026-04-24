@@ -1,3 +1,4 @@
+/* 2026-04-24 11:14 AM CDT AI marker: restore full-height selector tabs after the folder move and strip the extra nested frame around the editor tabs. */
 .manage-views-shell {
     display: grid;
     grid-template-columns: 320px minmax(0, 1fr);
@@ -25,6 +26,12 @@
     min-height: 0;
 }
 
+.manage-views-left > .manage-views-panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
 .manage-views-right {
     display: flex;
     flex-direction: column;
@@ -37,15 +44,19 @@
     border-radius: 0;
     padding: 0.75rem 0 0 0;
     min-height: 520px;
+    flex: 1 1 auto;
     background: transparent;
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    min-width: 0;
 }
 
 .manage-views-list {
     width: 100%;
-    min-height: 445px;
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
 }
 
 .manage-views-section-title {
@@ -147,6 +158,43 @@
     color: #6c757d;
     font-size: 0.85rem;
     line-height: 1.35;
+}
+
+::deep .manage-views-selector-tabs {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+::deep .manage-views-selector-tabs .rz-tabview-panels {
+    border: 0;
+    padding: 0;
+    background: transparent;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+::deep .manage-views-selector-tabs .rz-tabview-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-height: 0;
+    padding: 0;
+}
+
+::deep .manage-views-selector-tabs .rz-listbox {
+    height: 100%;
+    min-height: 0;
+}
+
+::deep .manage-views-editor-tabs .rz-tabview-panels {
+    border: 0;
+    padding: 0;
+    background: transparent;
+}
+
+::deep .manage-views-editor-tabs .rz-tabview-panel {
+    padding: 0;
 }
 
 .workspace-placeholder {
