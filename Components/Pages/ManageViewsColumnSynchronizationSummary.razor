@@ -1,47 +1,21 @@
 @using SchemaStudio.AIHelpers
 @using Radzen
 
-@attribute [FileVersion("1.0")]
+@attribute [FileVersion("1.1")]
 @attribute [AIFileContext("Components/Pages/ManageViewsColumnSynchronizationSummary.razor", "Reusable summary card for the manage-views synchronization workflow. Hosts the merge review launch button and explanatory text while the actual merge dialog lives elsewhere.")]
+@attribute [AIChange("1.1", "2026-04-24 10:35 AM CDT moved the summary-card styles into isolated css and added the standard fragment-reference header note for this leaf Razor component.", AICommandStatus.Pending)]
 @attribute [AIChange("1.0", "2026-04-24 09:20 AM CDT extracted the column synchronization summary from ManageViews so the summary card can be reused later when the dedicated merge dialog is wired in.", AICommandStatus.Pending)]
 
+@* 2026-04-24 10:35 AM CDT AI v1.1 manage-views-column-sync marker: this leaf summary component now keeps its styling in isolated css and documents its fragment-reference status in the header. *@
 @* 2026-04-24 09:20 AM CDT AI v1.0 manage-views-column-sync marker: reusable summary card extracted from ManageViews for later merge-dialog reuse. *@
-
-<style>
-    .manage-views-sync-summary {
-        border: 1px solid #dee2e6;
-        border-radius: 4px;
-        padding: 1rem;
-        background: #fafbfc;
-    }
-
-    .manage-views-sync-summary-grid {
-        display: grid;
-        grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
-        gap: 1.25rem;
-        align-items: start;
-    }
-
-    .manage-views-sync-summary-text {
-        color: #495057;
-        font-size: 0.9rem;
-        line-height: 1.45;
-        display: flex;
-        flex-direction: column;
-        gap: 0.45rem;
-    }
-
-    @@media (max-width: 900px) {
-        .manage-views-sync-summary-grid {
-            grid-template-columns: 1fr;
-        }
-    }
-</style>
+@* Fragment References:
+   - None. Leaf component styled by Components/Pages/ManageViewsColumnSynchronizationSummary.razor.css.
+*@
 
 <div class="manage-views-sync-summary @Class">
     <div class="manage-views-sync-summary-grid">
         <div>
-            <div class="manage-views-section-title">@SummaryTitle</div>
+            <div class="manage-views-sync-summary-title">@SummaryTitle</div>
             <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-2">@SummarySentence</RadzenText>
             <RadzenButton Text="@ReviewButtonText"
                           Icon="published_with_changes"

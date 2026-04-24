@@ -1,0 +1,88 @@
+.manage-views-columns-shell {
+    min-height: 0;
+}
+
+.manage-views-columns-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.manage-views-columns-title {
+    color: var(--rz-primary);
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.manage-views-columns-grid-host {
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    overflow: hidden;
+    min-height: 260px;
+}
+
+.manage-views-columns-grid-header {
+    color: #212529;
+    font-size: 0.82rem;
+    font-weight: 700;
+    line-height: 1.15;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.3rem;
+    white-space: normal;
+}
+
+.manage-views-columns-preview {
+    height: 100px;
+    overflow: auto;
+    white-space: pre-wrap;
+    font-size: 0.85rem;
+    line-height: 1.35;
+    padding-right: 0.25rem;
+}
+
+::deep .manage-views-columns-grid {
+    width: 100%;
+}
+
+::deep .manage-views-columns-grid .rz-data-grid-data {
+    max-height: calc(100vh - 485px);
+    overflow: auto;
+}
+
+::deep .manage-views-columns-grid table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #f8f9fb;
+    vertical-align: bottom;
+}
+
+::deep .manage-views-columns-grid table thead th .rz-column-title,
+::deep .manage-views-columns-grid table thead th .rz-column-title-content {
+    white-space: normal;
+    line-height: 1.15;
+}
+
+::deep .manage-views-columns-grid table thead th,
+::deep .manage-views-columns-grid table tbody td {
+    padding-top: 0.45rem;
+    padding-bottom: 0.45rem;
+    vertical-align: top;
+}
+
+::deep .manage-views-columns-dark-checkbox.rz-state-disabled {
+    opacity: 1;
+}
+
+::deep .manage-views-columns-dark-checkbox .rz-chkbox-box {
+    border-color: #6c757d;
+    background: #fff;
+}
+
+::deep .manage-views-columns-dark-checkbox.rz-state-active .rz-chkbox-box {
+    background: #495057;
+    border-color: #495057;
+}

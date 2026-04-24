@@ -6,6 +6,7 @@
 @using Radzen.Blazor
 @using SchemaStudio.AIHelpers
 @using SchemaStudioWebViewer.Components.Dialogs
+@using SchemaStudioWebViewer.Components.Pages.ManageViewsFragments
 @using SchemaStudio.Data.Models
 @using SchemaStudio.Data.Repositories
 @using SchemaStudioWebViewer.Utils
@@ -23,8 +24,9 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("2.8")]
-@attribute [AIFileContext("Components/Pages/ManageViews.razor", "Hosts the new import-and-edit workspace for existing and available views, including view metadata editing and a first-pass parser-versus-existing column review surface.")]
+@attribute [FileVersion("2.9")]
+@attribute [AIFileContext("Components/Pages/ManageViews.razor", "Hosts the new import-and-edit workspace for existing and available views. This page owns the selector shell and view-definition editor while delegating the saved-columns tab to Components/Pages/ManageViewsFragments/ManageViewsColumnsTab.razor and the synchronization summary to Components/Pages/ManageViewsColumnSynchronizationSummary.razor.")]
+@attribute [AIChange("2.9", "2026-04-24 10:46 AM CDT extracted the saved-columns tab into a child fragment, moved page styling into isolated css, and corrected the fragment namespace path to ManageViewsFragments so the page shell is easier to navigate without colliding with the ManageViews component type.", AICommandStatus.Pending)]
 @attribute [AIChange("2.8", "2026-04-24 10:20 AM CDT added parser-style help indicators to the saved-columns grid headers so the maintenance grid exposes the same tooltip cues as the parser grids.", AICommandStatus.Pending)]
 @attribute [AIChange("2.7", "2026-04-24 09:49 AM CDT restored the saved-columns grid to the six requested business columns and added a hide-show toggle for the left selector panel so the main workspace can reclaim horizontal space.", AICommandStatus.Pending)]
 @attribute [AIChange("2.6", "2026-04-24 09:39 AM CDT tightened the saved-columns tab with standard column metadata, 100px scrolling text cells, sticky headers, wrapped header labels, and darker inheritance checkboxes so the grid reads like a real maintenance surface.", AICommandStatus.Pending)]
@@ -47,268 +49,7 @@
 
 <PageTitle>Manage Views</PageTitle>
 
-<style>
-    .manage-views-shell {
-        display: grid;
-        grid-template-columns: 320px minmax(0, 1fr);
-        gap: 1rem;
-        min-height: calc(100vh - 180px);
-    }
-
-    .manage-views-shell.manage-views-shell-collapsed {
-        grid-template-columns: minmax(0, 1fr);
-    }
-
-    .manage-views-panel {
-        background: #fff;
-        border: 1px solid #dee2e6;
-        border-radius: 6px;
-        padding: 1rem;
-        box-sizing: border-box;
-        box-shadow: none !important;
-    }
-
-    .manage-views-left {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-        min-height: 0;
-    }
-
-    .manage-views-right {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-        min-height: 0;
-    }
-
-    .manage-views-list-frame {
-        border: 0;
-        border-radius: 0;
-        padding: 0.75rem 0 0 0;
-        min-height: 520px;
-        background: transparent;
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-
-    .manage-views-list {
-        width: 100%;
-        min-height: 445px;
-    }
-
-    .manage-views-section-title {
-        color: var(--rz-primary);
-        font-size: 0.82rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-    }
-
-    .manage-views-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 1rem;
-        flex-wrap: wrap;
-    }
-
-    .manage-views-form-grid {
-        display: grid;
-        grid-template-columns: minmax(240px, 1.4fr) minmax(220px, 1fr) minmax(160px, 180px);
-        gap: 1rem;
-    }
-
-    .manage-views-form-span-2 {
-        grid-column: 1 / -1;
-    }
-
-    .manage-views-field {
-        display: flex;
-        flex-direction: column;
-        gap: 0.35rem;
-    }
-
-    .manage-views-field-label {
-        color: var(--rz-primary);
-        font-size: 0.75rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        display: flex;
-        align-items: center;
-        gap: 0.35rem;
-    }
-
-    .manage-views-grid-host {
-        border: 1px solid #dee2e6;
-        border-radius: 4px;
-        overflow: hidden;
-        min-height: 260px;
-    }
-
-    .manage-views-grid {
-        width: 100%;
-    }
-
-    .manage-views-grid-header {
-        color: #212529;
-        font-size: 0.82rem;
-        font-weight: 700;
-        line-height: 1.15;
-        display: flex;
-        align-items: flex-start;
-        gap: 0.3rem;
-        white-space: normal;
-    }
-
-    .column-preview {
-        height: 100px;
-        overflow: auto;
-        white-space: pre-wrap;
-        font-size: 0.85rem;
-        line-height: 1.35;
-        padding-right: 0.25rem;
-    }
-
-    .column-summary {
-        font-size: 0.85rem;
-        line-height: 1.35;
-    }
-
-    .workspace-placeholder {
-        border: 1px dashed #cbd3da;
-        border-radius: 4px;
-        background: #fafbfc;
-        color: #6c757d;
-        text-align: center;
-        padding: 3rem 1.5rem;
-    }
-
-    .manage-views-title-block {
-        display: flex;
-        flex-direction: column;
-        gap: 0.15rem;
-        min-width: 0;
-    }
-
-    .manage-views-status-row {
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
-        flex-wrap: wrap;
-    }
-
-    .manage-views-status-chip {
-        display: inline-flex;
-        align-items: center;
-        padding: 0.1rem 0.4rem;
-        border-radius: 999px;
-        background: #f5f7fa;
-        color: #5b6572;
-        font-size: 0.7rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-    }
-
-    .manage-views-meta-card {
-        padding-top: 0.5rem;
-    }
-
-    .manage-views-inline-flag {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        min-height: 100%;
-        padding-top: 1.5rem;
-    }
-
-    .manage-views-compact-filters {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 0.75rem;
-    }
-
-    .manage-views-equal-textarea {
-        min-height: 110px;
-        height: 110px;
-    }
-
-    .manage-views-secondary-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 1rem;
-    }
-
-    .manage-views-note {
-        color: #6c757d;
-        font-size: 0.85rem;
-        line-height: 1.35;
-    }
-
-    .manage-views-summary-card {
-        border: 1px solid #dee2e6;
-        border-radius: 4px;
-        padding: 1rem;
-        background: #fafbfc;
-    }
-
-    .manage-views-grid .rz-datatable-scrollable-body,
-    .manage-views-grid .rz-data-grid-data {
-        max-height: calc(100vh - 420px);
-        overflow: auto;
-    }
-
-    .manage-views-grid table thead th {
-        position: sticky;
-        top: 0;
-        z-index: 2;
-        background: #f8f9fb;
-        vertical-align: bottom;
-    }
-
-    .manage-views-grid table thead th .rz-column-title,
-    .manage-views-grid table thead th .rz-column-title-content {
-        white-space: normal;
-        line-height: 1.15;
-    }
-
-    .manage-views-grid table thead th,
-    .manage-views-grid table tbody td {
-        padding-top: 0.45rem;
-        padding-bottom: 0.45rem;
-        vertical-align: top;
-    }
-
-    .manage-views-dark-checkbox.rz-state-disabled {
-        opacity: 1;
-    }
-
-    .manage-views-dark-checkbox .rz-chkbox-box {
-        border-color: #6c757d;
-        background: #fff;
-    }
-
-    .manage-views-dark-checkbox.rz-state-active .rz-chkbox-box {
-        background: #495057;
-        border-color: #495057;
-    }
-
-    @@media (max-width: 1200px) {
-        .manage-views-shell {
-            grid-template-columns: 1fr;
-        }
-    }
-
-    @@media (max-width: 900px) {
-        .manage-views-form-grid {
-            grid-template-columns: 1fr;
-        }
-    }
-</style>
-
+@* 2026-04-24 10:46 AM CDT AI v2.9 manage-views marker: the page shell now delegates the saved-columns tab to a child fragment under ManageViewsFragments, relies on isolated css, and advertises its child fragments in the header block. *@
 @* 2026-04-24 10:20 AM CDT AI v2.8 manage-views marker: the saved-columns grid headers now use parser-style help indicators so the maintenance grid exposes the same tooltip cues as the parser grids. *@
 @* 2026-04-24 09:49 AM CDT AI v2.7 manage-views marker: the left selector can collapse now, and the saved-columns grid is back to the six requested business columns. *@
 @* 2026-04-24 09:39 AM CDT AI v2.6 manage-views marker: the saved-columns grid is denser now with standard metadata, sticky headers, compact 100px text cells, and a darker inheritance checkbox. *@
@@ -328,6 +69,10 @@
 @* 2026-04-23 02:12 PM CDT AI v1.2 manage-views marker: domain is required for save and defaults to Unknown when that domain exists in the selected database. *@
 @* 2026-04-23 02:03 PM CDT AI v1.1 manage-views marker: the RHS view metadata form now only shows user-owned fields, and available view filtering is explicit starts-with behavior. *@
 @* 2026-04-23 01:29 PM CDT AI v1.0 manage-views marker: first pass of the new RHS workspace lets users edit view metadata directly and review parser-vs-existing columns without falling back into the old docked WinForms shape. *@
+@* Fragment References:
+   - Components/Pages/ManageViewsFragments/ManageViewsColumnsTab.razor
+   - Components/Pages/ManageViewsColumnSynchronizationSummary.razor
+*@
 
 <RadzenStack Gap="1rem">
     <RadzenCard Variant="Variant.Flat" class="manage-views-panel">
@@ -537,93 +282,11 @@
                                 </div>
                             </RadzenTabsItem>
                             <RadzenTabsItem Text="Columns">
-                                <div class="manage-views-header">
-                                    <div>
-                                        <div class="manage-views-section-title">Columns</div>
-                                        <RadzenText TextStyle="TextStyle.Caption" Style="color:#6c757d;">
-                                            @SavedColumnSummaryText
-                                        </RadzenText>
-                                    </div>
-
-                                    <RadzenButton Text="Edit Selected Column"
-                                                  Icon="edit_note"
-                                                  ButtonStyle="ButtonStyle.Light"
-                                                  Click="@(() => OpenColumnEditorAsync(SelectedSavedColumn))"
-                                                  Disabled="@(IsBusy || EditableObject?.SchemaObjectId <= 0 || SelectedSavedColumn == null)" />
-                                </div>
-
-                                @if (EditableObject?.SchemaObjectId <= 0)
-                                {
-                                    <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat" class="rz-mt-3">
-                                        Save the view definition first, then edit the saved columns here.
-                                    </RadzenAlert>
-                                }
-                                else if (SavedColumns.Count == 0)
-                                {
-                                    <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat" class="rz-mt-3">
-                                        No saved columns exist for this view yet. Review merge when you are ready to initialize or synchronize columns.
-                                    </RadzenAlert>
-                                }
-                                else
-                                {
-                                    <div class="manage-views-grid-host rz-mt-3">
-                                        <RadzenDataGrid Data="@SavedColumns"
-                                                        TItem="SchemaObjectColumnDefinition"
-                                                        Class="manage-views-grid"
-                                                        AllowPaging="true"
-                                                        PageSize="20"
-                                                        AllowSorting="true"
-                                                        AllowFiltering="false"
-                                                        Density="Density.Compact"
-                                                        Style="height: calc(100vh - 430px);"
-                                                        SelectionMode="DataGridSelectionMode.Single"
-                                                        @bind-Value="@selectedSavedColumns"
-                                                        RowSelect="@SelectSavedColumn"
-                                                        RowDoubleClick="@(args => OpenColumnEditorAsync(args.Data))">
-                                            <Columns>
-                                                <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="OrdinalPosition" Width="90px">
-                                                    <HeaderTemplate>
-                                                        @SavedColumnGridHeader(nameof(SchemaObjectColumnDefinition.OrdinalPosition), "Ordinal position of the saved column within the current view definition.")
-                                                    </HeaderTemplate>
-                                                </RadzenDataGridColumn>
-                                                <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="SourceColumnName" Width="180px">
-                                                    <HeaderTemplate>
-                                                        @SavedColumnGridHeader(nameof(SchemaObjectColumnDefinition.SourceColumnName))
-                                                    </HeaderTemplate>
-                                                </RadzenDataGridColumn>
-                                                <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="BusinessName" Width="180px">
-                                                    <HeaderTemplate>
-                                                        @SavedColumnGridHeader(nameof(SchemaObjectColumnDefinition.BusinessName), "User-facing business label maintained for the saved Schema Studio column.")
-                                                    </HeaderTemplate>
-                                                </RadzenDataGridColumn>
-                                                <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="BusinessDescription" Width="280px">
-                                                    <HeaderTemplate>
-                                                        @SavedColumnGridHeader(nameof(SchemaObjectColumnDefinition.BusinessDescription), "Business-facing description maintained for the saved Schema Studio column.")
-                                                    </HeaderTemplate>
-                                                    <Template Context="column">
-                                                        <div class="column-preview">@column.BusinessDescription</div>
-                                                    </Template>
-                                                </RadzenDataGridColumn>
-                                                <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="DeveloperNotes" Width="280px">
-                                                    <HeaderTemplate>
-                                                        @SavedColumnGridHeader(nameof(SchemaObjectColumnDefinition.DeveloperNotes), "Internal notes owned by the user and preserved independently from parser-driven synchronization.")
-                                                    </HeaderTemplate>
-                                                    <Template Context="column">
-                                                        <div class="column-preview">@column.DeveloperNotes</div>
-                                                    </Template>
-                                                </RadzenDataGridColumn>
-                                                <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="DisableInheritance" Width="160px">
-                                                    <HeaderTemplate>
-                                                        @SavedColumnGridHeader(nameof(SchemaObjectColumnDefinition.DisableInheritance), "Prevents inheritance-based refresh behavior from overriding the saved column's business metadata.")
-                                                    </HeaderTemplate>
-                                                    <Template Context="column">
-                                                        <RadzenCheckBox Value="@column.DisableInheritance" Disabled="true" TValue="bool" class="manage-views-dark-checkbox" />
-                                                    </Template>
-                                                </RadzenDataGridColumn>
-                                            </Columns>
-                                        </RadzenDataGrid>
-                                    </div>
-                                }
+                                <ManageViewsColumnsTab ViewDisplayName="@SelectedViewItem.DisplayName"
+                                                       SavedColumns="@SavedColumns"
+                                                       CanEditColumns="@(EditableObject?.SchemaObjectId > 0)"
+                                                       IsBusy="@IsBusy"
+                                                       EditColumnRequested="@OpenColumnEditorAsync" />
                             </RadzenTabsItem>
                         </Tabs>
                     </RadzenTabs>
@@ -639,7 +302,6 @@
     private List<ViewWorkspaceItem> ExistingViewItems = new();
     private List<ViewWorkspaceItem> AvailableViewItems = new();
     private List<SchemaObjectColumnDefinition> SavedColumns = new();
-    private IList<SchemaObjectColumnDefinition> selectedSavedColumns = new List<SchemaObjectColumnDefinition>();
     private List<ColumnReviewRow> ReviewRows = new();
 
     private int? SelectedDatabaseId;
@@ -666,7 +328,6 @@
     private bool IsViewDefinitionDirty => EditableObject?.IsDirty ?? false;
     private bool CanDeleteCurrentView => SelectedViewItem?.IsExisting == true && EditableObject?.SchemaObjectId > 0;
     private bool CanOpenDependencyTools => EditableObject != null;
-    private SchemaObjectColumnDefinition? SelectedSavedColumn => selectedSavedColumns.FirstOrDefault();
     private string HeaderValidationMessage = string.Empty;
     private IReadOnlyList<string> ColumnSynchronizationProcessLines =>
     [
@@ -685,8 +346,6 @@
             return $"{changed} changed, {added} added, {removed} removed, {unchanged} unchanged";
         }
     }
-
-    private string SavedColumnSummaryText => $"{SavedColumns.Count} saved columns";
 
     private List<DatabaseDomainDefinition> LeftFilterDomains =>
         Domains
@@ -936,7 +595,6 @@
                     .OrderBy(x => x.OrdinalPosition)
                     .ThenBy(x => x.SourceColumnName, StringComparer.OrdinalIgnoreCase)
                     .ToList();
-                selectedSavedColumns = new List<SchemaObjectColumnDefinition>();
 
                 await ParseAndBuildReviewAsync(existingColumns);
             }
@@ -944,7 +602,6 @@
             {
                 EditableObject = CreateNewObjectDraft(SelectedViewItem);
                 SavedColumns.Clear();
-                selectedSavedColumns.Clear();
                 await ParseAndBuildReviewAsync(Array.Empty<SchemaObjectColumnDefinition>());
             }
 
@@ -974,7 +631,6 @@
         EditableObject = null;
         CurrentParsedView = null;
         SavedColumns.Clear();
-        selectedSavedColumns.Clear();
         ReviewRows.Clear();
         HeaderValidationMessage = string.Empty;
         SelectedEditorTabIndex = 0;
@@ -1035,13 +691,6 @@
         var parsedColumns = CurrentParsedView?.Columns.ToViewColumnDtos() ?? new List<ViewColumnDto>();
         ReviewRows = BuildColumnReviewRows(parsedColumns, existingColumns).ToList();
         await InvokeAsync(StateHasChanged);
-    }
-
-    private void SelectSavedColumn(SchemaObjectColumnDefinition column)
-    {
-        selectedSavedColumns = column == null
-            ? new List<SchemaObjectColumnDefinition>()
-            : new List<SchemaObjectColumnDefinition> { column };
     }
 
     private Task OpenColumnEditorAsync(SchemaObjectColumnDefinition? column)
@@ -1338,26 +987,6 @@
 
         builder.OpenElement(0, "div");
         builder.AddAttribute(1, "class", "manage-views-field-label");
-        builder.AddContent(2, displayName);
-
-        if (!string.IsNullOrWhiteSpace(description))
-        {
-            builder.OpenComponent<RadzenIcon>(3);
-            builder.AddAttribute(4, "Icon", "help_outline");
-            builder.AddAttribute(5, "MouseEnter", EventCallback.Factory.Create<ElementReference>(this, args => TooltipService.Open(args, description)));
-            builder.CloseComponent();
-        }
-
-        builder.CloseElement();
-    };
-
-    private RenderFragment SavedColumnGridHeader(string propertyName, string? fallbackDescription = null) => builder =>
-    {
-        var displayName = ReflectionUtils.GetDisplayName(typeof(SchemaObjectColumnDefinition), propertyName);
-        var description = ReflectionUtils.GetDescription(typeof(SchemaObjectColumnDefinition), propertyName) ?? fallbackDescription;
-
-        builder.OpenElement(0, "div");
-        builder.AddAttribute(1, "class", "manage-views-grid-header");
         builder.AddContent(2, displayName);
 
         if (!string.IsNullOrWhiteSpace(description))

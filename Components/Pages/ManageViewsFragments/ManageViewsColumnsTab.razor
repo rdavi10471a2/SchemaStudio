@@ -1,0 +1,171 @@
+@using System.ComponentModel.DataAnnotations
+@using Radzen
+@using Radzen.Blazor
+@using SchemaStudio.AIHelpers
+@using SchemaStudio.Data.Models
+@using SchemaStudioWebViewer.Utils
+
+@inject TooltipService TooltipService
+
+@attribute [FileVersion("1.0")]
+@attribute [AIFileContext("Components/Pages/ManageViewsFragments/ManageViewsColumnsTab.razor", "Leaf fragment for the Manage Views Columns tab. Renders the saved-column maintenance grid, local selection state, and the placeholder edit launch point while the parent page owns view-level workflow and synchronization summary actions.")]
+@attribute [AIChange("1.0", "2026-04-24 10:34 AM CDT extracted the saved-columns maintenance surface from ManageViews into its own fragment so the page shell can stay focused on view definition and sync-launch workflow.", AICommandStatus.Pending)]
+
+@* 2026-04-24 10:34 AM CDT AI v1.0 manage-views-columns-tab marker: the saved-columns maintenance grid now lives in its own leaf fragment with local selection and tooltip-aware headers. *@
+@* Fragment References:
+   - None. Leaf fragment referenced by Components/Pages/ManageViews.razor.
+*@
+
+<div class="manage-views-columns-shell">
+    <div class="manage-views-columns-header">
+        <div class="manage-views-columns-title">@ColumnsTitle</div>
+
+        <RadzenButton Text="Edit Selected Column"
+                      Icon="edit_note"
+                      ButtonStyle="ButtonStyle.Light"
+                      Click="@HandleEditSelectedAsync"
+                      Disabled="@(IsBusy || !CanEditColumns || SelectedColumn == null)" />
+    </div>
+
+    @if (!CanEditColumns)
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat" class="rz-mt-3">
+            Save the view definition first, then edit the saved columns here.
+        </RadzenAlert>
+    }
+    else if (SavedColumns.Count == 0)
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat" class="rz-mt-3">
+            No saved columns exist for this view yet. Review merge when you are ready to initialize or synchronize columns.
+        </RadzenAlert>
+    }
+    else
+    {
+        <div class="manage-views-columns-grid-host rz-mt-3">
+            <RadzenDataGrid Data="@SavedColumns"
+                            TItem="SchemaObjectColumnDefinition"
+                            Class="manage-views-columns-grid"
+                            AllowPaging="false"
+                            AllowSorting="true"
+                            AllowFiltering="false"
+                            Density="Density.Compact"
+                            Style="height: calc(100vh - 430px);"
+                            SelectionMode="DataGridSelectionMode.Single"
+                            @bind-Value="@selectedColumns"
+                            RowSelect="@HandleRowSelect"
+                            RowDoubleClick="@(args => EditColumnRequested.InvokeAsync(args.Data))">
+                <Columns>
+                    <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="OrdinalPosition" Width="90px">
+                        <HeaderTemplate>
+                            @GridHeader(nameof(SchemaObjectColumnDefinition.OrdinalPosition), "Ordinal", "Ordinal position of the saved column within the current view definition.")
+                        </HeaderTemplate>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="SourceColumnName" Width="180px">
+                        <HeaderTemplate>
+                            @GridHeader(nameof(SchemaObjectColumnDefinition.SourceColumnName), "Column")
+                        </HeaderTemplate>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="BusinessName" Width="200px">
+                        <HeaderTemplate>
+                            @GridHeader(nameof(SchemaObjectColumnDefinition.BusinessName), fallbackDescription: "User-facing business label maintained for the saved Schema Studio column.")
+                        </HeaderTemplate>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="BusinessDescription" Width="320px">
+                        <HeaderTemplate>
+                            @GridHeader(nameof(SchemaObjectColumnDefinition.BusinessDescription), fallbackDescription: "Business-facing description maintained for the saved Schema Studio column.")
+                        </HeaderTemplate>
+                        <Template Context="column">
+                            <div class="manage-views-columns-preview">@column.BusinessDescription</div>
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="DeveloperNotes" Width="320px">
+                        <HeaderTemplate>
+                            @GridHeader(nameof(SchemaObjectColumnDefinition.DeveloperNotes), fallbackDescription: "Internal notes owned by the user and preserved independently from parser-driven synchronization.")
+                        </HeaderTemplate>
+                        <Template Context="column">
+                            <div class="manage-views-columns-preview">@column.DeveloperNotes</div>
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="SchemaObjectColumnDefinition" Property="DisableInheritance" Width="165px">
+                        <HeaderTemplate>
+                            @GridHeader(nameof(SchemaObjectColumnDefinition.DisableInheritance), fallbackDescription: "Prevents inheritance-based refresh behavior from overriding the saved column's business metadata.")
+                        </HeaderTemplate>
+                        <Template Context="column">
+                            <RadzenCheckBox Value="@column.DisableInheritance"
+                                            Disabled="true"
+                                            TValue="bool"
+                                            class="manage-views-columns-dark-checkbox" />
+                        </Template>
+                    </RadzenDataGridColumn>
+                </Columns>
+            </RadzenDataGrid>
+        </div>
+    }
+</div>
+
+@code {
+    private IList<SchemaObjectColumnDefinition> selectedColumns = new List<SchemaObjectColumnDefinition>();
+
+    [Parameter]
+    public string? ViewDisplayName { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<SchemaObjectColumnDefinition> SavedColumns { get; set; } = Array.Empty<SchemaObjectColumnDefinition>();
+
+    [Parameter]
+    public bool CanEditColumns { get; set; }
+
+    [Parameter]
+    public bool IsBusy { get; set; }
+
+    [Parameter]
+    public EventCallback<SchemaObjectColumnDefinition?> EditColumnRequested { get; set; }
+
+    private string ColumnsTitle =>
+        string.IsNullOrWhiteSpace(ViewDisplayName)
+            ? "Columns"
+            : $"{ViewDisplayName} - Columns";
+
+    private SchemaObjectColumnDefinition? SelectedColumn => selectedColumns.FirstOrDefault();
+
+    protected override void OnParametersSet()
+    {
+        if (SelectedColumn != null &&
+            !SavedColumns.Any(column => column.SchemaObjectColumnId == SelectedColumn.SchemaObjectColumnId))
+        {
+            selectedColumns = new List<SchemaObjectColumnDefinition>();
+        }
+    }
+
+    private void HandleRowSelect(SchemaObjectColumnDefinition? column)
+    {
+        selectedColumns = column == null
+            ? new List<SchemaObjectColumnDefinition>()
+            : new List<SchemaObjectColumnDefinition> { column };
+    }
+
+    private Task HandleEditSelectedAsync()
+    {
+        return EditColumnRequested.InvokeAsync(SelectedColumn);
+    }
+
+    private RenderFragment GridHeader(string propertyName, string? titleOverride = null, string? fallbackDescription = null) => builder =>
+    {
+        var displayName = titleOverride ?? ReflectionUtils.GetDisplayName(typeof(SchemaObjectColumnDefinition), propertyName);
+        var description = ReflectionUtils.GetDescription(typeof(SchemaObjectColumnDefinition), propertyName) ?? fallbackDescription;
+
+        builder.OpenElement(0, "div");
+        builder.AddAttribute(1, "class", "manage-views-columns-grid-header");
+        builder.AddContent(2, displayName);
+
+        if (!string.IsNullOrWhiteSpace(description))
+        {
+            builder.OpenComponent<RadzenIcon>(3);
+            builder.AddAttribute(4, "Icon", "help_outline");
+            builder.AddAttribute(5, "MouseEnter", EventCallback.Factory.Create<ElementReference>(this, args => TooltipService.Open(args, description)));
+            builder.CloseComponent();
+        }
+
+        builder.CloseElement();
+    };
+}
