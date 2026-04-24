@@ -1,4 +1,4 @@
-/* 2026-04-24 11:28 AM CDT AI marker: align the Columns tab headers and help indicators with the Manage Databases blue label treatment instead of the darker grid defaults. */
+/* 2026-04-24 11:30 AM CDT AI marker: tighten the saved-columns header spacing and make the grid friendlier with resize/filter affordances. */
 .manage-views-columns-shell {
     min-height: 0;
 }
@@ -30,7 +30,7 @@
     font-weight: 400;
     line-height: 1.15;
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 4px;
     white-space: normal;
     text-transform: uppercase;
@@ -66,6 +66,15 @@
     z-index: 2;
     background: #f8f9fb;
     vertical-align: bottom;
+}
+
+::deep .manage-views-columns-grid .rz-cell-filter {
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+}
+
+::deep .manage-views-columns-grid .rz-column-resizer {
+    opacity: 1;
 }
 
 ::deep .manage-views-columns-grid table thead th .rz-column-title,
