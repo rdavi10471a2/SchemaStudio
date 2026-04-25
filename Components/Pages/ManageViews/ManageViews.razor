@@ -683,6 +683,38 @@
         await InvokeAsync(StateHasChanged);
     }
 
+    private async Task RefreshCurrentViewAsync()
+    {
+        if (EditableObject == null)
+        {
+            return;
+        }
+
+        IsBusy = true;
+
+        try
+        {
+            // 2026-04-25 01:07 PM CDT AI v3.7 marker: reload only the selected parser definition so current SQL edits rebuild parsed columns and dependencies in-place.
+            CurrentParsedView = ParserService.ReloadView(
+                EditableObject.SourceDatabaseName ?? string.Empty,
+                EditableObject.SourceSchemaName,
+                EditableObject.SourceObjectName);
+
+            var parsedColumns = CurrentParsedView?.Columns.ToViewColumnDtos() ?? new List<ViewColumnDto>();
+            ReviewRows = BuildColumnReviewRows(parsedColumns, SavedColumns).ToList();
+            NotificationService.Notify(NotificationSeverity.Success, "View refreshed", "The selected view SQL and parser review state were refreshed.", 2500);
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            NotifyFailure("View refresh failed", ex);
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
     private Task OpenColumnEditorAsync(SchemaObjectColumnDefinition? column)
     {
         if (EditableObject?.SchemaObjectId <= 0)
