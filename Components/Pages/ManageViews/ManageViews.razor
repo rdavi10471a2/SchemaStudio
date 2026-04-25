@@ -23,8 +23,8 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("3.4")]
-@attribute [AIChange("3.4", "2026-04-25 12:35 PM CDT fixed added-column initialization so saved child rows use the parsed DisableInheritance value and still fall back naturally to false when the parser tag is absent.", AICommandStatus.Pending)]
+@attribute [FileVersion("3.6")]
+@attribute [AIChange("3.6", "2026-04-25 12:58 PM CDT made Show SQL clear parser cache before fetching the current definition so the dialog reflects live database changes immediately.", AICommandStatus.Pending)]
 @attribute [AIFileContext("Components/Pages/ManageViews/ManageViews.razor", "Hosts the new import-and-edit workspace for existing and available views. This page owns the selector shell, view-definition editor, and synchronization launch flow while delegating the saved-columns tab to Components/Pages/ManageViews/ManageViewsColumnsTab.razor, the synchronization summary to Components/Pages/ManageViews/ManageViewsColumnSynchronizationSummary.razor, and the review dialog to Components/Pages/ManageViews/ManageViewsReviewMergeDialog.razor. Available-source discovery falls back to the default integrations catalog when no existing imported views have established a source database yet.")]
 @attribute [AIChange("3.3", "2026-04-24 04:09 PM CDT fixed the no-existing-views bootstrap path by falling back to the default integrations catalog instead of the metadata database name when discovering available source views.", AICommandStatus.Pending)]
 @attribute [AIChange("3.2", "2026-04-24 03:03 PM CDT wired Review Merge to the first-pass added-columns dialog so a newly saved parent view can initialize accepted child SchemaObjectColumn rows through SaveAllAsync.", AICommandStatus.Pending)]
@@ -53,7 +53,7 @@
 
 <PageTitle>Manage Views</PageTitle>
 
-@* 2026-04-25 12:35 PM CDT AI v3.4 manage-views marker: added-column initialization now uses parsed DisableInheritance values, with false remaining the natural fallback when the parser tag is absent. *@
+@* 2026-04-25 12:58 PM CDT AI v3.6 manage-views marker: Show SQL now clears parser cache before fetching the current definition so the dialog reflects live database changes. *@
 @* Fragment References:
    - Components/Pages/ManageViews/ManageViewsColumnsTab.razor
    - Components/Pages/ManageViews/ManageViewsColumnSynchronizationSummary.razor
@@ -451,6 +451,8 @@
             return;
         }
 
+        // 2026-04-25 12:53 PM CDT AI v3.5 marker: clear parser cache before reload so live SQL edits are visible without restarting the app.
+        ParserService.ClearCache();
         await LoadWorkspaceAsync(SelectedDatabaseId.Value, SelectedViewKey);
     }
 
@@ -1130,6 +1132,8 @@
 
         try
         {
+            // 2026-04-25 12:58 PM CDT AI v3.6 marker: always clear parser cache before fetching SQL so the dialog reflects the latest database definition.
+            ParserService.ClearCache();
             var sqlContent = ParserService.GetViewSql(
                 EditableObject.SourceDatabaseName ?? string.Empty,
                 EditableObject.SourceSchemaName,
