@@ -1,9 +1,15 @@
 ﻿using Microsoft.SqlServer.TransactSql.ScriptDom;
 
+using SchemaStudio.AIHelpers;
+
 namespace SchemaStudioWebViewer.WEBSemanticModel.Model
 {
+    [FileVersion("1.0")]
+    [AIFileContext("WEBSemanticModel/Model/SelectItem.cs", "Carries parser-resolved select-item identity, lineage, and parser-owned metadata while the SQL query is being analyzed.", Responsibilities = "Carries DisableInheritance so comment-bound semantic lookup overrides can survive the trip from parser binding into projected parsed columns.", Nuances = "Keep this type narrowly focused on parser-captured state and avoid letting user-owned metadata become parser-owned by accident.", RelatedFiles = "ViewMetadataBinder, ParsedQuery, ViewSourcedColumnDefinition", LastReviewed = "2026-04-25")]
+    [AIChange("1.0", "2026-04-25 12:18 PM CDT added DisableInheritance to the parser select-item model so comment-bound semantic override tags survive into the parsed column projection.", AICommandStatus.Pending)]
     public class SelectItem
     {
+        // 2026-04-25 12:18 PM CDT AI v1.0 marker: parsed select items now carry DisableInheritance from SQL metadata comments.
         //-----------------------------------------
         // OUTPUT
         //-----------------------------------------
@@ -56,6 +62,7 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Model
         public string BusinessName { get; set; }
         public string BusinessDescription { get; set; }
         public string DeveloperNotes { get; set; }
+        public bool DisableInheritance { get; set; }
         //-----------------------------------------
         // DISPLAY
         //-----------------------------------------
