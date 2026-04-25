@@ -23,7 +23,8 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("3.6")]
+@attribute [FileVersion("3.7")]
+@attribute [AIChange("3.7", "2026-04-25 01:14 PM CDT restored the missing Refresh View markup so the already-merged current-view parser refresh handler is visible in Dependency Tools.", AICommandStatus.Pending)]
 @attribute [AIChange("3.6", "2026-04-25 12:58 PM CDT made Show SQL clear parser cache before fetching the current definition so the dialog reflects live database changes immediately.", AICommandStatus.Pending)]
 @attribute [AIFileContext("Components/Pages/ManageViews/ManageViews.razor", "Hosts the new import-and-edit workspace for existing and available views. This page owns the selector shell, view-definition editor, and synchronization launch flow while delegating the saved-columns tab to Components/Pages/ManageViews/ManageViewsColumnsTab.razor, the synchronization summary to Components/Pages/ManageViews/ManageViewsColumnSynchronizationSummary.razor, and the review dialog to Components/Pages/ManageViews/ManageViewsReviewMergeDialog.razor. Available-source discovery falls back to the default integrations catalog when no existing imported views have established a source database yet.")]
 @attribute [AIChange("3.3", "2026-04-24 04:09 PM CDT fixed the no-existing-views bootstrap path by falling back to the default integrations catalog instead of the metadata database name when discovering available source views.", AICommandStatus.Pending)]
@@ -53,7 +54,7 @@
 
 <PageTitle>Manage Views</PageTitle>
 
-@* 2026-04-25 12:58 PM CDT AI v3.6 manage-views marker: Show SQL now clears parser cache before fetching the current definition so the dialog reflects live database changes. *@
+@* 2026-04-25 01:14 PM CDT AI v3.7 manage-views marker: Dependency Tools now shows Refresh View for the current parser refresh handler. *@
 @* Fragment References:
    - Components/Pages/ManageViews/ManageViewsColumnsTab.razor
    - Components/Pages/ManageViews/ManageViewsColumnSynchronizationSummary.razor
@@ -254,6 +255,7 @@
 
                                     <div class="manage-views-section-title rz-mt-4">Dependency Tools</div>
                                     <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" Wrap="FlexWrap.Wrap" class="rz-mt-3">
+                                        <RadzenButton Text="Refresh View" Icon="sync" ButtonStyle="ButtonStyle.Light" Click="@RefreshCurrentViewAsync" Disabled="@(!CanOpenDependencyTools || IsBusy)" />
                                         <RadzenButton Text="Dependencies" Icon="account_tree" ButtonStyle="ButtonStyle.Light" Click="@ShowParsedDependenciesAsync" Disabled="@(!CanOpenDependencyTools || IsBusy)" />
                                         <RadzenButton Text="Where Used" Icon="device_hub" ButtonStyle="ButtonStyle.Light" Click="@ShowWhereUsedAsync" Disabled="@(!CanOpenDependencyTools || IsBusy)" />
                                         <RadzenButton Text="Show SQL" Icon="code" ButtonStyle="ButtonStyle.Light" Click="@ShowSqlAsync" Disabled="@(!CanOpenDependencyTools || IsBusy)" />
