@@ -33,6 +33,11 @@ This folder holds the full `Manage Views` feature surface: the page shell, its c
 
 ## Maintenance Notes
 
+- `ManageViews.razor` should remain the markup shell plus lightweight state/computed properties. Put feature behavior into coarse partials rather than growing the Razor file again.
+- Use `ManageViews.Selection.cs` for anything that changes the selected database, domain filter, view key, workspace list, or dirty-navigation behavior.
+- Use `ManageViews.Parser.cs` for parser cache refresh, current parsed view rebuilds, Show SQL, parsed dependencies, and where-used actions.
+- Use `ManageViews.Columns.cs` for review-merge behavior, accepted added-column creation, and parser-vs-saved comparison/preview helpers.
 - Keep column editing and column synchronization as separate workflows.
 - New Razor files in this area should include a header section listing referenced fragment files, even when that list is `None`.
 - Keep the whole feature in this folder so page, fragments, and isolated css move together.
+- The pre-split checkpoint is `checkpoint/manageviews-split-20260427_114621`; use it only when intentionally rolling back the full Manage Views partial split.
