@@ -5,8 +5,11 @@
 @using SchemaStudio.AIHelpers
 @using SchemaStudioWebViewer.Configuration
 @inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
 
-@attribute [FileVersion("1.1")]
+@attribute [FileVersion("1.2")]
+@attribute [AIChange("1.2", "2026-04-27 11:32 AM CDT gated the layout hamburger and sidebar menu behind the temporary session auth flag so direct Home navigation cannot expose navigation before login.", AICommandStatus.Pending)]
+@attribute [AIFileContext("Components/Layout/MainLayout.razor", "Hosts the shared Radzen application shell, navigation header/sidebar chrome, dialog providers, kiosk chrome suppression, and temporary simple-auth menu gating until real authentication is implemented.")]
 @attribute [AIChange("1.1", "2026-04-22 06:04 PM CDT kept Radzen dialog providers in the page circuit so DialogService calls render shared dialogs.", AICommandStatus.Pending)]
 @attribute [AIChange("1.0", "2026-04-22 11:06 AM CDT added config-driven kiosk chrome suppression for the /kiosk route.", AICommandStatus.Pending)]
 
@@ -51,22 +54,26 @@
 </style>
 
 <RadzenLayout Class="@LayoutClass" Style="@LayoutStyle">
+    @* 2026-04-27 11:32 AM CDT AI v1.2 layout-auth marker: the sidebar toggle checks session auth before opening so debug-filled credentials alone cannot expose navigation. *@
     @* 2026-04-22 06:04 PM CDT AI v1.1 dialog-provider marker: RadzenComponents stays in the active page circuit so dialogs, notifications, tooltips, and context menus share the caller's services. *@
     @* 2026-04-22 11:06 AM CDT AI v1.0 kiosk layout marker: config can hide navigation chrome for /kiosk while Home remains the shared content surface. *@
     @if (!HideNavigationChrome)
     {
         <RadzenHeader>
             <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0">
-                <RadzenSidebarToggle Click="@ToggleSidebar" />
+                <RadzenSidebarToggle Click="@ToggleSidebarAsync" />
                 <RadzenText TextStyle="TextStyle.H6" class="rz-mb-0 rz-ml-2">Schema Studio Web</RadzenText>
             </RadzenStack>
         </RadzenHeader>
 
         <RadzenSidebar @bind-Expanded="@sidebarExpanded"
                        Responsive="false"
-                       Style="@(sidebarExpanded ? "width: 250px;" : "width: 0px; overflow: hidden;")">
+                       Style="@(CanShowNavigationMenu && sidebarExpanded ? "width: 250px;" : "width: 0px; overflow: hidden;")">
             <RadzenStack Gap="0" class="rz-py-4 rz-ph-4">
-                <NavMenu />
+                @if (CanShowNavigationMenu)
+                {
+                    <NavMenu />
+                }
             </RadzenStack>
         </RadzenSidebar>
     }
@@ -80,10 +87,22 @@
 
 @code {
     bool sidebarExpanded = false;
+    private bool isNavigationAuthenticated = false;
+
+    private const string AuthStorageKey = "simpleAuth";
+    private const string AuthenticatedValue = "true";
 
     private bool IsKioskRoute =>
         AppConfig.Current.Kiosk.Enabled &&
         string.Equals(CurrentRelativePath, AppConfig.Current.Kiosk.Route.Trim('/'), StringComparison.OrdinalIgnoreCase);
+
+    private bool ShouldGateNavigationMenu =>
+        AppConfig.Current.Auth.Enabled &&
+        AppConfig.Current.Auth.RequireLoginForHome;
+
+    private bool CanShowNavigationMenu =>
+        !ShouldGateNavigationMenu ||
+        isNavigationAuthenticated;
 
     private bool HideNavigationChrome =>
         IsKioskRoute &&
@@ -110,14 +129,53 @@
         NavigationManager.LocationChanged += OnLocationChanged;
     }
 
-    void ToggleSidebar()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (firstRender)
+        {
+            await RefreshNavigationAuthStateAsync();
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task ToggleSidebarAsync()
+    {
+        await RefreshNavigationAuthStateAsync();
+
+        if (!CanShowNavigationMenu)
+        {
+            sidebarExpanded = false;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
         sidebarExpanded = !sidebarExpanded;
     }
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs args)
     {
-        InvokeAsync(StateHasChanged);
+        InvokeAsync(async () =>
+        {
+            await RefreshNavigationAuthStateAsync();
+            StateHasChanged();
+        });
+    }
+
+    private async Task RefreshNavigationAuthStateAsync()
+    {
+        if (!ShouldGateNavigationMenu)
+        {
+            isNavigationAuthenticated = true;
+            return;
+        }
+
+        var authValue = await JSRuntime.InvokeAsync<string>("authStateManager.load", AuthStorageKey);
+        isNavigationAuthenticated = string.Equals(authValue, AuthenticatedValue, StringComparison.OrdinalIgnoreCase);
+
+        if (!isNavigationAuthenticated)
+        {
+            sidebarExpanded = false;
+        }
     }
 
     public void Dispose()

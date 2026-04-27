@@ -23,7 +23,8 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("3.7")]
+@attribute [FileVersion("3.8")]
+@attribute [AIChange("3.8", "2026-04-27 11:23 AM CDT centralized manage-view navigation guards, tiered workspace resets, selection-key helpers, and item status labels so database, filter, and view changes share safer state transitions.", AICommandStatus.Pending)]
 @attribute [AIChange("3.7", "2026-04-25 01:14 PM CDT restored the missing Refresh View markup so the already-merged current-view parser refresh handler is visible in Dependency Tools.", AICommandStatus.Pending)]
 @attribute [AIChange("3.6", "2026-04-25 12:58 PM CDT made Show SQL clear parser cache before fetching the current definition so the dialog reflects live database changes immediately.", AICommandStatus.Pending)]
 @attribute [AIFileContext("Components/Pages/ManageViews/ManageViews.razor", "Hosts the new import-and-edit workspace for existing and available views. This page owns the selector shell, view-definition editor, and synchronization launch flow while delegating the saved-columns tab to Components/Pages/ManageViews/ManageViewsColumnsTab.razor, the synchronization summary to Components/Pages/ManageViews/ManageViewsColumnSynchronizationSummary.razor, and the review dialog to Components/Pages/ManageViews/ManageViewsReviewMergeDialog.razor. Available-source discovery falls back to the default integrations catalog when no existing imported views have established a source database yet.")]
@@ -54,7 +55,7 @@
 
 <PageTitle>Manage Views</PageTitle>
 
-@* 2026-04-25 01:14 PM CDT AI v3.7 manage-views marker: Dependency Tools now shows Refresh View for the current parser refresh handler. *@
+@* 2026-04-27 11:23 AM CDT AI v3.8 manage-views marker: navigation changes now share guard, reset, key, and status-label helpers. *@
 @* Fragment References:
    - Components/Pages/ManageViews/ManageViewsColumnsTab.razor
    - Components/Pages/ManageViews/ManageViewsColumnSynchronizationSummary.razor
@@ -167,7 +168,7 @@
                             <RadzenText TextStyle="TextStyle.H5" class="rz-m-0">@SelectedViewItem.DisplayName</RadzenText>
                             <div class="manage-views-status-row">
                                 <span class="manage-views-status-chip">
-                                    @(SelectedViewItem.IsExisting ? "Existing" : "Available")
+                                    @SelectedViewItem.StatusLabel
                                 </span>
                                 <RadzenText TextStyle="TextStyle.Caption" Style="color:#6c757d;">
                                     @CurrentSourceFullName
@@ -311,6 +312,12 @@
     private bool IsBusy;
     private string LoadError = string.Empty;
 
+    private enum WorkspaceResetLevel
+    {
+        View,
+        Workspace
+    }
+
     private string CurrentSourceFullName =>
         EditableObject == null
             ? string.Empty
@@ -380,10 +387,14 @@
     private async Task OnDatabaseChanged(object value)
     {
         var previousDatabaseId = SelectedDatabase?.DatabaseId;
-        if (!await ConfirmDiscardChangesAsync("Discard unsaved view definition changes and switch databases?"))
+        if (await IsNavigationBlockedAsync(
+            "Discard unsaved view definition changes and switch databases?",
+            async () =>
+            {
+                SelectedDatabaseId = previousDatabaseId;
+                await InvokeAsync(StateHasChanged);
+            }))
         {
-            SelectedDatabaseId = previousDatabaseId;
-            await InvokeAsync(StateHasChanged);
             return;
         }
 
@@ -393,16 +404,12 @@
             SelectedDatabase = null;
             SelectedDomainFilter = null;
             LastAppliedDomainFilter = null;
-            SelectedViewTabIndex = 0;
-            Domains.Clear();
-            ExistingViewItems.Clear();
-            AvailableViewItems.Clear();
-            ClearSelectedViewState();
+            ResetWorkspace(WorkspaceResetLevel.Workspace);
             return;
         }
 
         SelectedDatabaseId = databaseId;
-        ClearSelectedViewState();
+        ResetWorkspace(WorkspaceResetLevel.Workspace);
         await LoadWorkspaceAsync(databaseId, null, autoSelectFirst: false);
     }
 
@@ -413,16 +420,20 @@
 
     private async Task OnDomainFilterChangedCoreAsync(string? nextFilter)
     {
-        if (!await ConfirmDiscardChangesAsync("Discard unsaved view definition changes and change the domain filter?"))
+        if (await IsNavigationBlockedAsync(
+            "Discard unsaved view definition changes and change the domain filter?",
+            async () =>
+            {
+                SelectedDomainFilter = LastAppliedDomainFilter;
+                await InvokeAsync(StateHasChanged);
+            }))
         {
-            SelectedDomainFilter = LastAppliedDomainFilter;
-            await InvokeAsync(StateHasChanged);
             return;
         }
 
         SelectedDomainFilter = nextFilter;
         LastAppliedDomainFilter = nextFilter;
-        ClearSelectedViewState();
+        ResetWorkspace(WorkspaceResetLevel.View);
 
         await InvokeAsync(StateHasChanged);
     }
@@ -430,16 +441,21 @@
     private async Task OnViewSelectionChanged(object value)
     {
         var previousSelectionKey = SelectedViewItem?.SelectionKey;
-        if (!await ConfirmDiscardChangesAsync("Discard unsaved view definition changes and open another view?"))
+        if (await IsNavigationBlockedAsync(
+            "Discard unsaved view definition changes and open another view?",
+            async () =>
+            {
+                SelectedViewKey = previousSelectionKey;
+                await InvokeAsync(StateHasChanged);
+            }))
         {
-            SelectedViewKey = previousSelectionKey;
-            await InvokeAsync(StateHasChanged);
             return;
         }
 
         var key = value?.ToString();
         if (string.IsNullOrWhiteSpace(key))
         {
+            ResetWorkspace(WorkspaceResetLevel.View);
             return;
         }
 
@@ -494,7 +510,7 @@
                 .OrderBy(x => string.IsNullOrWhiteSpace(x.BusinessName) ? x.SourceObjectName : x.BusinessName)
                 .Select(x => new ViewWorkspaceItem
                 {
-                    SelectionKey = $"existing:{x.SchemaObjectId}",
+                    SelectionKey = BuildExistingSelectionKey(x.SchemaObjectId),
                     IsExisting = true,
                     SchemaObjectId = x.SchemaObjectId,
                     SourceDatabaseName = x.SourceDatabaseName ?? SelectedDatabase?.DatabaseName ?? string.Empty,
@@ -516,7 +532,7 @@
                 .ThenBy(x => x.ObjectName)
                 .Select(x => new ViewWorkspaceItem
                 {
-                    SelectionKey = $"available:{x.SchemaName}.{x.ObjectName}",
+                    SelectionKey = BuildAvailableSelectionKey(x.SchemaName, x.ObjectName),
                     IsExisting = false,
                     SourceDatabaseName = x.DatabaseName,
                     SourceSchemaName = x.SchemaName,
@@ -533,8 +549,7 @@
                 (string.IsNullOrWhiteSpace(nextSelection) ||
                  !ExistingViewItems.Concat(AvailableViewItems).Any(x => x.SelectionKey == nextSelection)))
             {
-                nextSelection = ExistingViewItems.FirstOrDefault()?.SelectionKey
-                    ?? AvailableViewItems.FirstOrDefault()?.SelectionKey;
+                nextSelection = GetFirstAvailableSelectionKey();
             }
 
             SelectedViewKey = nextSelection;
@@ -545,7 +560,7 @@
             }
             else
             {
-                ClearSelectedViewState();
+                ResetWorkspace(WorkspaceResetLevel.View);
             }
         }
         catch (Exception ex)
@@ -565,13 +580,12 @@
         try
         {
             SelectedViewKey = selectionKey;
-            SelectedViewItem = ExistingViewItems.Concat(AvailableViewItems)
-                .FirstOrDefault(x => string.Equals(x.SelectionKey, selectionKey, StringComparison.Ordinal));
+            SelectedViewItem = FindWorkspaceItem(selectionKey);
             SelectedViewTabIndex = SelectedViewItem?.IsExisting == false ? 1 : 0;
 
             if (SelectedViewItem == null)
             {
-                ClearSelectedViewState();
+                ResetWorkspace(WorkspaceResetLevel.View);
                 return;
             }
 
@@ -616,7 +630,18 @@
         }
     }
 
-    private void ClearSelectedViewState()
+    private async Task<bool> IsNavigationBlockedAsync(string prompt, Func<Task> restoreSelectionAsync)
+    {
+        if (await ConfirmDiscardChangesAsync(prompt))
+        {
+            return false;
+        }
+
+        await restoreSelectionAsync();
+        return true;
+    }
+
+    private void ResetWorkspace(WorkspaceResetLevel level)
     {
         SelectedViewKey = null;
         SelectedViewItem = null;
@@ -626,6 +651,40 @@
         ReviewRows.Clear();
         HeaderValidationMessage = string.Empty;
         SelectedEditorTabIndex = 0;
+
+        if (level == WorkspaceResetLevel.Workspace)
+        {
+            // 2026-04-27 11:23 AM CDT AI v3.8 marker: database-level resets clear selector metadata with the selected view state to avoid stale workspace data.
+            SelectedDatabase = null;
+            SelectedDomainFilter = null;
+            LastAppliedDomainFilter = null;
+            SelectedViewTabIndex = 0;
+            Domains.Clear();
+            ExistingViewItems.Clear();
+            AvailableViewItems.Clear();
+        }
+    }
+
+    private ViewWorkspaceItem? FindWorkspaceItem(string selectionKey)
+    {
+        return ExistingViewItems.Concat(AvailableViewItems)
+            .FirstOrDefault(x => string.Equals(x.SelectionKey, selectionKey, StringComparison.Ordinal));
+    }
+
+    private string? GetFirstAvailableSelectionKey()
+    {
+        return ExistingViewItems.FirstOrDefault()?.SelectionKey
+            ?? AvailableViewItems.FirstOrDefault()?.SelectionKey;
+    }
+
+    private static string BuildExistingSelectionKey(int schemaObjectId)
+    {
+        return $"existing:{schemaObjectId}";
+    }
+
+    private static string BuildAvailableSelectionKey(string schemaName, string objectName)
+    {
+        return $"available:{schemaName}.{objectName}";
     }
 
     private string GetAvailableDisplayName(string? objectName)
@@ -802,7 +861,7 @@
             await SchemaObjectColumnRepository.SaveAllAsync(columnsToSave);
             NotificationService.Notify(NotificationSeverity.Success, "Columns initialized", $"{columnsToSave.Count} added columns were saved to the selected view.", 3000);
             SelectedEditorTabIndex = 1;
-            await LoadWorkspaceAsync(SelectedDatabaseId.Value, $"existing:{EditableObject.SchemaObjectId}", autoSelectFirst: false);
+            await LoadWorkspaceAsync(SelectedDatabaseId.Value, BuildExistingSelectionKey(EditableObject.SchemaObjectId), autoSelectFirst: false);
         }
         catch (Exception ex)
         {
@@ -840,12 +899,12 @@
             if (EditableObject.SchemaObjectId == 0)
             {
                 var newId = await SchemaObjectRepository.CreateAsync(EditableObject);
-                SelectedViewKey = $"existing:{newId}";
+                SelectedViewKey = BuildExistingSelectionKey(newId);
             }
             else
             {
                 await SchemaObjectRepository.UpdateAsync(EditableObject);
-                SelectedViewKey = $"existing:{EditableObject.SchemaObjectId}";
+                SelectedViewKey = BuildExistingSelectionKey(EditableObject.SchemaObjectId);
             }
 
             NotificationService.Notify(NotificationSeverity.Success, "View saved", "View metadata was saved successfully.", 2500);
@@ -885,7 +944,7 @@
         {
             await SchemaObjectRepository.DeleteAsync(EditableObject.SchemaObjectId);
             NotificationService.Notify(NotificationSeverity.Success, "View deleted", "The saved view definition was removed.", 2500);
-            ClearSelectedViewState();
+            ResetWorkspace(WorkspaceResetLevel.View);
             await LoadWorkspaceAsync(SelectedDatabaseId.Value, null, autoSelectFirst: false);
         }
         catch (Exception ex)
@@ -1287,6 +1346,7 @@
         public string? Domain { get; set; }
         public string DisplayName { get; set; } = string.Empty;
         public string Subtitle { get; set; } = string.Empty;
+        public string StatusLabel => IsExisting ? "Existing" : "Available";
     }
 
 }
