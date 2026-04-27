@@ -8,6 +8,10 @@ This folder holds the full `Manage Views` feature surface: the page shell, its c
   - Main page shell for view selection, view definition editing, and synchronization-launch actions.
 - `ManageViews.Columns.cs`
   - Partial class for column synchronization workflow, review-merge launch, accepted-column creation, and parser-vs-saved review row comparison helpers.
+- `ManageViews.Selection.cs`
+  - Partial class for database/domain/view selection, workspace reloads, reset tiers, dirty-navigation guard, and selection-key helpers.
+- `ManageViews.Parser.cs`
+  - Partial class for parser refresh, Show SQL, parsed dependency, and SQL Server where-used actions.
 - `ManageViews.razor.css`
   - Isolated styling for the page shell and shared feature layout.
 - `ManageViewsColumnsTab.razor`
