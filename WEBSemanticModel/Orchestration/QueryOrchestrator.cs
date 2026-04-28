@@ -7,7 +7,9 @@ using SchemaStudio.AIHelpers;
 
 namespace SchemaStudioWebViewer.WEBSemanticModel.Orchestration
 {
-    [FileVersion("1.0")]
+    [FileVersion("1.1")]
+    [AIFileContext("WEBSemanticModel/Orchestration/QueryOrchestrator.cs", "Coordinates full SQL view parsing, dependency expansion, column binding, view ownership assignment, and parser metadata binding before projection.", Responsibilities = "Owns the final expression ownership pass so composed columns are attributed to the view that defines them while pass-through upstream expressions keep their upstream expression owner.", Nuances = "ViewOwnershipBinder is the semantic boundary for non-simple select items; keep Base* physical/simple lineage and Semantic* lookup targets synchronized there.", RelatedFiles = "QueryBinder, ColumnBinder, ParsedQuery, SelectItem", LastReviewed = "2026-04-28")]
+    [AIChange("1.1", "2026-04-28 10:00 PM CDT made ViewOwnershipBinder explicitly assign composed expression ownership to the defining view while preserving upstream expression ownership when QueryBinder identified a pass-through projected expression.", AICommandStatus.Pending)]
     [AIInstructions("2026-03-30 15:53 preserve inherited database/schema context when resolving nested view dependencies and avoid forced dbo fallback.", AICommandStatus.Pending)]
     public static class QueryOrchestrator
     {
@@ -87,11 +89,6 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Orchestration
             #endregion
         }
 
-        //-----------------------------------------
-        // VIEW OWNERSHIP BINDER (UNCHANGED)
-        //----------------------------------------
-
-
         public static class ViewOwnershipBinder
         {
             public static void Apply(ParsedQuery query, string db, string schema, string objectName)
@@ -101,50 +98,70 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Orchestration
 
                 foreach (var item in query.SelectItems)
                 {
-                    bool isPhysical =
+                    bool isTraceableSimpleColumn =
                         item.Kind == ColumnKind.Simple &&
                         !string.IsNullOrWhiteSpace(item.BaseTable) &&
                         !string.IsNullOrWhiteSpace(item.BaseColumn);
 
-                    if (!isPhysical)
+                    if (!isTraceableSimpleColumn)
                     {
-                        // Prefer preserved upstream expression ownership when QueryBinder found
-                        // that this projected expression came from an inner view expression.
-                        if (!string.IsNullOrWhiteSpace(item.ExpressionTable) &&
-                            !string.IsNullOrWhiteSpace(item.ExpressionColumn))
-                        {
-                            item.BaseDatabase = item.ExpressionDatabase;
-                            item.BaseSchema = item.ExpressionSchema;
-                            item.BaseTable = item.ExpressionTable;
-                            item.BaseColumn = item.ExpressionColumn;
-                            item.SemanticDatabase = item.ExpressionDatabase;
-                            item.SemanticSchema = item.ExpressionSchema;
-                            item.SemanticObject = item.ExpressionTable;
-                            item.SemanticColumn = item.ExpressionColumn;
-                        }
-                        else
-                        {
-                            item.BaseDatabase = db;
-                            item.BaseSchema = schema;
-                            item.BaseTable = objectName;
-                            item.BaseColumn = item.Alias;
-                            // 2026-04-28 09:48 PM CDT AI marker: expression ownership now seeds Semantic* with the owning view when no upstream semantic source exists.
-                            item.SemanticDatabase = db;
-                            item.SemanticSchema = schema;
-                            item.SemanticObject = objectName;
-                            item.SemanticColumn = item.Alias;
-                        }
-
-                      
+                        AssignExpressionOwnership(item, db, schema, objectName);
                     }
                     else if (string.IsNullOrWhiteSpace(item.SemanticObject))
                     {
-                        item.SemanticDatabase = item.BaseDatabase;
-                        item.SemanticSchema = item.BaseSchema;
-                        item.SemanticObject = item.BaseTable;
-                        item.SemanticColumn = item.BaseColumn;
+                        AssignSemanticDefaultFromPhysicalLineage(item);
                     }
                 }
+            }
+
+            private static void AssignExpressionOwnership(SelectItem item, string db, string schema, string objectName)
+            {
+                if (!string.IsNullOrWhiteSpace(item.ExpressionTable) &&
+                    !string.IsNullOrWhiteSpace(item.ExpressionColumn))
+                {
+                    AssignLineageAndSemantic(
+                        item,
+                        item.ExpressionDatabase,
+                        item.ExpressionSchema,
+                        item.ExpressionTable,
+                        item.ExpressionColumn);
+                    return;
+                }
+
+                // 2026-04-28 10:00 PM CDT AI v1.1 marker: composed select items are owned by the view that defines the expression, not by any one input column.
+                AssignLineageAndSemantic(item, db, schema, objectName, item.Alias);
+            }
+
+            private static void AssignSemanticDefaultFromPhysicalLineage(SelectItem item)
+            {
+                AssignSemantic(item, item.BaseDatabase, item.BaseSchema, item.BaseTable, item.BaseColumn);
+            }
+
+            private static void AssignLineageAndSemantic(
+                SelectItem item,
+                string database,
+                string schema,
+                string objectName,
+                string columnName)
+            {
+                item.BaseDatabase = database;
+                item.BaseSchema = schema;
+                item.BaseTable = objectName;
+                item.BaseColumn = columnName;
+                AssignSemantic(item, database, schema, objectName, columnName);
+            }
+
+            private static void AssignSemantic(
+                SelectItem item,
+                string database,
+                string schema,
+                string objectName,
+                string columnName)
+            {
+                item.SemanticDatabase = database;
+                item.SemanticSchema = schema;
+                item.SemanticObject = objectName;
+                item.SemanticColumn = columnName;
             }
         }
 
