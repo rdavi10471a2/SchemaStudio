@@ -28,15 +28,19 @@
   <ItemGroup>
     <Compile Remove="SchemaStudio.AIHelpers\**\*.cs" />
     <Compile Remove="SchemaStudio.Data\**\*.cs" />
+    <Compile Remove="SourceBackups\**\*.cs" />
     <Compile Remove="WEBSemanticModel\**\*.cs" />
     <Content Remove="SchemaStudio.AIHelpers\**\*" />
     <Content Remove="SchemaStudio.Data\**\*" />
+    <Content Remove="SourceBackups\**\*" />
     <Content Remove="WEBSemanticModel\**\*" />
     <EmbeddedResource Remove="SchemaStudio.AIHelpers\**\*" />
     <EmbeddedResource Remove="SchemaStudio.Data\**\*" />
+    <EmbeddedResource Remove="SourceBackups\**\*" />
     <EmbeddedResource Remove="WEBSemanticModel\**\*" />
     <None Remove="SchemaStudio.AIHelpers\**\*" />
     <None Remove="SchemaStudio.Data\**\*" />
+    <None Remove="SourceBackups\**\*" />
     <None Remove="WEBSemanticModel\**\*" />
   </ItemGroup>
 

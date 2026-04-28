@@ -34,10 +34,6 @@ SELECT
     BusinessName,
     BusinessDescription,
     DeveloperNotes,
-    SemanticDatabase,
-    SemanticSchema,
-    SemanticObject,
-    SemanticColumn,
     LastSynced
 FROM dbo.SchemaObjectColumn
 WHERE SchemaObjectId = @schemaObjectId
@@ -69,10 +65,6 @@ SELECT
     BusinessName,
     BusinessDescription,
     DeveloperNotes,
-    SemanticDatabase,
-    SemanticSchema,
-    SemanticObject,
-    SemanticColumn,
     LastSynced
 FROM dbo.SchemaObjectColumn
 WHERE SchemaObjectColumnId = @schemaObjectColumnId;
@@ -137,10 +129,6 @@ INSERT INTO dbo.SchemaObjectColumn
     BusinessName,
     BusinessDescription,
     DeveloperNotes,
-    SemanticDatabase,
-    SemanticSchema,
-    SemanticObject,
-    SemanticColumn,
     LastSynced
 )
 OUTPUT INSERTED.SchemaObjectColumnId
@@ -159,10 +147,6 @@ VALUES
     @BusinessName,
     @BusinessDescription,
     @DeveloperNotes,
-    @SemanticDatabase,
-    @SemanticSchema,
-    @SemanticObject,
-    @SemanticColumn,
     SYSDATETIME()
 );
 """;
@@ -193,10 +177,6 @@ SET
     BusinessName = @BusinessName,
     BusinessDescription = @BusinessDescription,
     DeveloperNotes = @DeveloperNotes,
-    SemanticDatabase = @SemanticDatabase,
-    SemanticSchema = @SemanticSchema,
-    SemanticObject = @SemanticObject,
-    SemanticColumn = @SemanticColumn,
     LastSynced = SYSDATETIME()
 WHERE SchemaObjectColumnId = @SchemaObjectColumnId;
 """;
@@ -244,10 +224,6 @@ WHERE SchemaObjectColumnId = @schemaObjectColumnId;
             data.Columns.Add("BusinessName", typeof(string));
             data.Columns.Add("BusinessDescription", typeof(string));
             data.Columns.Add("DeveloperNotes", typeof(string));
-            data.Columns.Add("SemanticDatabase", typeof(string));
-            data.Columns.Add("SemanticSchema", typeof(string));
-            data.Columns.Add("SemanticObject", typeof(string));
-            data.Columns.Add("SemanticColumn", typeof(string));
 
             foreach (var model in items)
             {
@@ -265,11 +241,7 @@ WHERE SchemaObjectColumnId = @schemaObjectColumnId;
                     model.DisableInheritance,
                     model.BusinessName,
                     model.BusinessDescription,
-                    model.DeveloperNotes,
-                    model.SemanticDatabase,
-                    model.SemanticSchema,
-                    model.SemanticObject,
-                    model.SemanticColumn);
+                    model.DeveloperNotes);
             }
 
             var parameters = new DynamicParameters();
