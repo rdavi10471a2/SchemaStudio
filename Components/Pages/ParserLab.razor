@@ -22,7 +22,8 @@
 @inject SchemaObjectRepository SchemaObjectRepository
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("1.1")]
+@attribute [FileVersion("1.2")]
+@attribute [AIChange("1.2", "2026-04-28 10:18 PM CDT improved ParserLab grid scrolling and column sizing so physical and semantic lineage fields have enough room to be inspected.", AICommandStatus.Pending)]
 @attribute [AIChange("1.1", "2026-04-28 09:50 PM CDT added parser grid sizing for the reflected semantic source column so semantic lookup targets surface cleanly in ParserLab.", AICommandStatus.Pending)]
 @attribute [AIChange("1.0", "2026-04-23 10:00 AM CDT added a visible parser load-error alert and removed the unused async state from the parser refresh path.", AICommandStatus.Pending)]
 @attribute [AIFileContext("Components/Pages/ParserLab.razor", "Hosts the parser playground for browsing schema objects, running parser previews, and inspecting parser-derived dependencies and where-used details.")]
@@ -49,10 +50,11 @@
     .parser-grid-frame {
         border: 1px solid #dee2e6;
         border-radius: 4px;
-        overflow: hidden;
+        overflow: auto;
         height: 100%;
         flex: 1 1 auto;
         min-height: 0;
+        max-width: 100%;
     }
 
     .parser-picker-frame {
@@ -147,7 +149,13 @@
         flex: 1 1 auto;
         height: 100% !important;
         min-height: 100% !important;
-        width: 100% !important;
+        width: max-content !important;
+        min-width: 100% !important;
+    }
+
+    .parser-data-grid .rz-cell-data,
+    .parser-data-grid .rz-column-title {
+        white-space: nowrap;
     }
 
     .parser-tabs .rz-tabview,
@@ -228,6 +236,7 @@
 <PageTitle>Parser Test Area</PageTitle>
 
 @* 2026-04-23 10:00 AM CDT AI v1.0 parser-inline-error marker: ParserLab now keeps a visible load-error alert and the parser refresh path no longer advertises async work it never awaited. *@
+@* 2026-04-28 10:18 PM CDT AI v1.2 parser grid marker: parser grids now use horizontal overflow and wider lineage/metadata columns for inspection-heavy parsing sessions. *@
 @* 2026-04-28 09:50 PM CDT AI v1.1 parser semantic-source marker: reflected parser columns reserve width for the new Semantic Source display field. *@
 @* 2026-04-15 04:19 PM CDT AI parser lab marker: make the tab workspace full height and remove shadow-heavy card styling from the parser page. *@
 
@@ -364,7 +373,7 @@
                                                                     AllowColumnResize="true"
                                                                     FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
                                                                     Density="Density.Compact"
-                                                                    Style="min-width:1600px;"
+                                                                    Style="min-width:2300px;"
                                                                     RowDoubleClick="@(args => OpenDtoDetails(args.Data, args.Data.PhysicalSourceName, "Table"))">
                                                         <Columns>
                                                             @foreach (var prop in TableProperties)
@@ -407,7 +416,7 @@
                                                                     AllowColumnResize="true"
                                                                     FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
                                                                     Density="Density.Compact"
-                                                                    Style="min-width:1700px;"
+                                                                    Style="min-width:3300px;"
                                                                     RowDoubleClick="@(args => OpenDtoDetails(args.Data, args.Data.ColumnName, "Column"))">
                                                         <Columns>
                                                             @foreach (var prop in ColumnProperties)
@@ -839,25 +848,25 @@
         {
             nameof(ViewColumnDto.OrdinalPosition) => "72px",
             nameof(SourceTableDto.ResolvedOrder) => "130px",
-            nameof(SourceTableDto.Kind) => "130px",
-            nameof(SourceTableDto.Database) => "150px",
-            nameof(SourceTableDto.Schema) => "120px",
-            nameof(SourceTableDto.Table) => "170px",
-            nameof(SourceTableDto.Alias) => "130px",
-            nameof(SourceTableDto.ParentAlias) => "150px",
-            nameof(SourceTableDto.JoinType) => "130px",
-            nameof(SourceTableDto.JoinExpression) => "220px",
-            nameof(SourceTableDto.IsBaseTable) => "120px",
-            nameof(SourceTableDto.PhysicalSourceName) => "220px",
-            nameof(ViewColumnDto.FullyQualifiedSourceColumnName) => "230px",
-            nameof(ViewColumnDto.FullyQualifiedSemanticColumnName) => "230px",
-            nameof(ViewColumnDto.ColumnName) => "180px",
-            nameof(ViewColumnDto.ColumnKind) => "150px",
-            nameof(ViewColumnDto.BusinessName) => "170px",
-            nameof(ViewColumnDto.BusinessDescription) => "180px",
-            nameof(ViewColumnDto.DeveloperNotes) => "180px",
-            nameof(ViewColumnDto.Comment) => "180px",
-            _ => isColumnGrid ? "160px" : "150px"
+            nameof(SourceTableDto.Kind) => "150px",
+            nameof(SourceTableDto.Database) => "220px",
+            nameof(SourceTableDto.Schema) => "160px",
+            nameof(SourceTableDto.Table) => "260px",
+            nameof(SourceTableDto.Alias) => "170px",
+            nameof(SourceTableDto.ParentAlias) => "180px",
+            nameof(SourceTableDto.JoinType) => "160px",
+            nameof(SourceTableDto.JoinExpression) => "420px",
+            nameof(SourceTableDto.IsBaseTable) => "130px",
+            nameof(SourceTableDto.PhysicalSourceName) => "360px",
+            nameof(ViewColumnDto.FullyQualifiedSourceColumnName) => "430px",
+            nameof(ViewColumnDto.FullyQualifiedSemanticColumnName) => "470px",
+            nameof(ViewColumnDto.ColumnName) => "260px",
+            nameof(ViewColumnDto.ColumnKind) => "170px",
+            nameof(ViewColumnDto.BusinessName) => "260px",
+            nameof(ViewColumnDto.BusinessDescription) => "440px",
+            nameof(ViewColumnDto.DeveloperNotes) => "380px",
+            nameof(ViewColumnDto.Comment) => "420px",
+            _ => isColumnGrid ? "220px" : "190px"
         };
     }
 

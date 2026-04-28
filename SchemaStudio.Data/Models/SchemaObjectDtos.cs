@@ -113,7 +113,7 @@ public sealed class ViewColumnDto
     [Display(Name = "Base Column", Description = "Underlying source column for the resolved source column.", AutoGenerateField = false)]
     public string? BaseColumn { get; set; }
 
-    [Display(Name = "Fully Qualified Source", Description = "The fully qualified physical source for this column when lineage is available.", AutoGenerateField = true, Order = 11)]
+    [Display(Name = "Physical Lineage", Description = "The fully qualified physical source lineage for this column when lineage is available.", AutoGenerateField = true, Order = 11)]
     public string FullyQualifiedSourceColumnName =>
         SqlQualify(BaseDatabase, BaseSchema, BaseTable, BaseColumn);
 
