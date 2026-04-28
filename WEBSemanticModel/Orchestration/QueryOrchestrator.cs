@@ -126,11 +126,11 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Orchestration
                             item.BaseColumn = item.Alias;
                         }
 
-                      // item.AllowIherit = false;
+                      
                     }
                     else
                     {
-                        //item.AllowIherit = true;
+                        
                     }
                 }
             }
