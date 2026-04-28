@@ -1,10 +1,12 @@
 ﻿namespace SchemaStudioWebViewer.WEBSemanticModel.Model
 {
-    [SchemaStudio.AIHelpers.FileVersion("1.0")]
-    [SchemaStudio.AIHelpers.AIFileContext("WEBSemanticModel/Model/ParsedQuery.cs", "Owns the parser result graph, validates resolved lineage, and projects SelectItems into ViewSourcedColumnDefinition records for UI workflows.", Responsibilities = "Carries DisableInheritance through the parsed-query projection step so parser-tagged semantic override flags reach the web save flow.", Nuances = "Keep the parser projection contract explicit here whenever new parser-owned fields need to survive into parsed columns.", RelatedFiles = "SelectItem, ViewMetadataBinder, ViewSourcedColumnDefinition", LastReviewed = "2026-04-25")]
+    [SchemaStudio.AIHelpers.FileVersion("1.1")]
+    [SchemaStudio.AIHelpers.AIFileContext("WEBSemanticModel/Model/ParsedQuery.cs", "Owns the parser result graph, validates resolved lineage, and projects SelectItems into ViewSourcedColumnDefinition records for UI workflows.", Responsibilities = "Carries DisableInheritance and Semantic* through the parsed-query projection step so parser-tagged override flags and semantic lookup targets reach parser column output.", Nuances = "Keep physical Base* and semantic Semantic* projection explicit whenever new parser-owned fields need to survive into parsed columns.", RelatedFiles = "SelectItem, ViewMetadataBinder, ViewSourcedColumnDefinition", LastReviewed = "2026-04-28")]
+    [SchemaStudio.AIHelpers.AIChange("1.1", "2026-04-28 09:47 PM CDT projected SelectItem Semantic* fields into ViewSourcedColumnDefinition so semantic lookup targets survive parser column materialization.", SchemaStudio.AIHelpers.AICommandStatus.Pending)]
     [SchemaStudio.AIHelpers.AIChange("1.0", "2026-04-25 12:18 PM CDT carried DisableInheritance through the parsed-query projection step so parser-tagged semantic override flags survive into the web save flow.", SchemaStudio.AIHelpers.AICommandStatus.Pending)]
     public class ParsedQuery
     {
+        // 2026-04-28 09:47 PM CDT AI v1.1 marker: parser projection now carries Semantic* lookup targets alongside physical Base* lineage.
         // 2026-04-25 12:18 PM CDT AI v1.0 marker: parsed query projection now carries DisableInheritance into parsed view columns.
         public string SourceQuery { get; set; }
 
@@ -122,6 +124,10 @@
                     BaseSchema = item.BaseSchema,
                     BaseTable = item.BaseTable,
                     BaseColumn = item.BaseColumn,
+                    SemanticDatabase = item.SemanticDatabase,
+                    SemanticSchema = item.SemanticSchema,
+                    SemanticObject = item.SemanticObject,
+                    SemanticColumn = item.SemanticColumn,
                     
 
                     Comment = item.Comment,

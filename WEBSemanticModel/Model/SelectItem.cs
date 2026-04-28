@@ -4,11 +4,13 @@ using SchemaStudio.AIHelpers;
 
 namespace SchemaStudioWebViewer.WEBSemanticModel.Model
 {
-    [FileVersion("1.0")]
-    [AIFileContext("WEBSemanticModel/Model/SelectItem.cs", "Carries parser-resolved select-item identity, lineage, and parser-owned metadata while the SQL query is being analyzed.", Responsibilities = "Carries DisableInheritance so comment-bound semantic lookup overrides can survive the trip from parser binding into projected parsed columns.", Nuances = "Keep this type narrowly focused on parser-captured state and avoid letting user-owned metadata become parser-owned by accident.", RelatedFiles = "ViewMetadataBinder, ParsedQuery, ViewSourcedColumnDefinition", LastReviewed = "2026-04-25")]
+    [FileVersion("1.1")]
+    [AIFileContext("WEBSemanticModel/Model/SelectItem.cs", "Carries parser-resolved select-item identity, physical lineage, semantic source identity, and parser-owned metadata while the SQL query is being analyzed.", Responsibilities = "Carries DisableInheritance and Semantic* fields so comment-bound semantic override flags and nearest non-physical source identity can survive later parser projection work.", Nuances = "Keep Base* as physical lineage; Semantic* is reserved for the nearest non-physical schema object/column encountered in the select chain.", RelatedFiles = "ViewMetadataBinder, ParsedQuery, ViewSourcedColumnDefinition, QueryBinder, ColumnBinder", LastReviewed = "2026-04-28")]
+    [AIChange("1.1", "2026-04-28 09:41 PM CDT added SemanticDatabase, SemanticSchema, SemanticObject, and SemanticColumn carriers to SelectItem so parser binding can later preserve nearest non-physical source identity separately from physical lineage.", AICommandStatus.Pending)]
     [AIChange("1.0", "2026-04-25 12:18 PM CDT added DisableInheritance to the parser select-item model so comment-bound semantic override tags survive into the parsed column projection.", AICommandStatus.Pending)]
     public class SelectItem
     {
+        // 2026-04-28 09:41 PM CDT AI v1.1 marker: SelectItem now reserves Semantic* fields for nearest non-physical schema object identity, separate from Base* physical lineage.
         // 2026-04-25 12:18 PM CDT AI v1.0 marker: parsed select items now carry DisableInheritance from SQL metadata comments.
         //-----------------------------------------
         // OUTPUT
@@ -45,6 +47,17 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Model
         public string BaseTable { get; set; }
 
         public string BaseColumn { get; set; }
+
+        //-----------------------------------------
+        // SEMANTIC SOURCE (RESOLVED)
+        //-----------------------------------------
+        public string SemanticDatabase { get; set; }
+
+        public string SemanticSchema { get; set; }
+
+        public string SemanticObject { get; set; }
+
+        public string SemanticColumn { get; set; }
 
 
         public string ExpressionDatabase { get; set; }

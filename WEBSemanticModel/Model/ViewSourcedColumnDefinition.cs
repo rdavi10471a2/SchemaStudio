@@ -13,11 +13,13 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Model
     //}
 
     [DefaultProperty("ColumnName")]
-    [SchemaStudio.AIHelpers.FileVersion("1.0")]
-    [SchemaStudio.AIHelpers.AIFileContext("WEBSemanticModel/Model/ViewSourcedColumnDefinition.cs", "Represents a parsed view column after projection resolution, including lineage and parser-carried business metadata before it is saved.", Responsibilities = "Carries DisableInheritance so semantic lookup overrides stay attached to parsed columns before the web save flow materializes them into SchemaObjectColumnDefinition rows.", Nuances = "Preserve the distinction between parser-owned metadata and user-owned metadata; this model can carry parser flags without making all business metadata parser authoritative.", RelatedFiles = "ParsedQuery, ViewMetadataBinder, ManageViews.razor", LastReviewed = "2026-04-25")]
+    [SchemaStudio.AIHelpers.FileVersion("1.1")]
+    [SchemaStudio.AIHelpers.AIFileContext("WEBSemanticModel/Model/ViewSourcedColumnDefinition.cs", "Represents a parsed view column after projection resolution, including physical lineage, semantic source identity, and parser-carried business metadata before it is saved.", Responsibilities = "Carries DisableInheritance and Semantic* so semantic lookup overrides and lookup targets stay attached to parsed columns before later save flows materialize them into SchemaObjectColumnDefinition rows.", Nuances = "Preserve the distinction between physical Base* lineage and semantic Semantic* lookup identity; this model can carry parser flags without making all business metadata parser authoritative.", RelatedFiles = "ParsedQuery, ViewMetadataBinder, ManageViews.razor", LastReviewed = "2026-04-28")]
+    [SchemaStudio.AIHelpers.AIChange("1.1", "2026-04-28 09:48 PM CDT added SemanticDatabase, SemanticSchema, SemanticObject, and SemanticColumn to parsed view columns so parser output can surface semantic lookup targets.", SchemaStudio.AIHelpers.AICommandStatus.Pending)]
     [SchemaStudio.AIHelpers.AIChange("1.0", "2026-04-25 12:18 PM CDT added DisableInheritance to the parsed view column model so the web save flow can initialize semantic override flags from parser metadata.", SchemaStudio.AIHelpers.AICommandStatus.Pending)]
     public class ViewSourcedColumnDefinition : INotifyPropertyChanged, IDataErrorInfo
     {
+        // 2026-04-28 09:48 PM CDT AI v1.1 marker: parsed view columns now carry Semantic* lookup identity separately from Base* lineage.
         // 2026-04-25 12:18 PM CDT AI v1.0 marker: parsed view columns now carry DisableInheritance into the web save flow.
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -36,6 +38,12 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Model
         private string _baseSchema;
         private string _baseTable;
         private string _baseColumn;
+
+        // Optional Semantic Lookup Target
+        private string _semanticDatabase;
+        private string _semanticSchema;
+        private string _semanticObject;
+        private string _semanticColumn;
 
         // 🔥 NEW: Semantic classification
         private ColumnKind _columnKind;
@@ -206,6 +214,42 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Model
         {
             get => _baseColumn;
             set => SetField(ref _baseColumn, value);
+        }
+
+        #endregion
+
+        #region Semantic Source (Optional)
+
+        [Category("Semantic Source")]
+        [DisplayName("Semantic Database")]
+        public string SemanticDatabase
+        {
+            get => _semanticDatabase;
+            set => SetField(ref _semanticDatabase, value);
+        }
+
+        [Category("Semantic Source")]
+        [DisplayName("Semantic Schema")]
+        public string SemanticSchema
+        {
+            get => _semanticSchema;
+            set => SetField(ref _semanticSchema, value);
+        }
+
+        [Category("Semantic Source")]
+        [DisplayName("Semantic Object")]
+        public string SemanticObject
+        {
+            get => _semanticObject;
+            set => SetField(ref _semanticObject, value);
+        }
+
+        [Category("Semantic Source")]
+        [DisplayName("Semantic Column")]
+        public string SemanticColumn
+        {
+            get => _semanticColumn;
+            set => SetField(ref _semanticColumn, value);
         }
 
         #endregion

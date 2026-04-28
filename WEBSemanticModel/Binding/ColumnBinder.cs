@@ -84,6 +84,7 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Binding
                     item.BaseSchema = innerMatch.BaseSchema;
                     item.BaseTable = innerMatch.BaseTable;
                     item.BaseColumn = innerMatch.BaseColumn;
+                    ApplySemanticSource(item, source, innerMatch, column);
                     item.Kind = innerMatch.Kind;
 
                     if (innerMatch.Kind != ColumnKind.Simple)
@@ -100,7 +101,31 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Binding
             item.BaseSchema = source.Schema;
             item.BaseTable = source.Table;
             item.BaseColumn = column;
+            // 2026-04-28 09:47 PM CDT AI marker: ColumnBinder seeds Semantic* from physical sources so parser output has a lookup target even without an intermediate semantic view.
+            item.SemanticDatabase = source.Database;
+            item.SemanticSchema = source.Schema;
+            item.SemanticObject = source.Table;
+            item.SemanticColumn = column;
             item.Kind = ColumnKind.Simple;
+        }
+
+        private static void ApplySemanticSource(SelectItem item, SourceTable source, SelectItem inner, string requestedColumn)
+        {
+            if (source?.Kind == SourceKind.NamedObject &&
+                source.NestedQuery != null &&
+                !string.IsNullOrWhiteSpace(source.Table))
+            {
+                item.SemanticDatabase = source.Database;
+                item.SemanticSchema = source.Schema;
+                item.SemanticObject = source.Table;
+                item.SemanticColumn = inner?.Alias ?? requestedColumn;
+                return;
+            }
+
+            item.SemanticDatabase = inner?.SemanticDatabase ?? inner?.BaseDatabase;
+            item.SemanticSchema = inner?.SemanticSchema ?? inner?.BaseSchema;
+            item.SemanticObject = inner?.SemanticObject ?? inner?.BaseTable;
+            item.SemanticColumn = inner?.SemanticColumn ?? inner?.BaseColumn ?? requestedColumn;
         }
 
         private static SelectItem ResolveFromDerived(ParsedQuery query, string column)

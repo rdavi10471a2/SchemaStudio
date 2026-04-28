@@ -117,6 +117,10 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Orchestration
                             item.BaseSchema = item.ExpressionSchema;
                             item.BaseTable = item.ExpressionTable;
                             item.BaseColumn = item.ExpressionColumn;
+                            item.SemanticDatabase = item.ExpressionDatabase;
+                            item.SemanticSchema = item.ExpressionSchema;
+                            item.SemanticObject = item.ExpressionTable;
+                            item.SemanticColumn = item.ExpressionColumn;
                         }
                         else
                         {
@@ -124,13 +128,21 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Orchestration
                             item.BaseSchema = schema;
                             item.BaseTable = objectName;
                             item.BaseColumn = item.Alias;
+                            // 2026-04-28 09:48 PM CDT AI marker: expression ownership now seeds Semantic* with the owning view when no upstream semantic source exists.
+                            item.SemanticDatabase = db;
+                            item.SemanticSchema = schema;
+                            item.SemanticObject = objectName;
+                            item.SemanticColumn = item.Alias;
                         }
 
                       
                     }
-                    else
+                    else if (string.IsNullOrWhiteSpace(item.SemanticObject))
                     {
-                        
+                        item.SemanticDatabase = item.BaseDatabase;
+                        item.SemanticSchema = item.BaseSchema;
+                        item.SemanticObject = item.BaseTable;
+                        item.SemanticColumn = item.BaseColumn;
                     }
                 }
             }

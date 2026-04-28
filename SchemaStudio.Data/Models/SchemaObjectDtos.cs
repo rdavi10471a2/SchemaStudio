@@ -117,6 +117,23 @@ public sealed class ViewColumnDto
     public string FullyQualifiedSourceColumnName =>
         SqlQualify(BaseDatabase, BaseSchema, BaseTable, BaseColumn);
 
+    [Display(Name = "Semantic Database", Description = "Database for the parser-selected semantic lookup target.", AutoGenerateField = false)]
+    public string? SemanticDatabase { get; set; }
+
+    [Display(Name = "Semantic Schema", Description = "Schema for the parser-selected semantic lookup target.", AutoGenerateField = false)]
+    public string? SemanticSchema { get; set; }
+
+    [Display(Name = "Semantic Object", Description = "Object for the parser-selected semantic lookup target.", AutoGenerateField = false)]
+    public string? SemanticObject { get; set; }
+
+    [Display(Name = "Semantic Column", Description = "Column for the parser-selected semantic lookup target.", AutoGenerateField = false)]
+    public string? SemanticColumn { get; set; }
+
+    // 2026-04-28 09:49 PM CDT AI marker: ParserLab columns can now surface the semantic lookup target separately from the physical source.
+    [Display(Name = "Semantic Source", Description = "The fully qualified semantic lookup target for this parsed column.", AutoGenerateField = true, Order = 12)]
+    public string FullyQualifiedSemanticColumnName =>
+        SqlQualify(SemanticDatabase, SemanticSchema, SemanticObject, SemanticColumn);
+
     [Display(Name = "Business Name", Order = 30)]
     [Description("Business Name for this column.")]
     public string? BusinessName { get; set; }

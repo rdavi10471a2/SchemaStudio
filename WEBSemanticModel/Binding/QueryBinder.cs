@@ -161,6 +161,8 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Binding
                 item.BaseTable = inner.BaseTable;
                 item.BaseColumn = inner.BaseColumn;
 
+                ApplySemanticSource(item, source, inner, column);
+
                 //-----------------------------------------
                 // KIND
                 //-----------------------------------------
@@ -207,8 +209,37 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Binding
             item.BaseTable = source.Table;
             item.BaseColumn = column;
 
+            // 2026-04-28 09:46 PM CDT AI marker: QueryBinder defaults Semantic* to physical lineage for direct sources and overwrites it when a named nested view is the semantic source.
+            item.SemanticDatabase = source.Database;
+            item.SemanticSchema = source.Schema;
+            item.SemanticObject = source.Table;
+            item.SemanticColumn = column;
+
             item.Kind = ColumnKind.Simple;
             item.ExpressionText = null;
+        }
+
+        private static void ApplySemanticSource(
+            SelectItem item,
+            SourceTable source,
+            SelectItem inner,
+            string requestedColumn)
+        {
+            if (source?.Kind == SourceKind.NamedObject &&
+                source.NestedQuery != null &&
+                !string.IsNullOrWhiteSpace(source.Table))
+            {
+                item.SemanticDatabase = source.Database;
+                item.SemanticSchema = source.Schema;
+                item.SemanticObject = source.Table;
+                item.SemanticColumn = inner?.Alias ?? requestedColumn;
+                return;
+            }
+
+            item.SemanticDatabase = inner?.SemanticDatabase ?? inner?.BaseDatabase;
+            item.SemanticSchema = inner?.SemanticSchema ?? inner?.BaseSchema;
+            item.SemanticObject = inner?.SemanticObject ?? inner?.BaseTable;
+            item.SemanticColumn = inner?.SemanticColumn ?? inner?.BaseColumn ?? requestedColumn;
         }
 
         //-----------------------------------------
