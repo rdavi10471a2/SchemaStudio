@@ -5,36 +5,44 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Model;
 
 public sealed class ParsedDependency
 {
-    [Display(Name = "Kind", Order = 10)]
+    [Display(Name = "Sequence", Order = 10)]
+    [Description("Display order for the parser dependency walk. Direct dependencies of the selected view are listed before their child dependencies.")]
+    public int Sequence { get; set; }
+
+    [Display(Name = "Parent", Order = 20)]
+    [Description("Fully qualified parent object whose parsed SQL referenced this dependency.")]
+    public string ParentName { get; set; } = "";
+
+    [Display(Name = "Kind", Order = 30)]
     [Description("Parser-resolved dependency kind. Views have a parsed child query; tables are terminal named objects.")]
     public string ObjectKind { get; set; } = "";
 
-    [Display(Name = "Database", Order = 20)]
-    [Description("Database resolved by the parser walk.")]
-    public string Database { get; set; } = "";
-
-    [Display(Name = "Schema", Order = 30)]
-    [Description("Schema resolved by the parser walk.")]
-    public string Schema { get; set; } = "";
-
-    [Display(Name = "Object", Order = 40)]
-    [Description("Object name resolved by the parser walk.")]
-    public string ObjectName { get; set; } = "";
-
-    [Display(Name = "Alias", Order = 50)]
-    [Description("Alias used at the point where this dependency was encountered.")]
-    public string? Alias { get; set; }
-
-    [Display(Name = "Depth", Order = 60)]
-    [Description("Distance from the root parsed view.")]
+    [Display(Name = "Depth", Order = 40)]
+    [Description("Distance from the selected parsed view. Depth 1 dependencies are referenced directly by the selected view.")]
     public int Depth { get; set; }
 
-    [Display(Name = "Resolved Name", Order = 70)]
+    [Display(Name = "Resolved Name", Order = 50)]
     [Description("Fully qualified parser-resolved dependency name.")]
     public string ResolvedName =>
         string.Join(".",
             new[] { Database, Schema, ObjectName }
                 .Where(part => !string.IsNullOrWhiteSpace(part)));
+
+    [Display(Name = "Database", Order = 60)]
+    [Description("Database resolved by the parser walk.")]
+    public string Database { get; set; } = "";
+
+    [Display(Name = "Schema", Order = 70)]
+    [Description("Schema resolved by the parser walk.")]
+    public string Schema { get; set; } = "";
+
+    [Display(Name = "Object", Order = 80)]
+    [Description("Object name resolved by the parser walk.")]
+    public string ObjectName { get; set; } = "";
+
+    [Display(Name = "Alias", Order = 90)]
+    [Description("Alias used at the point where this dependency was encountered.")]
+    public string? Alias { get; set; }
 }
 
 public static class ParsedDependencyExtensions
@@ -43,13 +51,14 @@ public static class ParsedDependencyExtensions
     {
         var dependencies = new List<ParsedDependency>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var sequence = 0;
 
         if (query == null)
         {
             return dependencies;
         }
 
-        AddResolvedDependencies(query, dependencies, seen, depth: 1);
+        AddResolvedDependencies(query, dependencies, seen, depth: 1, parentName: RootParentName(query), ref sequence);
         return dependencies;
     }
 
@@ -57,26 +66,44 @@ public static class ParsedDependencyExtensions
         ParsedQuery query,
         List<ParsedDependency> dependencies,
         HashSet<string> seen,
-        int depth)
+        int depth,
+        string parentName,
+        ref int sequence)
     {
-        foreach (var source in query.SourceTables)
+        var namedSources = query.SourceTables
+            .Where(source => source.Kind != SourceKind.DerivedQuery && !string.IsNullOrWhiteSpace(source.Table))
+            .ToList();
+
+        foreach (var source in namedSources)
         {
-            if (source.NestedQuery != null)
-            {
-                if (source.Kind != SourceKind.DerivedQuery)
-                {
-                    AddNamedDependency(source, dependencies, seen, depth, "View");
-                }
-
-                AddResolvedDependencies(source.NestedQuery, dependencies, seen, depth + 1);
-                continue;
-            }
-
-            if (source.Kind != SourceKind.DerivedQuery)
-            {
-                AddNamedDependency(source, dependencies, seen, depth, "Table");
-            }
+            AddNamedDependency(
+                source,
+                dependencies,
+                seen,
+                depth,
+                source.NestedQuery != null ? "View" : "Table",
+                parentName,
+                ref sequence);
         }
+
+        foreach (var source in namedSources.Where(source => source.NestedQuery != null))
+        {
+            AddResolvedDependencies(
+                source.NestedQuery!,
+                dependencies,
+                seen,
+                depth + 1,
+                QualifiedName(source.Database, source.Schema, source.Table),
+                ref sequence);
+        }
+    }
+
+    private static string RootParentName(ParsedQuery query)
+    {
+        var firstSource = query.SourceTables.FirstOrDefault();
+        return firstSource == null
+            ? "Selected view"
+            : "Selected view";
     }
 
     private static void AddNamedDependency(
@@ -84,7 +111,9 @@ public static class ParsedDependencyExtensions
         List<ParsedDependency> dependencies,
         HashSet<string> seen,
         int depth,
-        string objectKind)
+        string objectKind,
+        string parentName,
+        ref int sequence)
     {
         if (string.IsNullOrWhiteSpace(source.Table))
         {
@@ -103,6 +132,8 @@ public static class ParsedDependencyExtensions
 
         dependencies.Add(new ParsedDependency
         {
+            Sequence = ++sequence,
+            ParentName = parentName,
             ObjectKind = objectKind,
             Database = database,
             Schema = schema,
@@ -111,4 +142,9 @@ public static class ParsedDependencyExtensions
             Depth = depth
         });
     }
+
+    private static string QualifiedName(string? database, string? schema, string? objectName) =>
+        string.Join(".",
+            new[] { database, schema, objectName }
+                .Where(part => !string.IsNullOrWhiteSpace(part)));
 }

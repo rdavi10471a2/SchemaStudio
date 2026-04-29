@@ -10,13 +10,15 @@
                     Density="Density.Compact"
                     Style="height:100%;">
         <Columns>
+            <RadzenDataGridColumn TItem="ParsedDependency" Property="@nameof(ParsedDependency.Sequence)" Title="Seq" Width="80px" />
+            <RadzenDataGridColumn TItem="ParsedDependency" Property="@nameof(ParsedDependency.Depth)" Title="Depth" Width="90px" />
+            <RadzenDataGridColumn TItem="ParsedDependency" Property="@nameof(ParsedDependency.ParentName)" Title="Referenced By" Width="300px" />
             <RadzenDataGridColumn TItem="ParsedDependency" Property="@nameof(ParsedDependency.ObjectKind)" Title="Kind" Width="110px" />
             <RadzenDataGridColumn TItem="ParsedDependency" Property="@nameof(ParsedDependency.ResolvedName)" Title="Resolved Name" Width="300px" />
             <RadzenDataGridColumn TItem="ParsedDependency" Property="@nameof(ParsedDependency.Database)" Title="Database" Width="180px" />
             <RadzenDataGridColumn TItem="ParsedDependency" Property="@nameof(ParsedDependency.Schema)" Title="Schema" Width="120px" />
             <RadzenDataGridColumn TItem="ParsedDependency" Property="@nameof(ParsedDependency.ObjectName)" Title="Object" Width="220px" />
             <RadzenDataGridColumn TItem="ParsedDependency" Property="@nameof(ParsedDependency.Alias)" Title="Alias" Width="140px" />
-            <RadzenDataGridColumn TItem="ParsedDependency" Property="@nameof(ParsedDependency.Depth)" Title="Depth" Width="90px" />
         </Columns>
     </RadzenDataGrid>
 </RadzenStack>
