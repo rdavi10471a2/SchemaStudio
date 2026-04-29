@@ -10,7 +10,11 @@
 @inject TooltipService TooltipService
 @inject AttributeService Attr
 
-@attribute [FileVersion("1.1")]
+@attribute [FileVersion("1.2")]
+@attribute [AIChange(
+    "1.2",
+    "2026-04-29 02:56 PM CDT added domain deletion that reassigns saved schema objects to Unknown before removing the selected domain.",
+    AICommandStatus.Pending)]
 @attribute [AIChange("1.1", "2026-04-23 01:03 PM CDT added the ViewNameFilter field to Manage Databases so per-database integration view filtering can be maintained in the UI.", AICommandStatus.Pending)]
 @attribute [AIChange("1.0", "2026-04-22 06:31 PM CDT added help links and field-level info icons to database and domain maintenance forms.", AICommandStatus.Pending)]
 
@@ -174,7 +178,13 @@
                                         @DomainFormFields(editDomain)
 
                                         <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.75rem">
+                                            @* 2026-04-29 02:56 PM CDT AI v1.2 domain-delete marker: deleting a domain reassigns saved schema objects to Unknown instead of leaving stale domain strings. *@
                                             <RadzenButton Icon="refresh" Text="Reset" ButtonStyle="ButtonStyle.Light" Click="@ResetDomainEdit" />
+                                            <RadzenButton Icon="delete"
+                                                          Text="Delete Domain"
+                                                          ButtonStyle="ButtonStyle.Danger"
+                                                          Click="@DeleteDomain"
+                                                          Disabled="@IsUnknownDomain(selectedDomain)" />
                                             <RadzenButton Icon="save" Text="Save Selected Domain" ButtonType="ButtonType.Submit" ButtonStyle="ButtonStyle.Primary" />
                                         </RadzenStack>
                                     </RadzenTemplateForm>
@@ -564,6 +574,44 @@
         }
     }
 
+    private async Task DeleteDomain()
+    {
+        if (selectedDatabase is null || selectedDomain is null)
+            return;
+
+        if (IsUnknownDomain(selectedDomain))
+        {
+            Notify(NotificationSeverity.Warning, "The Unknown domain cannot be deleted.");
+            return;
+        }
+
+        var confirmed = await DialogService.Confirm(
+            $"Delete domain \"{selectedDomain.Domain}\"? Existing saved views and schema objects assigned to this domain will be reassigned to \"{DatabaseDomainRepository.UnknownDomainName}\". Available source views are not affected until they are imported.",
+            "Delete Domain",
+            new ConfirmOptions { OkButtonText = "Delete", CancelButtonText = "Cancel" });
+
+        if (confirmed != true)
+            return;
+
+        try
+        {
+            var result = await DomainRepository.DeleteAndReassignAsync(selectedDatabase.DatabaseId, selectedDomain.Domain);
+
+            Notify(
+                NotificationSeverity.Success,
+                $"Domain deleted. {result.ReassignedObjectCount} saved object(s) reassigned to {result.ReassignedDomain}.");
+
+            selectedDomain = null;
+            selectedDomains.Clear();
+            editDomain = new DatabaseDomainDefinition { DatabaseId = selectedDatabase.DatabaseId };
+            await LoadDomainsAsync(selectedDatabase.DatabaseId);
+        }
+        catch (Exception ex)
+        {
+            Notify(NotificationSeverity.Error, FriendlyError(ex));
+        }
+    }
+
     private RenderFragment DatabaseFormFields(DatabaseDefinition database) => @<RadzenStack Gap="1rem" class="rz-p-4">
         @* 2026-04-23 01:03 PM CDT AI v1.1 database-filter marker: Manage Databases now exposes the ViewNameFilter field for trimming integration view lists per database. *@
         @* 2026-04-22 06:31 PM CDT AI v1.0 manage-database-help marker: field labels use model Display/Description metadata for consistent help tooltips. *@
@@ -676,6 +724,10 @@
             existing.DatabaseDomainId != domain.DatabaseDomainId &&
             string.Equals(existing.Domain.Trim(), candidate, StringComparison.OrdinalIgnoreCase));
     }
+
+    private static bool IsUnknownDomain(DatabaseDomainDefinition? domain) =>
+        domain is not null &&
+        string.Equals(domain.Domain.Trim(), DatabaseDomainRepository.UnknownDomainName, StringComparison.OrdinalIgnoreCase);
 
     private void Notify(NotificationSeverity severity, string detail)
     {
