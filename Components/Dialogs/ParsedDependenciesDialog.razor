@@ -1,28 +1,182 @@
 @using SchemaStudioWebViewer.WEBSemanticModel.Model
 
 <RadzenStack Gap="0.75rem" Style="height:100%; min-height:520px; padding:10px;">
-    <RadzenDataGrid Data="@Dependencies"
-                    TItem="ParsedDependency"
-                    AllowPaging="false"
-                    AllowFiltering="true"
-                    AllowColumnResize="true"
-                    FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
-                    Density="Density.Compact"
-                    Style="height:100%;">
-        <Columns>
-            <RadzenDataGridColumn TItem="ParsedDependency" Property="@nameof(ParsedDependency.Sequence)" Title="Seq" Width="80px" />
-            <RadzenDataGridColumn TItem="ParsedDependency" Property="@nameof(ParsedDependency.Depth)" Title="Depth" Width="90px" />
-            <RadzenDataGridColumn TItem="ParsedDependency" Property="@nameof(ParsedDependency.ParentName)" Title="Referenced By" Width="300px" />
-            <RadzenDataGridColumn TItem="ParsedDependency" Property="@nameof(ParsedDependency.ObjectKind)" Title="Kind" Width="110px" />
-            <RadzenDataGridColumn TItem="ParsedDependency" Property="@nameof(ParsedDependency.ResolvedName)" Title="Resolved Name" Width="300px" />
-            <RadzenDataGridColumn TItem="ParsedDependency" Property="@nameof(ParsedDependency.Database)" Title="Database" Width="180px" />
-            <RadzenDataGridColumn TItem="ParsedDependency" Property="@nameof(ParsedDependency.Schema)" Title="Schema" Width="120px" />
-            <RadzenDataGridColumn TItem="ParsedDependency" Property="@nameof(ParsedDependency.ObjectName)" Title="Object" Width="220px" />
-            <RadzenDataGridColumn TItem="ParsedDependency" Property="@nameof(ParsedDependency.Alias)" Title="Alias" Width="140px" />
-        </Columns>
-    </RadzenDataGrid>
+    <div class="dependency-tree-shell">
+        @if (DependencyTreeNodes.Count == 0)
+        {
+            <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat">
+                No parser dependencies were returned for this view.
+            </RadzenAlert>
+        }
+        else
+        {
+            <ul class="dependency-tree">
+                @foreach (var node in DependencyTreeNodes)
+                {
+                    @RenderDependencyNode(node)
+                }
+            </ul>
+        }
+    </div>
 </RadzenStack>
+
+<style>
+    .dependency-tree-shell {
+        height: 100%;
+        overflow: auto;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 0.75rem;
+        background: #fff;
+    }
+
+    .dependency-tree,
+    .dependency-tree ul {
+        list-style: none;
+        margin: 0;
+        padding-left: 1.25rem;
+    }
+
+    .dependency-tree {
+        padding-left: 0;
+    }
+
+    .dependency-tree li {
+        position: relative;
+        margin: 0.35rem 0;
+    }
+
+    .dependency-tree li::before {
+        content: "";
+        position: absolute;
+        left: -0.75rem;
+        top: 0;
+        bottom: -0.45rem;
+        border-left: 1px solid #d5dbe1;
+    }
+
+    .dependency-tree > li::before {
+        display: none;
+    }
+
+    .dependency-node {
+        display: grid;
+        grid-template-columns: 74px minmax(260px, 1fr) 150px;
+        align-items: center;
+        gap: 0.75rem;
+        min-height: 34px;
+        padding: 0.35rem 0.55rem;
+        border: 1px solid #e6e9ee;
+        border-radius: 4px;
+        background: #f8f9fb;
+    }
+
+    .dependency-node.view {
+        border-color: #bcc7ff;
+        background: #f5f7ff;
+    }
+
+    .dependency-kind {
+        color: var(--rz-primary);
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    .dependency-name {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: #212529;
+        font-weight: 600;
+    }
+
+    .dependency-meta {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: #6c757d;
+        font-size: 0.85rem;
+        text-align: right;
+    }
+</style>
 
 @code {
     [Parameter] public IReadOnlyList<ParsedDependency> Dependencies { get; set; } = Array.Empty<ParsedDependency>();
+
+    private List<DependencyTreeNode> DependencyTreeNodes => BuildTree(Dependencies);
+
+    private RenderFragment RenderDependencyNode(DependencyTreeNode node) => @<li>
+        <div class="dependency-node @node.KindClass" title="@node.Name">
+            <div class="dependency-kind">@node.Dependency.ObjectKind</div>
+            <div class="dependency-name">@node.Name</div>
+            <div class="dependency-meta">@node.AliasText</div>
+        </div>
+        @if (node.Children.Count > 0)
+        {
+            <ul>
+                @foreach (var child in node.Children)
+                {
+                    @RenderDependencyNode(child)
+                }
+            </ul>
+        }
+    </li>;
+
+    private static List<DependencyTreeNode> BuildTree(IReadOnlyList<ParsedDependency> dependencies)
+    {
+        var ordered = dependencies
+            .OrderBy(dependency => dependency.Sequence)
+            .ToList();
+
+        var nodesByName = ordered
+            .GroupBy(dependency => dependency.ResolvedName, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => new DependencyTreeNode(group.First()),
+                StringComparer.OrdinalIgnoreCase);
+
+        var roots = new List<DependencyTreeNode>();
+
+        foreach (var dependency in ordered)
+        {
+            var node = nodesByName[dependency.ResolvedName];
+
+            if (!string.IsNullOrWhiteSpace(dependency.ParentName) &&
+                nodesByName.TryGetValue(dependency.ParentName, out var parent))
+            {
+                parent.Children.Add(node);
+                continue;
+            }
+
+            roots.Add(node);
+        }
+
+        return roots;
+    }
+
+    private sealed class DependencyTreeNode
+    {
+        public DependencyTreeNode(ParsedDependency dependency)
+        {
+            Dependency = dependency;
+        }
+
+        public ParsedDependency Dependency { get; }
+
+        public List<DependencyTreeNode> Children { get; } = new();
+
+        public string Name => Dependency.ResolvedName;
+
+        public string KindClass => string.Equals(Dependency.ObjectKind, "View", StringComparison.OrdinalIgnoreCase)
+            ? "view"
+            : "table";
+
+        public string AliasText => string.IsNullOrWhiteSpace(Dependency.Alias)
+            ? string.Empty
+            : $"as {Dependency.Alias}";
+    }
 }
