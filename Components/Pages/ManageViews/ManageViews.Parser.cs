@@ -6,6 +6,7 @@ using SchemaStudioWebViewer.WEBSemanticModel.Model;
 
 namespace SchemaStudioWebViewer.Components.Pages.ManageViews;
 
+[AIChange("3.11", "2026-04-29 6:27 PM CDT renamed Manage Views parsed dependency dialog title to resolved dependency chain.", AICommandStatus.Pending)]
 [AIChange("3.10", "2026-04-27 11:58 AM CDT moved Manage Views parser refresh, SQL display, parsed dependency, and where-used actions into a coarse feature partial.", AICommandStatus.Pending)]
 public partial class ManageViews
 {
@@ -118,7 +119,8 @@ public partial class ManageViews
         }
 
         await DialogService.OpenAsync<ParsedDependenciesDialog>(
-            $"Parsed Dependencies: {EditableObject.SourceObjectName}",
+            // 2026-04-29 6:27 PM CDT AI v3.11 marker: title reflects the full resolved dependency chain, not only immediate parsed references.
+            $"Resolved Dependency Chain: {EditableObject.SourceObjectName}",
             new Dictionary<string, object?>
             {
                 { "Dependencies", dependencies }
