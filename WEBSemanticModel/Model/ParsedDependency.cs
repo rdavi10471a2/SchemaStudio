@@ -50,7 +50,7 @@ public static class ParsedDependencyExtensions
     public static List<ParsedDependency> GetResolvedDependencies(this ParsedQuery? query)
     {
         var dependencies = new List<ParsedDependency>();
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var path = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var sequence = 0;
 
         if (query == null)
@@ -58,14 +58,14 @@ public static class ParsedDependencyExtensions
             return dependencies;
         }
 
-        AddResolvedDependencies(query, dependencies, seen, depth: 1, parentName: RootParentName(query), ref sequence);
+        AddResolvedDependencies(query, dependencies, path, depth: 1, parentName: "Selected view", ref sequence);
         return dependencies;
     }
 
     private static void AddResolvedDependencies(
         ParsedQuery query,
         List<ParsedDependency> dependencies,
-        HashSet<string> seen,
+        HashSet<string> path,
         int depth,
         string parentName,
         ref int sequence)
@@ -79,7 +79,6 @@ public static class ParsedDependencyExtensions
             AddNamedDependency(
                 source,
                 dependencies,
-                seen,
                 depth,
                 source.NestedQuery != null ? "View" : "Table",
                 parentName,
@@ -88,28 +87,27 @@ public static class ParsedDependencyExtensions
 
         foreach (var source in namedSources.Where(source => source.NestedQuery != null))
         {
+            var sourceName = QualifiedName(source.Database, source.Schema, source.Table);
+            if (!path.Add(sourceName))
+            {
+                continue;
+            }
+
             AddResolvedDependencies(
                 source.NestedQuery!,
                 dependencies,
-                seen,
+                path,
                 depth + 1,
-                QualifiedName(source.Database, source.Schema, source.Table),
+                sourceName,
                 ref sequence);
-        }
-    }
 
-    private static string RootParentName(ParsedQuery query)
-    {
-        var firstSource = query.SourceTables.FirstOrDefault();
-        return firstSource == null
-            ? "Selected view"
-            : "Selected view";
+            path.Remove(sourceName);
+        }
     }
 
     private static void AddNamedDependency(
         SourceTable source,
         List<ParsedDependency> dependencies,
-        HashSet<string> seen,
         int depth,
         string objectKind,
         string parentName,
@@ -123,12 +121,6 @@ public static class ParsedDependencyExtensions
         var database = source.Database ?? "";
         var schema = source.Schema ?? "";
         var objectName = source.Table;
-        var key = $"{database}.{schema}.{objectName}";
-
-        if (!seen.Add(key))
-        {
-            return;
-        }
 
         dependencies.Add(new ParsedDependency
         {

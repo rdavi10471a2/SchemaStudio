@@ -177,6 +177,6 @@
 
         public string AliasText => string.IsNullOrWhiteSpace(Dependency.Alias)
             ? string.Empty
-            : $"as {Dependency.Alias}";
+            : Dependency.Alias;
     }
 }
