@@ -75,7 +75,7 @@
 
     .dependency-node {
         display: grid;
-        grid-template-columns: 58px minmax(360px, 1fr) 120px;
+        grid-template-columns: 58px minmax(420px, 1fr);
         align-items: center;
         gap: 0.65rem;
         min-height: 32px;
@@ -110,15 +110,6 @@
         font-weight: 500;
     }
 
-    .dependency-meta {
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        color: #6c757d;
-        font-size: 0.85rem;
-        text-align: right;
-    }
 </style>
 
 @code {
@@ -130,7 +121,6 @@
         <div class="dependency-node @node.KindClass" title="@node.Name">
             <div class="dependency-kind">@node.Dependency.ObjectKind</div>
             <div class="dependency-name">@node.Name</div>
-            <div class="dependency-meta">@node.AliasText</div>
         </div>
         @if (node.Children.Count > 0)
         {
@@ -190,8 +180,6 @@
             ? "view"
             : "table";
 
-        public string AliasText => string.IsNullOrWhiteSpace(Dependency.Alias)
-            ? string.Empty
-            : Dependency.Alias;
+        // AI review marker 2026-04-29 18:21:00: hide aliases from the normal dependency preview.
     }
 }
