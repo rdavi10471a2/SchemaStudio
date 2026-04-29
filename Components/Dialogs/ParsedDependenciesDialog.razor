@@ -128,31 +128,29 @@
 
     private static List<DependencyTreeNode> BuildTree(IReadOnlyList<ParsedDependency> dependencies)
     {
-        var ordered = dependencies
-            .OrderBy(dependency => dependency.Sequence)
-            .ToList();
-
-        var nodesByName = ordered
-            .GroupBy(dependency => dependency.ResolvedName, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(
-                group => group.Key,
-                group => new DependencyTreeNode(group.First()),
-                StringComparer.OrdinalIgnoreCase);
-
         var roots = new List<DependencyTreeNode>();
+        var latestViewNodeByName = new Dictionary<string, DependencyTreeNode>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var dependency in ordered)
+        foreach (var dependency in dependencies.OrderBy(dependency => dependency.Sequence))
         {
-            var node = nodesByName[dependency.ResolvedName];
+            var node = new DependencyTreeNode(dependency);
 
             if (!string.IsNullOrWhiteSpace(dependency.ParentName) &&
-                nodesByName.TryGetValue(dependency.ParentName, out var parent))
+                latestViewNodeByName.TryGetValue(dependency.ParentName, out var parent))
             {
                 parent.Children.Add(node);
-                continue;
+            }
+            else
+            {
+                roots.Add(node);
             }
 
-            roots.Add(node);
+            // AI review marker 2026-04-29 18:18:00: keep repeated dependency occurrences; only use views as nesting anchors.
+            if (string.Equals(dependency.ObjectKind, "View", StringComparison.OrdinalIgnoreCase) &&
+                !string.IsNullOrWhiteSpace(dependency.ResolvedName))
+            {
+                latestViewNodeByName[dependency.ResolvedName] = node;
+            }
         }
 
         return roots;
