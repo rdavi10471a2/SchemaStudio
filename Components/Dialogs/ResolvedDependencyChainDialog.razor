@@ -1,93 +1,124 @@
 @using Radzen
 @using SchemaStudioWebViewer.WEBSemanticModel.Model
+@using SchemaStudioWebViewer.WEBSemanticModel.Services
 @inject DialogService DialogService
 @inject IJSRuntime JSRuntime
+@inject ViewParsingService ParserService
 
-<RadzenTabs class="resolved-chain-tabs">
-    <Tabs>
-        <RadzenTabsItem Text="Tree">
-            <div class="resolved-chain-layout">
-                <section class="chain-panel column-panel">
-                    <header class="chain-panel-header">SELECT COLUMNS (@ColumnNodes.Count)</header>
-                    <div class="chain-tree-wrap">
-                        <RadzenTree Data="@ColumnNodes"
-                                    Change="@OnTreeSelectionChanged"
-                                    Style="height:100%; width:100%;">
-                            <RadzenTreeLevel TextProperty="@nameof(ExplorerTreeNode.Text)"
-                                             ChildrenProperty="@nameof(ExplorerTreeNode.Children)"
-                                             HasChildren="@HasChildren"
-                                             Expanded="@IsExpanded">
-                                <Template Context="treeItem">
-                                    @RenderNode((ExplorerTreeNode)treeItem.Value)
-                                </Template>
-                            </RadzenTreeLevel>
-                        </RadzenTree>
-                    </div>
-                </section>
+<div class="resolved-chain-dialog-root">
+    <RadzenTabs class="resolved-chain-tabs"
+                RenderMode="TabRenderMode.Client"
+                @bind-SelectedIndex="SelectedTabIndex">
+        <Tabs>
+            <RadzenTabsItem Text="Tree">
+                <div class="resolved-chain-layout">
+                    <section class="chain-panel column-panel">
+                        <header class="chain-panel-header">SELECT COLUMNS (@ColumnNodes.Count)</header>
+                        <div class="chain-tree-wrap">
+                            <RadzenTree Data="@ColumnNodes"
+                                        Change="@OnTreeSelectionChanged"
+                                        Style="height:100%; width:100%;">
+                                <RadzenTreeLevel TextProperty="@nameof(ExplorerTreeNode.Text)"
+                                                 ChildrenProperty="@nameof(ExplorerTreeNode.Children)"
+                                                 HasChildren="@HasChildren"
+                                                 Expanded="@IsExpanded">
+                                    <Template Context="treeItem">
+                                        @if (treeItem.Value is ExplorerTreeNode node)
+                                        {
+                                            @RenderNode(node)
+                                        }
+                                    </Template>
+                                </RadzenTreeLevel>
+                            </RadzenTree>
+                        </div>
+                    </section>
 
-                <section class="chain-panel source-panel">
-                    <header class="chain-panel-header">FROM / JOIN SOURCES</header>
-                    <div class="chain-tree-wrap">
-                        <RadzenTree Data="@SourceNodes"
-                                    Change="@OnTreeSelectionChanged"
-                                    Style="height:100%; width:100%;">
-                            <RadzenTreeLevel TextProperty="@nameof(ExplorerTreeNode.Text)"
-                                             ChildrenProperty="@nameof(ExplorerTreeNode.Children)"
-                                             HasChildren="@HasChildren"
-                                             Expanded="@IsExpanded">
-                                <Template Context="treeItem">
-                                    @RenderNode((ExplorerTreeNode)treeItem.Value)
-                                </Template>
-                            </RadzenTreeLevel>
-                        </RadzenTree>
-                    </div>
-                </section>
+                    <section class="chain-panel source-panel">
+                        <header class="chain-panel-header">FROM / JOIN SOURCES</header>
+                        <div class="chain-tree-wrap">
+                            <RadzenTree Data="@SourceNodes"
+                                        Change="@OnTreeSelectionChanged"
+                                        Style="height:100%; width:100%;">
+                                <RadzenTreeLevel TextProperty="@nameof(ExplorerTreeNode.Text)"
+                                                 ChildrenProperty="@nameof(ExplorerTreeNode.Children)"
+                                                 HasChildren="@HasChildren"
+                                                 Expanded="@IsExpanded">
+                                    <Template Context="treeItem">
+                                        @if (treeItem.Value is ExplorerTreeNode node)
+                                        {
+                                            @RenderNode(node)
+                                        }
+                                    </Template>
+                                </RadzenTreeLevel>
+                            </RadzenTree>
+                        </div>
+                    </section>
 
-                <aside class="chain-panel detail-panel">
-                    <header class="chain-panel-header">@SelectedTitle</header>
-                    <div class="detail-body">
-                        @if (SelectedNode == null)
-                        {
-                            <div class="empty-detail">Select a column, inheritance node, lineage node, view, or table.</div>
-                        }
-                        else
-                        {
-                            <div class="detail-heading">
-                                @if (!string.IsNullOrWhiteSpace(SelectedNode.Badge))
-                                {
-                                    <span class="node-badge @SelectedNode.BadgeClass">@SelectedNode.Badge</span>
-                                }
-                                <span>@SelectedNode.Text</span>
-                            </div>
-
-                            @foreach (var detail in SelectedNode.Details)
+                    <aside class="chain-panel detail-panel">
+                        <header class="chain-panel-header">@SelectedTitle</header>
+                        <div class="detail-body">
+                            @if (SelectedNode == null)
                             {
-                                <div class="detail-row">
-                                    <span>@detail.Label</span>
-                                    <strong>@detail.Value</strong>
-                                </div>
+                                <div class="empty-detail">Select a column, inheritance node, lineage node, view, or table.</div>
                             }
-                        }
-                    </div>
-                </aside>
-            </div>
-        </RadzenTabsItem>
-        <RadzenTabsItem Text="SQL">
-            <div class="sql-code-container resolved-chain-sql">
-                <pre class="language-sql"><code class="language-sql">@SqlContent</code></pre>
-            </div>
-        </RadzenTabsItem>
-    </Tabs>
-</RadzenTabs>
+                            else
+                            {
+                                <div class="detail-heading">
+                                    @if (!string.IsNullOrWhiteSpace(SelectedNode.Badge))
+                                    {
+                                        <span class="node-badge @SelectedNode.BadgeClass">@SelectedNode.Badge</span>
+                                    }
+                                    <span>@SelectedNode.Text</span>
+                                </div>
 
-<div class="chain-dialog-actions">
-    <RadzenButton Text="Close" ButtonStyle="ButtonStyle.Light" Click="@(() => DialogService.Close())" />
+                                @if (SelectedNode.Kind == TreeNodeKind.View)
+                                {
+                                    <div class="detail-actions">
+                                        <RadzenButton Text="Show SQL"
+                                                      Icon="code"
+                                                      Size="ButtonSize.Small"
+                                                      ButtonStyle="ButtonStyle.Light"
+                                                      Click="@ShowSelectedViewSqlAsync" />
+                                    </div>
+                                }
+
+                                @foreach (var detail in SelectedNode.Details)
+                                {
+                                    <div class="detail-row">
+                                        <span>@detail.Label</span>
+                                        <strong>@detail.Value</strong>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </aside>
+                </div>
+            </RadzenTabsItem>
+            <RadzenTabsItem Text="@SqlTabTitle">
+                <div class="sql-code-container resolved-chain-sql">
+                    <pre class="language-sql"><code class="language-sql">@ActiveSqlContent</code></pre>
+                </div>
+            </RadzenTabsItem>
+        </Tabs>
+    </RadzenTabs>
+
+    <div class="chain-dialog-actions">
+        <RadzenButton Text="Close" ButtonStyle="ButtonStyle.Light" Click="@(() => DialogService.Close())" />
+    </div>
 </div>
 
 <style>
+    .resolved-chain-dialog-root {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        max-height: calc(100vh - 120px);
+        overflow: hidden;
+    }
+
     .resolved-chain-tabs {
-        height: calc(100% - 48px);
-        min-height: 640px;
+        flex: 1;
+        min-height: 0;
     }
 
     .resolved-chain-tabs .rz-tabview,
@@ -99,7 +130,7 @@
     .resolved-chain-layout {
         display: grid;
         grid-template-columns: minmax(520px, 1fr) minmax(460px, 0.9fr);
-        grid-template-rows: minmax(280px, 1fr) minmax(220px, 0.85fr);
+        grid-template-rows: minmax(0, 1fr) minmax(0, 0.82fr);
         grid-template-areas:
             "columns details"
             "sources details";
@@ -223,6 +254,10 @@
         font-weight: 700;
     }
 
+    .detail-actions {
+        padding: 0.75rem 0 0.25rem;
+    }
+
     .detail-row {
         display: grid;
         grid-template-columns: 150px minmax(0, 1fr);
@@ -259,6 +294,7 @@
     }
 
     .chain-dialog-actions {
+        flex: 0 0 auto;
         display: flex;
         justify-content: flex-end;
         padding: 0.5rem 0.75rem 0.75rem;
@@ -272,6 +308,9 @@
     private List<ExplorerTreeNode> ColumnNodes { get; set; } = new();
     private List<ExplorerTreeNode> SourceNodes { get; set; } = new();
     private ExplorerTreeNode? SelectedNode { get; set; }
+    private int SelectedTabIndex { get; set; }
+    private string ActiveSqlContent { get; set; } = string.Empty;
+    private string SqlTabTitle { get; set; } = "SQL";
 
     private string SelectedTitle => SelectedNode?.Kind switch
     {
@@ -287,6 +326,7 @@
     {
         ColumnNodes = BuildColumnNodes(ParsedView?.Columns ?? new List<ViewSourcedColumnDefinition>());
         SourceNodes = BuildSourceNodes(ParsedView?.SourceTables ?? new List<SourceTable>());
+        ActiveSqlContent = string.IsNullOrWhiteSpace(ActiveSqlContent) ? SqlContent : ActiveSqlContent;
         SelectedNode ??= ColumnNodes.FirstOrDefault();
     }
 
@@ -322,6 +362,27 @@
         {
             SelectedNode = node;
         }
+    }
+
+    private async Task ShowSelectedViewSqlAsync()
+    {
+        if (SelectedNode?.Kind != TreeNodeKind.View)
+        {
+            return;
+        }
+
+        var sql = ParserService.GetViewSql(
+            SelectedNode.Database,
+            SelectedNode.Schema,
+            SelectedNode.ObjectName);
+
+        ActiveSqlContent = sql ?? string.Empty;
+        SqlTabTitle = string.IsNullOrWhiteSpace(SelectedNode.ObjectName)
+            ? "SQL"
+            : $"SQL - {SelectedNode.ObjectName}";
+        SelectedTabIndex = 1;
+        await InvokeAsync(StateHasChanged);
+        await JSRuntime.InvokeVoidAsync("highlightSql", 30);
     }
 
     private static List<ExplorerTreeNode> BuildColumnNodes(IEnumerable<ViewSourcedColumnDefinition> columns)
@@ -402,13 +463,15 @@
         {
             Badge = isView ? "View" : "Table",
             BadgeClass = isView ? "inheritance" : string.Empty,
-            SecondaryText = string.IsNullOrWhiteSpace(source.Alias) ? string.Empty : $"alias {source.Alias}",
             Tooltip = objectName,
             Expanded = isView
         };
 
+        node.Database = source.Database ?? string.Empty;
+        node.Schema = source.Schema ?? string.Empty;
+        node.ObjectName = source.Table ?? string.Empty;
+
         AddDetail(node, "Object", objectName);
-        AddDetail(node, "Alias", source.Alias);
         AddDetail(node, "Join Type", source.JoinType);
         AddDetail(node, "Join", source.JoinExpression);
 
@@ -455,6 +518,9 @@
         public string BadgeClass { get; set; } = string.Empty;
         public string Tooltip { get; set; } = string.Empty;
         public bool Expanded { get; set; }
+        public string Database { get; set; } = string.Empty;
+        public string Schema { get; set; } = string.Empty;
+        public string ObjectName { get; set; } = string.Empty;
         public List<ExplorerTreeNode> Children { get; } = new();
         public List<DetailRow> Details { get; init; } = new();
     }
