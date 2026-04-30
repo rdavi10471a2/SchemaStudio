@@ -22,13 +22,17 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("1.3")]
+@attribute [FileVersion("1.5")]
+@attribute [AIChange("1.5", "2026-04-30 03:02 PM CDT moved object-level view tools into the selected-view header as compact toolbar actions while leaving refresh near the view workflow.", AICommandStatus.Pending)]
+@attribute [AIChange("1.4", "2026-04-30 02:59 PM CDT reduced the selector rail and made column metadata a true fixed-height scroll surface so resizing note fields cannot push the page past its viewport.", AICommandStatus.Pending)]
 @attribute [AIChange("1.3", "2026-04-30 02:55 PM CDT fixed the column metadata panels to a local listbox-style height so saved columns scroll inside the selector instead of stretching the page.", AICommandStatus.Pending)]
 @attribute [AIChange("1.2", "2026-04-30 02:49 PM CDT moved column synchronization into the view-definition pane and tightened the prototype shell so column editing keeps the main vertical space.", AICommandStatus.Pending)]
 @attribute [AIChange("1.1", "2026-04-30 04:17 PM CDT tightened the prototype page for a bounded app-height shell and forced selector/tree regions to scroll inside the page.", AICommandStatus.Pending)]
 @attribute [AIFileContext("Components/Pages/ManageViewsNext/ManageViewsNext.razor", "Prototype Manage Views replacement page that keeps the existing ManageViews page intact while testing a domain/tree selector, combined view-and-column editing layout, and relocated context actions.")]
 @attribute [AIChange("1.0", "2026-04-30 03:37 PM CDT added a side-by-side Manage Views prototype route with a scrollable domain tree selector and combined edit surface so the existing page remains untouched for fallback testing.", AICommandStatus.Pending)]
 
+@* 2026-04-30 03:02 PM CDT AI v1.5 manage-views-next marker: object-level tools moved to the selected-view header so edit panes stay focused on editable fields. *@
+@* 2026-04-30 02:59 PM CDT AI v1.4 manage-views-next marker: selector rail is narrower and column metadata is a fixed scroll surface even when textareas are resized. *@
 @* 2026-04-30 02:55 PM CDT AI v1.3 manage-views-next marker: column metadata now uses fixed local panel heights so the selector scrolls like a listbox. *@
 @* 2026-04-30 02:49 PM CDT AI v1.2 manage-views-next marker: synchronization now lives in the compact view-definition pane so the column editor owns the remaining workspace height. *@
 @* 2026-04-30 04:17 PM CDT AI v1.1 manage-views-next marker: page layout now expects the shared app shell to be viewport-bounded and keeps tree/list scrolling local. *@
@@ -206,17 +210,43 @@
                         <RadzenText TextStyle="TextStyle.Caption" class="mvn-source-name">@CurrentSourceFullName</RadzenText>
                     </div>
 
-                    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center">
+                    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.45rem" AlignItems="AlignItems.Center" class="mvn-header-toolbar">
+                        <RadzenButton Text="Reset"
+                                      Icon="restart_alt"
+                                      Size="ButtonSize.Small"
+                                      ButtonStyle="ButtonStyle.Light"
+                                      Click="@ResetEditorAsync"
+                                      Disabled="@IsBusy" />
+                        <RadzenButton Text="View Details"
+                                      Icon="table_view"
+                                      Size="ButtonSize.Small"
+                                      ButtonStyle="ButtonStyle.Light"
+                                      Click="@ShowParsedDependenciesAsync"
+                                      Disabled="@(!CanOpenDependencyTools || IsBusy)" />
+                        <RadzenButton Text="Where Used"
+                                      Icon="device_hub"
+                                      Size="ButtonSize.Small"
+                                      ButtonStyle="ButtonStyle.Light"
+                                      Click="@ShowWhereUsedAsync"
+                                      Disabled="@(!CanOpenDependencyTools || IsBusy)" />
+                        <RadzenButton Text="Show SQL"
+                                      Icon="code"
+                                      Size="ButtonSize.Small"
+                                      ButtonStyle="ButtonStyle.Light"
+                                      Click="@ShowSqlAsync"
+                                      Disabled="@(!CanOpenDependencyTools || IsBusy)" />
                         @if (CanDeleteCurrentView)
                         {
                             <RadzenButton Text="Delete View"
                                           Icon="delete"
+                                          Size="ButtonSize.Small"
                                           ButtonStyle="ButtonStyle.Danger"
                                           Click="@DeleteViewAsync"
                                           Disabled="@IsBusy" />
                         }
                         <RadzenButton Text="Save All Changes"
                                       Icon="save"
+                                      Size="ButtonSize.Small"
                                       Click="@SaveViewAsync"
                                       Disabled="@IsBusy" />
                     </RadzenStack>
@@ -268,11 +298,7 @@
                         </div>
 
                         <div class="mvn-view-actions">
-                            <RadzenButton Text="Reset View Changes" Icon="restart_alt" ButtonStyle="ButtonStyle.Light" Click="@ResetEditorAsync" Disabled="@IsBusy" />
                             <RadzenButton Text="Refresh View" Icon="sync" ButtonStyle="ButtonStyle.Light" Click="@RefreshCurrentViewAsync" Disabled="@(!CanOpenDependencyTools || IsBusy)" />
-                            <RadzenButton Text="View Details" Icon="table_view" ButtonStyle="ButtonStyle.Light" Click="@ShowParsedDependenciesAsync" Disabled="@(!CanOpenDependencyTools || IsBusy)" />
-                            <RadzenButton Text="Where Used" Icon="device_hub" ButtonStyle="ButtonStyle.Light" Click="@ShowWhereUsedAsync" Disabled="@(!CanOpenDependencyTools || IsBusy)" />
-                            <RadzenButton Text="Show SQL" Icon="code" ButtonStyle="ButtonStyle.Light" Click="@ShowSqlAsync" Disabled="@(!CanOpenDependencyTools || IsBusy)" />
                         </div>
 
                         <div class="mvn-sync-compact">

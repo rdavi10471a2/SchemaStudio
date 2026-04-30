@@ -1,3 +1,5 @@
+/* 2026-04-30 03:02 PM CDT AI v1.5 manage-views-next marker: object-level tools moved to the selected-view header so edit panes stay focused on editable fields. */
+/* 2026-04-30 02:59 PM CDT AI v1.4 manage-views-next marker: selector rail is narrower and column metadata is a fixed scroll surface even when textareas are resized. */
 /* 2026-04-30 02:55 PM CDT AI v1.3 manage-views-next marker: column metadata panels use fixed local heights so the column selector scrolls like a listbox. */
 /* 2026-04-30 02:49 PM CDT AI v1.2 manage-views-next marker: synchronization is compact inside the view-definition pane and the editor grid owns local scroll space. */
 /* 2026-04-30 04:17 PM CDT AI v1.1 manage-views-next marker: bounded app-height layout uses internal scrolling for selector, workspace, and column lists. */
@@ -32,7 +34,7 @@
 
 .mvn-shell {
     display: grid;
-    grid-template-columns: 340px minmax(0, 1fr);
+    grid-template-columns: 280px minmax(0, 1fr);
     gap: 1rem;
     flex: 1 1 auto;
     min-height: 0;
@@ -57,7 +59,7 @@
     height: 100%;
     display: grid;
     grid-template-rows: auto auto minmax(0, 1fr) auto;
-    padding: 1rem;
+    padding: 0.85rem;
     overflow: hidden;
 }
 
@@ -116,7 +118,7 @@
 }
 
 .mvn-tree-folder {
-    margin-left: 1.1rem;
+    margin-left: 0.8rem;
 }
 
 .mvn-tree-folder summary {
@@ -125,9 +127,9 @@
 }
 
 .mvn-tree-item {
-    width: calc(100% - 1.25rem);
+    width: calc(100% - 0.95rem);
     min-height: 32px;
-    margin: 0.1rem 0 0.1rem 1.25rem;
+    margin: 0.1rem 0 0.1rem 0.95rem;
     border: 0 !important;
     border-left: 3px solid transparent;
     background: transparent !important;
@@ -189,6 +191,12 @@
     flex: 0 0 auto;
 }
 
+.mvn-header-toolbar {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    min-width: min(100%, 760px);
+}
+
 .mvn-placeholder {
     min-height: 420px;
     display: grid;
@@ -240,7 +248,7 @@
 
 .mvn-editor-grid {
     display: grid;
-    grid-template-columns: minmax(340px, 0.9fr) minmax(520px, 1.35fr);
+    grid-template-columns: minmax(320px, 0.75fr) minmax(560px, 1.45fr);
     gap: 1rem;
     min-width: 0;
     min-height: 0;
@@ -340,8 +348,10 @@
     gap: 1rem;
     min-height: 0;
     min-width: 0;
-    height: clamp(360px, 46vh, 520px);
-    flex: 1 1 auto;
+    height: 330px;
+    max-height: 330px;
+    flex: 0 0 330px;
+    overflow: hidden;
 }
 
 .mvn-column-list-panel,
@@ -359,7 +369,7 @@
 }
 
 .mvn-column-detail-panel {
-    overflow-y: auto;
+    overflow: hidden;
 }
 
 .mvn-column-list {
@@ -370,6 +380,15 @@
     display: flex;
     flex-direction: column;
     gap: 0.15rem;
+}
+
+.mvn-column-fields {
+    display: grid;
+    gap: 0.9rem;
+    overflow: auto;
+    min-height: 0;
+    flex: 1 1 auto;
+    padding-right: 0.25rem;
 }
 
 .mvn-column-item {
@@ -431,11 +450,6 @@
 .mvn-column-detail-header h3 {
     margin: 0.15rem 0 0 0;
     font-size: 1.25rem;
-}
-
-.mvn-column-fields {
-    display: grid;
-    gap: 0.9rem;
 }
 
 .mvn-column-empty {
