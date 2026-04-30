@@ -123,10 +123,11 @@
     </RadzenTabs>
 
     <div class="chain-dialog-actions">
-        <RadzenButton Text="Help"
-                      Icon="help_outline"
-                      ButtonStyle="ButtonStyle.Light"
-                      Click="@OpenHelpAsync" />
+        <RadzenIcon Icon="help_outline"
+                    title="View Details help"
+                    aria-label="View Details help"
+                    Style="cursor:pointer;color:var(--rz-primary);font-size:1.25rem;"
+                    @onclick="@OpenHelpAsync" />
         <RadzenButton Text="Close" ButtonStyle="ButtonStyle.Light" Click="@(() => DialogService.Close())" />
     </div>
 </div>
