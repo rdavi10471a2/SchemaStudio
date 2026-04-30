@@ -21,7 +21,8 @@
                                 <RadzenTreeLevel TextProperty="@nameof(ExplorerTreeNode.Text)"
                                                  ChildrenProperty="@nameof(ExplorerTreeNode.Children)"
                                                  HasChildren="@HasChildren"
-                                                 Expanded="@IsExpanded">
+                                                 Expanded="@IsExpanded"
+                                                 Selected="@IsSelected">
                                     <Template Context="treeItem">
                                         @if (treeItem.Value is ExplorerTreeNode node)
                                         {
@@ -42,7 +43,8 @@
                                 <RadzenTreeLevel TextProperty="@nameof(ExplorerTreeNode.Text)"
                                                  ChildrenProperty="@nameof(ExplorerTreeNode.Children)"
                                                  HasChildren="@HasChildren"
-                                                 Expanded="@IsExpanded">
+                                                 Expanded="@IsExpanded"
+                                                 Selected="@IsSelected">
                                     <Template Context="treeItem">
                                         @if (treeItem.Value is ExplorerTreeNode node)
                                         {
@@ -207,10 +209,26 @@
     .resolved-chain-dialog-root .rz-tree .rz-tree-item-content.rz-state-highlight:hover,
     .resolved-chain-dialog-root .rz-tree .rz-tree-item-content.rz-state-selected,
     .resolved-chain-dialog-root .rz-tree .rz-tree-item-content.rz-state-selected:hover,
+    .resolved-chain-dialog-root .rz-tree .rz-tree-item-content.rz-state-active,
+    .resolved-chain-dialog-root .rz-tree .rz-tree-item-content.rz-state-active:hover,
+    .resolved-chain-dialog-root .rz-tree .rz-tree-item-content.rz-state-focused,
+    .resolved-chain-dialog-root .rz-tree .rz-tree-item-content.rz-state-focused:hover,
+    .resolved-chain-dialog-root .rz-tree .rz-treeitem-content.rz-state-highlight,
+    .resolved-chain-dialog-root .rz-tree .rz-treeitem-content.rz-state-highlight:hover,
+    .resolved-chain-dialog-root .rz-tree .rz-treeitem-content.rz-state-selected,
+    .resolved-chain-dialog-root .rz-tree .rz-treeitem-content.rz-state-selected:hover,
+    .resolved-chain-dialog-root .rz-tree .rz-treeitem-content.rz-state-active,
+    .resolved-chain-dialog-root .rz-tree .rz-treeitem-content.rz-state-active:hover,
+    .resolved-chain-dialog-root .rz-tree .rz-treeitem-content.rz-state-focused,
+    .resolved-chain-dialog-root .rz-tree .rz-treeitem-content.rz-state-focused:hover,
     .resolved-chain-dialog-root .rz-tree .rz-state-highlight,
     .resolved-chain-dialog-root .rz-tree .rz-state-highlight:hover,
     .resolved-chain-dialog-root .rz-tree .rz-state-selected,
-    .resolved-chain-dialog-root .rz-tree .rz-state-selected:hover {
+    .resolved-chain-dialog-root .rz-tree .rz-state-selected:hover,
+    .resolved-chain-dialog-root .rz-tree .rz-state-active,
+    .resolved-chain-dialog-root .rz-tree .rz-state-active:hover,
+    .resolved-chain-dialog-root .rz-tree .rz-state-focused,
+    .resolved-chain-dialog-root .rz-tree .rz-state-focused:hover {
         background: #eef3ff !important;
         color: #1f2937 !important;
         box-shadow: inset 3px 0 0 var(--rz-primary);
@@ -218,8 +236,16 @@
 
     .resolved-chain-dialog-root .rz-tree .rz-state-highlight *,
     .resolved-chain-dialog-root .rz-tree .rz-state-selected *,
+    .resolved-chain-dialog-root .rz-tree .rz-state-active *,
+    .resolved-chain-dialog-root .rz-tree .rz-state-focused *,
     .resolved-chain-dialog-root .rz-tree .rz-tree-item-content.rz-state-highlight *,
-    .resolved-chain-dialog-root .rz-tree .rz-tree-item-content.rz-state-selected * {
+    .resolved-chain-dialog-root .rz-tree .rz-tree-item-content.rz-state-selected *,
+    .resolved-chain-dialog-root .rz-tree .rz-tree-item-content.rz-state-active *,
+    .resolved-chain-dialog-root .rz-tree .rz-tree-item-content.rz-state-focused *,
+    .resolved-chain-dialog-root .rz-tree .rz-treeitem-content.rz-state-highlight *,
+    .resolved-chain-dialog-root .rz-tree .rz-treeitem-content.rz-state-selected *,
+    .resolved-chain-dialog-root .rz-tree .rz-treeitem-content.rz-state-active *,
+    .resolved-chain-dialog-root .rz-tree .rz-treeitem-content.rz-state-focused * {
         color: #1f2937 !important;
     }
 
@@ -240,6 +266,18 @@
         max-width: 100%;
         color: #1f2937;
         line-height: 1.45;
+    }
+
+    .tree-node-content.selected-node {
+        border-radius: 4px;
+        background: #eef3ff !important;
+        color: #1f2937 !important;
+        box-shadow: inset 3px 0 0 var(--rz-primary);
+        padding: 0.12rem 0.35rem;
+    }
+
+    .tree-node-content.selected-node .tree-node-text {
+        color: #1f2937 !important;
     }
 
     .tree-node-text {
@@ -418,7 +456,7 @@
         }
     }
 
-    private RenderFragment RenderNode(ExplorerTreeNode node) => @<div class="tree-node-content" title="@node.Tooltip">
+    private RenderFragment RenderNode(ExplorerTreeNode node) => @<div class="@GetTreeNodeContentClass(node)" title="@node.Tooltip">
         @if (!string.IsNullOrWhiteSpace(node.Badge))
         {
             <span class="node-badge @node.BadgeClass">@node.Badge</span>
@@ -435,6 +473,14 @@
 
     private static bool IsExpanded(object value) =>
         value is ExplorerTreeNode node && node.Expanded;
+
+    private bool IsSelected(object value) =>
+        value is ExplorerTreeNode node && ReferenceEquals(node, SelectedNode);
+
+    private string GetTreeNodeContentClass(ExplorerTreeNode node) =>
+        ReferenceEquals(node, SelectedNode)
+            ? "tree-node-content selected-node"
+            : "tree-node-content";
 
     private void OnTreeSelectionChanged(TreeEventArgs args)
     {

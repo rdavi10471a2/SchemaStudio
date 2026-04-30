@@ -6,6 +6,7 @@ using SchemaStudioWebViewer.WEBSemanticModel.Model;
 
 namespace SchemaStudioWebViewer.Components.Pages.ManageViews;
 
+[AIChange("3.14", "2026-04-30 11:10 AM CDT made the resolved dependency chain dialog non-draggable and disabled overlay-click close while keeping resize enabled.", AICommandStatus.Pending)]
 [AIChange("3.13", "2026-04-30 10:37 AM CDT constrained the resolved dependency chain dialog to viewport-relative sizing to avoid modal-level scrollbars.", AICommandStatus.Pending)]
 [AIChange("3.12", "2026-04-30 10:24 AM CDT routed Manage Views dependency inspection to the tree-and-SQL resolved dependency chain dialog.", AICommandStatus.Pending)]
 [AIChange("3.11", "2026-04-29 6:27 PM CDT renamed Manage Views parsed dependency dialog title to resolved dependency chain.", AICommandStatus.Pending)]
@@ -122,11 +123,12 @@ public partial class ManageViews
             },
             new DialogOptions
             {
-                // 2026-04-30 10:37 AM CDT AI v3.13 marker: keep scrolling inside tree panes/SQL, not on the dialog shell.
+                // 2026-04-30 11:10 AM CDT AI v3.14 marker: keep this large dependency surface modal and resizable, but prevent off-screen dragging and accidental overlay close.
                 Width = "min(1320px, calc(100vw - 96px))",
                 Height = "calc(100vh - 120px)",
                 Resizable = true,
-                Draggable = true
+                Draggable = false,
+                CloseDialogOnOverlayClick = false
             });
     }
 
