@@ -22,10 +22,12 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("1.0")]
+@attribute [FileVersion("1.1")]
+@attribute [AIChange("1.1", "2026-04-30 04:17 PM CDT tightened the prototype page for a bounded app-height shell and forced selector/tree regions to scroll inside the page.", AICommandStatus.Pending)]
 @attribute [AIFileContext("Components/Pages/ManageViewsNext/ManageViewsNext.razor", "Prototype Manage Views replacement page that keeps the existing ManageViews page intact while testing a domain/tree selector, combined view-and-column editing layout, and relocated context actions.")]
 @attribute [AIChange("1.0", "2026-04-30 03:37 PM CDT added a side-by-side Manage Views prototype route with a scrollable domain tree selector and combined edit surface so the existing page remains untouched for fallback testing.", AICommandStatus.Pending)]
 
+@* 2026-04-30 04:17 PM CDT AI v1.1 manage-views-next marker: page layout now expects the shared app shell to be viewport-bounded and keeps tree/list scrolling local. *@
 @* 2026-04-30 03:37 PM CDT AI v1.0 manage-views-next marker: prototype page lives beside the existing Manage Views surface without replacing it. *@
 @* Fragment References:
    - Components/Pages/ManageViewsNext/ManageViewsNext.razor.cs

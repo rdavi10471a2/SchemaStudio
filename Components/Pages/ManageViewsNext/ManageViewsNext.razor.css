@@ -1,6 +1,12 @@
+/* 2026-04-30 04:17 PM CDT AI v1.1 manage-views-next marker: bounded app-height layout uses internal scrolling for selector, workspace, and column lists. */
 /* 2026-04-30 03:37 PM CDT AI v1.0 manage-views-next marker: isolated styles keep the prototype layout separate from the current ManageViews page. */
 .manage-views-next {
     min-width: 0;
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 .mvn-page-header,
@@ -15,7 +21,8 @@
 }
 
 .mvn-page-header {
-    padding: 0.75rem 1rem;
+    flex: 0 0 auto;
+    padding: 0.7rem 1rem;
     background: #f7f8fb;
     border: 1px solid #e3e7ed;
     border-radius: 6px;
@@ -25,7 +32,9 @@
     display: grid;
     grid-template-columns: 340px minmax(0, 1fr);
     gap: 1rem;
-    min-height: calc(100vh - 230px);
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .mvn-shell-collapsed {
@@ -43,9 +52,11 @@
 
 .mvn-selector-panel {
     min-height: 0;
+    height: 100%;
     display: grid;
     grid-template-rows: auto auto minmax(0, 1fr) auto;
     padding: 1rem;
+    overflow: hidden;
 }
 
 .mvn-selector-header {
@@ -164,10 +175,12 @@
     flex-direction: column;
     gap: 1rem;
     min-width: 0;
+    min-height: 0;
+    overflow: auto;
 }
 
 .mvn-card {
-    padding: 1rem;
+    padding: 0.9rem;
 }
 
 .mvn-placeholder {
@@ -224,14 +237,17 @@
     grid-template-columns: minmax(340px, 0.9fr) minmax(520px, 1.35fr);
     gap: 1rem;
     min-width: 0;
+    min-height: 0;
+    align-items: stretch;
 }
 
 .mvn-view-editor,
 .mvn-column-editor {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 0.8rem;
     min-width: 0;
+    min-height: 0;
 }
 
 .mvn-field {
@@ -265,7 +281,7 @@
 }
 
 .mvn-textarea {
-    min-height: 92px;
+    min-height: 74px;
     resize: vertical;
 }
 
@@ -282,8 +298,9 @@
     display: grid;
     grid-template-columns: minmax(250px, 0.85fr) minmax(320px, 1.15fr);
     gap: 1rem;
-    min-height: 520px;
+    min-height: 0;
     min-width: 0;
+    flex: 1 1 auto;
 }
 
 .mvn-column-list-panel,
@@ -292,6 +309,7 @@
     border-radius: 6px;
     min-width: 0;
     min-height: 0;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
     padding: 0.75rem;
@@ -381,6 +399,7 @@
 
 .mvn-sync-summary {
     margin: 0;
+    flex: 0 0 auto;
 }
 
 ::deep .mvn-field-label .rzi,
@@ -398,6 +417,10 @@
     }
 
     .mvn-selector-panel {
-        min-height: 680px;
+        min-height: 520px;
+    }
+
+    .manage-views-next {
+        overflow: auto;
     }
 }
