@@ -1,3 +1,5 @@
+/* 2026-04-30 03:13 PM CDT AI v1.8 manage-views-next marker: selector rail is viewport-bounded so long domain trees cannot push Reload Databases off screen. */
+/* 2026-04-30 03:09 PM CDT AI v1.6 manage-views-next marker: editor cards can grow inside the bounded page scroll while the column selector keeps a fixed listbox scroll. */
 /* 2026-04-30 03:02 PM CDT AI v1.5 manage-views-next marker: object-level tools moved to the selected-view header so edit panes stay focused on editable fields. */
 /* 2026-04-30 02:59 PM CDT AI v1.4 manage-views-next marker: selector rail is narrower and column metadata is a fixed scroll surface even when textareas are resized. */
 /* 2026-04-30 02:55 PM CDT AI v1.3 manage-views-next marker: column metadata panels use fixed local heights so the column selector scrolls like a listbox. */
@@ -6,11 +8,10 @@
 /* 2026-04-30 03:37 PM CDT AI v1.0 manage-views-next marker: isolated styles keep the prototype layout separate from the current ManageViews page. */
 .manage-views-next {
     min-width: 0;
-    height: 100%;
-    min-height: 0;
+    min-height: 100%;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .mvn-page-header,
@@ -38,7 +39,8 @@
     gap: 1rem;
     flex: 1 1 auto;
     min-height: 0;
-    overflow: hidden;
+    overflow: visible;
+    align-items: start;
 }
 
 .mvn-shell-collapsed {
@@ -56,7 +58,11 @@
 
 .mvn-selector-panel {
     min-height: 0;
-    height: 100%;
+    height: calc(95vh - 168px);
+    max-height: calc(95vh - 168px);
+    align-self: start;
+    position: sticky;
+    top: 0;
     display: grid;
     grid-template-rows: auto auto minmax(0, 1fr) auto;
     padding: 0.85rem;
@@ -75,6 +81,7 @@
 
 .mvn-tree-scroll {
     min-height: 0;
+    height: 100%;
     overflow: auto;
     overflow-x: hidden;
     padding: 0.25rem 0.25rem 0.25rem 0;
@@ -180,7 +187,7 @@
     gap: 1rem;
     min-width: 0;
     min-height: 0;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .mvn-card {
@@ -253,8 +260,8 @@
     min-width: 0;
     min-height: 0;
     flex: 1 1 auto;
-    overflow: hidden;
-    align-items: stretch;
+    overflow: visible;
+    align-items: start;
 }
 
 .mvn-view-editor,
@@ -264,13 +271,12 @@
     gap: 0.8rem;
     min-width: 0;
     min-height: 0;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .mvn-view-editor {
     align-self: start;
-    max-height: 100%;
-    overflow: auto;
+    overflow: visible;
 }
 
 .mvn-field {
@@ -348,10 +354,8 @@
     gap: 1rem;
     min-height: 0;
     min-width: 0;
-    height: 330px;
-    max-height: 330px;
-    flex: 0 0 330px;
-    overflow: hidden;
+    align-items: start;
+    overflow: visible;
 }
 
 .mvn-column-list-panel,
@@ -360,7 +364,6 @@
     border-radius: 6px;
     min-width: 0;
     min-height: 0;
-    height: 100%;
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -368,8 +371,14 @@
     gap: 0.75rem;
 }
 
+.mvn-column-list-panel {
+    height: 330px;
+    max-height: 330px;
+}
+
 .mvn-column-detail-panel {
-    overflow: hidden;
+    min-height: 330px;
+    overflow: visible;
 }
 
 .mvn-column-list {
@@ -385,7 +394,7 @@
 .mvn-column-fields {
     display: grid;
     gap: 0.9rem;
-    overflow: auto;
+    overflow: visible;
     min-height: 0;
     flex: 1 1 auto;
     padding-right: 0.25rem;
@@ -473,7 +482,10 @@
     }
 
     .mvn-selector-panel {
+        height: auto;
+        max-height: none;
         min-height: 520px;
+        position: static;
     }
 
     .manage-views-next {

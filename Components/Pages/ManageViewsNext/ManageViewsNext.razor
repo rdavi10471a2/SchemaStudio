@@ -22,7 +22,10 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("1.5")]
+@attribute [FileVersion("1.8")]
+@attribute [AIChange("1.8", "2026-04-30 03:13 PM CDT bounded the view selector rail so the tree scrolls internally and the reload-databases action stays visible.", AICommandStatus.Pending)]
+@attribute [AIChange("1.7", "2026-04-30 03:09 PM CDT clarified view action buttons with explicit labels and mouseover text so reset, refresh, SQL, and save behavior is less ambiguous.", AICommandStatus.Pending)]
+@attribute [AIChange("1.6", "2026-04-30 03:09 PM CDT relaxed the prototype editor layout so resized textareas grow their cards and the bounded page scrolls while the column selector remains a fixed-height listbox.", AICommandStatus.Pending)]
 @attribute [AIChange("1.5", "2026-04-30 03:02 PM CDT moved object-level view tools into the selected-view header as compact toolbar actions while leaving refresh near the view workflow.", AICommandStatus.Pending)]
 @attribute [AIChange("1.4", "2026-04-30 02:59 PM CDT reduced the selector rail and made column metadata a true fixed-height scroll surface so resizing note fields cannot push the page past its viewport.", AICommandStatus.Pending)]
 @attribute [AIChange("1.3", "2026-04-30 02:55 PM CDT fixed the column metadata panels to a local listbox-style height so saved columns scroll inside the selector instead of stretching the page.", AICommandStatus.Pending)]
@@ -31,6 +34,9 @@
 @attribute [AIFileContext("Components/Pages/ManageViewsNext/ManageViewsNext.razor", "Prototype Manage Views replacement page that keeps the existing ManageViews page intact while testing a domain/tree selector, combined view-and-column editing layout, and relocated context actions.")]
 @attribute [AIChange("1.0", "2026-04-30 03:37 PM CDT added a side-by-side Manage Views prototype route with a scrollable domain tree selector and combined edit surface so the existing page remains untouched for fallback testing.", AICommandStatus.Pending)]
 
+@* 2026-04-30 03:13 PM CDT AI v1.8 manage-views-next marker: selector rail is viewport-bounded so long domain trees cannot push Reload Databases off screen. *@
+@* 2026-04-30 03:09 PM CDT AI v1.7 manage-views-next marker: view action buttons now expose clearer labels and hover text for reset, refresh, SQL, and save behavior. *@
+@* 2026-04-30 03:09 PM CDT AI v1.6 manage-views-next marker: editor cards can grow inside the bounded page scroll while the column selector keeps a fixed listbox scroll. *@
 @* 2026-04-30 03:02 PM CDT AI v1.5 manage-views-next marker: object-level tools moved to the selected-view header so edit panes stay focused on editable fields. *@
 @* 2026-04-30 02:59 PM CDT AI v1.4 manage-views-next marker: selector rail is narrower and column metadata is a fixed scroll surface even when textareas are resized. *@
 @* 2026-04-30 02:55 PM CDT AI v1.3 manage-views-next marker: column metadata now uses fixed local panel heights so the selector scrolls like a listbox. *@
@@ -211,28 +217,32 @@
                     </div>
 
                     <RadzenStack Orientation="Orientation.Horizontal" Gap="0.45rem" AlignItems="AlignItems.Center" class="mvn-header-toolbar">
-                        <RadzenButton Text="Reset"
+                        <RadzenButton Text="Reset View Edits"
                                       Icon="restart_alt"
                                       Size="ButtonSize.Small"
                                       ButtonStyle="ButtonStyle.Light"
+                                      title="Discard unsaved edits for the selected view and reload its last saved values."
                                       Click="@ResetEditorAsync"
                                       Disabled="@IsBusy" />
                         <RadzenButton Text="View Details"
                                       Icon="table_view"
                                       Size="ButtonSize.Small"
                                       ButtonStyle="ButtonStyle.Light"
+                                      title="Open parsed view details, including selected columns, source chain, and the view SQL tab."
                                       Click="@ShowParsedDependenciesAsync"
                                       Disabled="@(!CanOpenDependencyTools || IsBusy)" />
                         <RadzenButton Text="Where Used"
                                       Icon="device_hub"
                                       Size="ButtonSize.Small"
                                       ButtonStyle="ButtonStyle.Light"
+                                      title="Show SQL Server dependency metadata for objects that reference this view."
                                       Click="@ShowWhereUsedAsync"
                                       Disabled="@(!CanOpenDependencyTools || IsBusy)" />
-                        <RadzenButton Text="Show SQL"
+                        <RadzenButton Text="SQL"
                                       Icon="code"
                                       Size="ButtonSize.Small"
                                       ButtonStyle="ButtonStyle.Light"
+                                      title="Open only the raw SQL text for this view. View Details also includes this SQL."
                                       Click="@ShowSqlAsync"
                                       Disabled="@(!CanOpenDependencyTools || IsBusy)" />
                         @if (CanDeleteCurrentView)
@@ -241,12 +251,14 @@
                                           Icon="delete"
                                           Size="ButtonSize.Small"
                                           ButtonStyle="ButtonStyle.Danger"
+                                          title="Delete this imported Schema Studio view definition and its saved columns."
                                           Click="@DeleteViewAsync"
                                           Disabled="@IsBusy" />
                         }
                         <RadzenButton Text="Save All Changes"
                                       Icon="save"
                                       Size="ButtonSize.Small"
+                                      title="Save the view definition and all edited column metadata together."
                                       Click="@SaveViewAsync"
                                       Disabled="@IsBusy" />
                     </RadzenStack>
@@ -298,7 +310,12 @@
                         </div>
 
                         <div class="mvn-view-actions">
-                            <RadzenButton Text="Refresh View" Icon="sync" ButtonStyle="ButtonStyle.Light" Click="@RefreshCurrentViewAsync" Disabled="@(!CanOpenDependencyTools || IsBusy)" />
+                            <RadzenButton Text="Refresh Parsed View"
+                                          Icon="sync"
+                                          ButtonStyle="ButtonStyle.Light"
+                                          title="Reload this view's SQL from the database, clear parser cache for it, and rebuild the column synchronization review."
+                                          Click="@RefreshCurrentViewAsync"
+                                          Disabled="@(!CanOpenDependencyTools || IsBusy)" />
                         </div>
 
                         <div class="mvn-sync-compact">
@@ -308,6 +325,7 @@
                             </div>
                             <RadzenButton Text="Review Merge"
                                           Icon="published_with_changes"
+                                          title="Review parser-detected column changes before applying synchronization decisions."
                                           Click="@ReviewMergeAsync"
                                           Disabled="@IsBusy" />
                         </div>
