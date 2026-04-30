@@ -4,14 +4,16 @@ using SchemaStudio.Data.Models;
 
 namespace SchemaStudioWebViewer.Components.Pages.ManageViews;
 
+[AIChange("3.12", "2026-04-30 12:42 PM CDT updated Manage Views navigation prompts and guard checks so dirty saved-column edits block context changes like view-definition edits.", AICommandStatus.Pending)]
 [AIChange("3.10", "2026-04-27 11:58 AM CDT moved Manage Views selection, workspace reload, reset, navigation guard, and selection-key helpers into a coarse feature partial.", AICommandStatus.Pending)]
 public partial class ManageViews
 {
+    // 2026-04-30 12:42 PM CDT AI v3.12 marker: dirty saved-column edits now reuse the same context-switch guard as view-definition edits.
     private async Task OnDatabaseChanged(object value)
     {
         var previousDatabaseId = SelectedDatabase?.DatabaseId;
         if (await IsNavigationBlockedAsync(
-            "Discard unsaved view definition changes and switch databases?",
+            "Discard unsaved view or column changes and switch databases?",
             async () =>
             {
                 SelectedDatabaseId = previousDatabaseId;
@@ -44,7 +46,7 @@ public partial class ManageViews
     private async Task OnDomainFilterChangedCoreAsync(string? nextFilter)
     {
         if (await IsNavigationBlockedAsync(
-            "Discard unsaved view definition changes and change the domain filter?",
+            "Discard unsaved view or column changes and change the domain filter?",
             async () =>
             {
                 SelectedDomainFilter = LastAppliedDomainFilter;
@@ -65,7 +67,7 @@ public partial class ManageViews
     {
         var previousSelectionKey = SelectedViewItem?.SelectionKey;
         if (await IsNavigationBlockedAsync(
-            "Discard unsaved view definition changes and open another view?",
+            "Discard unsaved view or column changes and open another view?",
             async () =>
             {
                 SelectedViewKey = previousSelectionKey;
@@ -324,7 +326,7 @@ public partial class ManageViews
 
     private async Task<bool> ConfirmDiscardChangesAsync(string prompt)
     {
-        if (!IsViewDefinitionDirty)
+        if (!IsWorkspaceDirty)
         {
             return true;
         }

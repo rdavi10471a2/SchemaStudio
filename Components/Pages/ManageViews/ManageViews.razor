@@ -23,7 +23,9 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("3.10")]
+@attribute [FileVersion("3.12")]
+@attribute [AIChange("3.12", "2026-04-30 12:42 PM CDT included dirty saved-column edits in the Manage Views navigation guard so selector changes cannot silently discard column editor work.", AICommandStatus.Pending)]
+@attribute [AIChange("3.11", "2026-04-30 12:36 PM CDT made Save View persist dirty saved-column edits from the new selector/editor columns tab in the same save operation.", AICommandStatus.Pending)]
 @attribute [AIChange("3.10", "2026-04-27 11:58 AM CDT moved selection/workspace and parser/dependency actions into ManageViews.Selection.cs and ManageViews.Parser.cs so the Razor page shell is smaller before the next feature set.", AICommandStatus.Pending)]
 @attribute [AIChange("3.9", "2026-04-27 11:46 AM CDT moved column merge and review-row helper logic into ManageViews.Columns.cs so the page shell keeps less feature-specific code.", AICommandStatus.Pending)]
 @attribute [AIChange("3.8", "2026-04-27 11:23 AM CDT centralized manage-view navigation guards, tiered workspace resets, selection-key helpers, and item status labels so database, filter, and view changes share safer state transitions.", AICommandStatus.Pending)]
@@ -57,6 +59,8 @@
 
 <PageTitle>Manage Views</PageTitle>
 
+@* 2026-04-30 12:42 PM CDT AI v3.12 manage-views marker: unsaved column edits now participate in the same navigation guard as view-definition edits. *@
+@* 2026-04-30 12:36 PM CDT AI v3.11 manage-views marker: Save View now persists dirty saved-column edits from the selector/editor columns tab alongside the view definition. *@
 @* 2026-04-27 11:58 AM CDT AI v3.10 manage-views marker: selection/workspace and parser/dependency actions moved to feature partials before the next feature set. *@
 @* Fragment References:
    - Components/Pages/ManageViews/ManageViewsColumnsTab.razor
@@ -282,8 +286,7 @@
                                 <ManageViewsColumnsTab ViewDisplayName="@SelectedViewItem.DisplayName"
                                                        SavedColumns="@SavedColumns"
                                                        CanEditColumns="@(EditableObject?.SchemaObjectId > 0)"
-                                                       IsBusy="@IsBusy"
-                                                       EditColumnRequested="@OpenColumnEditorAsync" />
+                                                       IsBusy="@IsBusy" />
                             </RadzenTabsItem>
                         </Tabs>
                     </RadzenTabs>
@@ -331,6 +334,8 @@
                     .Where(part => !string.IsNullOrWhiteSpace(part)));
 
     private bool IsViewDefinitionDirty => EditableObject?.IsDirty ?? false;
+    private bool HasUnsavedColumnChanges => SavedColumns.Any(column => column.IsDirty);
+    private bool IsWorkspaceDirty => IsViewDefinitionDirty || HasUnsavedColumnChanges;
     private bool CanDeleteCurrentView => SelectedViewItem?.IsExisting == true && EditableObject?.SchemaObjectId > 0;
     private bool CanOpenDependencyTools => EditableObject != null;
     private string HeaderValidationMessage = string.Empty;
@@ -394,24 +399,6 @@
         IsLeftPanelHidden = !IsLeftPanelHidden;
     }
 
-    private Task OpenColumnEditorAsync(SchemaObjectColumnDefinition? column)
-    {
-        if (EditableObject?.SchemaObjectId <= 0)
-        {
-            NotificationService.Notify(NotificationSeverity.Warning, "Save view first", "Save the view definition before editing saved columns.", 3000);
-            return Task.CompletedTask;
-        }
-
-        if (column == null)
-        {
-            NotificationService.Notify(NotificationSeverity.Info, "Select a column", "Choose a saved column first. We will hang the popup editor off this action next.", 3000);
-            return Task.CompletedTask;
-        }
-
-        NotificationService.Notify(NotificationSeverity.Info, "Column editor coming next", $"Placeholder click handler for {column.SourceColumnName}. We can wire the popup editor here next.", 3000);
-        return Task.CompletedTask;
-    }
-
     private async Task SaveViewAsync()
     {
         if (EditableObject == null || SelectedDatabaseId == null)
@@ -446,7 +433,12 @@
                 SelectedViewKey = BuildExistingSelectionKey(EditableObject.SchemaObjectId);
             }
 
-            NotificationService.Notify(NotificationSeverity.Success, "View saved", "View metadata was saved successfully.", 2500);
+            if (EditableObject.SchemaObjectId > 0 && SavedColumns.Any(column => column.IsDirty))
+            {
+                await SchemaObjectColumnRepository.SaveAllAsync(SavedColumns);
+            }
+
+            NotificationService.Notify(NotificationSeverity.Success, "View saved", "View and column metadata were saved successfully.", 2500);
             HeaderValidationMessage = string.Empty;
             await LoadWorkspaceAsync(SelectedDatabaseId.Value, SelectedViewKey);
         }

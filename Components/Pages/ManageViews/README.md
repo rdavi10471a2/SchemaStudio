@@ -10,7 +10,8 @@ Update this README whenever any `Components/Pages/ManageViews/*` child file chan
   - Route/page shell for `/manage-views`.
   - Owns dependency injection, main markup layout, tabs, command buttons, editor form fields, and top-level page state fields.
   - Keeps high-level computed state such as `CurrentSourceFullName`, `IsViewDefinitionDirty`, `CanDeleteCurrentView`, `CanOpenDependencyTools`, `ColumnSummarySentence`, `LeftFilterDomains`, and `FilteredExistingViewItems`.
-  - Owns page-local commands that are still tied to the markup shell: `ToggleLeftPanel`, `OpenColumnEditorAsync`, `SaveViewAsync`, `DeleteViewAsync`, `GetPreferredDomain`, `ResolveSourceCatalogDatabase`, `FieldLabel`, and `NotifyFailure`.
+  - Owns page-local commands that are still tied to the markup shell: `ToggleLeftPanel`, `SaveViewAsync`, `DeleteViewAsync`, `GetPreferredDomain`, `ResolveSourceCatalogDatabase`, `FieldLabel`, and `NotifyFailure`.
+  - `SaveViewAsync` persists the view definition and dirty saved-column edits from the Columns tab in one save operation.
   - Defines `ViewWorkspaceItem`, including selection key, source identity, display text, domain, and status label.
 
 ## Partial Class Map
@@ -32,6 +33,7 @@ Update this README whenever any `Components/Pages/ManageViews/*` child file chan
     - `GetAvailableDisplayName`
     - `ConfirmDiscardChangesAsync`
   - Maintenance note: this file is the navigation safety gate. Database switches, domain filter changes, reloads, and view changes should share the same dirty-state guard path.
+  - Dirty-state note: the guard checks both view-definition dirtiness and saved-column edit dirtiness so the Columns tab cannot be silently discarded by a selector change.
 
 - `ManageViews.Parser.cs`
   - Use for parser refresh, parsed view rebuilds, Show SQL, dependency dialogs, and SQL Server where-used actions.
@@ -60,12 +62,14 @@ Update this README whenever any `Components/Pages/ManageViews/*` child file chan
 ## Child Components
 
 - `ManageViewsColumnsTab.razor`
-  - Saved-column maintenance fragment for the `Columns` tab.
-  - Parameters: selected view display name, `IReadOnlyList<SchemaObjectColumnDefinition>`, edit permission, busy state, and edit callback.
-  - Owns grid-local selected row state, column title text, row selection, edit-selected dispatch, and model-metadata header rendering.
+  - Saved-column editing fragment for the `Columns` tab.
+  - Parameters: selected view display name, `IReadOnlyList<SchemaObjectColumnDefinition>`, edit permission, and busy state.
+  - Owns selector-local selected column state, column filtering, right-side attribute-aware editor layout, metadata help rendering, and read-only lineage/source display.
+  - Editable fields are intentionally limited to user-owned saved-column metadata: `BusinessName`, `BusinessDescription`, `DeveloperNotes`, and `DisableInheritance`. Parser-owned source, physical lineage, and semantic source fields are displayed read-only.
+  - The previous grid implementation was saved as `ManageViewsColumnsTab.grid-backup.razor.txt` for short-term reference while the selector/editor surface stabilizes.
 
 - `ManageViewsColumnsTab.razor.css`
-  - Isolated styling for the saved-columns fragment, including sticky headers, continuous scrolling, and text-area-style preview cells.
+  - Isolated styling for the saved-columns selector/editor fragment, including the scrollable left selector, right-side property editor, metadata labels, dirty badges, and responsive single-column fallback.
 
 - `ManageViewsColumnReviewRow.cs`
   - Local row model for parser-vs-saved column review.
