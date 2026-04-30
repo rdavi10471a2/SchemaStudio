@@ -1,5 +1,6 @@
 /* 2026-04-30 04:30 PM CDT AI v1.17 manage-views-next marker: column selector names own the row and detail fields align from the top instead of drifting out of view. */
 /* 2026-04-30 04:34 PM CDT AI v1.18 manage-views-next marker: metadata editor parents clip horizontal overflow and force Radzen textareas to resize vertically only. */
+/* 2026-04-30 05:13 PM CDT AI v1.24 manage-views-next marker: column list and selected-column editor now share the same grid row height so the listbox grows with the detail panel. */
 /* 2026-04-30 05:07 PM CDT AI v1.23 manage-views-next marker: only the column selector listbox is height-bounded so metadata textareas can grow their parent cards after load. */
 /* 2026-04-30 04:59 PM CDT AI v1.22 manage-views-next marker: the editor grid now owns a real bounded height so Column Metadata cannot expand the page and its listbox can scroll. */
 /* 2026-04-30 04:51 PM CDT AI v1.21 manage-views-next marker: Column Metadata follows the editor row height and scrolls within that parent instead of owning an independent viewport clamp. */
@@ -434,7 +435,7 @@
     flex: 1 1 auto;
     min-height: 0;
     min-width: 0;
-    align-items: start;
+    align-items: stretch;
     overflow: visible;
 }
 
@@ -449,6 +450,7 @@
     flex-direction: column;
     padding: 0.75rem;
     gap: 0.75rem;
+    align-self: stretch;
 }
 
 .mvn-column-detail-panel {
@@ -457,16 +459,11 @@
     overflow-x: hidden;
 }
 
-.mvn-column-list-panel {
-    height: clamp(360px, calc(95vh - 390px), 520px);
-    max-height: calc(95vh - 390px);
-}
-
 .mvn-column-list {
     overflow: auto;
     min-height: 0;
-    height: 100%;
-    max-height: 100%;
+    height: auto;
+    max-height: calc(95vh - 390px);
     flex: 1 1 auto;
     display: flex;
     flex-direction: column;
