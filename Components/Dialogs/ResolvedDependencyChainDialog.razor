@@ -10,7 +10,7 @@
                 RenderMode="TabRenderMode.Client"
                 @bind-SelectedIndex="SelectedTabIndex">
         <Tabs>
-            <RadzenTabsItem Text="Tree">
+            <RadzenTabsItem Text="Dependencies">
                 <div class="resolved-chain-layout">
                     <section class="chain-panel column-panel">
                         <header class="chain-panel-header">SELECT COLUMNS (@ColumnNodes.Count)</header>
@@ -357,6 +357,7 @@
 @code {
     [Parameter] public ParsedQuery? ParsedView { get; set; }
     [Parameter] public string SqlContent { get; set; } = string.Empty;
+    [Parameter] public string SelectedViewName { get; set; } = string.Empty;
 
     private List<ExplorerTreeNode> ColumnNodes { get; set; } = new();
     private List<ExplorerTreeNode> SourceNodes { get; set; } = new();
@@ -452,9 +453,9 @@
             return;
         }
 
-        var title = ParsedView?.SourceTables.FirstOrDefault()?.Table is { Length: > 0 } objectName
-            ? $"SQL - {objectName}"
-            : "SQL";
+        var title = string.IsNullOrWhiteSpace(SelectedViewName)
+            ? "SQL"
+            : $"SQL - {SelectedViewName}";
 
         SqlTabs.Add(new SqlViewTab("selected-view", title, SqlContent));
     }
