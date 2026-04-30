@@ -71,6 +71,16 @@
                                     <span>@SelectedNode.Text</span>
                                 </div>
 
+                                <div class="detail-scroll">
+                                    @foreach (var detail in SelectedNode.Details)
+                                    {
+                                        <div class="detail-row">
+                                            <span>@detail.Label</span>
+                                            <strong>@detail.Value</strong>
+                                        </div>
+                                    }
+                                </div>
+
                                 @if (SelectedNode.Kind == TreeNodeKind.View)
                                 {
                                     <div class="detail-actions">
@@ -81,24 +91,19 @@
                                                       Click="@ShowSelectedViewSqlAsync" />
                                     </div>
                                 }
-
-                                @foreach (var detail in SelectedNode.Details)
-                                {
-                                    <div class="detail-row">
-                                        <span>@detail.Label</span>
-                                        <strong>@detail.Value</strong>
-                                    </div>
-                                }
                             }
                         </div>
                     </aside>
                 </div>
             </RadzenTabsItem>
-            <RadzenTabsItem Text="@SqlTabTitle">
-                <div class="sql-code-container resolved-chain-sql">
-                    <pre class="language-sql"><code class="language-sql">@ActiveSqlContent</code></pre>
-                </div>
-            </RadzenTabsItem>
+            @foreach (var sqlTab in SqlTabs)
+            {
+                <RadzenTabsItem Text="@sqlTab.Title">
+                    <div class="sql-code-container resolved-chain-sql">
+                        <pre class="language-sql"><code class="language-sql">@sqlTab.Content</code></pre>
+                    </div>
+                </RadzenTabsItem>
+            }
         </Tabs>
     </RadzenTabs>
 
@@ -180,6 +185,41 @@
         padding: 0.45rem 0.35rem;
     }
 
+    .resolved-chain-dialog-root .rz-tree .rz-tree-item-content {
+        min-height: 28px;
+        border-radius: 4px;
+        color: #1f2937;
+    }
+
+    .resolved-chain-dialog-root .rz-tree .rz-tree-item-content.rz-state-highlight,
+    .resolved-chain-dialog-root .rz-tree .rz-tree-item-content.rz-state-highlight:hover,
+    .resolved-chain-dialog-root .rz-tree .rz-tree-item-content.rz-state-selected,
+    .resolved-chain-dialog-root .rz-tree .rz-tree-item-content.rz-state-selected:hover,
+    .resolved-chain-dialog-root .rz-tree .rz-state-highlight,
+    .resolved-chain-dialog-root .rz-tree .rz-state-highlight:hover,
+    .resolved-chain-dialog-root .rz-tree .rz-state-selected,
+    .resolved-chain-dialog-root .rz-tree .rz-state-selected:hover {
+        background: #eef3ff !important;
+        color: #1f2937 !important;
+        box-shadow: inset 3px 0 0 var(--rz-primary);
+    }
+
+    .resolved-chain-dialog-root .rz-tree .rz-state-highlight *,
+    .resolved-chain-dialog-root .rz-tree .rz-state-selected *,
+    .resolved-chain-dialog-root .rz-tree .rz-tree-item-content.rz-state-highlight *,
+    .resolved-chain-dialog-root .rz-tree .rz-tree-item-content.rz-state-selected * {
+        color: #1f2937 !important;
+    }
+
+    .resolved-chain-dialog-root .rz-tree .rz-state-highlight .node-badge,
+    .resolved-chain-dialog-root .rz-tree .rz-state-selected .node-badge,
+    .resolved-chain-dialog-root .rz-tree .rz-tree-item-content.rz-state-highlight .node-badge,
+    .resolved-chain-dialog-root .rz-tree .rz-tree-item-content.rz-state-selected .node-badge {
+        background: #f5f7ff !important;
+        border-color: #d7ddff !important;
+        color: var(--rz-primary) !important;
+    }
+
     .tree-node-content {
         display: inline-flex;
         align-items: center;
@@ -239,7 +279,10 @@
 
     .detail-body {
         flex: 1;
-        overflow: auto;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        overflow: hidden;
         padding: 1rem;
     }
 
@@ -255,7 +298,17 @@
     }
 
     .detail-actions {
-        padding: 0.75rem 0 0.25rem;
+        flex: 0 0 auto;
+        display: flex;
+        justify-content: flex-end;
+        padding: 0.75rem 0 0;
+        border-top: 1px solid #e7ebf0;
+    }
+
+    .detail-scroll {
+        flex: 1;
+        min-height: 0;
+        overflow: auto;
     }
 
     .detail-row {
@@ -307,10 +360,9 @@
 
     private List<ExplorerTreeNode> ColumnNodes { get; set; } = new();
     private List<ExplorerTreeNode> SourceNodes { get; set; } = new();
+    private List<SqlViewTab> SqlTabs { get; set; } = new();
     private ExplorerTreeNode? SelectedNode { get; set; }
     private int SelectedTabIndex { get; set; }
-    private string ActiveSqlContent { get; set; } = string.Empty;
-    private string SqlTabTitle { get; set; } = "SQL";
 
     private string SelectedTitle => SelectedNode?.Kind switch
     {
@@ -326,7 +378,7 @@
     {
         ColumnNodes = BuildColumnNodes(ParsedView?.Columns ?? new List<ViewSourcedColumnDefinition>());
         SourceNodes = BuildSourceNodes(ParsedView?.SourceTables ?? new List<SourceTable>());
-        ActiveSqlContent = string.IsNullOrWhiteSpace(ActiveSqlContent) ? SqlContent : ActiveSqlContent;
+        EnsureInitialSqlTab();
         SelectedNode ??= ColumnNodes.FirstOrDefault();
     }
 
@@ -376,13 +428,35 @@
             SelectedNode.Schema,
             SelectedNode.ObjectName);
 
-        ActiveSqlContent = sql ?? string.Empty;
-        SqlTabTitle = string.IsNullOrWhiteSpace(SelectedNode.ObjectName)
+        var key = FormatQualifiedName(SelectedNode.Database, SelectedNode.Schema, SelectedNode.ObjectName);
+        var title = string.IsNullOrWhiteSpace(SelectedNode.ObjectName)
             ? "SQL"
             : $"SQL - {SelectedNode.ObjectName}";
-        SelectedTabIndex = 1;
+
+        var tabIndex = SqlTabs.FindIndex(tab => string.Equals(tab.Key, key, StringComparison.OrdinalIgnoreCase));
+        if (tabIndex < 0)
+        {
+            SqlTabs.Add(new SqlViewTab(key, title, sql ?? string.Empty));
+            tabIndex = SqlTabs.Count - 1;
+        }
+
+        SelectedTabIndex = tabIndex + 1;
         await InvokeAsync(StateHasChanged);
         await JSRuntime.InvokeVoidAsync("highlightSql", 30);
+    }
+
+    private void EnsureInitialSqlTab()
+    {
+        if (SqlTabs.Count > 0 || string.IsNullOrWhiteSpace(SqlContent))
+        {
+            return;
+        }
+
+        var title = ParsedView?.SourceTables.FirstOrDefault()?.Table is { Length: > 0 } objectName
+            ? $"SQL - {objectName}"
+            : "SQL";
+
+        SqlTabs.Add(new SqlViewTab("selected-view", title, SqlContent));
     }
 
     private static List<ExplorerTreeNode> BuildColumnNodes(IEnumerable<ViewSourcedColumnDefinition> columns)
@@ -464,7 +538,7 @@
             Badge = isView ? "View" : "Table",
             BadgeClass = isView ? "inheritance" : string.Empty,
             Tooltip = objectName,
-            Expanded = isView
+            Expanded = false
         };
 
         node.Database = source.Database ?? string.Empty;
@@ -526,4 +600,6 @@
     }
 
     private sealed record DetailRow(string Label, string Value);
+
+    private sealed record SqlViewTab(string Key, string Title, string Content);
 }
