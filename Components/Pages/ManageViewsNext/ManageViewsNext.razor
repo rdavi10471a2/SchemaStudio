@@ -1,0 +1,391 @@
+@page "/manage-views-next"
+
+@using Radzen
+@using Radzen.Blazor
+@using SchemaStudio.AIHelpers
+@using SchemaStudio.Data.Models
+@using SchemaStudio.Data.Repositories
+@using SchemaStudioWebViewer.Components.Dialogs
+@using SchemaStudioWebViewer.Components.Pages.ManageViews
+@using SchemaStudioWebViewer.Utils
+@using SchemaStudioWebViewer.WEBSemanticModel.Model
+@using SchemaStudioWebViewer.WEBSemanticModel.Services
+
+@inject DatabaseRepository DatabaseRepository
+@inject DatabaseDomainRepository DatabaseDomainRepository
+@inject SchemaObjectRepository SchemaObjectRepository
+@inject SchemaObjectColumnRepository SchemaObjectColumnRepository
+@inject SourceViewRepository SourceViewRepository
+@inject ViewParsingService ParserService
+@inject NotificationService NotificationService
+@inject TooltipService TooltipService
+@inject DialogService DialogService
+@inject SqlObjectDependencyRepository SqlObjectDependencyRepository
+
+@attribute [FileVersion("1.0")]
+@attribute [AIFileContext("Components/Pages/ManageViewsNext/ManageViewsNext.razor", "Prototype Manage Views replacement page that keeps the existing ManageViews page intact while testing a domain/tree selector, combined view-and-column editing layout, and relocated context actions.")]
+@attribute [AIChange("1.0", "2026-04-30 03:37 PM CDT added a side-by-side Manage Views prototype route with a scrollable domain tree selector and combined edit surface so the existing page remains untouched for fallback testing.", AICommandStatus.Pending)]
+
+@* 2026-04-30 03:37 PM CDT AI v1.0 manage-views-next marker: prototype page lives beside the existing Manage Views surface without replacing it. *@
+@* Fragment References:
+   - Components/Pages/ManageViewsNext/ManageViewsNext.razor.cs
+   - Components/Pages/ManageViewsNext/ManageViewsNext.Selection.cs
+   - Components/Pages/ManageViewsNext/ManageViewsNext.Parser.cs
+   - Components/Pages/ManageViewsNext/ManageViewsNext.Columns.cs
+   - Components/Pages/ManageViewsNext/ManageViewsNext.razor.css
+*@
+
+<PageTitle>Manage Views Next</PageTitle>
+
+<RadzenStack Gap="1rem" class="manage-views-next">
+    <div class="mvn-page-header">
+        <RadzenText TextStyle="TextStyle.H4" class="rz-m-0">Manage Views</RadzenText>
+        <RadzenButton Text="@(IsLeftPanelHidden ? "Show View Selector" : "Hide View Selector")"
+                      Icon="@(IsLeftPanelHidden ? "right_panel_open" : "left_panel_close")"
+                      ButtonStyle="ButtonStyle.Light"
+                      Click="@ToggleLeftPanel" />
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(LoadError))
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Danger" Variant="Variant.Flat">
+            @LoadError
+        </RadzenAlert>
+    }
+
+    <div class="@(IsLeftPanelHidden ? "mvn-shell mvn-shell-collapsed" : "mvn-shell")">
+        @if (!IsLeftPanelHidden)
+        {
+            <aside class="mvn-selector-panel">
+                <div class="mvn-selector-header">
+                    <RadzenText TextStyle="TextStyle.H6" class="rz-m-0">View Selector</RadzenText>
+                </div>
+
+                <div class="mvn-selector-filters">
+                    <div class="mvn-field">
+                        @FieldLabel(typeof(DatabaseDefinition), nameof(DatabaseDefinition.DatabaseName))
+                        <RadzenDropDown Data="@Databases"
+                                        TextProperty="DatabaseName"
+                                        ValueProperty="DatabaseId"
+                                        @bind-Value="@SelectedDatabaseId"
+                                        Change="@OnDatabaseChanged"
+                                        Style="width:100%;"
+                                        Placeholder="Database" />
+                    </div>
+
+                    <div class="mvn-field">
+                        @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.Domain))
+                        <RadzenDropDown Data="@LeftFilterDomains"
+                                        TextProperty="Domain"
+                                        ValueProperty="Domain"
+                                        @bind-Value="@SelectedDomainFilter"
+                                        Change="@OnDomainFilterChanged"
+                                        Style="width:100%;"
+                                        AllowClear="true"
+                                        Placeholder="All Domains" />
+                    </div>
+                </div>
+
+                <div class="mvn-tree-scroll" role="tree" aria-label="Views grouped by domain and type">
+                    @foreach (var group in DomainTreeGroups)
+                    {
+                        <details class="mvn-tree-domain" open>
+                            <summary>
+                                <RadzenIcon Icon="database" />
+                                <span>@group.Domain</span>
+                            </summary>
+
+                            <details class="mvn-tree-folder" open>
+                                <summary>
+                                    <RadzenIcon Icon="folder" />
+                                    <span>Base Views</span>
+                                </summary>
+                                @if (group.BaseViews.Count == 0)
+                                {
+                                    <div class="mvn-tree-empty">No base views</div>
+                                }
+                                else
+                                {
+                                    @foreach (var item in group.BaseViews)
+                                    {
+                                        @ViewTreeButton(item)
+                                    }
+                                }
+                            </details>
+
+                            <details class="mvn-tree-folder" open>
+                                <summary>
+                                    <RadzenIcon Icon="folder" />
+                                    <span>Composed Views</span>
+                                </summary>
+                                @if (group.ComposedViews.Count == 0)
+                                {
+                                    <div class="mvn-tree-empty">No composed views</div>
+                                }
+                                else
+                                {
+                                    @foreach (var item in group.ComposedViews)
+                                    {
+                                        @ViewTreeButton(item)
+                                    }
+                                }
+                            </details>
+                        </details>
+                    }
+
+                    <details class="mvn-tree-domain" open>
+                        <summary>
+                            <RadzenIcon Icon="playlist_add" />
+                            <span>Available Views</span>
+                        </summary>
+                        @if (AvailableViewItems.Count == 0)
+                        {
+                            <div class="mvn-tree-empty">No available views</div>
+                        }
+                        else
+                        {
+                            @foreach (var item in AvailableViewItems)
+                            {
+                                @ViewTreeButton(item)
+                            }
+                        }
+                    </details>
+                </div>
+
+                <div class="mvn-selector-reload">
+                    <RadzenButton Text="Reload Databases"
+                                  Icon="refresh"
+                                  ButtonStyle="ButtonStyle.Light"
+                                  Click="@ReloadDatabasesAsync"
+                                  Disabled="@IsBusy"
+                                  Style="width:100%;" />
+                    <div>Refreshes database choices, domains, imported views, and available candidates.</div>
+                </div>
+            </aside>
+        }
+
+        <main class="mvn-workspace">
+            @if (SelectedViewItem == null || EditableObject == null)
+            {
+                <div class="mvn-card mvn-placeholder">
+                    Select a view on the left to add or edit it.
+                </div>
+            }
+            else
+            {
+                <section class="mvn-card mvn-selected-header">
+                    <div class="mvn-title-block">
+                        <div class="mvn-title-row">
+                            <RadzenText TextStyle="TextStyle.H5" class="rz-m-0">@SelectedViewItem.DisplayName</RadzenText>
+                            <span class="mvn-status-chip">@SelectedViewClassification</span>
+                        </div>
+                        <RadzenText TextStyle="TextStyle.Caption" class="mvn-source-name">@CurrentSourceFullName</RadzenText>
+                    </div>
+
+                    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center">
+                        @if (CanDeleteCurrentView)
+                        {
+                            <RadzenButton Text="Delete View"
+                                          Icon="delete"
+                                          ButtonStyle="ButtonStyle.Danger"
+                                          Click="@DeleteViewAsync"
+                                          Disabled="@IsBusy" />
+                        }
+                        <RadzenButton Text="Save All Changes"
+                                      Icon="save"
+                                      Click="@SaveViewAsync"
+                                      Disabled="@IsBusy" />
+                    </RadzenStack>
+                </section>
+
+                <div class="mvn-editor-grid">
+                    <section class="mvn-card mvn-view-editor">
+                        <div class="mvn-panel-header">
+                            <RadzenText TextStyle="TextStyle.H6" class="rz-m-0">View Definition</RadzenText>
+                        </div>
+
+                        <div class="mvn-field">
+                            @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.BusinessName))
+                            <RadzenTextBox @bind-Value="@EditableObject.BusinessName" Style="width:100%;" MaxLength="128" />
+                        </div>
+
+                        <div class="mvn-view-definition-row">
+                            <div class="mvn-field">
+                                @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.Domain))
+                                <RadzenDropDown Data="@Domains"
+                                                TextProperty="Domain"
+                                                ValueProperty="Domain"
+                                                @bind-Value="@EditableObject.Domain"
+                                                Style="width:100%;"
+                                                AllowClear="true"
+                                                Placeholder="Unknown" />
+                            </div>
+
+                            <label class="mvn-check-field">
+                                @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.IsBaseObject))
+                                <RadzenCheckBox @bind-Value="@EditableObject.IsBaseObject" TValue="bool" />
+                            </label>
+                        </div>
+
+                        <div class="mvn-field">
+                            @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.BusinessDescription))
+                            <RadzenTextArea @bind-Value="@EditableObject.BusinessDescription"
+                                            Style="width:100%;"
+                                            class="mvn-textarea"
+                                            MaxLength="500" />
+                        </div>
+
+                        <div class="mvn-field">
+                            @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.DeveloperNotes))
+                            <RadzenTextArea @bind-Value="@EditableObject.DeveloperNotes"
+                                            Style="width:100%;"
+                                            class="mvn-textarea"
+                                            MaxLength="3200" />
+                        </div>
+
+                        <div class="mvn-view-actions">
+                            <RadzenButton Text="Reset View Changes" Icon="restart_alt" ButtonStyle="ButtonStyle.Light" Click="@ResetEditorAsync" Disabled="@IsBusy" />
+                            <RadzenButton Text="Refresh View" Icon="sync" ButtonStyle="ButtonStyle.Light" Click="@RefreshCurrentViewAsync" Disabled="@(!CanOpenDependencyTools || IsBusy)" />
+                            <RadzenButton Text="View Details" Icon="table_view" ButtonStyle="ButtonStyle.Light" Click="@ShowParsedDependenciesAsync" Disabled="@(!CanOpenDependencyTools || IsBusy)" />
+                            <RadzenButton Text="Where Used" Icon="device_hub" ButtonStyle="ButtonStyle.Light" Click="@ShowWhereUsedAsync" Disabled="@(!CanOpenDependencyTools || IsBusy)" />
+                            <RadzenButton Text="Show SQL" Icon="code" ButtonStyle="ButtonStyle.Light" Click="@ShowSqlAsync" Disabled="@(!CanOpenDependencyTools || IsBusy)" />
+                        </div>
+                    </section>
+
+                    <section class="mvn-card mvn-column-editor">
+                        <div class="mvn-panel-header">
+                            <RadzenText TextStyle="TextStyle.H6" class="rz-m-0">Column Metadata</RadzenText>
+                        </div>
+
+                        @if (!CanEditColumns)
+                        {
+                            <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat" class="rz-mt-2">
+                                Save the view definition first, then initialize or review columns.
+                            </RadzenAlert>
+                        }
+                        else if (SavedColumns.Count == 0)
+                        {
+                            <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat" class="rz-mt-2">
+                                No saved columns exist for this view yet. Review merge when you are ready to initialize columns.
+                            </RadzenAlert>
+                        }
+                        else
+                        {
+                            <div class="mvn-column-grid">
+                                <div class="mvn-column-list-panel">
+                                    <div class="mvn-column-list-header">
+                                        <span>Columns (@FilteredColumns.Count)</span>
+                                        @MetadataHelp(nameof(SchemaObjectColumnDefinition.SourceColumnName))
+                                    </div>
+                                    <RadzenTextBox @bind-Value="@ColumnFilter"
+                                                   Placeholder="Filter columns"
+                                                   Style="width:100%;"
+                                                   Change="@(_ => EnsureSelectedColumn())" />
+
+                                    <div class="mvn-column-list">
+                                        @foreach (var column in FilteredColumns)
+                                        {
+                                            <button type="button"
+                                                    class="@GetColumnSelectorClass(column)"
+                                                    title="@BuildColumnTooltip(column)"
+                                                    @onclick="@(() => SelectColumn(column))">
+                                                <span class="mvn-column-ordinal">@column.OrdinalPosition</span>
+                                                <span class="mvn-column-labels">
+                                                    <strong>@column.SourceColumnName</strong>
+                                                    @if (!string.IsNullOrWhiteSpace(column.BusinessName))
+                                                    {
+                                                        <span>@column.BusinessName</span>
+                                                    }
+                                                    else if (!string.IsNullOrWhiteSpace(column.BusinessDescription))
+                                                    {
+                                                        <span>@column.BusinessDescription</span>
+                                                    }
+                                                </span>
+                                                @if (column.IsDirty)
+                                                {
+                                                    <span class="mvn-edited-chip">Edited</span>
+                                                }
+                                            </button>
+                                        }
+                                    </div>
+                                </div>
+
+                                <div class="mvn-column-detail-panel">
+                                    <div class="mvn-column-detail-header">
+                                        <div>
+                                            <span class="mvn-detail-label">Selected Column</span>
+                                            <h3>@(SelectedColumn?.SourceColumnName ?? "No column selected")</h3>
+                                        </div>
+                                        <RadzenButton Text="Reset Column Changes"
+                                                      Icon="restart_alt"
+                                                      Size="ButtonSize.Small"
+                                                      ButtonStyle="ButtonStyle.Light"
+                                                      Click="@ResetSelectedColumnAsync"
+                                                      Disabled="@(SelectedColumn == null || !SelectedColumn.IsDirty || IsBusy)" />
+                                    </div>
+
+                                    @if (SelectedColumn == null)
+                                    {
+                                        <div class="mvn-column-empty">Select a saved column to edit its business metadata.</div>
+                                    }
+                                    else
+                                    {
+                                        @if (!CanEditSelectedColumnMetadata)
+                                        {
+                                            <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat">
+                                                Inherited metadata is read-only for composed views until base editing rules are finalized.
+                                            </RadzenAlert>
+                                        }
+
+                                        <div class="mvn-column-fields">
+                                            <div class="mvn-field">
+                                                @ColumnFieldLabel(nameof(SchemaObjectColumnDefinition.BusinessName))
+                                                <RadzenTextBox @bind-Value="@SelectedColumn.BusinessName"
+                                                               MaxLength="@GetMaxLength(nameof(SchemaObjectColumnDefinition.BusinessName))"
+                                                               Style="width:100%;"
+                                                               Disabled="@(!CanEditSelectedColumnMetadata)" />
+                                            </div>
+
+                                            <div class="mvn-field">
+                                                @ColumnFieldLabel(nameof(SchemaObjectColumnDefinition.BusinessDescription))
+                                                <RadzenTextArea @bind-Value="@SelectedColumn.BusinessDescription"
+                                                                MaxLength="@GetMaxLength(nameof(SchemaObjectColumnDefinition.BusinessDescription))"
+                                                                Style="width:100%;"
+                                                                class="mvn-textarea"
+                                                                Disabled="@(!CanEditSelectedColumnMetadata)" />
+                                            </div>
+
+                                            <div class="mvn-field">
+                                                @ColumnFieldLabel(nameof(SchemaObjectColumnDefinition.DeveloperNotes))
+                                                <RadzenTextArea @bind-Value="@SelectedColumn.DeveloperNotes"
+                                                                MaxLength="@GetMaxLength(nameof(SchemaObjectColumnDefinition.DeveloperNotes))"
+                                                                Style="width:100%;"
+                                                                class="mvn-textarea"
+                                                                Disabled="@(!CanEditSelectedColumnMetadata)" />
+                                            </div>
+
+                                            <label class="mvn-check-field">
+                                                @ColumnFieldLabel(nameof(SchemaObjectColumnDefinition.DisableInheritance))
+                                                <RadzenCheckBox @bind-Value="@SelectedColumn.DisableInheritance"
+                                                                TValue="bool"
+                                                                Disabled="@(!CanEditSelectedColumnMetadata)" />
+                                            </label>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </section>
+                </div>
+
+                <ManageViewsColumnSynchronizationSummary SummaryTitle="Column Synchronization"
+                                                         SummarySentence="@ColumnSummarySentence"
+                                                         ReviewButtonText="Review Merge"
+                                                         ReviewButtonDisabled="@IsBusy"
+                                                         ReviewButtonClick="@ReviewMergeAsync"
+                                                         DescriptionLines="@ColumnSynchronizationProcessLines"
+                                                         class="mvn-sync-summary" />
+            }
+        </main>
+    </div>
+</RadzenStack>
