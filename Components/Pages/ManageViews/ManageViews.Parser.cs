@@ -6,6 +6,7 @@ using SchemaStudioWebViewer.WEBSemanticModel.Model;
 
 namespace SchemaStudioWebViewer.Components.Pages.ManageViews;
 
+[AIChange("3.12", "2026-04-30 10:24 AM CDT routed Manage Views dependency inspection to the tree-and-SQL resolved dependency chain dialog.", AICommandStatus.Pending)]
 [AIChange("3.11", "2026-04-29 6:27 PM CDT renamed Manage Views parsed dependency dialog title to resolved dependency chain.", AICommandStatus.Pending)]
 [AIChange("3.10", "2026-04-27 11:58 AM CDT moved Manage Views parser refresh, SQL display, parsed dependency, and where-used actions into a coarse feature partial.", AICommandStatus.Pending)]
 public partial class ManageViews
@@ -110,25 +111,18 @@ public partial class ManageViews
             return;
         }
 
-        var dependencies = CurrentParsedView.GetResolvedDependencies();
-
-        if (dependencies.Count == 0)
-        {
-            NotificationService.Notify(NotificationSeverity.Info, "No dependencies", "The current parser result does not contain named object dependencies.", 3000);
-            return;
-        }
-
-        await DialogService.OpenAsync<ParsedDependenciesDialog>(
-            // 2026-04-29 6:27 PM CDT AI v3.11 marker: title reflects the full resolved dependency chain, not only immediate parsed references.
+        await DialogService.OpenAsync<ResolvedDependencyChainDialog>(
+            // 2026-04-30 10:24 AM CDT AI v3.12 marker: open the tree/SQL dependency explorer so column inheritance and physical lineage are inspectable together.
             $"Resolved Dependency Chain: {EditableObject.SourceObjectName}",
             new Dictionary<string, object?>
             {
-                { "Dependencies", dependencies }
+                { "ParsedView", CurrentParsedView },
+                { "SqlContent", CurrentParsedView.SourceQuery ?? string.Empty }
             },
             new DialogOptions
             {
-                Width = "1100px",
-                Height = "760px",
+                Width = "1320px",
+                Height = "860px",
                 Resizable = true,
                 Draggable = true
             });
