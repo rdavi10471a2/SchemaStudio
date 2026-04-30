@@ -22,7 +22,8 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("1.25")]
+@attribute [FileVersion("1.26")]
+@attribute [AIChange("1.26", "2026-04-30 06:09 PM CDT refreshed the Manage Views Next primary file context header to document the accepted prototype layout and split-file ownership model.", AICommandStatus.Pending)]
 @attribute [AIChange("1.25", "2026-04-30 05:59 PM CDT raised Manage Views Next view and column description/notes textareas to a 100px readable minimum height while preserving vertical resize.", AICommandStatus.Pending)]
 @attribute [AIChange("1.24", "2026-04-30 05:13 PM CDT made the Manage Views Next column selector panel share the selected-column editor row height so the listbox grows with its parent while still scrolling.", AICommandStatus.Pending)]
 @attribute [AIChange("1.23", "2026-04-30 05:07 PM CDT moved the Manage Views Next height constraint from the whole editor row to the column selector listbox so textareas can grow parent cards after load.", AICommandStatus.Pending)]
@@ -48,9 +49,10 @@
 @attribute [AIChange("1.3", "2026-04-30 02:55 PM CDT fixed the column metadata panels to a local listbox-style height so saved columns scroll inside the selector instead of stretching the page.", AICommandStatus.Pending)]
 @attribute [AIChange("1.2", "2026-04-30 02:49 PM CDT moved column synchronization into the view-definition pane and tightened the prototype shell so column editing keeps the main vertical space.", AICommandStatus.Pending)]
 @attribute [AIChange("1.1", "2026-04-30 04:17 PM CDT tightened the prototype page for a bounded app-height shell and forced selector/tree regions to scroll inside the page.", AICommandStatus.Pending)]
-@attribute [AIFileContext("Components/Pages/ManageViewsNext/ManageViewsNext.razor", "Prototype Manage Views replacement page that keeps the existing ManageViews page intact while testing a domain/tree selector, combined view-and-column editing layout, and relocated context actions.")]
+@attribute [AIFileContext("Components/Pages/ManageViewsNext/ManageViewsNext.razor", "Prototype Manage Views replacement page that keeps the existing ManageViews page intact while testing the accepted one-screen domain/tree selector, combined view-definition and column-metadata editing layout, relocated selected-view toolbar actions, and shared save/delete workflow.", Responsibilities = "Owns the /manage-views-next route, top-level markup, selector shell, view editor markup, column metadata editor markup, and composition of the partial-class workflow helpers.", Nuances = "The class-level FileVersion lives here; other ManageViewsNext partial files should use AIChange and AIFileContext without duplicating FileVersion. Keep the old ManageViews folder as fallback until this surface is accepted.", RelatedFiles = "ManageViewsNext.razor.cs; ManageViewsNext.Selection.cs; ManageViewsNext.Columns.cs; ManageViewsNext.Parser.cs; ManageViewsNext.razor.css; README.md", LastReviewed = "2026-04-30")]
 @attribute [AIChange("1.0", "2026-04-30 03:37 PM CDT added a side-by-side Manage Views prototype route with a scrollable domain tree selector and combined edit surface so the existing page remains untouched for fallback testing.", AICommandStatus.Pending)]
 
+@* 2026-04-30 06:09 PM CDT AI v1.26 manage-views-next marker: primary file context now documents route ownership, split-file responsibilities, and fallback-page boundaries. *@
 @* 2026-04-30 05:13 PM CDT AI v1.24 manage-views-next marker: column selector and selected-column editor now share row height, so the listbox grows with its parent. *@
 @* 2026-04-30 05:07 PM CDT AI v1.23 manage-views-next marker: only the column selector listbox is height-bounded; metadata textareas can grow their cards after load. *@
 @* 2026-04-30 04:59 PM CDT AI v1.22 manage-views-next marker: editor grid height is bounded so Column Metadata cannot stretch the page and column rows scroll locally. *@
