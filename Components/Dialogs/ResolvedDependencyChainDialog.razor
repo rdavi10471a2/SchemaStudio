@@ -5,6 +5,7 @@
 @inject DialogService DialogService
 @inject IJSRuntime JSRuntime
 @inject ViewParsingService ParserService
+@inject TooltipService TooltipService
 
 <div class="resolved-chain-dialog-root">
     <RadzenTabs class="resolved-chain-tabs"
@@ -14,7 +15,12 @@
             <RadzenTabsItem Text="View Details">
                 <div class="resolved-chain-layout">
                     <section class="chain-panel column-panel">
-                        <header class="chain-panel-header">SELECT COLUMNS (@ColumnNodes.Count)</header>
+                        <header class="chain-panel-header">
+                            <span>SELECT COLUMNS (@ColumnNodes.Count)</span>
+                            <RadzenIcon Icon="help_outline"
+                                        class="chain-header-help"
+                                        MouseEnter="@(args => TooltipService.Open(args, "Columns projected by the selected view. Expand a column to inspect its semantic source and physical lineage."))" />
+                        </header>
                         <div class="chain-tree-wrap">
                             <RadzenTree Data="@ColumnNodes"
                                         Change="@OnTreeSelectionChanged"
@@ -197,6 +203,17 @@
         font-weight: 700;
         letter-spacing: 0.03em;
         text-transform: uppercase;
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .chain-header-help {
+        color: var(--rz-primary);
+        cursor: help;
+        font-size: 1rem;
+        letter-spacing: 0;
+        text-transform: none;
     }
 
     .chain-tree-wrap {
