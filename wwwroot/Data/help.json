@@ -72,6 +72,68 @@
     ]
   },
   {
+    "Id": "view-details",
+    "Title": "View Details",
+    "Subtitle": "Columns, semantic source, physical lineage, and SQL",
+    "Icon": "account_tree",
+    "Details": [
+      {
+        "Id": "what-this-shows",
+        "Label": "What View Details Shows",
+        "Section": "Overview",
+        "Subtitle": "Exploded view definition",
+        "Description": "View Details expands a selected view into the columns it projects, the source objects used in its FROM/JOIN section, and the SQL text behind the selected view.\n\nUse this dialog when you need to answer two questions at the same time: what does this view expose, and where did each projected column come from?",
+        "Icon": "schema",
+        "CustomFragmentName": ""
+      },
+      {
+        "Id": "semantic-source",
+        "Label": "Inherited / Semantic Source",
+        "Section": "Column Meaning",
+        "Subtitle": "Where business meaning comes from",
+        "Description": "Inherited, or Semantic Source, identifies the object and column that provide the business meaning for the selected view column.\n\nThis is the metadata authority for Business Name, Business Description, and related documentation when inheritance is allowed.\n\nA semantic source may be an immediate semantic view rather than the physical table. That is intentional: the view where a lookup, role, or renamed business concept is first defined owns that meaning.",
+        "Icon": "psychology",
+        "CustomFragmentName": ""
+      },
+      {
+        "Id": "physical-lineage",
+        "Label": "Physical Lineage",
+        "Section": "Column Meaning",
+        "Subtitle": "Where the data value comes from",
+        "Description": "Physical Lineage identifies the lowest resolved database, schema, object, and column that supply the actual data value.\n\nThis is the technical path back to the source system column. It is useful for audits, impact checks, and proving where a value originates.\n\nPhysical lineage does not by itself prove business meaning. The same physical column can mean different things when joined multiple times under different roles.",
+        "Icon": "device_hub",
+        "CustomFragmentName": ""
+      },
+      {
+        "Id": "same-values",
+        "Label": "When They Are the Same",
+        "Section": "How to Interpret the Values",
+        "Subtitle": "Direct pass-through",
+        "Description": "When Semantic Source and Physical Lineage are the same, the column is effectively passing straight through from the same source object and column that owns its meaning.\n\nThis is common for base objects and simple columns where no intermediate semantic view changed the role, business name, lookup expansion, or interpretation.",
+        "Icon": "compare_arrows",
+        "CustomFragmentName": ""
+      },
+      {
+        "Id": "different-values",
+        "Label": "When They Are Different",
+        "Section": "How to Interpret the Values",
+        "Subtitle": "Meaning was defined above the physical source",
+        "Description": "When Semantic Source and Physical Lineage are different, the data value physically came from one place, but its business meaning was defined somewhere else in the semantic view chain.\n\nThis is expected for lookup expansions, role-specific joins, calculated columns, renamed outputs, and composed integration views.\n\nExample: an employee name may physically come from COEMP.Name, but a service view may define whether that name means Writer, Reviewer, Salesperson, or Ticket Employee. The semantic source carries that role-specific meaning.",
+        "Icon": "alt_route",
+        "CustomFragmentName": ""
+      },
+      {
+        "Id": "disable-inheritance",
+        "Label": "When Inheritance Is Disabled",
+        "Section": "Author Overrides",
+        "Subtitle": "Meaning is intentionally defined here",
+        "Description": "If inheritance is disabled for a column, the view author is saying the upstream metadata should not overwrite this column's business meaning.\n\nUse this when the same physical source is joined more than once under different roles, or when the projected column needs its own business name and description at this view level.",
+        "Icon": "block",
+        "CustomFragmentName": ""
+      }
+    ]
+  },
+  {
     "Id": "manage-databases",
     "Title": "Manage Databases",
     "Subtitle": "Database and domain maintenance",

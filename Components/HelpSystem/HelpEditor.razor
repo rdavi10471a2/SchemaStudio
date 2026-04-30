@@ -117,7 +117,7 @@ else
                                                 <RadzenStack Gap="1rem">
                                                     <RadzenRow AlignItems="AlignItems.Center">
                                                         <RadzenColumn Size="4">
-                                                            <RadzenFormField Text="Section Heading" Style="width: 100%;">
+                                                            <RadzenFormField Text="Detail Label" Style="width: 100%;">
                                                                 <RadzenTextBox @bind-Value="@detail.Label" Style="width: 100%;" Change="@(() => isDirty = true)" />
                                                             </RadzenFormField>
                                                         </RadzenColumn>
@@ -140,6 +140,9 @@ else
                                                                           Click="@(() => { SelectedSubject.Details.Remove(detail); isDirty = true; })" />
                                                         </RadzenColumn>
                                                     </RadzenRow>
+                                                    <RadzenFormField Text="Section Group">
+                                                        <RadzenTextBox @bind-Value="@detail.Section" Style="width: 100%;" Change="@(() => isDirty = true)" />
+                                                    </RadzenFormField>
                                                     <RadzenFormField Text="Sub-Heading">
                                                         <RadzenTextBox @bind-Value="@detail.Subtitle" Style="width: 100%;" Change="@(() => isDirty = true)" />
                                                     </RadzenFormField>
@@ -261,7 +264,7 @@ else
 
     private void AddDetail()
     {
-        SelectedSubject?.Details.Add(new HelpDetail { Label = "New Section", Icon = "article" });
+        SelectedSubject?.Details.Add(new HelpDetail { Label = "New Detail", Section = "General", Icon = "article" });
         isDirty = true;
     }
 }
