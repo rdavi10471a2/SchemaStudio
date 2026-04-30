@@ -22,7 +22,11 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("1.13")]
+@attribute [FileVersion("1.17")]
+@attribute [AIChange("1.17", "2026-04-30 04:20 PM CDT made the Column Metadata card own a viewport-aware vertical budget so its list and editor children stretch inside the parent without overflow.", AICommandStatus.Pending)]
+@attribute [AIChange("1.16", "2026-04-30 04:13 PM CDT removed visible ordinals from the Manage Views Next column selector while preserving ordinal ordering.", AICommandStatus.Pending)]
+@attribute [AIChange("1.15", "2026-04-30 04:11 PM CDT made Manage Views Next multiline metadata boxes show vertical scrollbars by default while preserving vertical resize.", AICommandStatus.Pending)]
+@attribute [AIChange("1.14", "2026-04-30 04:09 PM CDT moved Disable Inheritance above column business metadata and removed its blue container treatment while keeping the checkbox target visible.", AICommandStatus.Pending)]
 @attribute [AIChange("1.13", "2026-04-30 04:03 PM CDT hardened textarea resize constraints against Radzen-rendered elements and darkened the Disable Inheritance checkbox target.", AICommandStatus.Pending)]
 @attribute [AIChange("1.12", "2026-04-30 03:53 PM CDT constrained Manage Views Next textarea resizing to the card width and made Disable Inheritance visually prominent in the column editor.", AICommandStatus.Pending)]
 @attribute [AIChange("1.11", "2026-04-30 03:39 PM CDT simplified the column selector rows to column names only so the listbox can show more choices without business-name previews.", AICommandStatus.Pending)]
@@ -39,6 +43,10 @@
 @attribute [AIFileContext("Components/Pages/ManageViewsNext/ManageViewsNext.razor", "Prototype Manage Views replacement page that keeps the existing ManageViews page intact while testing a domain/tree selector, combined view-and-column editing layout, and relocated context actions.")]
 @attribute [AIChange("1.0", "2026-04-30 03:37 PM CDT added a side-by-side Manage Views prototype route with a scrollable domain tree selector and combined edit surface so the existing page remains untouched for fallback testing.", AICommandStatus.Pending)]
 
+@* 2026-04-30 04:20 PM CDT AI v1.17 manage-views-next marker: Column Metadata now stretches its child panels within a viewport-aware parent height. *@
+@* 2026-04-30 04:13 PM CDT AI v1.16 manage-views-next marker: column selector rows rely on sort order instead of showing ordinals. *@
+@* 2026-04-30 04:11 PM CDT AI v1.15 manage-views-next marker: multiline metadata textareas show vertical scrollbars by default while retaining vertical resize. *@
+@* 2026-04-30 04:09 PM CDT AI v1.14 manage-views-next marker: Disable Inheritance now appears before business fields without the blue container box. *@
 @* 2026-04-30 04:03 PM CDT AI v1.13 manage-views-next marker: Radzen textarea internals are width-bound and the Disable Inheritance checkbox target has a darker border. *@
 @* 2026-04-30 03:53 PM CDT AI v1.12 manage-views-next marker: textareas resize only vertically inside their cards and Disable Inheritance gets a visible checkbox row. *@
 @* 2026-04-30 03:39 PM CDT AI v1.11 manage-views-next marker: column selector rows show only the projected column name plus edit status to keep the listbox compact. *@
@@ -401,7 +409,6 @@
                                                     class="@GetColumnSelectorClass(column)"
                                                     title="@BuildColumnTooltip(column)"
                                                     @onclick="@(() => SelectColumn(column))">
-                                                <span class="mvn-column-ordinal">@column.OrdinalPosition</span>
                                                 <span class="mvn-column-labels">
                                                     <strong>@column.SourceColumnName</strong>
                                                 </span>
@@ -442,6 +449,13 @@
                                         }
 
                                         <div class="mvn-column-fields">
+                                            <label class="mvn-check-field mvn-inheritance-check">
+                                                @ColumnFieldLabel(nameof(SchemaObjectColumnDefinition.DisableInheritance))
+                                                <RadzenCheckBox @bind-Value="@SelectedColumn.DisableInheritance"
+                                                                TValue="bool"
+                                                                Disabled="@(!CanEditSelectedColumnMetadata)" />
+                                            </label>
+
                                             <div class="mvn-field">
                                                 @ColumnFieldLabel(nameof(SchemaObjectColumnDefinition.BusinessName))
                                                 <RadzenTextBox @bind-Value="@SelectedColumn.BusinessName"
@@ -468,12 +482,6 @@
                                                                 Disabled="@(!CanEditSelectedColumnMetadata)" />
                                             </div>
 
-                                            <label class="mvn-check-field mvn-inheritance-check">
-                                                @ColumnFieldLabel(nameof(SchemaObjectColumnDefinition.DisableInheritance))
-                                                <RadzenCheckBox @bind-Value="@SelectedColumn.DisableInheritance"
-                                                                TValue="bool"
-                                                                Disabled="@(!CanEditSelectedColumnMetadata)" />
-                                            </label>
                                         </div>
                                     }
                                 </div>
