@@ -22,7 +22,8 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("1.18")]
+@attribute [FileVersion("1.19")]
+@attribute [AIChange("1.19", "2026-04-30 04:39 PM CDT moved textarea width and vertical-resize constraints onto the RadzenTextArea inline styles so the browser applies them to the rendered textarea.", AICommandStatus.Pending)]
 @attribute [AIChange("1.18", "2026-04-30 04:30 PM CDT made the column selector row markup explicit so hiding ordinals cannot hide or displace editable column fields.", AICommandStatus.Pending)]
 @attribute [AIChange("1.17", "2026-04-30 04:20 PM CDT made the Column Metadata card own a viewport-aware vertical budget so its list and editor children stretch inside the parent without overflow.", AICommandStatus.Pending)]
 @attribute [AIChange("1.16", "2026-04-30 04:13 PM CDT removed visible ordinals from the Manage Views Next column selector while preserving ordinal ordering.", AICommandStatus.Pending)]
@@ -44,6 +45,7 @@
 @attribute [AIFileContext("Components/Pages/ManageViewsNext/ManageViewsNext.razor", "Prototype Manage Views replacement page that keeps the existing ManageViews page intact while testing a domain/tree selector, combined view-and-column editing layout, and relocated context actions.")]
 @attribute [AIChange("1.0", "2026-04-30 03:37 PM CDT added a side-by-side Manage Views prototype route with a scrollable domain tree selector and combined edit surface so the existing page remains untouched for fallback testing.", AICommandStatus.Pending)]
 
+@* 2026-04-30 04:39 PM CDT AI v1.19 manage-views-next marker: textarea constraints are inline on RadzenTextArea so horizontal resize cannot escape the card. *@
 @* 2026-04-30 04:30 PM CDT AI v1.18 manage-views-next marker: column selector rows use explicit name/status regions so editable fields stay visible. *@
 @* 2026-04-30 04:20 PM CDT AI v1.17 manage-views-next marker: Column Metadata now stretches its child panels within a viewport-aware parent height. *@
 @* 2026-04-30 04:13 PM CDT AI v1.16 manage-views-next marker: column selector rows rely on sort order instead of showing ordinals. *@
@@ -339,7 +341,7 @@
                         <div class="mvn-field">
                             @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.BusinessDescription))
                             <RadzenTextArea @bind-Value="@EditableObject.BusinessDescription"
-                                            Style="width:100%;"
+                                            Style="width:100%; max-width:100%; min-width:0; box-sizing:border-box; resize:vertical; overflow-y:scroll;"
                                             class="mvn-textarea"
                                             MaxLength="500" />
                         </div>
@@ -347,7 +349,7 @@
                         <div class="mvn-field">
                             @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.DeveloperNotes))
                             <RadzenTextArea @bind-Value="@EditableObject.DeveloperNotes"
-                                            Style="width:100%;"
+                                            Style="width:100%; max-width:100%; min-width:0; box-sizing:border-box; resize:vertical; overflow-y:scroll;"
                                             class="mvn-textarea"
                                             MaxLength="3200" />
                         </div>
@@ -470,7 +472,7 @@
                                                 @ColumnFieldLabel(nameof(SchemaObjectColumnDefinition.BusinessDescription))
                                                 <RadzenTextArea @bind-Value="@SelectedColumn.BusinessDescription"
                                                                 MaxLength="@GetMaxLength(nameof(SchemaObjectColumnDefinition.BusinessDescription))"
-                                                                Style="width:100%;"
+                                                                Style="width:100%; max-width:100%; min-width:0; box-sizing:border-box; resize:vertical; overflow-y:scroll;"
                                                                 class="mvn-textarea"
                                                                 Disabled="@(!CanEditSelectedColumnMetadata)" />
                                             </div>
@@ -479,7 +481,7 @@
                                                 @ColumnFieldLabel(nameof(SchemaObjectColumnDefinition.DeveloperNotes))
                                                 <RadzenTextArea @bind-Value="@SelectedColumn.DeveloperNotes"
                                                                 MaxLength="@GetMaxLength(nameof(SchemaObjectColumnDefinition.DeveloperNotes))"
-                                                                Style="width:100%;"
+                                                                Style="width:100%; max-width:100%; min-width:0; box-sizing:border-box; resize:vertical; overflow-y:scroll;"
                                                                 class="mvn-textarea"
                                                                 Disabled="@(!CanEditSelectedColumnMetadata)" />
                                             </div>
