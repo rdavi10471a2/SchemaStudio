@@ -5,7 +5,6 @@
 @inject DialogService DialogService
 @inject IJSRuntime JSRuntime
 @inject ViewParsingService ParserService
-@inject TooltipService TooltipService
 
 <div class="resolved-chain-dialog-root">
     <RadzenTabs class="resolved-chain-tabs"
@@ -15,12 +14,7 @@
             <RadzenTabsItem Text="View Details">
                 <div class="resolved-chain-layout">
                     <section class="chain-panel column-panel">
-                        <header class="chain-panel-header">
-                            <span>SELECT COLUMNS (@ColumnNodes.Count)</span>
-                            <RadzenIcon Icon="help_outline"
-                                        class="chain-header-help"
-                                        MouseEnter="@(args => TooltipService.Open(args, "Columns projected by the selected view. Expand a column to inspect its semantic source and physical lineage."))" />
-                        </header>
+                        <header class="chain-panel-header">SELECT COLUMNS (@ColumnNodes.Count)</header>
                         <div class="chain-tree-wrap">
                             <RadzenTree Data="@ColumnNodes"
                                         Change="@OnTreeSelectionChanged"
@@ -206,14 +200,6 @@
         display: flex;
         align-items: center;
         gap: 0.35rem;
-    }
-
-    .chain-header-help {
-        color: var(--rz-primary);
-        cursor: help;
-        font-size: 1rem;
-        letter-spacing: 0;
-        text-transform: none;
     }
 
     .chain-tree-wrap {
@@ -604,12 +590,14 @@
             {
                 var node = new ExplorerTreeNode(TreeNodeKind.Column, column.ColumnName)
                 {
-                    Tooltip = column.ColumnName,
+                    Tooltip = BuildColumnTooltip(column),
                     Expanded = false
                 };
 
                 AddDetail(node, "Column", column.ColumnName);
                 AddDetail(node, "Ordinal", column.OrdinalPosition.ToString());
+                AddDetail(node, "Business Name", column.BusinessName);
+                AddDetail(node, "Business Description", column.BusinessDescription);
                 AddDetail(node, "Semantic Source", FormatQualifiedName(column.SemanticDatabase, column.SemanticSchema, column.SemanticObject, column.SemanticColumn));
                 AddDetail(node, "Physical Lineage", FormatQualifiedName(column.BaseDatabase, column.BaseSchema, column.BaseTable, column.BaseColumn));
                 AddDetail(node, "Inheritance", column.DisableInheritance ? "Disabled for this column" : "Allowed");
@@ -655,6 +643,23 @@
                 return node;
             })
             .ToList();
+    }
+
+    private static string BuildColumnTooltip(ViewSourcedColumnDefinition column)
+    {
+        if (!string.IsNullOrWhiteSpace(column.BusinessDescription))
+        {
+            return string.IsNullOrWhiteSpace(column.BusinessName)
+                ? column.BusinessDescription
+                : $"{column.BusinessName}: {column.BusinessDescription}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(column.BusinessName))
+        {
+            return column.BusinessName;
+        }
+
+        return column.ColumnName;
     }
 
     private static List<ExplorerTreeNode> BuildSourceNodes(IEnumerable<SourceTable> sources)
