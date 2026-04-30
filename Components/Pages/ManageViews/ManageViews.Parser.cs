@@ -6,6 +6,7 @@ using SchemaStudioWebViewer.WEBSemanticModel.Model;
 
 namespace SchemaStudioWebViewer.Components.Pages.ManageViews;
 
+[AIChange("3.15", "2026-04-30 11:27 AM CDT renamed the resolved dependency chain dialog title to View Details to match its expanded inspection role.", AICommandStatus.Pending)]
 [AIChange("3.14", "2026-04-30 11:10 AM CDT made the resolved dependency chain dialog non-draggable and disabled overlay-click close while keeping resize enabled.", AICommandStatus.Pending)]
 [AIChange("3.13", "2026-04-30 10:37 AM CDT constrained the resolved dependency chain dialog to viewport-relative sizing to avoid modal-level scrollbars.", AICommandStatus.Pending)]
 [AIChange("3.12", "2026-04-30 10:24 AM CDT routed Manage Views dependency inspection to the tree-and-SQL resolved dependency chain dialog.", AICommandStatus.Pending)]
@@ -114,8 +115,8 @@ public partial class ManageViews
         }
 
         await DialogService.OpenAsync<ResolvedDependencyChainDialog>(
-            // 2026-04-30 10:24 AM CDT AI v3.12 marker: open the tree/SQL dependency explorer so column inheritance and physical lineage are inspectable together.
-            $"Resolved Dependency Chain: {EditableObject.SourceObjectName}",
+            // 2026-04-30 11:27 AM CDT AI v3.15 marker: this dialog now presents full view details, not just dependency edges.
+            $"View Details: {EditableObject.SourceObjectName}",
             new Dictionary<string, object?>
             {
                 { "ParsedView", CurrentParsedView },

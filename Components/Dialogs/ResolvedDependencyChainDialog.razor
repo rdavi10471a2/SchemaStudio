@@ -10,7 +10,7 @@
                 RenderMode="TabRenderMode.Client"
                 @bind-SelectedIndex="SelectedTabIndex">
         <Tabs>
-            <RadzenTabsItem Text="Dependencies">
+            <RadzenTabsItem Text="View Details">
                 <div class="resolved-chain-layout">
                     <section class="chain-panel column-panel">
                         <header class="chain-panel-header">SELECT COLUMNS (@ColumnNodes.Count)</header>
@@ -102,6 +102,9 @@
             {
                 <RadzenTabsItem Text="@sqlTab.Title">
                     <div class="resolved-chain-sql-pane">
+                        <div class="sql-code-container resolved-chain-sql">
+                            <pre class="language-sql"><code class="language-sql">@sqlTab.Content</code></pre>
+                        </div>
                         @if (sqlTab.CanClose)
                         {
                             <div class="sql-tab-actions">
@@ -112,9 +115,6 @@
                                               Click="@(() => CloseSqlTab(sqlTab))" />
                             </div>
                         }
-                        <div class="sql-code-container resolved-chain-sql">
-                            <pre class="language-sql"><code class="language-sql">@sqlTab.Content</code></pre>
-                        </div>
                     </div>
                 </RadzenTabsItem>
             }
