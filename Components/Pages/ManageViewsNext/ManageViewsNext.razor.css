@@ -1,3 +1,4 @@
+/* 2026-04-30 02:49 PM CDT AI v1.2 manage-views-next marker: synchronization is compact inside the view-definition pane and the editor grid owns local scroll space. */
 /* 2026-04-30 04:17 PM CDT AI v1.1 manage-views-next marker: bounded app-height layout uses internal scrolling for selector, workspace, and column lists. */
 /* 2026-04-30 03:37 PM CDT AI v1.0 manage-views-next marker: isolated styles keep the prototype layout separate from the current ManageViews page. */
 .manage-views-next {
@@ -176,11 +177,15 @@
     gap: 1rem;
     min-width: 0;
     min-height: 0;
-    overflow: auto;
+    overflow: hidden;
 }
 
 .mvn-card {
     padding: 0.9rem;
+}
+
+.mvn-selected-header {
+    flex: 0 0 auto;
 }
 
 .mvn-placeholder {
@@ -238,6 +243,8 @@
     gap: 1rem;
     min-width: 0;
     min-height: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
     align-items: stretch;
 }
 
@@ -248,6 +255,13 @@
     gap: 0.8rem;
     min-width: 0;
     min-height: 0;
+    overflow: hidden;
+}
+
+.mvn-view-editor {
+    align-self: start;
+    max-height: 100%;
+    overflow: auto;
 }
 
 .mvn-field {
@@ -281,7 +295,7 @@
 }
 
 .mvn-textarea {
-    min-height: 74px;
+    min-height: 54px;
     resize: vertical;
 }
 
@@ -292,6 +306,31 @@
     flex-wrap: wrap;
     padding-top: 0.5rem;
     border-top: 1px solid #edf0f4;
+}
+
+.mvn-sync-compact {
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    background: #f9fafc;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.65rem 0.75rem;
+}
+
+.mvn-sync-title {
+    color: var(--rz-primary);
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.mvn-sync-counts {
+    color: #263445;
+    font-size: 0.88rem;
+    margin-top: 0.2rem;
 }
 
 .mvn-column-grid {
@@ -395,11 +434,6 @@
     color: #6c757d;
     padding: 2rem 1rem;
     text-align: center;
-}
-
-.mvn-sync-summary {
-    margin: 0;
-    flex: 0 0 auto;
 }
 
 ::deep .mvn-field-label .rzi,
