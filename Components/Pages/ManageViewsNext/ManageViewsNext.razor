@@ -22,7 +22,10 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("1.8")]
+@attribute [FileVersion("1.11")]
+@attribute [AIChange("1.11", "2026-04-30 03:39 PM CDT simplified the column selector rows to column names only so the listbox can show more choices without business-name previews.", AICommandStatus.Pending)]
+@attribute [AIChange("1.10", "2026-04-30 03:37 PM CDT moved parsed refresh to the selected-view toolbar, returned reset to the view editor, and forced Unknown selector groups to render flat.", AICommandStatus.Pending)]
+@attribute [AIChange("1.9", "2026-04-30 03:19 PM CDT flattened the Unknown domain in the view selector so unclassified views appear directly under Unknown without base/composed subfolders.", AICommandStatus.Pending)]
 @attribute [AIChange("1.8", "2026-04-30 03:13 PM CDT bounded the view selector rail so the tree scrolls internally and the reload-databases action stays visible.", AICommandStatus.Pending)]
 @attribute [AIChange("1.7", "2026-04-30 03:09 PM CDT clarified view action buttons with explicit labels and mouseover text so reset, refresh, SQL, and save behavior is less ambiguous.", AICommandStatus.Pending)]
 @attribute [AIChange("1.6", "2026-04-30 03:09 PM CDT relaxed the prototype editor layout so resized textareas grow their cards and the bounded page scrolls while the column selector remains a fixed-height listbox.", AICommandStatus.Pending)]
@@ -34,6 +37,9 @@
 @attribute [AIFileContext("Components/Pages/ManageViewsNext/ManageViewsNext.razor", "Prototype Manage Views replacement page that keeps the existing ManageViews page intact while testing a domain/tree selector, combined view-and-column editing layout, and relocated context actions.")]
 @attribute [AIChange("1.0", "2026-04-30 03:37 PM CDT added a side-by-side Manage Views prototype route with a scrollable domain tree selector and combined edit surface so the existing page remains untouched for fallback testing.", AICommandStatus.Pending)]
 
+@* 2026-04-30 03:39 PM CDT AI v1.11 manage-views-next marker: column selector rows show only the projected column name plus edit status to keep the listbox compact. *@
+@* 2026-04-30 03:37 PM CDT AI v1.10 manage-views-next marker: parsed refresh is a selected-view toolbar action, reset lives with edit fields, and Unknown groups are flat. *@
+@* 2026-04-30 03:19 PM CDT AI v1.9 manage-views-next marker: Unknown domain renders as one flat unclassified bucket instead of splitting into base/composed folders. *@
 @* 2026-04-30 03:13 PM CDT AI v1.8 manage-views-next marker: selector rail is viewport-bounded so long domain trees cannot push Reload Databases off screen. *@
 @* 2026-04-30 03:09 PM CDT AI v1.7 manage-views-next marker: view action buttons now expose clearer labels and hover text for reset, refresh, SQL, and save behavior. *@
 @* 2026-04-30 03:09 PM CDT AI v1.6 manage-views-next marker: editor cards can grow inside the bounded page scroll while the column selector keeps a fixed listbox scroll. *@
@@ -111,18 +117,15 @@
                                 <span>@group.Domain</span>
                             </summary>
 
-                            <details class="mvn-tree-folder" open>
-                                <summary>
-                                    <RadzenIcon Icon="folder" />
-                                    <span>Base Views</span>
-                                </summary>
-                                @if (group.BaseViews.Count == 0)
+                            @if (IsUnknownDomain(group.Domain))
+                            {
+                                @if (group.AllViews.Count == 0)
                                 {
-                                    <div class="mvn-tree-empty">No base views</div>
+                                    <div class="mvn-tree-empty">No unclassified views</div>
                                 }
                                 else
                                 {
-                                    @foreach (var item in group.BaseViews)
+                                    @foreach (var item in group.AllViews)
                                     {
                                         <button type="button"
                                                 class="@GetTreeItemClass(item)"
@@ -133,31 +136,57 @@
                                         </button>
                                     }
                                 }
-                            </details>
+                            }
+                            else
+                            {
+                                <details class="mvn-tree-folder" open>
+                                    <summary>
+                                        <RadzenIcon Icon="folder" />
+                                        <span>Base Views</span>
+                                    </summary>
+                                    @if (group.BaseViews.Count == 0)
+                                    {
+                                        <div class="mvn-tree-empty">No base views</div>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var item in group.BaseViews)
+                                        {
+                                            <button type="button"
+                                                    class="@GetTreeItemClass(item)"
+                                                    title="@item.Subtitle"
+                                                    @onclick="@(() => OnViewSelectionChanged(item.SelectionKey))">
+                                                <RadzenIcon Icon="table_view" />
+                                                <span>@item.DisplayName</span>
+                                            </button>
+                                        }
+                                    }
+                                </details>
 
-                            <details class="mvn-tree-folder" open>
-                                <summary>
-                                    <RadzenIcon Icon="folder" />
-                                    <span>Composed Views</span>
-                                </summary>
-                                @if (group.ComposedViews.Count == 0)
-                                {
-                                    <div class="mvn-tree-empty">No composed views</div>
-                                }
-                                else
-                                {
-                                    @foreach (var item in group.ComposedViews)
+                                <details class="mvn-tree-folder" open>
+                                    <summary>
+                                        <RadzenIcon Icon="folder" />
+                                        <span>Composed Views</span>
+                                    </summary>
+                                    @if (group.ComposedViews.Count == 0)
                                     {
-                                        <button type="button"
-                                                class="@GetTreeItemClass(item)"
-                                                title="@item.Subtitle"
-                                                @onclick="@(() => OnViewSelectionChanged(item.SelectionKey))">
-                                            <RadzenIcon Icon="table_view" />
-                                            <span>@item.DisplayName</span>
-                                        </button>
+                                        <div class="mvn-tree-empty">No composed views</div>
                                     }
-                                }
-                            </details>
+                                    else
+                                    {
+                                        @foreach (var item in group.ComposedViews)
+                                        {
+                                            <button type="button"
+                                                    class="@GetTreeItemClass(item)"
+                                                    title="@item.Subtitle"
+                                                    @onclick="@(() => OnViewSelectionChanged(item.SelectionKey))">
+                                                <RadzenIcon Icon="table_view" />
+                                                <span>@item.DisplayName</span>
+                                            </button>
+                                        }
+                                    }
+                                </details>
+                            }
                         </details>
                     }
 
@@ -217,13 +246,13 @@
                     </div>
 
                     <RadzenStack Orientation="Orientation.Horizontal" Gap="0.45rem" AlignItems="AlignItems.Center" class="mvn-header-toolbar">
-                        <RadzenButton Text="Reset View Edits"
-                                      Icon="restart_alt"
+                        <RadzenButton Text="Refresh Parsed View"
+                                      Icon="sync"
                                       Size="ButtonSize.Small"
                                       ButtonStyle="ButtonStyle.Light"
-                                      title="Discard unsaved edits for the selected view and reload its last saved values."
-                                      Click="@ResetEditorAsync"
-                                      Disabled="@IsBusy" />
+                                      title="Reload this view's SQL from the database, clear parser cache for it, and rebuild the column synchronization review."
+                                      Click="@RefreshCurrentViewAsync"
+                                      Disabled="@(!CanOpenDependencyTools || IsBusy)" />
                         <RadzenButton Text="View Details"
                                       Icon="table_view"
                                       Size="ButtonSize.Small"
@@ -310,12 +339,12 @@
                         </div>
 
                         <div class="mvn-view-actions">
-                            <RadzenButton Text="Refresh Parsed View"
-                                          Icon="sync"
+                            <RadzenButton Text="Reset View Edits"
+                                          Icon="restart_alt"
                                           ButtonStyle="ButtonStyle.Light"
-                                          title="Reload this view's SQL from the database, clear parser cache for it, and rebuild the column synchronization review."
-                                          Click="@RefreshCurrentViewAsync"
-                                          Disabled="@(!CanOpenDependencyTools || IsBusy)" />
+                                          title="Discard unsaved edits for this view definition and reload its last saved values."
+                                          Click="@ResetEditorAsync"
+                                          Disabled="@IsBusy" />
                         </div>
 
                         <div class="mvn-sync-compact">
@@ -371,14 +400,6 @@
                                                 <span class="mvn-column-ordinal">@column.OrdinalPosition</span>
                                                 <span class="mvn-column-labels">
                                                     <strong>@column.SourceColumnName</strong>
-                                                    @if (!string.IsNullOrWhiteSpace(column.BusinessName))
-                                                    {
-                                                        <span>@column.BusinessName</span>
-                                                    }
-                                                    else if (!string.IsNullOrWhiteSpace(column.BusinessDescription))
-                                                    {
-                                                        <span>@column.BusinessDescription</span>
-                                                    }
                                                 </span>
                                                 @if (column.IsDirty)
                                                 {

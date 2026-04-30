@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Reflection;
 using Microsoft.AspNetCore.Components;
 using Radzen;
@@ -10,9 +11,15 @@ using SchemaStudioWebViewer.WEBSemanticModel.Model;
 
 namespace SchemaStudioWebViewer.Components.Pages.ManageViewsNext;
 
+[AIChange("1.3", "2026-04-30 03:37 PM CDT added an Unknown-domain helper so the selector can render unclassified objects as flat items regardless of source casing.", AICommandStatus.Pending)]
+[AIChange("1.2", "2026-04-30 03:31 PM CDT made Manage Views Next honor StringLength metadata for column edit limits and validate persisted text lengths before saving.", AICommandStatus.Pending)]
+[AIChange("1.1", "2026-04-30 03:19 PM CDT extended the domain grouping model with Unknown detection and a flattened all-views collection for unclassified selector rendering.", AICommandStatus.Pending)]
 [AIChange("1.0", "2026-04-30 03:37 PM CDT added shared state, labels, grouping, and save/delete helpers for the Manage Views Next prototype shell.", AICommandStatus.Pending)]
 public partial class ManageViewsNext
 {
+    // 2026-04-30 03:37 PM CDT AI v1.3 manage-views-next marker: Unknown domain checks are centralized so unclassified objects never get base/composed subfolders.
+    // 2026-04-30 03:31 PM CDT AI v1.2 manage-views-next marker: column edit controls and save validation now read StringLength limits from the persisted models.
+    // 2026-04-30 03:19 PM CDT AI v1.1 manage-views-next marker: Unknown is a flat unclassified bucket, so the grouping model exposes AllViews and IsUnknown for the selector.
     // 2026-04-30 03:37 PM CDT AI v1.0 manage-views-next marker: shared prototype state is kept in a code-behind partial to preserve the split-file page pattern.
     private const string DefaultSourceCatalogDatabase = "VVGBI_Integrations";
     private const string UnknownDomain = "Unknown";
@@ -108,18 +115,24 @@ public partial class ManageViewsNext
             }
 
             return domainNames
-                .Select(domain => new ViewDomainGroup(
-                    domain,
-                    ExistingViewItems
-                        .Where(item => item.IsBaseObject)
+                .Select(domain =>
+                {
+                    var domainItems = ExistingViewItems
                         .Where(item => string.Equals(NormalizeDomain(item.Domain), domain, StringComparison.OrdinalIgnoreCase))
                         .OrderBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase)
-                        .ToList(),
-                    ExistingViewItems
-                        .Where(item => !item.IsBaseObject)
-                        .Where(item => string.Equals(NormalizeDomain(item.Domain), domain, StringComparison.OrdinalIgnoreCase))
-                        .OrderBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase)
-                        .ToList()))
+                        .ToList();
+
+                    return new ViewDomainGroup(
+                        domain,
+                        string.Equals(domain, UnknownDomain, StringComparison.OrdinalIgnoreCase),
+                        domainItems,
+                        domainItems
+                            .Where(item => item.IsBaseObject)
+                            .ToList(),
+                        domainItems
+                            .Where(item => !item.IsBaseObject)
+                            .ToList());
+                })
                 .Where(group => group.BaseViews.Count > 0 || group.ComposedViews.Count > 0 || string.Equals(group.Domain, UnknownDomain, StringComparison.OrdinalIgnoreCase))
                 .ToList();
         }
@@ -149,6 +162,24 @@ public partial class ManageViewsNext
             return;
         }
 
+        validationMessage = ValidateStringLengths(EditableObject, "View");
+        if (!string.IsNullOrWhiteSpace(validationMessage))
+        {
+            NotificationService.Notify(NotificationSeverity.Warning, "Save blocked", validationMessage, 5000);
+            return;
+        }
+
+        var columnsToPersist = SavedColumns
+            .Where(column => column.IsDirty || column.SchemaObjectColumnId == 0)
+            .ToList();
+
+        validationMessage = ValidateStringLengths(columnsToPersist, "Column");
+        if (!string.IsNullOrWhiteSpace(validationMessage))
+        {
+            NotificationService.Notify(NotificationSeverity.Warning, "Save blocked", validationMessage, 5000);
+            return;
+        }
+
         IsBusy = true;
 
         try
@@ -168,9 +199,9 @@ public partial class ManageViewsNext
                 SelectedViewKey = BuildExistingSelectionKey(EditableObject.SchemaObjectId);
             }
 
-            if (EditableObject.SchemaObjectId > 0 && CanEditSelectedColumnMetadata && SavedColumns.Any(column => column.IsDirty))
+            if (EditableObject.SchemaObjectId > 0 && CanEditSelectedColumnMetadata && columnsToPersist.Count > 0)
             {
-                await SchemaObjectColumnRepository.SaveAllAsync(SavedColumns);
+                await SchemaObjectColumnRepository.SaveAllAsync(columnsToPersist);
             }
 
             NotificationService.Notify(NotificationSeverity.Success, "View saved", "View and column metadata were saved successfully.", 2500);
@@ -285,6 +316,45 @@ public partial class ManageViewsNext
         return null;
     }
 
+    private static string? ValidateStringLengths(object model, string labelPrefix)
+    {
+        foreach (var property in model.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance))
+        {
+            if (property.PropertyType != typeof(string))
+            {
+                continue;
+            }
+
+            var maxLength = GetStringLength(property);
+            if (maxLength is null)
+            {
+                continue;
+            }
+
+            var value = property.GetValue(model) as string;
+            if (value?.Length > maxLength.Value)
+            {
+                return $"{labelPrefix} {ReflectionUtils.GetDisplayName(model.GetType(), property.Name)} is {value.Length} characters; max is {maxLength.Value}.";
+            }
+        }
+
+        return null;
+    }
+
+    private static string? ValidateStringLengths(IEnumerable<SchemaObjectColumnDefinition> columns, string labelPrefix)
+    {
+        foreach (var column in columns)
+        {
+            var validationMessage = ValidateStringLengths(column, $"{labelPrefix} '{column.SourceColumnName}'");
+            if (!string.IsNullOrWhiteSpace(validationMessage))
+            {
+                return validationMessage;
+            }
+        }
+
+        return null;
+    }
+
     private string? GetPreferredDomain()
     {
         var unknown = Domains.FirstOrDefault(x =>
@@ -309,6 +379,9 @@ public partial class ManageViewsNext
 
     private static string NormalizeDomain(string? domain) =>
         string.IsNullOrWhiteSpace(domain) ? UnknownDomain : domain.Trim();
+
+    private static bool IsUnknownDomain(string? domain) =>
+        string.Equals(NormalizeDomain(domain), UnknownDomain, StringComparison.OrdinalIgnoreCase);
 
     private RenderFragment FieldLabel(Type modelType, string propertyName) => builder =>
     {
@@ -348,11 +421,27 @@ public partial class ManageViewsNext
 
     private static int? GetMaxLength(string propertyName)
     {
-        var attribute = typeof(SchemaObjectColumnDefinition)
-            .GetProperty(propertyName)?
-            .GetCustomAttribute<System.ComponentModel.DataAnnotations.MaxLengthAttribute>();
+        var property = typeof(SchemaObjectColumnDefinition)
+            .GetProperty(propertyName);
 
-        return attribute?.Length;
+        return GetStringLength(property);
+    }
+
+    private static int? GetStringLength(PropertyInfo? property)
+    {
+        if (property == null)
+        {
+            return null;
+        }
+
+        var stringLength = property.GetCustomAttribute<StringLengthAttribute>();
+        if (stringLength != null)
+        {
+            return stringLength.MaximumLength;
+        }
+
+        var maxLength = property.GetCustomAttribute<MaxLengthAttribute>();
+        return maxLength?.Length;
     }
 
     private void NotifyFailure(string summary, Exception ex)
@@ -377,6 +466,8 @@ public partial class ManageViewsNext
 
     private sealed record ViewDomainGroup(
         string Domain,
+        bool IsUnknown,
+        List<ViewWorkspaceItem> AllViews,
         List<ViewWorkspaceItem> BaseViews,
         List<ViewWorkspaceItem> ComposedViews);
 }
