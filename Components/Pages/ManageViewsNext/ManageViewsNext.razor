@@ -108,7 +108,13 @@
                                 {
                                     @foreach (var item in group.BaseViews)
                                     {
-                                        @ViewTreeButton(item)
+                                        <button type="button"
+                                                class="@GetTreeItemClass(item)"
+                                                title="@item.Subtitle"
+                                                @onclick="@(() => OnViewSelectionChanged(item.SelectionKey))">
+                                            <RadzenIcon Icon="table_view" />
+                                            <span>@item.DisplayName</span>
+                                        </button>
                                     }
                                 }
                             </details>
@@ -126,7 +132,13 @@
                                 {
                                     @foreach (var item in group.ComposedViews)
                                     {
-                                        @ViewTreeButton(item)
+                                        <button type="button"
+                                                class="@GetTreeItemClass(item)"
+                                                title="@item.Subtitle"
+                                                @onclick="@(() => OnViewSelectionChanged(item.SelectionKey))">
+                                            <RadzenIcon Icon="table_view" />
+                                            <span>@item.DisplayName</span>
+                                        </button>
                                     }
                                 }
                             </details>
@@ -146,7 +158,13 @@
                         {
                             @foreach (var item in AvailableViewItems)
                             {
-                                @ViewTreeButton(item)
+                                <button type="button"
+                                        class="@GetTreeItemClass(item)"
+                                        title="@item.Subtitle"
+                                        @onclick="@(() => OnViewSelectionChanged(item.SelectionKey))">
+                                    <RadzenIcon Icon="table_view" />
+                                    <span>@item.DisplayName</span>
+                                </button>
                             }
                         }
                     </details>

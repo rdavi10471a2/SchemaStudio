@@ -222,25 +222,6 @@ public partial class ManageViewsNext
         }
     }
 
-    private RenderFragment ViewTreeButton(ViewWorkspaceItem item) => builder =>
-    {
-        builder.OpenElement(0, "button");
-        builder.AddAttribute(1, "type", "button");
-        builder.AddAttribute(2, "class", GetTreeItemClass(item));
-        builder.AddAttribute(3, "title", item.Subtitle);
-        builder.AddAttribute(4, "onclick", EventCallback.Factory.Create(this, () => OnViewSelectionChanged(item.SelectionKey)));
-
-        builder.OpenComponent<RadzenIcon>(5);
-        builder.AddAttribute(6, "Icon", "table_view");
-        builder.CloseComponent();
-
-        builder.OpenElement(7, "span");
-        builder.AddContent(8, item.DisplayName);
-        builder.CloseElement();
-
-        builder.CloseElement();
-    };
-
     private string GetTreeItemClass(ViewWorkspaceItem item) =>
         string.Equals(SelectedViewKey, item.SelectionKey, StringComparison.Ordinal)
             ? "mvn-tree-item selected"

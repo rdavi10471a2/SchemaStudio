@@ -25,7 +25,7 @@
     display: grid;
     grid-template-columns: 340px minmax(0, 1fr);
     gap: 1rem;
-    min-height: calc(100vh - 170px);
+    min-height: calc(100vh - 230px);
 }
 
 .mvn-shell-collapsed {
@@ -61,6 +61,7 @@
 .mvn-tree-scroll {
     min-height: 0;
     overflow: auto;
+    overflow-x: hidden;
     padding: 0.25rem 0.25rem 0.25rem 0;
     border-top: 1px solid #edf0f4;
     border-bottom: 1px solid #edf0f4;
@@ -90,7 +91,7 @@
 
 .mvn-tree-domain summary::before,
 .mvn-tree-folder summary::before {
-    content: "▸";
+    content: ">";
     color: #7b8794;
     font-size: 0.75rem;
     width: 12px;
@@ -98,7 +99,7 @@
 
 .mvn-tree-domain[open] > summary::before,
 .mvn-tree-folder[open] > summary::before {
-    content: "▾";
+    content: "v";
 }
 
 .mvn-tree-folder {
@@ -114,9 +115,9 @@
     width: calc(100% - 1.25rem);
     min-height: 32px;
     margin: 0.1rem 0 0.1rem 1.25rem;
-    border: 0;
+    border: 0 !important;
     border-left: 3px solid transparent;
-    background: transparent;
+    background: transparent !important;
     color: #263445;
     display: flex;
     align-items: center;
@@ -125,6 +126,10 @@
     text-align: left;
     border-radius: 4px;
     cursor: pointer;
+    font: inherit;
+    box-shadow: none !important;
+    appearance: none;
+    -webkit-appearance: none;
 }
 
 .mvn-tree-item:hover {
@@ -132,8 +137,8 @@
 }
 
 .mvn-tree-item.selected {
-    border-left-color: var(--rz-primary);
-    background: #e9edff;
+    border-left-color: var(--rz-primary) !important;
+    background: #e9edff !important;
     color: var(--rz-primary);
     font-weight: 700;
 }
