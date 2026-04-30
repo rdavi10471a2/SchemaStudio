@@ -22,7 +22,8 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("1.17")]
+@attribute [FileVersion("1.18")]
+@attribute [AIChange("1.18", "2026-04-30 04:30 PM CDT made the column selector row markup explicit so hiding ordinals cannot hide or displace editable column fields.", AICommandStatus.Pending)]
 @attribute [AIChange("1.17", "2026-04-30 04:20 PM CDT made the Column Metadata card own a viewport-aware vertical budget so its list and editor children stretch inside the parent without overflow.", AICommandStatus.Pending)]
 @attribute [AIChange("1.16", "2026-04-30 04:13 PM CDT removed visible ordinals from the Manage Views Next column selector while preserving ordinal ordering.", AICommandStatus.Pending)]
 @attribute [AIChange("1.15", "2026-04-30 04:11 PM CDT made Manage Views Next multiline metadata boxes show vertical scrollbars by default while preserving vertical resize.", AICommandStatus.Pending)]
@@ -43,6 +44,7 @@
 @attribute [AIFileContext("Components/Pages/ManageViewsNext/ManageViewsNext.razor", "Prototype Manage Views replacement page that keeps the existing ManageViews page intact while testing a domain/tree selector, combined view-and-column editing layout, and relocated context actions.")]
 @attribute [AIChange("1.0", "2026-04-30 03:37 PM CDT added a side-by-side Manage Views prototype route with a scrollable domain tree selector and combined edit surface so the existing page remains untouched for fallback testing.", AICommandStatus.Pending)]
 
+@* 2026-04-30 04:30 PM CDT AI v1.18 manage-views-next marker: column selector rows use explicit name/status regions so editable fields stay visible. *@
 @* 2026-04-30 04:20 PM CDT AI v1.17 manage-views-next marker: Column Metadata now stretches its child panels within a viewport-aware parent height. *@
 @* 2026-04-30 04:13 PM CDT AI v1.16 manage-views-next marker: column selector rows rely on sort order instead of showing ordinals. *@
 @* 2026-04-30 04:11 PM CDT AI v1.15 manage-views-next marker: multiline metadata textareas show vertical scrollbars by default while retaining vertical resize. *@

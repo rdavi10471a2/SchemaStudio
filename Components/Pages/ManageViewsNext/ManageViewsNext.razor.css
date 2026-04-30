@@ -1,5 +1,6 @@
+/* 2026-04-30 04:30 PM CDT AI v1.17 manage-views-next marker: column selector names own the row and detail fields align from the top instead of drifting out of view. */
+/* 2026-04-30 04:34 PM CDT AI v1.18 manage-views-next marker: metadata editor parents clip horizontal overflow and force Radzen textareas to resize vertically only. */
 /* 2026-04-30 04:24 PM CDT AI v1.15 manage-views-next marker: Column Metadata owns a viewport-aware height and stretches list/detail children inside it without overflow. */
-/* 2026-04-30 04:26 PM CDT AI v1.16 manage-views-next marker: defensive column selector CSS hides stale ordinal nodes and makes names own the row width. */
 /* 2026-04-30 04:13 PM CDT AI v1.14 manage-views-next marker: column selector rows no longer reserve space for visible ordinals. */
 /* 2026-04-30 04:11 PM CDT AI v1.13 manage-views-next marker: shared multiline metadata textareas keep visible vertical scrollbars while allowing vertical resize. */
 /* 2026-04-30 04:09 PM CDT AI v1.12 manage-views-next marker: Disable Inheritance is a plain prominent checkbox row above the editable business fields. */
@@ -62,6 +63,7 @@
     border-radius: 6px;
     box-shadow: none;
     box-sizing: border-box;
+    max-width: 100%;
 }
 
 .mvn-selector-panel {
@@ -279,12 +281,13 @@
     gap: 0.8rem;
     min-width: 0;
     min-height: 0;
-    overflow: visible;
+    max-width: 100%;
+    overflow-x: hidden;
+    overflow-y: visible;
 }
 
 .mvn-view-editor {
     align-self: start;
-    overflow: visible;
 }
 
 .mvn-column-editor {
@@ -295,6 +298,9 @@
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: hidden;
 }
 
 .mvn-field-label {
@@ -323,18 +329,26 @@
 
 .mvn-textarea {
     box-sizing: border-box;
+    display: block;
+    inline-size: 100%;
+    min-width: 0;
     max-width: 100%;
+    max-inline-size: 100%;
     min-height: 54px;
     overflow-y: scroll;
     width: 100% !important;
-    resize: vertical;
+    resize: vertical !important;
 }
 
 ::deep textarea.mvn-textarea,
 ::deep .mvn-textarea textarea,
 ::deep .mvn-field textarea.rz-textarea {
     box-sizing: border-box !important;
+    display: block !important;
+    inline-size: 100% !important;
+    min-width: 0 !important;
     max-width: 100% !important;
+    max-inline-size: 100% !important;
     overflow-y: scroll !important;
     width: 100% !important;
     resize: vertical !important;
@@ -433,7 +447,9 @@
 }
 
 .mvn-column-detail-panel {
+    max-width: 100%;
     overflow: auto;
+    overflow-x: hidden;
 }
 
 .mvn-column-list {
@@ -449,8 +465,12 @@
 .mvn-column-fields {
     display: grid;
     gap: 0.9rem;
-    overflow: visible;
+    align-content: start;
+    overflow-x: hidden;
+    overflow-y: visible;
     min-height: 0;
+    min-width: 0;
+    max-width: 100%;
     flex: 1 1 auto;
     padding-right: 0.25rem;
 }
@@ -463,7 +483,7 @@
     background: transparent;
     padding: 0.55rem 0.5rem;
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: center;
     gap: 0.5rem;
     text-align: left;
@@ -485,11 +505,11 @@
     min-width: 0;
     display: grid;
     gap: 0.1rem;
+    text-align: left;
 }
 
 .mvn-column-order,
-.mvn-column-ordinal,
-.mvn-column-item > span:first-child:not(.mvn-column-labels):not(.mvn-edited-chip) {
+.mvn-column-ordinal {
     display: none !important;
 }
 
