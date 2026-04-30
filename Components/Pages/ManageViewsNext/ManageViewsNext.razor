@@ -22,7 +22,8 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("1.21")]
+@attribute [FileVersion("1.22")]
+@attribute [AIChange("1.22", "2026-04-30 04:59 PM CDT bounded the Manage Views Next editor grid itself so Column Metadata cannot expand the page and its column list scrolls inside the card.", AICommandStatus.Pending)]
 @attribute [AIChange("1.21", "2026-04-30 04:51 PM CDT made the Manage Views Next Column Metadata editor follow the shared editor row height so its list and detail panels scroll within the parent.", AICommandStatus.Pending)]
 @attribute [AIChange("1.20", "2026-04-30 04:43 PM CDT capped the Manage Views Next Column Metadata editor to the viewport budget so the column list and detail panel scroll internally instead of stretching the page.", AICommandStatus.Pending)]
 @attribute [AIChange("1.19", "2026-04-30 04:39 PM CDT moved textarea width and vertical-resize constraints onto the RadzenTextArea inline styles so the browser applies them to the rendered textarea.", AICommandStatus.Pending)]
@@ -47,6 +48,7 @@
 @attribute [AIFileContext("Components/Pages/ManageViewsNext/ManageViewsNext.razor", "Prototype Manage Views replacement page that keeps the existing ManageViews page intact while testing a domain/tree selector, combined view-and-column editing layout, and relocated context actions.")]
 @attribute [AIChange("1.0", "2026-04-30 03:37 PM CDT added a side-by-side Manage Views prototype route with a scrollable domain tree selector and combined edit surface so the existing page remains untouched for fallback testing.", AICommandStatus.Pending)]
 
+@* 2026-04-30 04:59 PM CDT AI v1.22 manage-views-next marker: editor grid height is bounded so Column Metadata cannot stretch the page and column rows scroll locally. *@
 @* 2026-04-30 04:51 PM CDT AI v1.21 manage-views-next marker: Column Metadata now uses the shared editor-row parent height and scrolls internally. *@
 @* 2026-04-30 04:43 PM CDT AI v1.20 manage-views-next marker: Column Metadata is viewport-capped and its list/detail children scroll internally. *@
 @* 2026-04-30 04:39 PM CDT AI v1.19 manage-views-next marker: textarea constraints are inline on RadzenTextArea so horizontal resize cannot escape the card. *@
