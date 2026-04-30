@@ -22,7 +22,8 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("1.11")]
+@attribute [FileVersion("1.12")]
+@attribute [AIChange("1.12", "2026-04-30 03:53 PM CDT constrained Manage Views Next textarea resizing to the card width and made Disable Inheritance visually prominent in the column editor.", AICommandStatus.Pending)]
 @attribute [AIChange("1.11", "2026-04-30 03:39 PM CDT simplified the column selector rows to column names only so the listbox can show more choices without business-name previews.", AICommandStatus.Pending)]
 @attribute [AIChange("1.10", "2026-04-30 03:37 PM CDT moved parsed refresh to the selected-view toolbar, returned reset to the view editor, and forced Unknown selector groups to render flat.", AICommandStatus.Pending)]
 @attribute [AIChange("1.9", "2026-04-30 03:19 PM CDT flattened the Unknown domain in the view selector so unclassified views appear directly under Unknown without base/composed subfolders.", AICommandStatus.Pending)]
@@ -37,6 +38,7 @@
 @attribute [AIFileContext("Components/Pages/ManageViewsNext/ManageViewsNext.razor", "Prototype Manage Views replacement page that keeps the existing ManageViews page intact while testing a domain/tree selector, combined view-and-column editing layout, and relocated context actions.")]
 @attribute [AIChange("1.0", "2026-04-30 03:37 PM CDT added a side-by-side Manage Views prototype route with a scrollable domain tree selector and combined edit surface so the existing page remains untouched for fallback testing.", AICommandStatus.Pending)]
 
+@* 2026-04-30 03:53 PM CDT AI v1.12 manage-views-next marker: textareas resize only vertically inside their cards and Disable Inheritance gets a visible checkbox row. *@
 @* 2026-04-30 03:39 PM CDT AI v1.11 manage-views-next marker: column selector rows show only the projected column name plus edit status to keep the listbox compact. *@
 @* 2026-04-30 03:37 PM CDT AI v1.10 manage-views-next marker: parsed refresh is a selected-view toolbar action, reset lives with edit fields, and Unknown groups are flat. *@
 @* 2026-04-30 03:19 PM CDT AI v1.9 manage-views-next marker: Unknown domain renders as one flat unclassified bucket instead of splitting into base/composed folders. *@
@@ -464,7 +466,7 @@
                                                                 Disabled="@(!CanEditSelectedColumnMetadata)" />
                                             </div>
 
-                                            <label class="mvn-check-field">
+                                            <label class="mvn-check-field mvn-inheritance-check">
                                                 @ColumnFieldLabel(nameof(SchemaObjectColumnDefinition.DisableInheritance))
                                                 <RadzenCheckBox @bind-Value="@SelectedColumn.DisableInheritance"
                                                                 TValue="bool"
