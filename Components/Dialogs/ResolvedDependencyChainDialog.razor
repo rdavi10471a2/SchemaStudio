@@ -5,6 +5,7 @@
 @inject DialogService DialogService
 @inject IJSRuntime JSRuntime
 @inject ViewParsingService ParserService
+@inject TooltipService TooltipService
 
 <div class="resolved-chain-dialog-root">
     <RadzenTabs class="resolved-chain-tabs"
@@ -14,7 +15,12 @@
             <RadzenTabsItem Text="View Details">
                 <div class="resolved-chain-layout">
                     <section class="chain-panel column-panel">
-                        <header class="chain-panel-header">SELECT COLUMNS (@ColumnNodes.Count)</header>
+                        <header class="chain-panel-header">
+                            <span>SELECT COLUMNS (@ColumnNodes.Count)</span>
+                            <RadzenIcon Icon="help_outline"
+                                        class="chain-help-icon"
+                                        MouseEnter="@(args => TooltipService.Open(args, "Projected columns returned by this view. Expand a column to inspect where its meaning is inherited from and where its physical data comes from."))" />
+                        </header>
                         <div class="chain-tree-wrap">
                             <RadzenTree Data="@ColumnNodes"
                                         Change="@OnTreeSelectionChanged"
@@ -36,7 +42,12 @@
                     </section>
 
                     <section class="chain-panel source-panel">
-                        <header class="chain-panel-header">FROM / JOIN SOURCES</header>
+                        <header class="chain-panel-header">
+                            <span>FROM / JOIN SOURCES</span>
+                            <RadzenIcon Icon="help_outline"
+                                        class="chain-help-icon"
+                                        MouseEnter="@(args => TooltipService.Open(args, "Objects used by the selected view. View nodes can expand to show the next layer of tables or views they depend on."))" />
+                        </header>
                         <div class="chain-tree-wrap">
                             <RadzenTree Data="@SourceNodes"
                                         Change="@OnTreeSelectionChanged"
@@ -78,7 +89,15 @@
                                     @foreach (var detail in SelectedNode.Details)
                                     {
                                         <div class="detail-row">
-                                            <span>@detail.Label</span>
+                                            <span class="detail-label">
+                                                @detail.Label
+                                                @if (!string.IsNullOrWhiteSpace(detail.HelpText))
+                                                {
+                                                    <RadzenIcon Icon="help_outline"
+                                                                class="detail-help-icon"
+                                                                MouseEnter="@(args => TooltipService.Open(args, detail.HelpText))" />
+                                                }
+                                            </span>
                                             <strong>@detail.Value</strong>
                                         </div>
                                     }
@@ -200,6 +219,18 @@
         display: flex;
         align-items: center;
         gap: 0.35rem;
+    }
+
+    .chain-help-icon,
+    .detail-help-icon {
+        color: var(--rz-primary);
+        cursor: help;
+        letter-spacing: 0;
+        text-transform: none;
+    }
+
+    .chain-help-icon {
+        font-size: 1rem;
     }
 
     .chain-tree-wrap {
@@ -378,9 +409,16 @@
         border-bottom: 1px solid #eef0f3;
     }
 
-    .detail-row span {
+    .detail-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
         color: #4b5563;
         font-size: 0.83rem;
+    }
+
+    .detail-help-icon {
+        font-size: 0.95rem;
     }
 
     .detail-row strong {
@@ -594,8 +632,8 @@
                     Expanded = false
                 };
 
-                AddDetail(node, "Column", column.ColumnName);
                 AddDetail(node, "Ordinal", column.OrdinalPosition.ToString());
+                AddDetail(node, "Column", column.ColumnName);
                 AddDetail(node, "Business Name", column.BusinessName);
                 AddDetail(node, "Business Description", column.BusinessDescription);
                 AddDetail(node, "Semantic Source", FormatQualifiedName(column.SemanticDatabase, column.SemanticSchema, column.SemanticObject, column.SemanticColumn));
@@ -612,9 +650,10 @@
                         Tooltip = semanticSource,
                         Details =
                         {
+                            new DetailRow("Ordinal", column.OrdinalPosition.ToString(), GetDetailHelpText("Ordinal")),
                             new DetailRow("Column", column.ColumnName),
-                            new DetailRow("Semantic Source", semanticSource),
-                            new DetailRow("Inheritance", column.DisableInheritance ? "Disabled" : "Allowed")
+                            new DetailRow("Semantic Source", semanticSource, GetDetailHelpText("Semantic Source")),
+                            new DetailRow("Inheritance", column.DisableInheritance ? "Disabled" : "Allowed", GetDetailHelpText("Inheritance"))
                         }
                     });
                 }
@@ -629,8 +668,9 @@
                         Tooltip = physicalLineage,
                         Details =
                         {
+                            new DetailRow("Ordinal", column.OrdinalPosition.ToString(), GetDetailHelpText("Ordinal")),
                             new DetailRow("Column", column.ColumnName),
-                            new DetailRow("Physical Lineage", physicalLineage)
+                            new DetailRow("Physical Lineage", physicalLineage, GetDetailHelpText("Physical Lineage"))
                         }
                     });
                 }
@@ -703,9 +743,25 @@
     {
         if (!string.IsNullOrWhiteSpace(value))
         {
-            node.Details.Add(new DetailRow(label, value));
+            node.Details.Add(new DetailRow(label, value, GetDetailHelpText(label)));
         }
     }
+
+    private static string GetDetailHelpText(string label) =>
+        label switch
+        {
+            "Ordinal" => "The projected sequence of this column in the SELECT list.",
+            "Column" => "The column name exposed by the selected view.",
+            "Business Name" => "The friendly business label saved or inherited for this column.",
+            "Business Description" => "The business definition saved or inherited for this column.",
+            "Semantic Source" => "The nearest semantic object and column that define this column's meaning.",
+            "Physical Lineage" => "The physical database, schema, table, and column where the data ultimately comes from.",
+            "Inheritance" => "Whether semantic metadata inheritance is allowed for this projected column.",
+            "Object" => "The fully qualified object selected in the dependency tree.",
+            "Join Type" => "The SQL join type used for this source object when available.",
+            "Join" => "The join expression parsed for this source object when available.",
+            _ => string.Empty
+        };
 
     private static string FormatQualifiedName(params string?[] parts) =>
         string.Join(".", parts.Where(part => !string.IsNullOrWhiteSpace(part)));
@@ -741,7 +797,7 @@
         public List<DetailRow> Details { get; init; } = new();
     }
 
-    private sealed record DetailRow(string Label, string Value);
+    private sealed record DetailRow(string Label, string Value, string HelpText = "");
 
     private sealed record SqlViewTab(string Key, string Title, string Content, bool CanClose);
 }
