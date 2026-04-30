@@ -1,3 +1,4 @@
+/* 2026-04-30 04:03 PM CDT AI v1.11 manage-views-next marker: deep Radzen textarea and checkbox selectors keep resize and click affordances visually bounded. */
 /* 2026-04-30 03:53 PM CDT AI v1.10 manage-views-next marker: textareas are width-bounded and the Disable Inheritance checkbox has a visible field treatment. */
 /* 2026-04-30 03:39 PM CDT AI v1.9 manage-views-next marker: column selector rows are compact and the listbox has a taller default height after initial load. */
 /* 2026-04-30 03:13 PM CDT AI v1.8 manage-views-next marker: selector rail is viewport-bounded so long domain trees cannot push Reload Databases off screen. */
@@ -319,6 +320,15 @@
     resize: vertical;
 }
 
+::deep textarea.mvn-textarea,
+::deep .mvn-textarea textarea,
+::deep .mvn-field textarea.rz-textarea {
+    box-sizing: border-box !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    resize: vertical !important;
+}
+
 .mvn-inheritance-check {
     justify-content: space-between;
     border: 1px solid #cbd6ff;
@@ -332,16 +342,24 @@
     font-weight: 700;
 }
 
-.mvn-inheritance-check .rz-chkbox-box {
-    border-color: var(--rz-primary);
-    background: #fff;
+::deep .mvn-inheritance-check .rz-chkbox,
+::deep .mvn-inheritance-check .rz-chkbox-box {
+    width: 20px;
+    height: 20px;
+}
+
+::deep .mvn-inheritance-check .rz-chkbox-box {
+    border: 2px solid #1f2937 !important;
+    border-radius: 4px;
+    background: #fff !important;
     box-shadow: 0 0 0 2px #eef3ff;
 }
 
-.mvn-inheritance-check .rz-chkbox-box.rz-state-active,
-.mvn-inheritance-check .rz-chkbox-box.rz-state-highlight {
-    background: var(--rz-primary);
-    border-color: var(--rz-primary);
+::deep .mvn-inheritance-check .rz-chkbox-box.rz-state-active,
+::deep .mvn-inheritance-check .rz-chkbox-box.rz-state-highlight,
+::deep .mvn-inheritance-check .rz-chkbox-box.rz-state-checked {
+    background: var(--rz-primary) !important;
+    border-color: #1f2937 !important;
 }
 
 .mvn-view-actions {

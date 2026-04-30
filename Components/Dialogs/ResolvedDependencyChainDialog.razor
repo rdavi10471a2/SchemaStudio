@@ -1,4 +1,5 @@
 @using Radzen
+@using SchemaStudio.AIHelpers
 @using SchemaStudioWebViewer.Components.HelpSystem
 @using SchemaStudioWebViewer.WEBSemanticModel.Model
 @using SchemaStudioWebViewer.WEBSemanticModel.Services
@@ -7,7 +8,19 @@
 @inject ViewParsingService ParserService
 @inject TooltipService TooltipService
 
+@attribute [FileVersion("1.0")]
+@attribute [AIChange("1.0", "2026-04-30 03:57 PM CDT moved the View Details help launcher from the dialog footer to the top-right utility row while leaving the standard dialog close affordances intact.", AICommandStatus.Pending)]
+
+@* 2026-04-30 03:57 PM CDT AI v1.0 marker: View Details help is now visible at the top of the dialog instead of hiding near the footer close action. *@
 <div class="resolved-chain-dialog-root">
+    <div class="chain-dialog-top-actions">
+        <RadzenIcon Icon="help_outline"
+                    title="View Details help"
+                    aria-label="View Details help"
+                    class="chain-dialog-help-button"
+                    @onclick="@OpenHelpAsync" />
+    </div>
+
     <RadzenTabs class="resolved-chain-tabs"
                 RenderMode="TabRenderMode.Client"
                 @bind-SelectedIndex="SelectedTabIndex">
@@ -142,11 +155,6 @@
     </RadzenTabs>
 
     <div class="chain-dialog-actions">
-        <RadzenIcon Icon="help_outline"
-                    title="View Details help"
-                    aria-label="View Details help"
-                    Style="cursor:pointer;color:var(--rz-primary);font-size:1.25rem;"
-                    @onclick="@OpenHelpAsync" />
         <RadzenButton Text="Close" ButtonStyle="ButtonStyle.Light" Click="@(() => DialogService.Close())" />
     </div>
 </div>
@@ -163,6 +171,20 @@
     .resolved-chain-tabs {
         flex: 1;
         min-height: 0;
+    }
+
+    .chain-dialog-top-actions {
+        flex: 0 0 auto;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        padding: 0 0.75rem 0.25rem;
+    }
+
+    .chain-dialog-help-button {
+        cursor: pointer;
+        color: var(--rz-primary);
+        font-size: 1.25rem;
     }
 
     .resolved-chain-tabs .rz-tabview,
@@ -461,7 +483,7 @@
     .chain-dialog-actions {
         flex: 0 0 auto;
         display: flex;
-        justify-content: space-between;
+        justify-content: flex-end;
         gap: 0.75rem;
         padding: 0.5rem 0.75rem 0.75rem;
     }
