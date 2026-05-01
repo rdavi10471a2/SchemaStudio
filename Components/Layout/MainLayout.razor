@@ -1,14 +1,20 @@
 ﻿@inherits LayoutComponentBase
 @implements IDisposable
 @using Microsoft.AspNetCore.Components.Routing
+@using Radzen
 @using Radzen.Blazor
 @using SchemaStudio.AIHelpers
 @using SchemaStudioWebViewer.Configuration
+@using SchemaStudioWebViewer.Components.HelpSystem
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
-@inject NotificationService NotificationService
+@inject DialogService DialogService
 
-@attribute [FileVersion("1.8")]
+@attribute [FileVersion("1.9")]
+@attribute [AIChange(
+    "1.9",
+    "2026-05-01 08:33 AM CDT replaced the hamburger/sidebar navigation with a kiosk-aware top menu for Schema Explorer, Maintenance, and Help actions.",
+    AICommandStatus.Pending)]
 @attribute [AIChange(
     "1.8",
     "2026-04-30 11:10 PM CDT collapsed the duplicated shared body gutters so page surfaces start closer to the app chrome while preserving the bounded scroll host.",
@@ -22,7 +28,7 @@
 @attribute [AIChange("1.4", "2026-04-30 04:17 PM CDT bounded the shared layout body to viewport-relative height so pages can use internal scrolling instead of growing past the visible app shell.", AICommandStatus.Pending)]
 @attribute [AIChange("1.3", "2026-04-27 11:36 AM CDT added a login-required toast when the guarded hamburger is clicked before the temporary session login is complete.", AICommandStatus.Pending)]
 @attribute [AIChange("1.2", "2026-04-27 11:32 AM CDT gated the layout hamburger and sidebar menu behind the temporary session auth flag so direct Home navigation cannot expose navigation before login.", AICommandStatus.Pending)]
-@attribute [AIFileContext("Components/Layout/MainLayout.razor", "Hosts the shared Radzen application shell, navigation header/sidebar chrome, dialog providers, kiosk chrome suppression, and temporary simple-auth menu gating until real authentication is implemented.")]
+@attribute [AIFileContext("Components/Layout/MainLayout.razor", "Hosts the shared Radzen application shell, top menu chrome, dialog providers, kiosk chrome suppression, and temporary simple-auth menu gating until real authentication is implemented.")]
 @attribute [AIChange("1.1", "2026-04-22 06:04 PM CDT kept Radzen dialog providers in the page circuit so DialogService calls render shared dialogs.", AICommandStatus.Pending)]
 @attribute [AIChange("1.0", "2026-04-22 11:06 AM CDT added config-driven kiosk chrome suppression for the /kiosk route.", AICommandStatus.Pending)]
 
@@ -81,20 +87,88 @@
         height: 42px;
     }
 
-    .rz-header .rz-sidebar-toggle {
-        min-height: 42px;
-        height: 42px;
-        width: 42px;
-    }
-
     .rz-header .rz-text {
         font-size: 1.05rem;
         line-height: 1.2;
     }
 
-    .rz-sidebar {
-        background-color: #26272b !important;
-        transition: width 0.3s ease-in-out;
+    .app-header {
+        width: 100%;
+        padding: 0 0.8rem;
+        border-bottom: 1px solid #d8dde6;
+        background: #ffffff;
+        box-sizing: border-box;
+    }
+
+    .app-title {
+        white-space: nowrap;
+        margin-right: 1.25rem;
+    }
+
+    .app-menu {
+        display: flex;
+        align-items: stretch;
+        gap: 0.15rem;
+        height: 100%;
+        font-size: 0.82rem;
+    }
+
+    .app-menu a,
+    .app-menu button,
+    .app-menu summary {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        min-height: 34px;
+        padding: 0.35rem 0.65rem;
+        border: 0;
+        border-radius: 4px;
+        background: transparent;
+        color: #20242c;
+        font: inherit;
+        text-decoration: none;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    .app-menu a:hover,
+    .app-menu button:hover,
+    .app-menu summary:hover,
+    .app-menu details[open] > summary {
+        background: #eef1f6;
+    }
+
+    .app-menu details {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .app-menu summary {
+        list-style: none;
+    }
+
+    .app-menu summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .app-menu-popover {
+        position: absolute;
+        top: calc(100% + 2px);
+        left: 0;
+        z-index: 20;
+        min-width: 190px;
+        padding: 0.3rem;
+        border: 1px solid #d6dce7;
+        border-radius: 6px;
+        background: #ffffff;
+        box-shadow: 0 8px 22px rgba(15, 23, 42, 0.16);
+    }
+
+    .app-menu-popover a,
+    .app-menu-popover button {
+        width: 100%;
+        justify-content: flex-start;
     }
 
     /* Utility to fix your alignment frustration */
@@ -109,29 +183,62 @@
     @* 2026-04-30 03:09 PM CDT AI v1.6 layout-height marker: the bounded white content card scrolls again when a page legitimately grows inside the viewport. *@
     @* 2026-04-30 02:49 PM CDT AI v1.5 layout-height marker: Radzen body scrolling is suppressed so bounded pages do not escape the viewport card. *@
     @* 2026-04-30 04:17 PM CDT AI v1.4 layout-height marker: page content is viewport-bounded so feature pages can own local scroll regions. *@
-    @* 2026-04-27 11:36 AM CDT AI v1.3 layout-auth marker: unauthenticated hamburger clicks now explain that login is required instead of silently doing nothing. *@
-    @* 2026-04-27 11:32 AM CDT AI v1.2 layout-auth marker: the sidebar toggle checks session auth before opening so debug-filled credentials alone cannot expose navigation. *@
     @* 2026-04-22 06:04 PM CDT AI v1.1 dialog-provider marker: RadzenComponents stays in the active page circuit so dialogs, notifications, tooltips, and context menus share the caller's services. *@
     @* 2026-04-22 11:06 AM CDT AI v1.0 kiosk layout marker: config can hide navigation chrome for /kiosk while Home remains the shared content surface. *@
     @if (!HideNavigationChrome)
     {
         <RadzenHeader>
-            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0">
-                <RadzenSidebarToggle Click="@ToggleSidebarAsync" />
-                <RadzenText TextStyle="TextStyle.H6" class="rz-mb-0 rz-ml-2">Schema Studio Web  -- Schema & Understanding Service</RadzenText>
-            </RadzenStack>
-        </RadzenHeader>
-
-        <RadzenSidebar @bind-Expanded="@sidebarExpanded"
-                       Responsive="false"
-                       Style="@(CanShowNavigationMenu && sidebarExpanded ? "width: 250px;" : "width: 0px; overflow: hidden;")">
-            <RadzenStack Gap="0" class="rz-py-4 rz-ph-4">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0" class="app-header">
+                <RadzenText TextStyle="TextStyle.H6" class="rz-mb-0 app-title">Schema Studio Web -- Schema &amp; Understanding Service</RadzenText>
                 @if (CanShowNavigationMenu)
                 {
-                    <NavMenu />
+                    <nav class="app-menu" aria-label="Application menu">
+                        <a href="/">
+                            <RadzenIcon Icon="explore" />
+                            <span>Schema Explorer</span>
+                        </a>
+
+                        <details>
+                            <summary>
+                                <RadzenIcon Icon="build" />
+                                <span>Maintenance</span>
+                            </summary>
+                            <div class="app-menu-popover">
+                                <a href="manage-databases">
+                                    <RadzenIcon Icon="database" />
+                                    <span>Manage Databases</span>
+                                </a>
+                                <a href="manage-views-next">
+                                    <RadzenIcon Icon="view_week" />
+                                    <span>Manage Views</span>
+                                </a>
+                                <a href="parser-lab">
+                                    <RadzenIcon Icon="account_tree" />
+                                    <span>Parser Test Area</span>
+                                </a>
+                            </div>
+                        </details>
+
+                        <details>
+                            <summary>
+                                <RadzenIcon Icon="help" />
+                                <span>Help</span>
+                            </summary>
+                            <div class="app-menu-popover">
+                                <button type="button" @onclick="@OpenHelpAsync">
+                                    <RadzenIcon Icon="help_outline" />
+                                    <span>Help</span>
+                                </button>
+                                <button type="button" @onclick="@ShowAboutAsync">
+                                    <RadzenIcon Icon="info" />
+                                    <span>About</span>
+                                </button>
+                            </div>
+                        </details>
+                    </nav>
                 }
             </RadzenStack>
-        </RadzenSidebar>
+        </RadzenHeader>
     }
 
     <RadzenBody>
@@ -142,7 +249,6 @@
 </RadzenLayout>
 
 @code {
-    bool sidebarExpanded = false;
     private bool isNavigationAuthenticated = false;
 
     private const string AuthStorageKey = "simpleAuth";
@@ -168,7 +274,7 @@
 
     private string LayoutStyle => HideNavigationChrome
         ? "grid-template-areas: 'rz-body'; grid-template-columns: 1fr; height: 100vh;"
-        : "grid-template-areas: 'rz-header rz-header' 'rz-sidebar rz-body'; grid-template-rows: 42px minmax(0, 1fr); height: 100vh;";
+        : "grid-template-areas: 'rz-header' 'rz-body'; grid-template-columns: 1fr; grid-template-rows: 42px minmax(0, 1fr); height: 100vh;";
 
     private string CurrentRelativePath
     {
@@ -194,21 +300,6 @@
         }
     }
 
-    private async Task ToggleSidebarAsync()
-    {
-        await RefreshNavigationAuthStateAsync();
-
-        if (!CanShowNavigationMenu)
-        {
-            sidebarExpanded = false;
-            NotificationService.Notify(NotificationSeverity.Info, "Login required", "Log in before opening navigation.", 2500);
-            await InvokeAsync(StateHasChanged);
-            return;
-        }
-
-        sidebarExpanded = !sidebarExpanded;
-    }
-
     private void OnLocationChanged(object? sender, LocationChangedEventArgs args)
     {
         InvokeAsync(async () =>
@@ -229,10 +320,30 @@
         var authValue = await JSRuntime.InvokeAsync<string>("authStateManager.load", AuthStorageKey);
         isNavigationAuthenticated = string.Equals(authValue, AuthenticatedValue, StringComparison.OrdinalIgnoreCase);
 
-        if (!isNavigationAuthenticated)
-        {
-            sidebarExpanded = false;
-        }
+    }
+
+    private async Task OpenHelpAsync()
+    {
+        await DialogService.OpenAsync<HelpDialog>(
+            "Schema Studio Help Console",
+            new Dictionary<string, object?>
+            {
+                { "InitialSubjectId", "system-overview" }
+            },
+            new DialogOptions
+            {
+                Width = "1100px",
+                Height = "760px",
+                Resizable = true,
+                Draggable = true
+            });
+    }
+
+    private async Task ShowAboutAsync()
+    {
+        await DialogService.Alert(
+            "Schema Studio Web -- Schema & Understanding Service",
+            "About Schema Studio Web");
     }
 
     public void Dispose()
