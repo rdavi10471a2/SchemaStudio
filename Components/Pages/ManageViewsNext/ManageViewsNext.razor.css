@@ -1,3 +1,5 @@
+/* 2026-05-01 10:39 PM CDT AI v1.35 manage-views-next marker: action toolbar starts farther left and Column Synchronization spans two toolbar columns without forcing its own full row. */
+/* 2026-05-01 10:34 PM CDT AI v1.34 manage-views-next marker: toolbar buttons keep normal height while Column Synchronization spans its own compact row inside the toolbar grid. */
 /* 2026-05-01 10:29 PM CDT AI v1.33 manage-views-next marker: Column Synchronization now participates in the selected-view toolbar grid so it wraps with view actions when the selector is visible. */
 /* 2026-05-01 10:20 PM CDT AI v1.32 manage-views-next marker: selected-view header now carries a compact Column Synchronization strip so View Definition starts shorter. */
 /* 2026-05-01 10:05 PM CDT AI v1.31 manage-views-next marker: selected-view toolbar shell now bounds responsive button wrapping inside the header card. */
@@ -232,10 +234,10 @@
     align-items: center;
     justify-content: space-between;
     gap: 0.55rem;
-    grid-column: span 2;
+    grid-column: 1 / -1;
     min-width: 0;
     max-width: 100%;
-    padding: 0.45rem 0.55rem;
+    padding: 0.45rem 0.6rem;
     overflow: hidden;
 }
 
@@ -263,7 +265,8 @@
     display: grid !important;
     grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
     justify-content: stretch;
-    align-items: stretch;
+    align-items: start;
+    grid-auto-rows: min-content;
     gap: 0.45rem !important;
     min-width: 0;
     width: 100%;
@@ -275,6 +278,7 @@
     width: 100%;
     min-width: 0;
     max-width: none;
+    height: 40px;
     min-height: 40px;
     justify-content: center;
     font-size: 12px;
