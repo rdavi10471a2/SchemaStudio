@@ -8,16 +8,16 @@
 @inject ViewParsingService ParserService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.3")]
+@attribute [FileVersion("1.4")]
+@attribute [AIChange(
+    "1.4",
+    "2026-04-30 06:58 PM CDT stabilized the View Details dialog layout by making panels own their height and restoring single wrapper scrolling for tree content.",
+    AICommandStatus.Pending)]
 @attribute [AIChange("1.3", "2026-04-30 05:43 PM CDT removed the wrapper scrollbar from View Details tree panels so RadzenTree remains the single scroll owner without changing the tree shape.", AICommandStatus.Pending)]
 @attribute [AIChange("1.2", "2026-04-30 05:34 PM CDT restored RadzenTree fill styling and wrapped FROM/JOIN sources under the selected view so base-table source trees use the same hierarchy as composed views.", AICommandStatus.Pending)]
 @attribute [AIChange("1.1", "2026-04-30 05:20 PM CDT made the View Details dialog panels use wrapper-owned scrolling so RadzenTree content no longer creates duplicate scrollbars.", AICommandStatus.Pending)]
 @attribute [AIChange("1.0", "2026-04-30 03:57 PM CDT moved the View Details help launcher from the dialog footer to the top-right utility row while leaving the standard dialog close affordances intact.", AICommandStatus.Pending)]
 
-@* 2026-04-30 05:43 PM CDT AI v1.3 marker: tree wrappers clip only; RadzenTree owns the one vertical scrollbar in each panel. *@
-@* 2026-04-30 05:34 PM CDT AI v1.2 marker: FROM/JOIN sources now share one selected-view root, even when the immediate source is a physical table. *@
-@* 2026-04-30 05:20 PM CDT AI v1.1 marker: tree panel wrappers own scroll height; RadzenTree renders natural content inside them to avoid double scrollbars. *@
-@* 2026-04-30 03:57 PM CDT AI v1.0 marker: View Details help is now visible at the top of the dialog instead of hiding near the footer close action. *@
 <div class="resolved-chain-dialog-root">
     <div class="chain-dialog-top-actions">
         <RadzenIcon Icon="help_outline"
@@ -43,7 +43,7 @@
                         <div class="chain-tree-wrap">
                             <RadzenTree Data="@ColumnNodes"
                                         Change="@OnTreeSelectionChanged"
-                                        Style="height: 100%; width: 100%;">
+                                        Style="width: 100%;">
                                 <RadzenTreeLevel TextProperty="@nameof(ExplorerTreeNode.Text)"
                                                  ChildrenProperty="@nameof(ExplorerTreeNode.Children)"
                                                  HasChildren="@HasChildren"
@@ -70,7 +70,7 @@
                         <div class="chain-tree-wrap">
                             <RadzenTree Data="@SourceNodes"
                                         Change="@OnTreeSelectionChanged"
-                                        Style="height: 100%; width: 100%;">
+                                        Style="width: 100%;">
                                 <RadzenTreeLevel TextProperty="@nameof(ExplorerTreeNode.Text)"
                                                  ChildrenProperty="@nameof(ExplorerTreeNode.Children)"
                                                  HasChildren="@HasChildren"
@@ -194,6 +194,7 @@
         font-size: 1.25rem;
     }
 
+    .resolved-chain-tabs.rz-tabview,
     .resolved-chain-tabs .rz-tabview,
     .resolved-chain-tabs .rz-tabview-panels,
     .resolved-chain-tabs .rz-tabview-panel {
@@ -216,6 +217,8 @@
     }
 
     .chain-panel {
+        display: flex;
+        flex-direction: column;
         min-height: 0;
         max-height: 100%;
         border: 1px solid #dee2e6;
@@ -234,11 +237,10 @@
 
     .detail-panel {
         grid-area: details;
-        display: flex;
-        flex-direction: column;
     }
 
     .chain-panel-header {
+        flex: 0 0 auto;
         min-height: 36px;
         padding: 0.65rem 0.85rem;
         border-bottom: 1px solid #e7ebf0;
@@ -266,16 +268,15 @@
     }
 
     .chain-tree-wrap {
+        flex: 1;
         box-sizing: border-box;
-        height: calc(100% - 36px);
-        overflow: hidden;
+        min-height: 0;
+        overflow: auto;
         padding: 0.45rem 0.35rem;
     }
 
     .chain-tree-wrap .rz-tree {
-        height: 100% !important;
         width: 100% !important;
-        overflow: auto !important;
     }
 
     .resolved-chain-dialog-root .rz-tree .rz-tree-item-content {
