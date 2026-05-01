@@ -4,6 +4,10 @@ using SchemaStudio.Data.Models;
 
 namespace SchemaStudioWebViewer.Components.Pages.ManageViewsNext;
 
+[AIChange(
+    "1.1",
+    "2026-04-30 11:52 PM CDT blocked external selector and reload interactions while Manage Views Next is busy so async view loads cannot overlap or apply out of order.",
+    AICommandStatus.Pending)]
 [AIChange("1.0", "2026-04-30 03:37 PM CDT added database reload, domain tree loading, selection, dirty navigation guard, and reset handling for the Manage Views Next prototype.", AICommandStatus.Pending)]
 public partial class ManageViewsNext
 {
@@ -42,6 +46,11 @@ public partial class ManageViewsNext
 
     private async Task ReloadDatabasesAsync()
     {
+        if (IsBusy)
+        {
+            return;
+        }
+
         if (await IsNavigationBlockedAsync(
             "Discard unsaved view or column changes and reload database metadata?",
             async () => await InvokeAsync(StateHasChanged)))
@@ -55,6 +64,11 @@ public partial class ManageViewsNext
 
     private async Task OnDatabaseChanged(object value)
     {
+        if (IsBusy)
+        {
+            return;
+        }
+
         var previousDatabaseId = SelectedDatabase?.DatabaseId;
         if (await IsNavigationBlockedAsync(
             "Discard unsaved view or column changes and switch databases?",
@@ -89,6 +103,11 @@ public partial class ManageViewsNext
 
     private async Task OnDomainFilterChangedCoreAsync(string? nextFilter)
     {
+        if (IsBusy)
+        {
+            return;
+        }
+
         if (await IsNavigationBlockedAsync(
             "Discard unsaved view or column changes and change the domain filter?",
             async () =>
@@ -109,6 +128,11 @@ public partial class ManageViewsNext
 
     private async Task OnViewSelectionChanged(string? key)
     {
+        if (IsBusy)
+        {
+            return;
+        }
+
         var previousSelectionKey = SelectedViewItem?.SelectionKey;
         if (await IsNavigationBlockedAsync(
             "Discard unsaved view or column changes and open another view?",
@@ -132,6 +156,11 @@ public partial class ManageViewsNext
 
     private async Task ResetEditorAsync()
     {
+        if (IsBusy)
+        {
+            return;
+        }
+
         if (!string.IsNullOrWhiteSpace(SelectedViewKey))
         {
             await SelectViewAsync(SelectedViewKey);
