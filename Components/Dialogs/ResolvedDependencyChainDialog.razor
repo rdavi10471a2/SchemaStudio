@@ -8,7 +8,11 @@
 @inject ViewParsingService ParserService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.5")]
+@attribute [FileVersion("1.6")]
+@attribute [AIChange(
+    "1.6",
+    "2026-04-30 07:21 PM CDT kept Business Name, Business Description, and Developer Notes visible as multiline detail fields even when values are blank.",
+    AICommandStatus.Pending)]
 @attribute [AIChange(
     "1.5",
     "2026-04-30 07:03 PM CDT rendered Business Name and Business Description details as multiline readonly text fields in the View Details panel.",
@@ -616,12 +620,15 @@
 
     private static bool IsMultilineDetailField(string label) =>
         string.Equals(label, "Business Name", StringComparison.Ordinal)
-        || string.Equals(label, "Business Description", StringComparison.Ordinal);
+        || string.Equals(label, "Business Description", StringComparison.Ordinal)
+        || string.Equals(label, "Developer Notes", StringComparison.Ordinal);
 
     private static int GetDetailTextRows(string label) =>
         string.Equals(label, "Business Description", StringComparison.Ordinal)
             ? 4
-            : 2;
+            : string.Equals(label, "Developer Notes", StringComparison.Ordinal)
+                ? 3
+                : 2;
 
     private void OnTreeSelectionChanged(TreeEventArgs args)
     {
@@ -727,8 +734,9 @@
 
                 AddDetail(node, "Ordinal", column.OrdinalPosition.ToString());
                 AddDetail(node, "Column", column.ColumnName);
-                AddDetail(node, "Business Name", column.BusinessName);
-                AddDetail(node, "Business Description", column.BusinessDescription);
+                AddDetail(node, "Business Name", column.BusinessName, keepWhenBlank: true);
+                AddDetail(node, "Business Description", column.BusinessDescription, keepWhenBlank: true);
+                AddDetail(node, "Developer Notes", column.DeveloperNotes, keepWhenBlank: true);
                 AddDetail(node, "Semantic Source", FormatQualifiedName(column.SemanticDatabase, column.SemanticSchema, column.SemanticObject, column.SemanticColumn));
                 AddDetail(node, "Physical Lineage", FormatQualifiedName(column.BaseDatabase, column.BaseSchema, column.BaseTable, column.BaseColumn));
                 AddDetail(node, "Inheritance", column.DisableInheritance ? "Disabled for this column" : "Allowed");
@@ -878,11 +886,11 @@
         return new ViewIdentity(database, schema, objectName, displayName);
     }
 
-    private static void AddDetail(ExplorerTreeNode node, string label, string? value)
+    private static void AddDetail(ExplorerTreeNode node, string label, string? value, bool keepWhenBlank = false)
     {
-        if (!string.IsNullOrWhiteSpace(value))
+        if (keepWhenBlank || !string.IsNullOrWhiteSpace(value))
         {
-            node.Details.Add(new DetailRow(label, value, GetDetailHelpText(label)));
+            node.Details.Add(new DetailRow(label, value ?? string.Empty, GetDetailHelpText(label)));
         }
     }
 
@@ -893,6 +901,7 @@
             "Column" => "The column name exposed by the selected view.",
             "Business Name" => "The friendly business label saved or inherited for this column.",
             "Business Description" => "The business definition saved or inherited for this column.",
+            "Developer Notes" => "Internal implementation notes saved for this column.",
             "Semantic Source" => "The nearest semantic object and column that define this column's meaning.",
             "Physical Lineage" => "The physical database, schema, table, and column where the data ultimately comes from.",
             "Inheritance" => "Whether semantic metadata inheritance is allowed for this projected column.",
