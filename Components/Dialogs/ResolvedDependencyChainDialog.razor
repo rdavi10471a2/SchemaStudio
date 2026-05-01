@@ -8,7 +8,11 @@
 @inject ViewParsingService ParserService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.4")]
+@attribute [FileVersion("1.5")]
+@attribute [AIChange(
+    "1.5",
+    "2026-04-30 07:03 PM CDT rendered Business Name and Business Description details as multiline readonly text fields in the View Details panel.",
+    AICommandStatus.Pending)]
 @attribute [AIChange(
     "1.4",
     "2026-04-30 06:58 PM CDT stabilized the View Details dialog layout by making panels own their height and restoring single wrapper scrolling for tree content.",
@@ -107,7 +111,7 @@
                                 <div class="detail-scroll">
                                     @foreach (var detail in SelectedNode.Details)
                                     {
-                                        <div class="detail-row">
+                                        <div class="@GetDetailRowClass(detail)">
                                             <span class="detail-label">
                                                 @detail.Label
                                                 @if (!string.IsNullOrWhiteSpace(detail.HelpText))
@@ -117,7 +121,16 @@
                                                                 MouseEnter="@(args => TooltipService.Open(args, detail.HelpText))" />
                                                 }
                                             </span>
-                                            <strong>@detail.Value</strong>
+                                            @if (IsMultilineDetailField(detail.Label))
+                                            {
+                                                <textarea class="detail-value-textarea"
+                                                          rows="@GetDetailTextRows(detail.Label)"
+                                                          readonly>@detail.Value</textarea>
+                                            }
+                                            else
+                                            {
+                                                <strong>@detail.Value</strong>
+                                            }
                                         </div>
                                     }
                                 </div>
@@ -449,6 +462,10 @@
         border-bottom: 1px solid #eef0f3;
     }
 
+    .detail-row.multiline-detail-row {
+        align-items: start;
+    }
+
     .detail-label {
         display: inline-flex;
         align-items: center;
@@ -467,6 +484,28 @@
         color: #1f2937;
         font-size: 0.86rem;
         font-weight: 500;
+    }
+
+    .detail-value-textarea {
+        box-sizing: border-box;
+        width: 100%;
+        min-width: 0;
+        resize: vertical;
+        border: 1px solid #d8dee8;
+        border-radius: 4px;
+        background: #fff;
+        color: #1f2937;
+        font: inherit;
+        font-size: 0.86rem;
+        line-height: 1.45;
+        overflow: auto;
+        padding: 0.45rem 0.55rem;
+    }
+
+    .detail-value-textarea:focus {
+        border-color: var(--rz-primary);
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(51, 92, 255, 0.12);
     }
 
     .empty-detail {
@@ -569,6 +608,20 @@
         ReferenceEquals(node, SelectedNode)
             ? "tree-node-content selected-node"
             : "tree-node-content";
+
+    private static string GetDetailRowClass(DetailRow detail) =>
+        IsMultilineDetailField(detail.Label)
+            ? "detail-row multiline-detail-row"
+            : "detail-row";
+
+    private static bool IsMultilineDetailField(string label) =>
+        string.Equals(label, "Business Name", StringComparison.Ordinal)
+        || string.Equals(label, "Business Description", StringComparison.Ordinal);
+
+    private static int GetDetailTextRows(string label) =>
+        string.Equals(label, "Business Description", StringComparison.Ordinal)
+            ? 4
+            : 2;
 
     private void OnTreeSelectionChanged(TreeEventArgs args)
     {
