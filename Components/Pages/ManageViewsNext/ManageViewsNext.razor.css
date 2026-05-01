@@ -1,3 +1,4 @@
+/* 2026-05-01 09:34 PM CDT AI v1.29 manage-views-next marker: selected-view toolbar gives full labels room first, then shrinks and wraps only as the header container tightens. */
 /* 2026-05-01 09:28 PM CDT AI v1.28 manage-views-next marker: selected-view toolbar buttons now use stable responsive grid sizing so narrower viewports wrap into compact rows without pushing the editor sideways. */
 /* 2026-04-30 07:16 PM CDT AI v1.26 manage-views-next marker: Base Object and Disable Inheritance now share the same dark checkbox target styling. */
 /* 2026-04-30 04:30 PM CDT AI v1.17 manage-views-next marker: column selector names own the row and detail fields align from the top instead of drifting out of view. */
@@ -215,29 +216,33 @@
 .mvn-selected-header {
     flex: 0 0 auto;
     align-items: start;
+    flex-wrap: wrap;
 }
 
 .mvn-header-toolbar {
     display: grid !important;
-    grid-template-columns: repeat(6, minmax(62px, max-content));
+    grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
     justify-content: end;
     align-items: stretch;
     gap: 0.45rem !important;
+    flex: 1 1 700px;
     min-width: 0;
-    max-width: 100%;
+    width: min(100%, 820px);
+    max-width: 820px;
 }
 
 ::deep .mvn-header-toolbar .rz-button {
     width: 100%;
     min-width: 0;
-    max-width: 118px;
+    max-width: none;
     min-height: 40px;
     justify-content: center;
+    font-size: 12px;
 }
 
 ::deep .mvn-header-toolbar .rz-button .rz-button-text {
     min-width: 0;
-    max-width: 76px;
+    max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -606,13 +611,14 @@
 @media (max-width: 1540px) {
     .mvn-selected-header {
         display: grid;
-        grid-template-columns: minmax(260px, 1fr) minmax(300px, auto);
+        grid-template-columns: minmax(300px, 1fr) minmax(620px, 0.9fr);
         align-items: start;
     }
 
     .mvn-header-toolbar {
-        grid-template-columns: repeat(3, minmax(86px, 1fr));
-        width: min(100%, 410px);
+        grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+        width: 100%;
+        max-width: 100%;
         justify-self: end;
     }
 
@@ -621,7 +627,7 @@
     }
 
     ::deep .mvn-header-toolbar .rz-button .rz-button-text {
-        max-width: 68px;
+        max-width: 100%;
     }
 }
 
