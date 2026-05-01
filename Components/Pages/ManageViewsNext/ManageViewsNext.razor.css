@@ -1,3 +1,4 @@
+/* 2026-04-30 07:16 PM CDT AI v1.26 manage-views-next marker: Base Object and Disable Inheritance now share the same dark checkbox target styling. */
 /* 2026-04-30 04:30 PM CDT AI v1.17 manage-views-next marker: column selector names own the row and detail fields align from the top instead of drifting out of view. */
 /* 2026-04-30 04:34 PM CDT AI v1.18 manage-views-next marker: metadata editor parents clip horizontal overflow and force Radzen textareas to resize vertically only. */
 /* 2026-04-30 05:59 PM CDT AI v1.25 manage-views-next marker: shared metadata textareas now load at a 100px readable minimum while preserving vertical resize. */
@@ -376,22 +377,22 @@
     font-weight: 700;
 }
 
-::deep .mvn-inheritance-check .rz-chkbox,
-::deep .mvn-inheritance-check .rz-chkbox-box {
+::deep .mvn-check-field .rz-chkbox,
+::deep .mvn-check-field .rz-chkbox-box {
     width: 20px;
     height: 20px;
 }
 
-::deep .mvn-inheritance-check .rz-chkbox-box {
+::deep .mvn-check-field .rz-chkbox-box {
     border: 2px solid #1f2937 !important;
     border-radius: 4px;
     background: #fff !important;
     box-shadow: 0 0 0 2px #eef3ff;
 }
 
-::deep .mvn-inheritance-check .rz-chkbox-box.rz-state-active,
-::deep .mvn-inheritance-check .rz-chkbox-box.rz-state-highlight,
-::deep .mvn-inheritance-check .rz-chkbox-box.rz-state-checked {
+::deep .mvn-check-field .rz-chkbox-box.rz-state-active,
+::deep .mvn-check-field .rz-chkbox-box.rz-state-highlight,
+::deep .mvn-check-field .rz-chkbox-box.rz-state-checked {
     background: var(--rz-primary) !important;
     border-color: #1f2937 !important;
 }

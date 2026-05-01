@@ -1,3 +1,4 @@
+/* 2026-04-30 07:15 PM CDT AI marker: match the view-level Base Object checkbox to the darker saved-column checkbox treatment without changing global Radzen checkbox styling. */
 /* 2026-04-24 11:24 AM CDT AI marker: tighten Manage Views selector sizing again and align label/help blue styling with the parser page pattern. */
 .manage-views-shell {
     display: grid;
@@ -136,6 +137,26 @@
     gap: 0.5rem;
     min-height: 100%;
     padding-top: 1.5rem;
+}
+
+::deep .manage-views-inline-flag .rz-chkbox,
+::deep .manage-views-inline-flag .rz-chkbox-box {
+    width: 20px;
+    height: 20px;
+}
+
+::deep .manage-views-inline-flag .rz-chkbox-box {
+    border: 2px solid #1f2937 !important;
+    border-radius: 4px;
+    background: #fff !important;
+    box-shadow: 0 0 0 2px #eef3ff;
+}
+
+::deep .manage-views-inline-flag .rz-chkbox-box.rz-state-active,
+::deep .manage-views-inline-flag .rz-chkbox-box.rz-state-highlight,
+::deep .manage-views-inline-flag .rz-chkbox-box.rz-state-checked {
+    border-color: #1f2937 !important;
+    background: var(--rz-primary) !important;
 }
 
 .manage-views-compact-filters {

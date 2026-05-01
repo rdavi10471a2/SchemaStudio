@@ -70,6 +70,7 @@ Update this README whenever any `Components/Pages/ManageViews/*` child file chan
 
 - `ManageViewsColumnsTab.razor.css`
   - Isolated styling for the saved-columns selector/editor fragment, including the scrollable left selector, right-side property editor, metadata labels, dirty badges, and responsive single-column fallback.
+  - Scopes the darker Radzen checkbox treatment for the saved-column `DisableInheritance` editor to the column edit grid so unrelated checkboxes keep their local styling.
 
 - `ManageViewsColumnReviewRow.cs`
   - Local row model for parser-vs-saved column review.
