@@ -1,3 +1,4 @@
+/* 2026-05-01 10:53 PM CDT AI v1.37 manage-views-next marker: flattened the Manage Views page title strip and tightened the page stack gap so the header stops consuming extra vertical space. */
 /* 2026-05-01 10:39 PM CDT AI v1.35 manage-views-next marker: action toolbar starts farther left and Column Synchronization spans two toolbar columns without forcing its own full row. */
 /* 2026-05-01 10:44 PM CDT AI v1.36 manage-views-next marker: sync summary moved to the title block and Review Merge returns to a normal toolbar button. */
 /* 2026-05-01 10:34 PM CDT AI v1.34 manage-views-next marker: toolbar buttons keep normal height while Column Synchronization spans its own compact row inside the toolbar grid. */
@@ -36,6 +37,7 @@
     min-height: 100%;
     display: flex;
     flex-direction: column;
+    gap: 0.55rem !important;
     overflow: visible;
 }
 
@@ -52,10 +54,10 @@
 
 .mvn-page-header {
     flex: 0 0 auto;
-    padding: 0.7rem 1rem;
-    background: #f7f8fb;
-    border: 1px solid #e3e7ed;
-    border-radius: 6px;
+    padding: 0.15rem 0.1rem 0.25rem;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
 }
 
 .mvn-shell {
