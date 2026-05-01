@@ -22,7 +22,11 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("1.33")]
+@attribute [FileVersion("1.34")]
+@attribute [AIChange(
+    "1.34",
+    "2026-04-30 11:15 PM CDT changed the merge-review dialog title to include the current view name so the modal carries context without repeating the generic dialog heading.",
+    AICommandStatus.Pending)]
 @attribute [AIChange("1.33", "2026-05-01 10:43 PM CDT moved the column synchronization summary under the view title and made Review Merge a normal selected-view toolbar button.", AICommandStatus.Pending)]
 @attribute [AIChange("1.32", "2026-05-01 10:28 PM CDT moved the header Column Synchronization strip into the same toolbar grid as the view action buttons so it wraps with them when the selector is visible.", AICommandStatus.Pending)]
 @attribute [AIChange("1.31", "2026-05-01 10:19 PM CDT moved Column Synchronization into the selected-view header so View Definition loses the bottom merge block and starts shorter.", AICommandStatus.Pending)]
@@ -549,7 +553,7 @@
         }
 
         var result = await DialogService.OpenAsync<ColumnMergeReviewDialog>(
-            "Column Merge Review",
+            $"{SelectedViewItem.DisplayName} - Column Merge Review",
             new Dictionary<string, object?>
             {
                 { "ViewDisplayName", SelectedViewItem.DisplayName },
