@@ -10,7 +10,11 @@
 @inject TooltipService TooltipService
 @inject AttributeService Attr
 
-@attribute [FileVersion("1.4")]
+@attribute [FileVersion("1.5")]
+@attribute [AIChange(
+    "1.5",
+    "2026-05-01 09:55 AM CDT tightened the database edit form by putting the identity fields on one logical row and compacting the action strip.",
+    AICommandStatus.Pending)]
 @attribute [AIChange(
     "1.4",
     "2026-05-01 09:36 AM CDT escaped the Manage Databases inline media query so Razor treats it as CSS instead of C#.",
@@ -122,7 +126,7 @@
                                     </RadzenStack>
                                     @DatabaseFormFields(editDatabase)
 
-                                    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.75rem" class="rz-px-4 rz-pb-4">
+                                    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.6rem" class="mdb-form-actions">
                                         <RadzenButton Icon="refresh" Text="Reset" ButtonStyle="ButtonStyle.Light" Click="@ResetDatabaseEdit" />
                                         <RadzenButton Icon="delete"
                                                       Text="Delete"
@@ -229,7 +233,7 @@
                 <DataAnnotationsValidator />
                 @DatabaseFormFields(newDatabase)
 
-                <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.75rem" class="rz-px-4 rz-pb-4">
+                <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.6rem" class="mdb-form-actions">
                     <RadzenButton Icon="close" Text="Cancel" ButtonStyle="ButtonStyle.Light" Click="@CloseNewDatabaseDialog" />
                     <RadzenButton Icon="save" Text="Create Database" ButtonType="ButtonType.Submit" ButtonStyle="ButtonStyle.Primary" />
                 </RadzenStack>
@@ -326,6 +330,16 @@
         max-width: 100%;
         min-width: 0;
         resize: vertical;
+    }
+
+    .mdb-form-fields {
+        padding: 0.75rem 1rem 0.65rem !important;
+    }
+
+    .mdb-form-actions {
+        border-top: 1px solid #edf0f4;
+        margin: 0 1rem;
+        padding: 0.65rem 0 0.75rem;
     }
 
     .database-modal-backdrop {
@@ -698,26 +712,28 @@
         }
     }
 
-    private RenderFragment DatabaseFormFields(DatabaseDefinition database) => @<RadzenStack Gap="1rem" class="rz-p-4">
+    private RenderFragment DatabaseFormFields(DatabaseDefinition database) => @<RadzenStack Gap="0.75rem" class="mdb-form-fields">
         @* 2026-04-23 01:03 PM CDT AI v1.1 database-filter marker: Manage Databases now exposes the ViewNameFilter field for trimming integration view lists per database. *@
         @* 2026-04-22 06:31 PM CDT AI v1.0 manage-database-help marker: field labels use model Display/Description metadata for consistent help tooltips. *@
-        <RadzenRow Gap="1rem">
-            <RadzenColumn Size="12" SizeMD="6">
+        <RadzenRow Gap="0.75rem">
+            <RadzenColumn Size="12" SizeMD="4">
                 @FieldLabel(typeof(DatabaseDefinition), nameof(DatabaseDefinition.DatabaseName))
                 <RadzenTextBox Name="DatabaseName" @bind-Value="@database.DatabaseName" Style="width:100%;" MaxLength="128" />
                 <RadzenRequiredValidator Component="DatabaseName" Text="Database name is required." />
             </RadzenColumn>
 
-            <RadzenColumn Size="12" SizeMD="6">
+            <RadzenColumn Size="12" SizeMD="4">
+                @FieldLabel(typeof(DatabaseDefinition), nameof(DatabaseDefinition.BusinessName))
+                <RadzenTextBox Name="BusinessName" @bind-Value="@database.BusinessName" Style="width:100%;" MaxLength="128" />
+                <RadzenRequiredValidator Component="BusinessName" Text="Business name is required." />
+            </RadzenColumn>
+
+            <RadzenColumn Size="12" SizeMD="4">
                 @FieldLabel(typeof(DatabaseDefinition), nameof(DatabaseDefinition.DefaultSchema))
                 <RadzenTextBox Name="DefaultSchema" @bind-Value="@database.DefaultSchema" Style="width:100%;" MaxLength="128" />
                 <RadzenRequiredValidator Component="DefaultSchema" Text="Default schema is required." />
             </RadzenColumn>
         </RadzenRow>
-
-        @FieldLabel(typeof(DatabaseDefinition), nameof(DatabaseDefinition.BusinessName))
-        <RadzenTextBox Name="BusinessName" @bind-Value="@database.BusinessName" Style="width:100%;" MaxLength="128" />
-        <RadzenRequiredValidator Component="BusinessName" Text="Business name is required." />
 
         @FieldLabel(typeof(DatabaseDefinition), nameof(DatabaseDefinition.BusinessDescription))
         <RadzenTextArea Name="BusinessDescription" @bind-Value="@database.BusinessDescription" Style="width:100%;" Rows="3" MaxLength="500" />
