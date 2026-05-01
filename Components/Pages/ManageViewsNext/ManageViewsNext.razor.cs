@@ -11,6 +11,7 @@ using SchemaStudioWebViewer.WEBSemanticModel.Model;
 
 namespace SchemaStudioWebViewer.Components.Pages.ManageViewsNext;
 
+[AIChange("1.4", "2026-05-01 09:20 PM CDT allowed staged column synchronization rows to persist for any saved view instead of tying Save All Changes to the base-view manual metadata editor permission.", AICommandStatus.Pending)]
 [AIChange("1.3", "2026-04-30 03:37 PM CDT added an Unknown-domain helper so the selector can render unclassified objects as flat items regardless of source casing.", AICommandStatus.Pending)]
 [AIChange("1.2", "2026-04-30 03:31 PM CDT made Manage Views Next honor StringLength metadata for column edit limits and validate persisted text lengths before saving.", AICommandStatus.Pending)]
 [AIChange("1.1", "2026-04-30 03:19 PM CDT extended the domain grouping model with Unknown detection and a flattened all-views collection for unclassified selector rendering.", AICommandStatus.Pending)]
@@ -199,7 +200,7 @@ public partial class ManageViewsNext
                 SelectedViewKey = BuildExistingSelectionKey(EditableObject.SchemaObjectId);
             }
 
-            if (EditableObject.SchemaObjectId > 0 && CanEditSelectedColumnMetadata && columnsToPersist.Count > 0)
+            if (EditableObject.SchemaObjectId > 0 && columnsToPersist.Count > 0)
             {
                 await SchemaObjectColumnRepository.SaveAllAsync(columnsToPersist);
             }
