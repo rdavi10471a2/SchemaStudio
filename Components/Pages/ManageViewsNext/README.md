@@ -21,7 +21,7 @@ This folder keeps the new layout isolated from the current Manage Views page whi
 - `ManageViewsNext.Columns.cs` - column selector/editor, reset selected column, merge review, parser-to-column mapping.
 - `Components/Dialogs/ColumnMergeReviewDialog.razor` - focused merge-review dialog used by this prototype. It owns candidate filtering, parsed-vs-saved comparison, effective-result preview, and Apply Merge staging for Business Name, Business Description, and Disable Inheritance.
 - `ManageViewsNext.Parser.cs` - refresh view, show SQL, view details, where-used actions.
-- `ManageViewsNext.razor.css` - isolated layout and tree/editor styling.
+- `ManageViewsNext.razor.css` - isolated layout and tree/editor styling, including the selected-view toolbar's responsive button grid for narrower desktop viewports.
 
 ## Notes
 
