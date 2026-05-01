@@ -8,7 +8,11 @@
 @inject IJSRuntime JSRuntime
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("1.7")]
+@attribute [FileVersion("1.8")]
+@attribute [AIChange(
+    "1.8",
+    "2026-04-30 11:10 PM CDT collapsed the duplicated shared body gutters so page surfaces start closer to the app chrome while preserving the bounded scroll host.",
+    AICommandStatus.Pending)]
 @attribute [AIChange(
     "1.7",
     "2026-04-30 10:58 PM CDT flattened the shared body wrapper and tightened the application header so pages do not inherit an extra framed shell or oversized app bar.",
@@ -42,16 +46,19 @@
     .rz-body {
         min-height: 0 !important;
         overflow: hidden !important;
+        padding: 0.55rem 0.75rem !important;
+        box-sizing: border-box;
     }
 
         /* Keep the viewport-bounded scroll host without adding a second visual page frame. */
         .rz-body > .rz-p-4 {
             background-color: transparent !important;
-            height: calc(100vh - 42px);
-            max-height: calc(100vh - 42px);
+            height: 100%;
+            max-height: 100%;
             min-height: 0;
             overflow: auto;
             box-sizing: border-box;
+            padding: 0 !important;
             border-radius: 0;
             margin: 0;
             box-shadow: none;
