@@ -22,7 +22,11 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("1.35")]
+@attribute [FileVersion("1.36")]
+@attribute [AIChange(
+    "1.36",
+    "2026-04-30 11:59 PM CDT disabled selector controls during busy operations and rebuilt the column synchronization summary after merge choices are staged.",
+    AICommandStatus.Pending)]
 @attribute [AIChange(
     "1.35",
     "2026-04-30 11:28 PM CDT promoted the Manage Views Next surface in visible navigation by removing Next from the page title while the route name remains unchanged for now.",
@@ -143,6 +147,7 @@
                                         ValueProperty="DatabaseId"
                                         @bind-Value="@SelectedDatabaseId"
                                         Change="@OnDatabaseChanged"
+                                        Disabled="@IsBusy"
                                         Style="width:100%;"
                                         Placeholder="Database" />
                     </div>
@@ -154,6 +159,7 @@
                                         ValueProperty="Domain"
                                         @bind-Value="@SelectedDomainFilter"
                                         Change="@OnDomainFilterChanged"
+                                        Disabled="@IsBusy"
                                         Style="width:100%;"
                                         AllowClear="true"
                                         Placeholder="All Domains" />
@@ -182,6 +188,7 @@
                                         <button type="button"
                                                 class="@GetTreeItemClass(item)"
                                                 title="@item.Subtitle"
+                                                disabled="@IsBusy"
                                                 @onclick="@(() => OnViewSelectionChanged(item.SelectionKey))">
                                             <RadzenIcon Icon="table_view" />
                                             <span>@item.DisplayName</span>
@@ -207,6 +214,7 @@
                                             <button type="button"
                                                     class="@GetTreeItemClass(item)"
                                                     title="@item.Subtitle"
+                                                    disabled="@IsBusy"
                                                     @onclick="@(() => OnViewSelectionChanged(item.SelectionKey))">
                                                 <RadzenIcon Icon="table_view" />
                                                 <span>@item.DisplayName</span>
@@ -231,6 +239,7 @@
                                             <button type="button"
                                                     class="@GetTreeItemClass(item)"
                                                     title="@item.Subtitle"
+                                                    disabled="@IsBusy"
                                                     @onclick="@(() => OnViewSelectionChanged(item.SelectionKey))">
                                                 <RadzenIcon Icon="table_view" />
                                                 <span>@item.DisplayName</span>
@@ -258,6 +267,7 @@
                                 <button type="button"
                                         class="@GetTreeItemClass(item)"
                                         title="@item.Subtitle"
+                                        disabled="@IsBusy"
                                         @onclick="@(() => OnViewSelectionChanged(item.SelectionKey))">
                                     <RadzenIcon Icon="table_view" />
                                     <span>@item.DisplayName</span>
@@ -576,6 +586,8 @@
 
         if (result is true)
         {
+            var parsedColumns = CurrentParsedView.Columns.ToViewColumnDtos();
+            ReviewRows = BuildColumnReviewRows(parsedColumns, SavedColumns).ToList();
             EnsureSelectedColumn();
             NotificationService.Notify(NotificationSeverity.Success, "Merge applied", "Column merge choices were staged. Use Save All Changes to commit them.", 3000);
             await InvokeAsync(StateHasChanged);
