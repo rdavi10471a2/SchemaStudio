@@ -1,4 +1,5 @@
 /* 2026-05-01 10:39 PM CDT AI v1.35 manage-views-next marker: action toolbar starts farther left and Column Synchronization spans two toolbar columns without forcing its own full row. */
+/* 2026-05-01 10:44 PM CDT AI v1.36 manage-views-next marker: sync summary moved to the title block and Review Merge returns to a normal toolbar button. */
 /* 2026-05-01 10:34 PM CDT AI v1.34 manage-views-next marker: toolbar buttons keep normal height while Column Synchronization spans its own compact row inside the toolbar grid. */
 /* 2026-05-01 10:29 PM CDT AI v1.33 manage-views-next marker: Column Synchronization now participates in the selected-view toolbar grid so it wraps with view actions when the selector is visible. */
 /* 2026-05-01 10:20 PM CDT AI v1.32 manage-views-next marker: selected-view header now carries a compact Column Synchronization strip so View Definition starts shorter. */
@@ -225,33 +226,6 @@
     flex-wrap: wrap;
 }
 
-.mvn-header-sync {
-    border: 1px solid #dee2e6;
-    border-radius: 6px;
-    background: #f9fafc;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.55rem;
-    grid-column: 1 / -1;
-    min-width: 0;
-    max-width: 100%;
-    padding: 0.45rem 0.6rem;
-    overflow: hidden;
-}
-
-.mvn-header-sync-copy {
-    min-width: 0;
-}
-
-::deep .mvn-header-sync .rz-button {
-    flex: 0 0 auto;
-    min-height: 34px;
-    font-size: 12px;
-    padding-inline: 0.65rem;
-}
-
 .mvn-header-toolbar-shell {
     display: flex;
     justify-content: flex-end;
@@ -316,6 +290,24 @@
 
 .mvn-source-name {
     color: #6c757d;
+}
+
+.mvn-title-sync-counts {
+    color: #263445;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+    font-size: 0.82rem;
+    line-height: 1.25;
+}
+
+.mvn-title-sync-counts span:first-child {
+    color: var(--rz-primary);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
 }
 
 .mvn-status-chip,
@@ -687,10 +679,6 @@
 @media (max-width: 980px) {
     .mvn-selected-header {
         grid-template-columns: 1fr;
-    }
-
-    .mvn-header-sync {
-        width: 100%;
     }
 
     .mvn-header-toolbar-shell {

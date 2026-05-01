@@ -22,7 +22,8 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("1.32")]
+@attribute [FileVersion("1.33")]
+@attribute [AIChange("1.33", "2026-05-01 10:43 PM CDT moved the column synchronization summary under the view title and made Review Merge a normal selected-view toolbar button.", AICommandStatus.Pending)]
 @attribute [AIChange("1.32", "2026-05-01 10:28 PM CDT moved the header Column Synchronization strip into the same toolbar grid as the view action buttons so it wraps with them when the selector is visible.", AICommandStatus.Pending)]
 @attribute [AIChange("1.31", "2026-05-01 10:19 PM CDT moved Column Synchronization into the selected-view header so View Definition loses the bottom merge block and starts shorter.", AICommandStatus.Pending)]
 @attribute [AIChange("1.30", "2026-05-01 10:15 PM CDT moved Delete View to the far-right toolbar position so the destructive action follows normal button ordering convention.", AICommandStatus.Pending)]
@@ -58,6 +59,7 @@
 @attribute [AIFileContext("Components/Pages/ManageViewsNext/ManageViewsNext.razor", "Prototype Manage Views replacement page that keeps the existing ManageViews page intact while testing the accepted one-screen domain/tree selector, combined view-definition and column-metadata editing layout, relocated selected-view toolbar actions, focused merge-review launch, and shared save/delete workflow.", Responsibilities = "Owns the /manage-views-next route, top-level markup, selector shell, view editor markup, column metadata editor markup, focused merge dialog launch, and composition of the partial-class workflow helpers.", Nuances = "The class-level FileVersion lives here; other ManageViewsNext partial files should use AIChange and AIFileContext without duplicating FileVersion. Keep the old ManageViews folder as fallback until this surface is accepted.", RelatedFiles = "ManageViewsNext.razor.cs; ManageViewsNext.Selection.cs; ManageViewsNext.Columns.cs; ManageViewsNext.Parser.cs; ManageViewsNext.razor.css; Components/Dialogs/ColumnMergeReviewDialog.razor; README.md", LastReviewed = "2026-05-01")]
 @attribute [AIChange("1.0", "2026-04-30 03:37 PM CDT added a side-by-side Manage Views prototype route with a scrollable domain tree selector and combined edit surface so the existing page remains untouched for fallback testing.", AICommandStatus.Pending)]
 
+@* 2026-05-01 10:43 PM CDT AI v1.33 manage-views-next marker: sync summary sits under the view title and Review Merge is a regular toolbar action. *@
 @* 2026-05-01 10:28 PM CDT AI v1.32 manage-views-next marker: Column Synchronization now shares the selected-view toolbar grid with the action buttons. *@
 @* 2026-05-01 10:19 PM CDT AI v1.31 manage-views-next marker: Column Synchronization now lives in the selected-view header instead of the View Definition footer. *@
 @* 2026-05-01 10:15 PM CDT AI v1.30 manage-views-next marker: Delete View now sits at the far right of the selected-view toolbar. *@
@@ -285,22 +287,21 @@
                             <span class="mvn-status-chip">@SelectedViewClassification</span>
                         </div>
                         <RadzenText TextStyle="TextStyle.Caption" class="mvn-source-name">@CurrentSourceFullName</RadzenText>
+                        <div class="mvn-title-sync-counts">
+                            <span>Column Synchronization</span>
+                            <span>@ColumnSummarySentence</span>
+                        </div>
                     </div>
 
                     <div class="mvn-header-toolbar-shell">
                         <div class="mvn-header-toolbar">
-                            <div class="mvn-header-sync">
-                                <div class="mvn-header-sync-copy">
-                                    <div class="mvn-sync-title">Column Synchronization</div>
-                                    <div class="mvn-sync-counts">@ColumnSummarySentence</div>
-                                </div>
-                                <RadzenButton Text="Review Merge"
-                                              Icon="published_with_changes"
-                                              Size="ButtonSize.Small"
-                                              title="Review parser-detected column changes before applying synchronization decisions."
-                                              Click="@OpenColumnMergeReviewAsync"
-                                              Disabled="@IsBusy" />
-                            </div>
+                            <RadzenButton Text="Review Merge"
+                                          Icon="published_with_changes"
+                                          Size="ButtonSize.Small"
+                                          ButtonStyle="ButtonStyle.Light"
+                                          title="Review parser-detected column changes before applying synchronization decisions."
+                                          Click="@OpenColumnMergeReviewAsync"
+                                          Disabled="@IsBusy" />
                             <RadzenButton Text="Refresh Parsed View"
                                           Icon="sync"
                                           Size="ButtonSize.Small"
