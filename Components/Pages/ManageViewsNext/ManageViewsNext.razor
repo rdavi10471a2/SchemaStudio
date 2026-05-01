@@ -22,7 +22,8 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("1.28")]
+@attribute [FileVersion("1.29")]
+@attribute [AIChange("1.29", "2026-05-01 09:58 PM CDT wrapped the selected-view toolbar in a boundary shell so CSS can keep responsive action buttons inside the header card.", AICommandStatus.Pending)]
 @attribute [AIChange("1.28", "2026-05-01 09:49 PM CDT replaced the selected-view RadzenStack toolbar with a plain responsive button container and shortened Save All Changes to Save All for stable narrow-width layout.", AICommandStatus.Pending)]
 @attribute [AIChange("1.27", "2026-05-01 08:42 PM CDT wired Manage Views Next Review Merge to the focused ColumnMergeReviewDialog while leaving final persistence on Save All Changes.", AICommandStatus.Pending)]
 @attribute [AIChange("1.26", "2026-04-30 06:09 PM CDT refreshed the Manage Views Next primary file context header to document the accepted prototype layout and split-file ownership model.", AICommandStatus.Pending)]
@@ -54,6 +55,7 @@
 @attribute [AIFileContext("Components/Pages/ManageViewsNext/ManageViewsNext.razor", "Prototype Manage Views replacement page that keeps the existing ManageViews page intact while testing the accepted one-screen domain/tree selector, combined view-definition and column-metadata editing layout, relocated selected-view toolbar actions, focused merge-review launch, and shared save/delete workflow.", Responsibilities = "Owns the /manage-views-next route, top-level markup, selector shell, view editor markup, column metadata editor markup, focused merge dialog launch, and composition of the partial-class workflow helpers.", Nuances = "The class-level FileVersion lives here; other ManageViewsNext partial files should use AIChange and AIFileContext without duplicating FileVersion. Keep the old ManageViews folder as fallback until this surface is accepted.", RelatedFiles = "ManageViewsNext.razor.cs; ManageViewsNext.Selection.cs; ManageViewsNext.Columns.cs; ManageViewsNext.Parser.cs; ManageViewsNext.razor.css; Components/Dialogs/ColumnMergeReviewDialog.razor; README.md", LastReviewed = "2026-05-01")]
 @attribute [AIChange("1.0", "2026-04-30 03:37 PM CDT added a side-by-side Manage Views prototype route with a scrollable domain tree selector and combined edit surface so the existing page remains untouched for fallback testing.", AICommandStatus.Pending)]
 
+@* 2026-05-01 09:58 PM CDT AI v1.29 manage-views-next marker: selected-view toolbar now has an outer boundary shell so responsive button wrapping stays inside the header card. *@
 @* 2026-05-01 09:49 PM CDT AI v1.28 manage-views-next marker: selected-view toolbar uses a plain CSS-owned button container so narrow viewports wrap predictably. *@
 @* 2026-05-01 08:42 PM CDT AI v1.27 manage-views-next marker: Review Merge now opens the focused dialog and stages merge choices for the main Save All Changes flow. *@
 @* 2026-04-30 06:09 PM CDT AI v1.26 manage-views-next marker: primary file context now documents route ownership, split-file responsibilities, and fallback-page boundaries. *@
@@ -279,51 +281,53 @@
                         <RadzenText TextStyle="TextStyle.Caption" class="mvn-source-name">@CurrentSourceFullName</RadzenText>
                     </div>
 
-                    <div class="mvn-header-toolbar">
-                        <RadzenButton Text="Refresh Parsed View"
-                                      Icon="sync"
-                                      Size="ButtonSize.Small"
-                                      ButtonStyle="ButtonStyle.Light"
-                                      title="Reload this view's SQL from the database, clear parser cache for it, and rebuild the column synchronization review."
-                                      Click="@RefreshCurrentViewAsync"
-                                      Disabled="@(!CanOpenDependencyTools || IsBusy)" />
-                        <RadzenButton Text="View Details"
-                                      Icon="table_view"
-                                      Size="ButtonSize.Small"
-                                      ButtonStyle="ButtonStyle.Light"
-                                      title="Open parsed view details, including selected columns, source chain, and the view SQL tab."
-                                      Click="@ShowParsedDependenciesAsync"
-                                      Disabled="@(!CanOpenDependencyTools || IsBusy)" />
-                        <RadzenButton Text="Where Used"
-                                      Icon="device_hub"
-                                      Size="ButtonSize.Small"
-                                      ButtonStyle="ButtonStyle.Light"
-                                      title="Show SQL Server dependency metadata for objects that reference this view."
-                                      Click="@ShowWhereUsedAsync"
-                                      Disabled="@(!CanOpenDependencyTools || IsBusy)" />
-                        <RadzenButton Text="SQL"
-                                      Icon="code"
-                                      Size="ButtonSize.Small"
-                                      ButtonStyle="ButtonStyle.Light"
-                                      title="Open only the raw SQL text for this view. View Details also includes this SQL."
-                                      Click="@ShowSqlAsync"
-                                      Disabled="@(!CanOpenDependencyTools || IsBusy)" />
-                        @if (CanDeleteCurrentView)
-                        {
-                            <RadzenButton Text="Delete View"
-                                          Icon="delete"
+                    <div class="mvn-header-toolbar-shell">
+                        <div class="mvn-header-toolbar">
+                            <RadzenButton Text="Refresh Parsed View"
+                                          Icon="sync"
                                           Size="ButtonSize.Small"
-                                          ButtonStyle="ButtonStyle.Danger"
-                                          title="Delete this imported Schema Studio view definition and its saved columns."
-                                          Click="@DeleteViewAsync"
+                                          ButtonStyle="ButtonStyle.Light"
+                                          title="Reload this view's SQL from the database, clear parser cache for it, and rebuild the column synchronization review."
+                                          Click="@RefreshCurrentViewAsync"
+                                          Disabled="@(!CanOpenDependencyTools || IsBusy)" />
+                            <RadzenButton Text="View Details"
+                                          Icon="table_view"
+                                          Size="ButtonSize.Small"
+                                          ButtonStyle="ButtonStyle.Light"
+                                          title="Open parsed view details, including selected columns, source chain, and the view SQL tab."
+                                          Click="@ShowParsedDependenciesAsync"
+                                          Disabled="@(!CanOpenDependencyTools || IsBusy)" />
+                            <RadzenButton Text="Where Used"
+                                          Icon="device_hub"
+                                          Size="ButtonSize.Small"
+                                          ButtonStyle="ButtonStyle.Light"
+                                          title="Show SQL Server dependency metadata for objects that reference this view."
+                                          Click="@ShowWhereUsedAsync"
+                                          Disabled="@(!CanOpenDependencyTools || IsBusy)" />
+                            <RadzenButton Text="SQL"
+                                          Icon="code"
+                                          Size="ButtonSize.Small"
+                                          ButtonStyle="ButtonStyle.Light"
+                                          title="Open only the raw SQL text for this view. View Details also includes this SQL."
+                                          Click="@ShowSqlAsync"
+                                          Disabled="@(!CanOpenDependencyTools || IsBusy)" />
+                            @if (CanDeleteCurrentView)
+                            {
+                                <RadzenButton Text="Delete View"
+                                              Icon="delete"
+                                              Size="ButtonSize.Small"
+                                              ButtonStyle="ButtonStyle.Danger"
+                                              title="Delete this imported Schema Studio view definition and its saved columns."
+                                              Click="@DeleteViewAsync"
+                                              Disabled="@IsBusy" />
+                            }
+                            <RadzenButton Text="Save All"
+                                          Icon="save"
+                                          Size="ButtonSize.Small"
+                                          title="Save the view definition and all edited column metadata together."
+                                          Click="@SaveViewAsync"
                                           Disabled="@IsBusy" />
-                        }
-                        <RadzenButton Text="Save All"
-                                      Icon="save"
-                                      Size="ButtonSize.Small"
-                                      title="Save the view definition and all edited column metadata together."
-                                      Click="@SaveViewAsync"
-                                      Disabled="@IsBusy" />
+                        </div>
                     </div>
                 </section>
 
