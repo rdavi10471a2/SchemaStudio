@@ -9,7 +9,11 @@
 @inject NavigationManager NavigationManager
 @inject DialogService DialogService
 
-@attribute [FileVersion("1.10")]
+@attribute [FileVersion("1.11")]
+@attribute [AIChange(
+    "1.11",
+    "2026-05-01 08:47 AM CDT made the app header and top menu plain CSS-owned markup so navigation chrome does not depend on Radzen stack/icon styling during initial load.",
+    AICommandStatus.Pending)]
 @attribute [AIChange(
     "1.10",
     "2026-05-01 08:38 AM CDT made the top application menu depend only on kiosk chrome suppression so login state no longer leaves normal pages without navigation.",
@@ -85,17 +89,12 @@
         height: 42px !important;
     }
 
-    .rz-header .rz-stack {
+    .app-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
         min-height: 42px;
         height: 42px;
-    }
-
-    .rz-header .rz-text {
-        font-size: 1.05rem;
-        line-height: 1.2;
-    }
-
-    .app-header {
         width: 100%;
         padding: 0 0.8rem;
         border-bottom: 1px solid #d8dde6;
@@ -106,6 +105,10 @@
     .app-title {
         white-space: nowrap;
         margin-right: 1.25rem;
+        font-size: 1.05rem;
+        font-weight: 700;
+        line-height: 1.2;
+        color: #20242c;
     }
 
     .app-menu {
@@ -114,6 +117,7 @@
         gap: 0.15rem;
         height: 100%;
         font-size: 0.82rem;
+        font-family: Arial, Helvetica, sans-serif;
     }
 
     .app-menu a,
@@ -132,6 +136,14 @@
         text-decoration: none;
         cursor: pointer;
         white-space: nowrap;
+    }
+
+    .app-menu-glyph {
+        width: 1rem;
+        text-align: center;
+        font-size: 0.9rem;
+        font-style: normal;
+        color: #394150;
     }
 
     .app-menu a:hover,
@@ -191,30 +203,30 @@
     @if (!HideNavigationChrome)
     {
         <RadzenHeader>
-            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0" class="app-header">
-                <RadzenText TextStyle="TextStyle.H6" class="rz-mb-0 app-title">Schema Studio Web -- Schema &amp; Understanding Service</RadzenText>
+            <div class="app-header">
+                <div class="app-title">Schema Studio Web -- Schema &amp; Understanding Service</div>
                 <nav class="app-menu" aria-label="Application menu">
                     <a href="/">
-                        <RadzenIcon Icon="explore" />
+                        <span class="app-menu-glyph" aria-hidden="true">S</span>
                         <span>Schema Explorer</span>
                     </a>
 
                     <details>
                         <summary>
-                            <RadzenIcon Icon="build" />
+                            <span class="app-menu-glyph" aria-hidden="true">M</span>
                             <span>Maintenance</span>
                         </summary>
                         <div class="app-menu-popover">
                             <a href="manage-databases">
-                                <RadzenIcon Icon="database" />
+                                <span class="app-menu-glyph" aria-hidden="true">D</span>
                                 <span>Manage Databases</span>
                             </a>
                             <a href="manage-views-next">
-                                <RadzenIcon Icon="view_week" />
+                                <span class="app-menu-glyph" aria-hidden="true">V</span>
                                 <span>Manage Views</span>
                             </a>
                             <a href="parser-lab">
-                                <RadzenIcon Icon="account_tree" />
+                                <span class="app-menu-glyph" aria-hidden="true">P</span>
                                 <span>Parser Test Area</span>
                             </a>
                         </div>
@@ -222,22 +234,22 @@
 
                     <details>
                         <summary>
-                            <RadzenIcon Icon="help" />
+                            <span class="app-menu-glyph" aria-hidden="true">?</span>
                             <span>Help</span>
                         </summary>
                         <div class="app-menu-popover">
                             <button type="button" @onclick="@OpenHelpAsync">
-                                <RadzenIcon Icon="help_outline" />
+                                <span class="app-menu-glyph" aria-hidden="true">?</span>
                                 <span>Help</span>
                             </button>
                             <button type="button" @onclick="@ShowAboutAsync">
-                                <RadzenIcon Icon="info" />
+                                <span class="app-menu-glyph" aria-hidden="true">i</span>
                                 <span>About</span>
                             </button>
                         </div>
                     </details>
                 </nav>
-            </RadzenStack>
+            </div>
         </RadzenHeader>
     }
 
