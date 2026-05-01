@@ -375,6 +375,7 @@
             }
 
             ApplyParserStructure(candidate.Saved, candidate.Parsed);
+            candidate.Saved.IsDirty = true;
 
             if (candidate.Choice == MergeChoice.UseParsed)
             {
