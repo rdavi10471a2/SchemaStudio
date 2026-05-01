@@ -10,7 +10,11 @@
 @inject DialogService DialogService
 @inject IJSRuntime JSRuntime
 
-@attribute [FileVersion("1.13")]
+@attribute [FileVersion("1.14")]
+@attribute [AIChange(
+    "1.14",
+    "2026-05-01 09:20 AM CDT replaced native details menus with explicit Blazor menu state so commands close dropdowns and navigate without route flicker.",
+    AICommandStatus.Pending)]
 @attribute [AIChange(
     "1.13",
     "2026-05-01 09:14 AM CDT changed the authenticated top menu to a two-row header with Radzen icons instead of letter glyphs.",
@@ -171,6 +175,16 @@
         align-items: center;
     }
 
+    .app-menu-trigger {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .app-menu-trigger > button[aria-expanded="true"] {
+        background: #eef1f6;
+    }
+
     .app-menu summary {
         list-style: none;
     }
@@ -223,48 +237,58 @@
                 @if (CanShowNavigationMenu)
                 {
                     <nav class="app-menu" aria-label="Application menu">
-                        <a href="/">
+                        <button type="button" @onclick="@NavigateToSchemaExplorerAsync">
                             <RadzenIcon Icon="travel_explore" />
                             <span>Schema Explorer</span>
-                        </a>
+                        </button>
 
-                        <details>
-                            <summary>
+                        <div class="app-menu-trigger">
+                            <button type="button"
+                                    aria-expanded="@(openMenu == "maintenance")"
+                                    @onclick="@(() => ToggleMenu("maintenance"))">
                                 <RadzenIcon Icon="build" />
                                 <span>Maintenance</span>
-                            </summary>
-                            <div class="app-menu-popover">
-                                <a href="manage-databases">
+                            </button>
+                            @if (openMenu == "maintenance")
+                            {
+                                <div class="app-menu-popover">
+                                    <button type="button" @onclick="@(() => NavigateToAsync("manage-databases"))">
                                     <RadzenIcon Icon="database" />
                                     <span>Manage Databases</span>
-                                </a>
-                                <a href="manage-views-next">
+                                    </button>
+                                    <button type="button" @onclick="@(() => NavigateToAsync("manage-views-next"))">
                                     <RadzenIcon Icon="view_column" />
                                     <span>Manage Views</span>
-                                </a>
-                                <a href="parser-lab">
+                                    </button>
+                                    <button type="button" @onclick="@(() => NavigateToAsync("parser-lab"))">
                                     <RadzenIcon Icon="schema" />
                                     <span>Parser Test Area</span>
-                                </a>
-                            </div>
-                        </details>
+                                    </button>
+                                </div>
+                            }
+                        </div>
 
-                        <details>
-                            <summary>
+                        <div class="app-menu-trigger">
+                            <button type="button"
+                                    aria-expanded="@(openMenu == "help")"
+                                    @onclick="@(() => ToggleMenu("help"))">
                                 <RadzenIcon Icon="help_outline" />
                                 <span>Help</span>
-                            </summary>
-                            <div class="app-menu-popover">
-                                <button type="button" @onclick="@OpenHelpAsync">
+                            </button>
+                            @if (openMenu == "help")
+                            {
+                                <div class="app-menu-popover">
+                                    <button type="button" @onclick="@OpenHelpAsync">
                                     <RadzenIcon Icon="help_outline" />
                                     <span>Help</span>
-                                </button>
-                                <button type="button" @onclick="@ShowAboutAsync">
+                                    </button>
+                                    <button type="button" @onclick="@ShowAboutAsync">
                                     <RadzenIcon Icon="info" />
                                     <span>About</span>
-                                </button>
-                            </div>
-                        </details>
+                                    </button>
+                                </div>
+                            }
+                        </div>
                     </nav>
                 }
             </div>
@@ -280,6 +304,7 @@
 
 @code {
     private bool isNavigationAuthenticated;
+    private string? openMenu;
     private const string AuthStorageKey = "simpleAuth";
     private const string AuthenticatedValue = "true";
 
@@ -336,6 +361,7 @@
     {
         _ = InvokeAsync(async () =>
         {
+            openMenu = null;
             await RefreshNavigationAuthStateAsync();
             StateHasChanged();
         });
@@ -373,6 +399,7 @@
 
     private async Task OpenHelpAsync()
     {
+        openMenu = null;
         await DialogService.OpenAsync<HelpDialog>(
             "Schema Studio Help Console",
             new Dictionary<string, object?>
@@ -390,9 +417,29 @@
 
     private async Task ShowAboutAsync()
     {
+        openMenu = null;
         await DialogService.Alert(
             "Schema Studio Web -- Schema & Understanding Service",
             "About Schema Studio Web");
+    }
+
+    private Task NavigateToSchemaExplorerAsync()
+    {
+        openMenu = null;
+        NavigationManager.NavigateTo("/");
+        return Task.CompletedTask;
+    }
+
+    private Task NavigateToAsync(string uri)
+    {
+        openMenu = null;
+        NavigationManager.NavigateTo(uri);
+        return Task.CompletedTask;
+    }
+
+    private void ToggleMenu(string menuName)
+    {
+        openMenu = openMenu == menuName ? null : menuName;
     }
 
     public void Dispose()
