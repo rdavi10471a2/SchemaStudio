@@ -8,8 +8,13 @@
 @using SchemaStudioWebViewer.Components.HelpSystem
 @inject NavigationManager NavigationManager
 @inject DialogService DialogService
+@inject IJSRuntime JSRuntime
 
-@attribute [FileVersion("1.11")]
+@attribute [FileVersion("1.12")]
+@attribute [AIChange(
+    "1.12",
+    "2026-05-01 09:03 AM CDT made the top menu react to simple-auth changes so it appears after login without depending on route timing.",
+    AICommandStatus.Pending)]
 @attribute [AIChange(
     "1.11",
     "2026-05-01 08:47 AM CDT made the app header and top menu plain CSS-owned markup so navigation chrome does not depend on Radzen stack/icon styling during initial load.",
@@ -205,50 +210,53 @@
         <RadzenHeader>
             <div class="app-header">
                 <div class="app-title">Schema Studio Web -- Schema &amp; Understanding Service</div>
-                <nav class="app-menu" aria-label="Application menu">
-                    <a href="/">
-                        <span class="app-menu-glyph" aria-hidden="true">S</span>
-                        <span>Schema Explorer</span>
-                    </a>
+                @if (CanShowNavigationMenu)
+                {
+                    <nav class="app-menu" aria-label="Application menu">
+                        <a href="/">
+                            <span class="app-menu-glyph" aria-hidden="true">S</span>
+                            <span>Schema Explorer</span>
+                        </a>
 
-                    <details>
-                        <summary>
-                            <span class="app-menu-glyph" aria-hidden="true">M</span>
-                            <span>Maintenance</span>
-                        </summary>
-                        <div class="app-menu-popover">
-                            <a href="manage-databases">
-                                <span class="app-menu-glyph" aria-hidden="true">D</span>
-                                <span>Manage Databases</span>
-                            </a>
-                            <a href="manage-views-next">
-                                <span class="app-menu-glyph" aria-hidden="true">V</span>
-                                <span>Manage Views</span>
-                            </a>
-                            <a href="parser-lab">
-                                <span class="app-menu-glyph" aria-hidden="true">P</span>
-                                <span>Parser Test Area</span>
-                            </a>
-                        </div>
-                    </details>
+                        <details>
+                            <summary>
+                                <span class="app-menu-glyph" aria-hidden="true">M</span>
+                                <span>Maintenance</span>
+                            </summary>
+                            <div class="app-menu-popover">
+                                <a href="manage-databases">
+                                    <span class="app-menu-glyph" aria-hidden="true">D</span>
+                                    <span>Manage Databases</span>
+                                </a>
+                                <a href="manage-views-next">
+                                    <span class="app-menu-glyph" aria-hidden="true">V</span>
+                                    <span>Manage Views</span>
+                                </a>
+                                <a href="parser-lab">
+                                    <span class="app-menu-glyph" aria-hidden="true">P</span>
+                                    <span>Parser Test Area</span>
+                                </a>
+                            </div>
+                        </details>
 
-                    <details>
-                        <summary>
-                            <span class="app-menu-glyph" aria-hidden="true">?</span>
-                            <span>Help</span>
-                        </summary>
-                        <div class="app-menu-popover">
-                            <button type="button" @onclick="@OpenHelpAsync">
+                        <details>
+                            <summary>
                                 <span class="app-menu-glyph" aria-hidden="true">?</span>
                                 <span>Help</span>
-                            </button>
-                            <button type="button" @onclick="@ShowAboutAsync">
-                                <span class="app-menu-glyph" aria-hidden="true">i</span>
-                                <span>About</span>
-                            </button>
-                        </div>
-                    </details>
-                </nav>
+                            </summary>
+                            <div class="app-menu-popover">
+                                <button type="button" @onclick="@OpenHelpAsync">
+                                    <span class="app-menu-glyph" aria-hidden="true">?</span>
+                                    <span>Help</span>
+                                </button>
+                                <button type="button" @onclick="@ShowAboutAsync">
+                                    <span class="app-menu-glyph" aria-hidden="true">i</span>
+                                    <span>About</span>
+                                </button>
+                            </div>
+                        </details>
+                    </nav>
+                }
             </div>
         </RadzenHeader>
     }
@@ -261,6 +269,12 @@
 </RadzenLayout>
 
 @code {
+    private bool isNavigationAuthenticated;
+    private const string AuthStorageKey = "simpleAuth";
+    private const string AuthenticatedValue = "true";
+
+    private static event Func<Task>? AuthenticationChanged;
+
     private bool IsKioskRoute =>
         AppConfig.Current.Kiosk.Enabled &&
         string.Equals(CurrentRelativePath, AppConfig.Current.Kiosk.Route.Trim('/'), StringComparison.OrdinalIgnoreCase);
@@ -268,6 +282,14 @@
     private bool HideNavigationChrome =>
         IsKioskRoute &&
         AppConfig.Current.Kiosk.HideNavigationChrome;
+
+    private bool ShouldGateNavigationMenu =>
+        AppConfig.Current.Auth.Enabled &&
+        AppConfig.Current.Auth.RequireLoginForHome;
+
+    private bool CanShowNavigationMenu =>
+        !HideNavigationChrome &&
+        (!ShouldGateNavigationMenu || isNavigationAuthenticated);
 
     private string LayoutClass => HideNavigationChrome ? "kiosk-shell" : string.Empty;
 
@@ -288,11 +310,55 @@
     protected override void OnInitialized()
     {
         NavigationManager.LocationChanged += OnLocationChanged;
+        AuthenticationChanged += RefreshNavigationAuthStateFromEventAsync;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        await RefreshNavigationAuthStateAsync();
+        await InvokeAsync(StateHasChanged);
     }
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs args)
     {
-        InvokeAsync(StateHasChanged);
+        _ = InvokeAsync(async () =>
+        {
+            await RefreshNavigationAuthStateAsync();
+            StateHasChanged();
+        });
+    }
+
+    public static async Task NotifyAuthenticationChangedAsync()
+    {
+        var handler = AuthenticationChanged;
+        if (handler != null)
+        {
+            await handler.Invoke();
+        }
+    }
+
+    private async Task RefreshNavigationAuthStateFromEventAsync()
+    {
+        await InvokeAsync(async () =>
+        {
+            await RefreshNavigationAuthStateAsync();
+            StateHasChanged();
+        });
+    }
+
+    private async Task RefreshNavigationAuthStateAsync()
+    {
+        if (!ShouldGateNavigationMenu)
+        {
+            isNavigationAuthenticated = true;
+            return;
+        }
+
+        var authValue = await JSRuntime.InvokeAsync<string>("authStateManager.load", AuthStorageKey);
+        isNavigationAuthenticated = string.Equals(authValue, AuthenticatedValue, StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task OpenHelpAsync()
@@ -322,5 +388,6 @@
     public void Dispose()
     {
         NavigationManager.LocationChanged -= OnLocationChanged;
+        AuthenticationChanged -= RefreshNavigationAuthStateFromEventAsync;
     }
 }

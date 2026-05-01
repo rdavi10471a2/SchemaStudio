@@ -11,6 +11,7 @@
 @using SchemaStudioWebViewer.Components
 @using SchemaStudioWebViewer.Components.Dialogs
 @using SchemaStudioWebViewer.Components.HelpSystem
+@using SchemaStudioWebViewer.Components.Layout
 @using SchemaStudioWebViewer.Utils
 @using SchemaStudioWebViewer.WEBSemanticModel.Services
 @using Radzen
@@ -22,7 +23,8 @@
 @inject IJSRuntime JSRuntime
 @inject NavigationManager NavigationManager
 
-@attribute [FileVersion("1.9")]
+@attribute [FileVersion("1.10")]
+@attribute [AIChange("1.10", "2026-05-01 09:06 AM CDT notified the shared layout when simple login state changes so the top menu appears and hides immediately.", AICommandStatus.Pending)]
 @attribute [AIChange("1.9", "2026-04-23 10:10 AM CDT skipped the duplicate first-render database load on Home when startup already attempted it and no databases were loaded.", AICommandStatus.Pending)]
 @attribute [AIChange("1.8", "2026-04-23 10:00 AM CDT added an inline load-error alert on Home so failed database calls stay visible instead of relying on a toast alone.", AICommandStatus.Pending)]
 @attribute [AIChange("1.7", "2026-04-23 09:51 AM CDT added startup and selection-load error handling so failed database connections show a toast instead of hanging the Home page.", AICommandStatus.Pending)]
@@ -679,6 +681,7 @@
         LoginPassword = "";
 
         await JSRuntime.InvokeVoidAsync("authStateManager.save", AuthStorageKey, AuthenticatedValue);
+        await MainLayout.NotifyAuthenticationChangedAsync();
 
         if (IsKioskRoute)
         {
@@ -709,6 +712,7 @@
         await ClearPersistedSelectionStateAsync();
 
         await JSRuntime.InvokeVoidAsync("authStateManager.clear", AuthStorageKey);
+        await MainLayout.NotifyAuthenticationChangedAsync();
 
         NavigationManager.NavigateTo(AppConfig.Current.Kiosk.Route);
     }
