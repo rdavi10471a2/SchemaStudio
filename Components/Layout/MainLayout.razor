@@ -8,7 +8,11 @@
 @inject IJSRuntime JSRuntime
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("1.6")]
+@attribute [FileVersion("1.7")]
+@attribute [AIChange(
+    "1.7",
+    "2026-04-30 10:58 PM CDT flattened the shared body wrapper and tightened the application header so pages do not inherit an extra framed shell or oversized app bar.",
+    AICommandStatus.Pending)]
 @attribute [AIChange("1.6", "2026-04-30 03:09 PM CDT restored scrolling on the bounded content card so pages can grow internally while still staying inside the viewport shell.", AICommandStatus.Pending)]
 @attribute [AIChange("1.5", "2026-04-30 02:49 PM CDT tightened the shared Radzen body shell so page content stays inside the viewport card and feature pages own their internal scroll regions.", AICommandStatus.Pending)]
 @attribute [AIChange("1.4", "2026-04-30 04:17 PM CDT bounded the shared layout body to viewport-relative height so pages can use internal scrolling instead of growing past the visible app shell.", AICommandStatus.Pending)]
@@ -40,23 +44,45 @@
         overflow: hidden !important;
     }
 
-        /* The white card container for the main content */
+        /* Keep the viewport-bounded scroll host without adding a second visual page frame. */
         .rz-body > .rz-p-4 {
-            background-color: #ffffff !important;
-            height: calc(95vh - 72px);
-            max-height: calc(95vh - 72px);
+            background-color: transparent !important;
+            height: calc(100vh - 42px);
+            max-height: calc(100vh - 42px);
             min-height: 0;
             overflow: auto;
             box-sizing: border-box;
-            border-radius: 8px;
-            margin: 1rem;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            border: 1px solid var(--rz-divider);
+            border-radius: 0;
+            margin: 0;
+            box-shadow: none;
+            border: 0;
         }
 
     .kiosk-shell .rz-body > .rz-p-4 {
-        height: calc(95vh - 2rem);
+        height: 100vh;
+        max-height: 100vh;
         min-height: 0;
+    }
+
+    .rz-header {
+        min-height: 42px !important;
+        height: 42px !important;
+    }
+
+    .rz-header .rz-stack {
+        min-height: 42px;
+        height: 42px;
+    }
+
+    .rz-header .rz-sidebar-toggle {
+        min-height: 42px;
+        height: 42px;
+        width: 42px;
+    }
+
+    .rz-header .rz-text {
+        font-size: 1.05rem;
+        line-height: 1.2;
     }
 
     .rz-sidebar {
@@ -135,7 +161,7 @@
 
     private string LayoutStyle => HideNavigationChrome
         ? "grid-template-areas: 'rz-body'; grid-template-columns: 1fr; height: 100vh;"
-        : "grid-template-areas: 'rz-header rz-header' 'rz-sidebar rz-body'; height: 100vh;";
+        : "grid-template-areas: 'rz-header rz-header' 'rz-sidebar rz-body'; grid-template-rows: 42px minmax(0, 1fr); height: 100vh;";
 
     private string CurrentRelativePath
     {
