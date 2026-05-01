@@ -1,3 +1,4 @@
+/* 2026-04-30 07:09 PM CDT AI marker: keep the saved-column Disable Inheritance checkbox dark and visible like the related Manage Views Next editor. */
 /* 2026-04-30 12:36 PM CDT AI marker: style the saved-column selector/editor surface that replaced the old maintenance grid. */
 .manage-views-columns-shell {
     min-height: 0;
@@ -248,6 +249,26 @@
 
 ::deep .manage-views-column-notes {
     min-height: 150px;
+}
+
+::deep .manage-views-column-edit-grid .rz-chkbox,
+::deep .manage-views-column-edit-grid .rz-chkbox-box {
+    width: 20px;
+    height: 20px;
+}
+
+::deep .manage-views-column-edit-grid .rz-chkbox-box {
+    border: 2px solid #1f2937 !important;
+    border-radius: 4px;
+    background: #fff !important;
+    box-shadow: 0 0 0 2px #eef3ff;
+}
+
+::deep .manage-views-column-edit-grid .rz-chkbox-box.rz-state-active,
+::deep .manage-views-column-edit-grid .rz-chkbox-box.rz-state-highlight,
+::deep .manage-views-column-edit-grid .rz-chkbox-box.rz-state-checked {
+    border-color: #1f2937 !important;
+    background: var(--rz-primary) !important;
 }
 
 @media (max-width: 1100px) {
