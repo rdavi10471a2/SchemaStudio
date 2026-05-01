@@ -23,7 +23,8 @@
 @inject IJSRuntime JSRuntime
 @inject NavigationManager NavigationManager
 
-@attribute [FileVersion("1.10")]
+@attribute [FileVersion("1.11")]
+@attribute [AIChange("1.11", "2026-05-01 10:07 AM CDT delayed normal Home auth gating until session auth is loaded so menu navigation to Schema Explorer does not briefly render the login state.", AICommandStatus.Pending)]
 @attribute [AIChange("1.10", "2026-05-01 09:06 AM CDT notified the shared layout when simple login state changes so the top menu appears and hides immediately.", AICommandStatus.Pending)]
 @attribute [AIChange("1.9", "2026-04-23 10:10 AM CDT skipped the duplicate first-render database load on Home when startup already attempted it and no databases were loaded.", AICommandStatus.Pending)]
 @attribute [AIChange("1.8", "2026-04-23 10:00 AM CDT added an inline load-error alert on Home so failed database calls stay visible instead of relying on a toast alone.", AICommandStatus.Pending)]
@@ -132,11 +133,14 @@
                          AlignItems="AlignItems.Center"
                          JustifyContent="JustifyContent.End"
                          Gap="0.5rem">
-                <RadzenButton Size="ButtonSize.Small"
-                              Variant="Variant.Text"
-                              Icon="@(IsAuthenticated ? "logout" : "login")"
-                              Text="@(IsAuthenticated ? "Logout" : "Login")"
-                              Click="@OnAuthButtonClick" />
+                @if (!IsWaitingForAuthState)
+                {
+                    <RadzenButton Size="ButtonSize.Small"
+                                  Variant="Variant.Text"
+                                  Icon="@(IsAuthenticated ? "logout" : "login")"
+                                  Text="@(IsAuthenticated ? "Logout" : "Login")"
+                                  Click="@OnAuthButtonClick" />
+                }
                 <RadzenIcon Icon="help_outline"
                             Style="cursor:help;color:var(--rz-primary);font-size:1.25rem;"
                             @onclick="@(() => OpenHelp("system-overview"))"
@@ -429,6 +433,7 @@
 
     private bool IsLoading = false;
     private bool IsAuthenticated = false;
+    private bool IsAuthStateLoaded = false;
     private bool IsLoginFormVisible = false;
     private string LoginUserName = "";
     private string LoginPassword = "";
@@ -486,15 +491,23 @@
 
     private bool IsNormalHomeRoute => string.IsNullOrWhiteSpace(CurrentRelativePath);
 
-    private bool ShouldBlockNormalHome =>
+    private bool RequiresNormalHomeAuth =>
         AppConfig.Current.Auth.Enabled &&
         AppConfig.Current.Auth.RequireLoginForHome &&
-        IsNormalHomeRoute &&
+        IsNormalHomeRoute;
+
+    private bool IsWaitingForAuthState =>
+        RequiresNormalHomeAuth &&
+        !IsAuthStateLoaded;
+
+    private bool ShouldBlockNormalHome =>
+        RequiresNormalHomeAuth &&
+        IsAuthStateLoaded &&
         !IsAuthenticated;
 
-    private bool ShowLoginPanel => IsLoginFormVisible || ShouldBlockNormalHome;
+    private bool ShowLoginPanel => !IsWaitingForAuthState && (IsLoginFormVisible || ShouldBlockNormalHome);
 
-    private bool CanShowHomeContent => !ShouldBlockNormalHome;
+    private bool CanShowHomeContent => !IsWaitingForAuthState && !ShouldBlockNormalHome;
 
     private string CurrentRelativePath
     {
@@ -510,6 +523,7 @@
     {
         var authValue = await JSRuntime.InvokeAsync<string>("authStateManager.load", AuthStorageKey);
         IsAuthenticated = string.Equals(authValue, AuthenticatedValue, StringComparison.OrdinalIgnoreCase);
+        IsAuthStateLoaded = true;
         IsLoginFormVisible = ShouldBlockNormalHome;
         AutofillDebugCredentials();
     }
@@ -676,6 +690,7 @@
         }
 
         IsAuthenticated = true;
+        IsAuthStateLoaded = true;
         IsLoginFormVisible = false;
         LoginError = "";
         LoginPassword = "";
@@ -703,6 +718,7 @@
     private async Task LogoutAsync()
     {
         IsAuthenticated = false;
+        IsAuthStateLoaded = true;
         IsLoginFormVisible = ShouldBlockNormalHome;
         LoginUserName = "";
         LoginPassword = "";
