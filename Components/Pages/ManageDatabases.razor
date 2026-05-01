@@ -10,7 +10,15 @@
 @inject TooltipService TooltipService
 @inject AttributeService Attr
 
-@attribute [FileVersion("1.2")]
+@attribute [FileVersion("1.4")]
+@attribute [AIChange(
+    "1.4",
+    "2026-05-01 09:36 AM CDT escaped the Manage Databases inline media query so Razor treats it as CSS instead of C#.",
+    AICommandStatus.Pending)]
+@attribute [AIChange(
+    "1.3",
+    "2026-05-01 09:33 AM CDT bounded Manage Databases to a Manage Views style viewport shell with a narrower database rail and locally scrolling detail panel.",
+    AICommandStatus.Pending)]
 @attribute [AIChange(
     "1.2",
     "2026-04-29 02:56 PM CDT added domain deletion that reassigns saved schema objects to Unknown before removing the selected domain.",
@@ -20,11 +28,12 @@
 
 <PageTitle>Manage Databases</PageTitle>
 
-<RadzenStack Gap="1rem">
+<RadzenStack Gap="0.55rem" class="manage-databases-page">
     <RadzenStack Orientation="Orientation.Horizontal"
                  AlignItems="AlignItems.Center"
                  JustifyContent="JustifyContent.SpaceBetween"
-                 Gap="1rem">
+                 Gap="1rem"
+                 class="mdb-page-header">
         <RadzenStack Gap="0.25rem">
             <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
                 <RadzenText TextStyle="TextStyle.H4" class="rz-m-0">Manage Databases</RadzenText>
@@ -55,145 +64,149 @@
         <RadzenProgressBar Mode="ProgressBarMode.Indeterminate" />
     }
 
-    <RadzenRow Gap="1rem">
-        <RadzenColumn Size="12" SizeLG="5">
-            @if (databases.Count == 0 && !isLoading)
-            {
-                <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat">
-                    No databases exist yet. Use New Database to create the first one.
-                </RadzenAlert>
-            }
-            else
-            {
-                <RadzenDataGrid Data="@databases"
-                                TItem="DatabaseDefinition"
-                                AllowFiltering="true"
-                                AllowSorting="true"
-                                AllowPaging="true"
-                                PageSize="12"
-                                SelectionMode="DataGridSelectionMode.Single"
-                                @bind-Value="@selectedDatabases"
-                                RowSelect="@SelectDatabase"
-                                Style="height: calc(100vh - 210px);">
-                    <Columns>
-                        <RadzenDataGridColumn TItem="DatabaseDefinition" Property="DatabaseName" Title="Database" />
-                        <RadzenDataGridColumn TItem="DatabaseDefinition" Property="BusinessName" Title="Business Name" />
-                        <RadzenDataGridColumn TItem="DatabaseDefinition" Property="Active" Title="Active" Width="90px">
-                            <Template Context="database">
-                                <RadzenCheckBox Value="@database.Active" Disabled="true" />
-                            </Template>
-                        </RadzenDataGridColumn>
-                    </Columns>
-                </RadzenDataGrid>
-            }
+    <RadzenRow Gap="1rem" class="mdb-shell">
+        <RadzenColumn Size="12" SizeLG="4" class="mdb-list-column">
+            <div class="mdb-list-panel">
+                @if (databases.Count == 0 && !isLoading)
+                {
+                    <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat">
+                        No databases exist yet. Use New Database to create the first one.
+                    </RadzenAlert>
+                }
+                else
+                {
+                    <RadzenDataGrid Data="@databases"
+                                    TItem="DatabaseDefinition"
+                                    AllowFiltering="true"
+                                    AllowSorting="true"
+                                    AllowPaging="true"
+                                    PageSize="12"
+                                    SelectionMode="DataGridSelectionMode.Single"
+                                    @bind-Value="@selectedDatabases"
+                                    RowSelect="@SelectDatabase"
+                                    Style="height:100%;">
+                        <Columns>
+                            <RadzenDataGridColumn TItem="DatabaseDefinition" Property="DatabaseName" Title="Database" />
+                            <RadzenDataGridColumn TItem="DatabaseDefinition" Property="BusinessName" Title="Business Name" />
+                            <RadzenDataGridColumn TItem="DatabaseDefinition" Property="Active" Title="Active" Width="90px">
+                                <Template Context="database">
+                                    <RadzenCheckBox Value="@database.Active" Disabled="true" />
+                                </Template>
+                            </RadzenDataGridColumn>
+                        </Columns>
+                    </RadzenDataGrid>
+                }
+            </div>
         </RadzenColumn>
 
-        <RadzenColumn Size="12" SizeLG="7">
-            @if (selectedDatabase is null)
-            {
-                <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat">
-                    No database is selected. Create a database to begin maintaining domains.
-                </RadzenAlert>
-            }
-            else
-            {
-                <RadzenTabs @bind-SelectedIndex="@selectedTabIndex">
-                    <Tabs>
-                        <RadzenTabsItem Text="Database" Icon="database">
-                            <RadzenTemplateForm TItem="DatabaseDefinition"
-                                                Data="@editDatabase"
-                                                Submit="@SaveDatabase">
-                                <DataAnnotationsValidator />
-                                <RadzenStack Gap="0.25rem" class="rz-px-4 rz-pt-4">
-                                    <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-m-0">Edit Selected Database</RadzenText>
-                                    <RadzenText TextStyle="TextStyle.Body2" Style="color:#495057;">@selectedDatabase.DatabaseName</RadzenText>
+        <RadzenColumn Size="12" SizeLG="8" class="mdb-detail-column">
+            <div class="mdb-detail-panel">
+                @if (selectedDatabase is null)
+                {
+                    <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat">
+                        No database is selected. Create a database to begin maintaining domains.
+                    </RadzenAlert>
+                }
+                else
+                {
+                    <RadzenTabs @bind-SelectedIndex="@selectedTabIndex" class="mdb-detail-tabs">
+                        <Tabs>
+                            <RadzenTabsItem Text="Database" Icon="database">
+                                <RadzenTemplateForm TItem="DatabaseDefinition"
+                                                    Data="@editDatabase"
+                                                    Submit="@SaveDatabase">
+                                    <DataAnnotationsValidator />
+                                    <RadzenStack Gap="0.25rem" class="rz-px-4 rz-pt-4">
+                                        <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-m-0">Edit Selected Database</RadzenText>
+                                        <RadzenText TextStyle="TextStyle.Body2" Style="color:#495057;">@selectedDatabase.DatabaseName</RadzenText>
+                                    </RadzenStack>
+                                    @DatabaseFormFields(editDatabase)
+
+                                    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.75rem" class="rz-px-4 rz-pb-4">
+                                        <RadzenButton Icon="refresh" Text="Reset" ButtonStyle="ButtonStyle.Light" Click="@ResetDatabaseEdit" />
+                                        <RadzenButton Icon="delete"
+                                                      Text="Delete"
+                                                      ButtonStyle="ButtonStyle.Danger"
+                                                      Click="@DeleteDatabase" />
+                                        <RadzenButton Icon="save" Text="Save Selected Database" ButtonType="ButtonType.Submit" ButtonStyle="ButtonStyle.Primary" />
+                                    </RadzenStack>
+                                </RadzenTemplateForm>
+                            </RadzenTabsItem>
+
+                            <RadzenTabsItem Text="Domains" Icon="category">
+                                <RadzenStack Gap="1rem" class="rz-p-4">
+                                    <RadzenStack Orientation="Orientation.Horizontal"
+                                                 AlignItems="AlignItems.Center"
+                                                 JustifyContent="JustifyContent.SpaceBetween"
+                                                 Gap="1rem">
+                                        <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-m-0">
+                                            @selectedDatabase.DatabaseName Domains
+                                        </RadzenText>
+
+                                        <RadzenButton Icon="add"
+                                                      Text="Add Domain"
+                                                      ButtonStyle="ButtonStyle.Primary"
+                                                      Click="@OpenNewDomainDialog" />
+                                    </RadzenStack>
+
+                                    @if (domains.Count == 0)
+                                    {
+                                        <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat">
+                                            This database does not have any domains yet. Use Add Domain to create the first one.
+                                        </RadzenAlert>
+                                    }
+                                    else
+                                    {
+                                        <RadzenDataGrid Data="@domains"
+                                                        TItem="DatabaseDomainDefinition"
+                                                        AllowSorting="true"
+                                                        SelectionMode="DataGridSelectionMode.Single"
+                                                        @bind-Value="@selectedDomains"
+                                                        RowSelect="@SelectDomain"
+                                                        Style="height: 180px;">
+                                            <Columns>
+                                                <RadzenDataGridColumn TItem="DatabaseDomainDefinition" Property="Domain" Title="Domain" />
+                                                <RadzenDataGridColumn TItem="DatabaseDomainDefinition" Property="Description" Title="Description" />
+                                            </Columns>
+                                        </RadzenDataGrid>
+                                    }
+
+                                    @if (selectedDomain is null)
+                                    {
+                                        <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat">
+                                            Select a domain to edit it.
+                                        </RadzenAlert>
+                                    }
+                                    else
+                                    {
+                                        <RadzenTemplateForm TItem="DatabaseDomainDefinition"
+                                                            Data="@editDomain"
+                                                            Submit="@SaveDomain">
+                                            <DataAnnotationsValidator />
+                                            <RadzenStack Gap="0.25rem">
+                                                <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-m-0">Edit Selected Domain</RadzenText>
+                                                <RadzenText TextStyle="TextStyle.Body2" Style="color:#495057;">@editDomain.Domain</RadzenText>
+                                            </RadzenStack>
+                                            @DomainFormFields(editDomain)
+
+                                            <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.75rem">
+                                                @* 2026-04-29 02:56 PM CDT AI v1.2 domain-delete marker: deleting a domain reassigns saved schema objects to Unknown instead of leaving stale domain strings. *@
+                                                <RadzenButton Icon="refresh" Text="Reset" ButtonStyle="ButtonStyle.Light" Click="@ResetDomainEdit" />
+                                                <RadzenButton Icon="delete"
+                                                              Text="Delete Domain"
+                                                              ButtonStyle="ButtonStyle.Danger"
+                                                              Click="@DeleteDomain"
+                                                              Disabled="@IsUnknownDomain(selectedDomain)" />
+                                                <RadzenButton Icon="save" Text="Save Selected Domain" ButtonType="ButtonType.Submit" ButtonStyle="ButtonStyle.Primary" />
+                                            </RadzenStack>
+                                        </RadzenTemplateForm>
+                                    }
                                 </RadzenStack>
-                                @DatabaseFormFields(editDatabase)
-
-                                <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.75rem" class="rz-px-4 rz-pb-4">
-                                    <RadzenButton Icon="refresh" Text="Reset" ButtonStyle="ButtonStyle.Light" Click="@ResetDatabaseEdit" />
-                                    <RadzenButton Icon="delete"
-                                                  Text="Delete"
-                                                  ButtonStyle="ButtonStyle.Danger"
-                                                  Click="@DeleteDatabase" />
-                                    <RadzenButton Icon="save" Text="Save Selected Database" ButtonType="ButtonType.Submit" ButtonStyle="ButtonStyle.Primary" />
-                                </RadzenStack>
-                            </RadzenTemplateForm>
-                        </RadzenTabsItem>
-
-                        <RadzenTabsItem Text="Domains" Icon="category">
-                            <RadzenStack Gap="1rem" class="rz-p-4">
-                                <RadzenStack Orientation="Orientation.Horizontal"
-                                             AlignItems="AlignItems.Center"
-                                             JustifyContent="JustifyContent.SpaceBetween"
-                                             Gap="1rem">
-                                    <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-m-0">
-                                        @selectedDatabase.DatabaseName Domains
-                                    </RadzenText>
-
-                                    <RadzenButton Icon="add"
-                                                  Text="Add Domain"
-                                                  ButtonStyle="ButtonStyle.Primary"
-                                                  Click="@OpenNewDomainDialog" />
-                                </RadzenStack>
-
-                                @if (domains.Count == 0)
-                                {
-                                    <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat">
-                                        This database does not have any domains yet. Use Add Domain to create the first one.
-                                    </RadzenAlert>
-                                }
-                                else
-                                {
-                                    <RadzenDataGrid Data="@domains"
-                                                    TItem="DatabaseDomainDefinition"
-                                                    AllowSorting="true"
-                                                    SelectionMode="DataGridSelectionMode.Single"
-                                                    @bind-Value="@selectedDomains"
-                                                    RowSelect="@SelectDomain"
-                                                    Style="height: 220px;">
-                                        <Columns>
-                                            <RadzenDataGridColumn TItem="DatabaseDomainDefinition" Property="Domain" Title="Domain" />
-                                            <RadzenDataGridColumn TItem="DatabaseDomainDefinition" Property="Description" Title="Description" />
-                                        </Columns>
-                                    </RadzenDataGrid>
-                                }
-
-                                @if (selectedDomain is null)
-                                {
-                                    <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat">
-                                        Select a domain to edit it.
-                                    </RadzenAlert>
-                                }
-                                else
-                                {
-                                    <RadzenTemplateForm TItem="DatabaseDomainDefinition"
-                                                        Data="@editDomain"
-                                                        Submit="@SaveDomain">
-                                        <DataAnnotationsValidator />
-                                        <RadzenStack Gap="0.25rem">
-                                            <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-m-0">Edit Selected Domain</RadzenText>
-                                            <RadzenText TextStyle="TextStyle.Body2" Style="color:#495057;">@editDomain.Domain</RadzenText>
-                                        </RadzenStack>
-                                        @DomainFormFields(editDomain)
-
-                                        <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.75rem">
-                                            @* 2026-04-29 02:56 PM CDT AI v1.2 domain-delete marker: deleting a domain reassigns saved schema objects to Unknown instead of leaving stale domain strings. *@
-                                            <RadzenButton Icon="refresh" Text="Reset" ButtonStyle="ButtonStyle.Light" Click="@ResetDomainEdit" />
-                                            <RadzenButton Icon="delete"
-                                                          Text="Delete Domain"
-                                                          ButtonStyle="ButtonStyle.Danger"
-                                                          Click="@DeleteDomain"
-                                                          Disabled="@IsUnknownDomain(selectedDomain)" />
-                                            <RadzenButton Icon="save" Text="Save Selected Domain" ButtonType="ButtonType.Submit" ButtonStyle="ButtonStyle.Primary" />
-                                        </RadzenStack>
-                                    </RadzenTemplateForm>
-                                }
-                            </RadzenStack>
-                        </RadzenTabsItem>
-                    </Tabs>
-                </RadzenTabs>
-            }
+                            </RadzenTabsItem>
+                        </Tabs>
+                    </RadzenTabs>
+                }
+            </div>
         </RadzenColumn>
     </RadzenRow>
 </RadzenStack>
@@ -258,6 +271,63 @@
 }
 
 <style>
+    .manage-databases-page {
+        min-width: 0;
+        min-height: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 0.55rem !important;
+        overflow: visible;
+    }
+
+    .mdb-page-header {
+        flex: 0 0 auto;
+        padding: 0.05rem 0.1rem 0.2rem;
+    }
+
+    .mdb-shell {
+        flex: 1 1 auto;
+        min-height: 0;
+        align-items: stretch;
+    }
+
+    .mdb-list-column,
+    .mdb-detail-column {
+        min-height: 0;
+        min-width: 0;
+    }
+
+    .mdb-list-panel,
+    .mdb-detail-panel {
+        background: #fff;
+        border: 1px solid #dee2e6;
+        box-sizing: border-box;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .mdb-list-panel {
+        height: calc(100vh - 170px);
+        max-height: calc(100vh - 170px);
+    }
+
+    .mdb-detail-panel {
+        height: calc(100vh - 170px);
+        max-height: calc(100vh - 170px);
+        overflow-y: auto;
+    }
+
+    .mdb-detail-tabs {
+        min-height: 0;
+    }
+
+    .mdb-detail-panel textarea {
+        box-sizing: border-box;
+        max-width: 100%;
+        min-width: 0;
+        resize: vertical;
+    }
+
     .database-modal-backdrop {
         position: fixed;
         inset: 0;
@@ -291,6 +361,22 @@
     .manage-field-label .rzi {
         cursor: help;
         font-size: 1rem;
+    }
+
+    @@media (max-width: 1320px) {
+        .mdb-list-panel,
+        .mdb-detail-panel {
+            height: auto;
+            max-height: none;
+        }
+
+        .mdb-list-panel {
+            min-height: 300px;
+        }
+
+        .manage-databases-page {
+            overflow: auto;
+        }
     }
 </style>
 
@@ -634,11 +720,11 @@
         <RadzenRequiredValidator Component="BusinessName" Text="Business name is required." />
 
         @FieldLabel(typeof(DatabaseDefinition), nameof(DatabaseDefinition.BusinessDescription))
-        <RadzenTextArea Name="BusinessDescription" @bind-Value="@database.BusinessDescription" Style="width:100%;" Rows="4" MaxLength="500" />
+        <RadzenTextArea Name="BusinessDescription" @bind-Value="@database.BusinessDescription" Style="width:100%;" Rows="3" MaxLength="500" />
         <RadzenRequiredValidator Component="BusinessDescription" Text="Business description is required." />
 
         @FieldLabel(typeof(DatabaseDefinition), nameof(DatabaseDefinition.DeveloperNotes))
-        <RadzenTextArea @bind-Value="@database.DeveloperNotes" Style="width:100%;" Rows="6" MaxLength="4000" />
+        <RadzenTextArea @bind-Value="@database.DeveloperNotes" Style="width:100%;" Rows="4" MaxLength="4000" />
 
         @FieldLabel(typeof(DatabaseDefinition), nameof(DatabaseDefinition.ViewNameFilter))
         <RadzenTextBox @bind-Value="@database.ViewNameFilter" Style="width:100%;" MaxLength="256" />
