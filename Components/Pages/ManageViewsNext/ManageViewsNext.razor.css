@@ -1,3 +1,5 @@
+/* 2026-05-01 10:29 PM CDT AI v1.33 manage-views-next marker: Column Synchronization now participates in the selected-view toolbar grid so it wraps with view actions when the selector is visible. */
+/* 2026-05-01 10:20 PM CDT AI v1.32 manage-views-next marker: selected-view header now carries a compact Column Synchronization strip so View Definition starts shorter. */
 /* 2026-05-01 10:05 PM CDT AI v1.31 manage-views-next marker: selected-view toolbar shell now bounds responsive button wrapping inside the header card. */
 /* 2026-05-01 09:50 PM CDT AI v1.30 manage-views-next marker: selected-view toolbar is now a CSS-owned responsive grid with full-width buttons that wrap inside the header instead of overflowing the card. */
 /* 2026-05-01 09:34 PM CDT AI v1.29 manage-views-next marker: selected-view toolbar gives full labels room first, then shrinks and wraps only as the header container tightens. */
@@ -221,18 +223,45 @@
     flex-wrap: wrap;
 }
 
+.mvn-header-sync {
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    background: #f9fafc;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.55rem;
+    grid-column: span 2;
+    min-width: 0;
+    max-width: 100%;
+    padding: 0.45rem 0.55rem;
+    overflow: hidden;
+}
+
+.mvn-header-sync-copy {
+    min-width: 0;
+}
+
+::deep .mvn-header-sync .rz-button {
+    flex: 0 0 auto;
+    min-height: 34px;
+    font-size: 12px;
+    padding-inline: 0.65rem;
+}
+
 .mvn-header-toolbar-shell {
     display: flex;
     justify-content: flex-end;
     min-width: 0;
     max-width: 100%;
-    width: min(100%, 860px);
+    width: min(100%, 1040px);
     overflow: hidden;
 }
 
 .mvn-header-toolbar {
     display: grid !important;
-    grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
     justify-content: stretch;
     align-items: stretch;
     gap: 0.45rem !important;
@@ -468,6 +497,8 @@
     color: #263445;
     font-size: 0.88rem;
     margin-top: 0.2rem;
+    line-height: 1.25;
+    white-space: normal;
 }
 
 .mvn-column-grid {
@@ -623,7 +654,7 @@
 @media (max-width: 1540px) {
     .mvn-selected-header {
         display: grid;
-        grid-template-columns: minmax(260px, 1fr) minmax(0, 0.95fr);
+        grid-template-columns: minmax(250px, 0.7fr) minmax(0, 1.3fr);
         align-items: start;
     }
 
@@ -652,6 +683,10 @@
 @media (max-width: 980px) {
     .mvn-selected-header {
         grid-template-columns: 1fr;
+    }
+
+    .mvn-header-sync {
+        width: 100%;
     }
 
     .mvn-header-toolbar-shell {
