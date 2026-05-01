@@ -1,3 +1,4 @@
+/* 2026-04-30 11:21 PM CDT AI v1.38 manage-views-next marker: selector and View Definition panels stretch farther down the viewport so the left side no longer stops short of Column Metadata. */
 /* 2026-05-01 10:53 PM CDT AI v1.37 manage-views-next marker: flattened the Manage Views page title strip and tightened the page stack gap so the header stops consuming extra vertical space. */
 /* 2026-05-01 10:39 PM CDT AI v1.35 manage-views-next marker: action toolbar starts farther left and Column Synchronization spans two toolbar columns without forcing its own full row. */
 /* 2026-05-01 10:44 PM CDT AI v1.36 manage-views-next marker: sync summary moved to the title block and Review Merge returns to a normal toolbar button. */
@@ -67,7 +68,7 @@
     flex: 1 1 auto;
     min-height: 0;
     overflow: visible;
-    align-items: start;
+    align-items: stretch;
 }
 
 .mvn-shell-collapsed {
@@ -86,9 +87,9 @@
 
 .mvn-selector-panel {
     min-height: 0;
-    height: calc(95vh - 168px);
-    max-height: calc(95vh - 168px);
-    align-self: start;
+    height: calc(100vh - 128px);
+    max-height: calc(100vh - 128px);
+    align-self: stretch;
     position: sticky;
     top: 0;
     display: grid;
@@ -344,7 +345,7 @@
     min-height: 0;
     flex: 1 1 auto;
     overflow: visible;
-    align-items: start;
+    align-items: stretch;
 }
 
 .mvn-view-editor,
@@ -360,11 +361,11 @@
 }
 
 .mvn-view-editor {
-    align-self: start;
+    align-self: stretch;
 }
 
 .mvn-column-editor {
-    align-self: start;
+    align-self: stretch;
     overflow: visible;
 }
 

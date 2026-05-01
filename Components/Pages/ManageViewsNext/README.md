@@ -1,6 +1,6 @@
 # Manage Views Next
 
-Prototype replacement surface for `/manage-views`, available at `/manage-views-next`.
+Promoted replacement surface for Manage Views, still physically routed at `/manage-views-next` until the old route and file names are retired.
 
 ## Purpose
 
@@ -25,5 +25,5 @@ This folder keeps the new layout isolated from the current Manage Views page whi
 
 ## Notes
 
-The existing `Components/Pages/ManageViews` page remains unchanged as the production fallback until this prototype is accepted.
+The old `Components/Pages/ManageViews` page remains in the project as fallback code, but its main navigation entry is hidden while this surface is promoted.
 Developer Notes are intentionally excluded from the merge review; they are preserved as app-owned metadata rather than parser-owned SQL annotations.
