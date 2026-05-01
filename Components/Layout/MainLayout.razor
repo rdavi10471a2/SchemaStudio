@@ -7,10 +7,13 @@
 @using SchemaStudioWebViewer.Configuration
 @using SchemaStudioWebViewer.Components.HelpSystem
 @inject NavigationManager NavigationManager
-@inject IJSRuntime JSRuntime
 @inject DialogService DialogService
 
-@attribute [FileVersion("1.9")]
+@attribute [FileVersion("1.10")]
+@attribute [AIChange(
+    "1.10",
+    "2026-05-01 08:38 AM CDT made the top application menu depend only on kiosk chrome suppression so login state no longer leaves normal pages without navigation.",
+    AICommandStatus.Pending)]
 @attribute [AIChange(
     "1.9",
     "2026-05-01 08:33 AM CDT replaced the hamburger/sidebar navigation with a kiosk-aware top menu for Schema Explorer, Maintenance, and Help actions.",
@@ -28,7 +31,7 @@
 @attribute [AIChange("1.4", "2026-04-30 04:17 PM CDT bounded the shared layout body to viewport-relative height so pages can use internal scrolling instead of growing past the visible app shell.", AICommandStatus.Pending)]
 @attribute [AIChange("1.3", "2026-04-27 11:36 AM CDT added a login-required toast when the guarded hamburger is clicked before the temporary session login is complete.", AICommandStatus.Pending)]
 @attribute [AIChange("1.2", "2026-04-27 11:32 AM CDT gated the layout hamburger and sidebar menu behind the temporary session auth flag so direct Home navigation cannot expose navigation before login.", AICommandStatus.Pending)]
-@attribute [AIFileContext("Components/Layout/MainLayout.razor", "Hosts the shared Radzen application shell, top menu chrome, dialog providers, kiosk chrome suppression, and temporary simple-auth menu gating until real authentication is implemented.")]
+@attribute [AIFileContext("Components/Layout/MainLayout.razor", "Hosts the shared Radzen application shell, top menu chrome, dialog providers, and kiosk chrome suppression while Home owns temporary simple-auth content gating.")]
 @attribute [AIChange("1.1", "2026-04-22 06:04 PM CDT kept Radzen dialog providers in the page circuit so DialogService calls render shared dialogs.", AICommandStatus.Pending)]
 @attribute [AIChange("1.0", "2026-04-22 11:06 AM CDT added config-driven kiosk chrome suppression for the /kiosk route.", AICommandStatus.Pending)]
 
@@ -190,53 +193,50 @@
         <RadzenHeader>
             <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0" class="app-header">
                 <RadzenText TextStyle="TextStyle.H6" class="rz-mb-0 app-title">Schema Studio Web -- Schema &amp; Understanding Service</RadzenText>
-                @if (CanShowNavigationMenu)
-                {
-                    <nav class="app-menu" aria-label="Application menu">
-                        <a href="/">
-                            <RadzenIcon Icon="explore" />
-                            <span>Schema Explorer</span>
-                        </a>
+                <nav class="app-menu" aria-label="Application menu">
+                    <a href="/">
+                        <RadzenIcon Icon="explore" />
+                        <span>Schema Explorer</span>
+                    </a>
 
-                        <details>
-                            <summary>
-                                <RadzenIcon Icon="build" />
-                                <span>Maintenance</span>
-                            </summary>
-                            <div class="app-menu-popover">
-                                <a href="manage-databases">
-                                    <RadzenIcon Icon="database" />
-                                    <span>Manage Databases</span>
-                                </a>
-                                <a href="manage-views-next">
-                                    <RadzenIcon Icon="view_week" />
-                                    <span>Manage Views</span>
-                                </a>
-                                <a href="parser-lab">
-                                    <RadzenIcon Icon="account_tree" />
-                                    <span>Parser Test Area</span>
-                                </a>
-                            </div>
-                        </details>
+                    <details>
+                        <summary>
+                            <RadzenIcon Icon="build" />
+                            <span>Maintenance</span>
+                        </summary>
+                        <div class="app-menu-popover">
+                            <a href="manage-databases">
+                                <RadzenIcon Icon="database" />
+                                <span>Manage Databases</span>
+                            </a>
+                            <a href="manage-views-next">
+                                <RadzenIcon Icon="view_week" />
+                                <span>Manage Views</span>
+                            </a>
+                            <a href="parser-lab">
+                                <RadzenIcon Icon="account_tree" />
+                                <span>Parser Test Area</span>
+                            </a>
+                        </div>
+                    </details>
 
-                        <details>
-                            <summary>
-                                <RadzenIcon Icon="help" />
+                    <details>
+                        <summary>
+                            <RadzenIcon Icon="help" />
+                            <span>Help</span>
+                        </summary>
+                        <div class="app-menu-popover">
+                            <button type="button" @onclick="@OpenHelpAsync">
+                                <RadzenIcon Icon="help_outline" />
                                 <span>Help</span>
-                            </summary>
-                            <div class="app-menu-popover">
-                                <button type="button" @onclick="@OpenHelpAsync">
-                                    <RadzenIcon Icon="help_outline" />
-                                    <span>Help</span>
-                                </button>
-                                <button type="button" @onclick="@ShowAboutAsync">
-                                    <RadzenIcon Icon="info" />
-                                    <span>About</span>
-                                </button>
-                            </div>
-                        </details>
-                    </nav>
-                }
+                            </button>
+                            <button type="button" @onclick="@ShowAboutAsync">
+                                <RadzenIcon Icon="info" />
+                                <span>About</span>
+                            </button>
+                        </div>
+                    </details>
+                </nav>
             </RadzenStack>
         </RadzenHeader>
     }
@@ -249,22 +249,9 @@
 </RadzenLayout>
 
 @code {
-    private bool isNavigationAuthenticated = false;
-
-    private const string AuthStorageKey = "simpleAuth";
-    private const string AuthenticatedValue = "true";
-
     private bool IsKioskRoute =>
         AppConfig.Current.Kiosk.Enabled &&
         string.Equals(CurrentRelativePath, AppConfig.Current.Kiosk.Route.Trim('/'), StringComparison.OrdinalIgnoreCase);
-
-    private bool ShouldGateNavigationMenu =>
-        AppConfig.Current.Auth.Enabled &&
-        AppConfig.Current.Auth.RequireLoginForHome;
-
-    private bool CanShowNavigationMenu =>
-        !ShouldGateNavigationMenu ||
-        isNavigationAuthenticated;
 
     private bool HideNavigationChrome =>
         IsKioskRoute &&
@@ -291,35 +278,9 @@
         NavigationManager.LocationChanged += OnLocationChanged;
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            await RefreshNavigationAuthStateAsync();
-            await InvokeAsync(StateHasChanged);
-        }
-    }
-
     private void OnLocationChanged(object? sender, LocationChangedEventArgs args)
     {
-        InvokeAsync(async () =>
-        {
-            await RefreshNavigationAuthStateAsync();
-            StateHasChanged();
-        });
-    }
-
-    private async Task RefreshNavigationAuthStateAsync()
-    {
-        if (!ShouldGateNavigationMenu)
-        {
-            isNavigationAuthenticated = true;
-            return;
-        }
-
-        var authValue = await JSRuntime.InvokeAsync<string>("authStateManager.load", AuthStorageKey);
-        isNavigationAuthenticated = string.Equals(authValue, AuthenticatedValue, StringComparison.OrdinalIgnoreCase);
-
+        InvokeAsync(StateHasChanged);
     }
 
     private async Task OpenHelpAsync()
