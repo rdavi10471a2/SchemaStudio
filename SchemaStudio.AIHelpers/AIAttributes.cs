@@ -1,7 +1,11 @@
-﻿using System;
+using System;
 
 namespace SchemaStudio.AIHelpers;
 
+/// <summary>
+/// Legacy status enum retained for compatibility with older watched projects.
+/// New workflow code should generally use monitor ledgers instead of status-bearing source attributes.
+/// </summary>
 public enum AICommandStatus
 {
     Pending,
@@ -11,97 +15,134 @@ public enum AICommandStatus
 }
 
 /// <summary>
-/// Indicates that this member or module must not be structurally modified without explicit approval.
+/// Legacy protection marker retained so older monitored projects continue to compile.
+/// New workflow guidance should prefer explicit user instructions and monitor diffs instead of broad source-level locks.
 /// </summary>
-[FileVersion("1.3")]
-[AIFileContext("SchemaStudio.AIHelpers/AIAttributes.cs", "Defines the shared AI workflow attributes and command-status enum used to annotate monitored source files.")]
-[AIChange("1.3", "2026-04-13 02:33 PM CDT workflow smoke test: refreshed the working copy again, incremented the file version, and added a new visible compare marker for AIAttributes.cs.", AICommandStatus.Pending)]
-[AIChange("1.2", "2026-04-13 02:08 PM CDT workflow smoke test: refreshed the working copy, added file-context metadata, and added a visible version marker comment for AIAttributes.cs.", AICommandStatus.Pending)]
-[AIInstructions("2026-04-10 10:31 AM CDT added partial-safe AIChangeAttribute to combine edit version, instruction text, and status in one repeatable marker.", AICommandStatus.Pending)]
-[AIChange("1.1", "2026-04-10 12:10 PM CDT added AIFileContextAttribute for durable file-purpose and nuance headers that remain code-shaped for AI and human readers.", AICommandStatus.Pending)]
 [AttributeUsage(AttributeTargets.Module | AttributeTargets.Class | AttributeTargets.Method | AttributeTargets.Property, AllowMultiple = true)]
-// 2026-04-13 02:33 PM CDT AI v1.3 workflow smoke-test marker: refreshed working copy and added a new pending compare marker for AIAttributes.cs review.
-// 2026-04-13 02:08 PM CDT AI v1.2 workflow smoke-test marker: refreshed working copy and added pending metadata for AIAttributes.cs review.
-public sealed class DoNotRefactorAttribute(string reason) : Attribute
+public sealed class DoNotRefactorAttribute : Attribute
 {
-    public string Reason { get; } = reason;
+    public string Reason { get; }
+    public string Warning => "CRITICAL: Do not refactor without asking. DO NOT remove or relocate existing comments.";
 
-    public string Warning => "CRITICAL: Do not refactor without asking. DO NOT remove or relocate existing comments. [cite: 2025-12-21]";
+    public DoNotRefactorAttribute(string reason)
+    {
+        Reason = reason;
+    }
 }
 
 /// <summary>
-/// Provides explicit instructions to AI tooling with status tracking.
+/// Legacy instruction marker retained for compatibility with older watched projects.
+/// Routine instructions should now live in prompts, ledgers, or component maps instead of stacked source attributes.
 /// </summary>
 [AttributeUsage(AttributeTargets.Module | AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = true)]
-public sealed class AIInstructionsAttribute(string command, AICommandStatus status = AICommandStatus.Pending) : Attribute
+public sealed class AIInstructionsAttribute : Attribute
 {
-    public string Command { get; } = command;
+    public string Command { get; }
+    public AICommandStatus Status { get; set; }
 
-    public AICommandStatus Status { get; set; } = status;
+    public AIInstructionsAttribute(string command, AICommandStatus status = AICommandStatus.Pending)
+    {
+        Command = command;
+        Status = status;
+    }
 }
 
 /// <summary>
-/// Combines an AI edit version marker with the instruction/status entry for partial-safe tracking.
+/// Describes the durable purpose, responsibilities, and local gotchas for a source file.
+/// Use this sparingly for files that are edited often, split across partials, or hard to understand from syntax alone.
 /// </summary>
-[AttributeUsage(AttributeTargets.Module | AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = true)]
-public sealed class AIChangeAttribute(string version, string command, AICommandStatus status = AICommandStatus.Pending) : Attribute
+[AttributeUsage(AttributeTargets.Module | AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Interface, AllowMultiple = true, Inherited = false)]
+public sealed class AIFileContextAttribute : Attribute
 {
-    public string Version { get; } = version;
-
-    public string Command { get; } = command;
-
-    public AICommandStatus Status { get; set; } = status;
-}
-
-/// <summary>
-/// Describes a file's durable purpose, responsibilities, and local nuances for AI and human readers.
-/// 2026-04-10 12:10 PM CDT AI context marker: AIFileContextAttribute is intended for code-shaped file headers that should survive cleanup.
-/// </summary>
-[AttributeUsage(AttributeTargets.Module | AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
-public sealed class AIFileContextAttribute(string fileName, string purpose) : Attribute
-{
-    public string FileName { get; } = fileName;
-
-    public string Purpose { get; } = purpose;
-
+    public string FileName { get; }
+    public string Purpose { get; }
     public string Responsibilities { get; set; } = string.Empty;
-
     public string Nuances { get; set; } = string.Empty;
-
     public string RelatedFiles { get; set; } = string.Empty;
-
     public string LastReviewed { get; set; } = string.Empty;
+
+    public AIFileContextAttribute(string fileName, string purpose)
+    {
+        FileName = fileName;
+        Purpose = purpose;
+    }
 }
 
 /// <summary>
-/// Records an audit trail of changes made by AI.
+/// Tracks the source file's human-visible version for monitor-assisted edits.
+/// For partial classes, each physical partial file may have its own file-level version.
 /// </summary>
-[AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = true)]
-public sealed class AIHistoryAttribute(string version, string changeLog) : Attribute
+[AttributeUsage(AttributeTargets.Module | AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Interface)]
+public sealed class FileVersionAttribute : Attribute
 {
-    public string Version { get; } = version;
+    public string Version { get; }
 
-    public string ChangeLog { get; } = changeLog;
-
-    public string Timestamp { get; } = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
-}
-
-[AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = true)]
-public sealed class UserHistoryAttribute(string version, string changeLog) : Attribute
-{
-    public string Version { get; } = version;
-
-    public string ChangeLog { get; } = changeLog;
-
-    public string Timestamp { get; } = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+    public FileVersionAttribute(string version)
+    {
+        Version = version;
+    }
 }
 
 /// <summary>
-/// Tracks the version of the file as updated by AI tools.
-/// 2026-04-10 10:31 AM CDT AI partial-safe marker: AIChangeAttribute should be used for new partial-class edit tracking because it allows multiple versioned instructions on the same type.
+/// Optional compact marker for unusual edits that need to remain visible in source.
+/// Routine edit history belongs in the monitor-owned file ledger, not in stacked source attributes.
 /// </summary>
-[AttributeUsage(AttributeTargets.Module | AttributeTargets.Class)]
-public sealed class FileVersionAttribute(string version) : Attribute
+[AttributeUsage(AttributeTargets.Module | AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Interface | AttributeTargets.Method | AttributeTargets.Property, AllowMultiple = true)]
+public sealed class AIChangeAttribute : Attribute
 {
-    public string Version { get; } = version;
+    public string Version { get; }
+    public string Summary { get; }
+    public string Command => Summary;
+    public AICommandStatus Status { get; set; }
+    public string Timestamp { get; set; } = string.Empty;
+
+    public AIChangeAttribute(string version, string summary)
+        : this(version, summary, AICommandStatus.Pending)
+    {
+    }
+
+    public AIChangeAttribute(string version, string summary, AICommandStatus status)
+    {
+        Version = version;
+        Summary = summary;
+        Status = status;
+    }
+}
+
+/// <summary>
+/// Legacy AI history marker retained for older source files.
+/// Routine history should now go to the monitor ledger.
+/// </summary>
+[AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = true)]
+public sealed class AIHistoryAttribute : Attribute
+{
+    public string Version { get; }
+    public string ChangeLog { get; }
+    public string Timestamp { get; }
+
+    public AIHistoryAttribute(string version, string changeLog)
+    {
+        Version = version;
+        ChangeLog = changeLog;
+        Timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+    }
+}
+
+/// <summary>
+/// Legacy human history marker retained for older source files.
+/// Prefer Git and component maps for durable human history in new work.
+/// </summary>
+[AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = true)]
+public sealed class UserHistoryAttribute : Attribute
+{
+    public string Version { get; }
+    public string ChangeLog { get; }
+    public string Timestamp { get; }
+
+    public UserHistoryAttribute(string version, string changeLog)
+    {
+        Version = version;
+        ChangeLog = changeLog;
+        Timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+    }
 }
