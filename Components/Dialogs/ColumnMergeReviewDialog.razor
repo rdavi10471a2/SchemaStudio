@@ -6,12 +6,8 @@
 
 @inject DialogService DialogService
 
-@attribute [FileVersion("1.0")]
-@attribute [AIFileContext("Components/Dialogs/ColumnMergeReviewDialog.razor", "Focused Manage Views Next merge-review dialog for parser column metadata. The dialog compares parser-owned bootstrap metadata with saved Schema Studio columns, stages accepted choices into the caller's in-memory column list, and leaves final persistence to the main Manage Views Next Save All Changes action.", Responsibilities = "Owns merge candidate filtering, parsed-vs-saved field comparison, effective-result preview, and Apply Merge staging for BusinessName, BusinessDescription, and DisableInheritance only.", Nuances = "DeveloperNotes are intentionally excluded from this merge surface because they are user-owned app metadata. Added rows auto-use parsed metadata, removed rows are informational, and changed/conflict rows default to keeping saved values.", RelatedFiles = "Components/Pages/ManageViewsNext/ManageViewsNext.razor; Components/Pages/ManageViewsNext/README.md", LastReviewed = "2026-05-01")]
-@attribute [AIChange(
-    "1.0",
-    "2026-05-01 08:42 PM CDT added the focused column merge review dialog for Manage Views Next with parser/saved metadata choices staged into the caller's working column list.",
-    AICommandStatus.Pending)]
+@attribute [FileVersion("1.1")]
+@attribute [AIFileContext("Components/Dialogs/ColumnMergeReviewDialog.razor", "Focused Manage Views Next merge-review dialog for parser column metadata. The dialog compares parser-owned bootstrap metadata with saved Schema Studio columns, stages accepted choices into the caller's in-memory column list, and leaves final persistence to the main Manage Views Next Save All Changes action.", Responsibilities = "Owns merge candidate filtering, parsed-vs-saved field comparison, effective-result preview, and Apply Merge staging for accepted parser values only.", Nuances = "DeveloperNotes are intentionally excluded from this merge surface because they are user-owned app metadata. Added rows auto-use parsed metadata, removed rows are informational, and changed/conflict rows default to keeping saved values. Keep Saved means an existing saved column is not modified; Use Parsed refreshes parser structure and parser-owned metadata from the current runtime parse.", RelatedFiles = "Components/Pages/ManageViewsNext/ManageViewsNext.razor; Components/Pages/ManageViewsNext/README.md", LastReviewed = "2026-05-03")]
 
 @* Fragment References:
    - None. Leaf dialog styled by Components/Dialogs/ColumnMergeReviewDialog.razor.css.
@@ -374,11 +370,10 @@
                 continue;
             }
 
-            ApplyParserStructure(candidate.Saved, candidate.Parsed);
-            candidate.Saved.IsDirty = true;
-
             if (candidate.Choice == MergeChoice.UseParsed)
             {
+                ApplyParserStructure(candidate.Saved, candidate.Parsed);
+                candidate.Saved.IsDirty = true;
                 candidate.Saved.BusinessName = NormalizeNullableText(candidate.Parsed.BusinessName);
                 candidate.Saved.BusinessDescription = NormalizeNullableText(candidate.Parsed.BusinessDescription);
                 candidate.Saved.DisableInheritance = candidate.Parsed.DisableInheritance;
