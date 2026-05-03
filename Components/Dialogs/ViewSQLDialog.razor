@@ -9,7 +9,7 @@
         </RadzenAlert>
     }
 
-    <div class="sql-code-container" style="--sql-comment-color: #9a3412; flex-grow: 1; border: @(IsMock ? "2px solid #dc3545" : "1px solid #c9d1d9"); border-radius: 4px; overflow: auto; background: #ffffff; color: #111827;">
+    <div class="sql-code-container" style="--sql-keyword-color: #0000ff; --sql-comment-color: #008000; --sql-string-color: #a31515; flex-grow: 1; border: @(IsMock ? "2px solid #dc3545" : "1px solid #c9d1d9"); border-radius: 4px; overflow: auto; background: #ffffff; color: #111827;">
         <pre class="language-sql" style="margin: 0; min-height: 100%; background: #ffffff !important; color: #111827 !important; text-shadow: none;"><code class="language-sql" style="background: #ffffff !important; color: #111827; text-shadow: none;">@SqlContent</code></pre>
     </div>
 </RadzenStack>
@@ -23,18 +23,18 @@
     }
 
     .sql-code-container .token.keyword {
-        color: #1d4ed8 !important;
+        color: var(--sql-keyword-color) !important;
         font-weight: 700;
     }
 
     .sql-code-container .token.string {
-        color: #047857 !important;
+        color: var(--sql-string-color) !important;
     }
 
     .sql-code-container .token.comment {
         color: var(--sql-comment-color) !important;
-        font-style: italic;
-        font-weight: 600;
+        font-style: normal;
+        font-weight: 500;
     }
 
     .sql-code-container .token.operator,
