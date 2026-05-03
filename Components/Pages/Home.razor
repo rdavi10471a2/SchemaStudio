@@ -23,7 +23,7 @@
 @inject IJSRuntime JSRuntime
 @inject NavigationManager NavigationManager
 
-@attribute [FileVersion("1.11")]
+@attribute [FileVersion("1.12")]
 @attribute [AIChange("1.11", "2026-05-01 10:07 AM CDT delayed normal Home auth gating until session auth is loaded so menu navigation to Schema Explorer does not briefly render the login state.", AICommandStatus.Pending)]
 @attribute [AIChange("1.10", "2026-05-01 09:06 AM CDT notified the shared layout when simple login state changes so the top menu appears and hides immediately.", AICommandStatus.Pending)]
 @attribute [AIChange("1.9", "2026-04-23 10:10 AM CDT skipped the duplicate first-render database load on Home when startup already attempted it and no databases were loaded.", AICommandStatus.Pending)]
@@ -299,10 +299,6 @@
                     @SelectedObject.BusinessName
                 </RadzenText>
 
-                @* 2026-04-15 03:10 PM CDT AI parser cleanup marker: remove the temporary parser test buttons from Home now that ParserLab owns the parser sandbox workflow. *@
-                <RadzenButton Icon="code"
-                              Text="VIEW SQL"
-                              Click="@ShowViewDefinition" />
             </RadzenColumn>
 
             <RadzenColumn Size="12" SizeMD="4">
@@ -898,30 +894,6 @@
         SelectedObject = null;
         Columns.Clear();
         LoadError = "";
-    }
-
-    private async Task ShowViewDefinition()
-    {
-        if (SelectedObject == null)
-            return;
-
-        var result = await ViewRepo.GetViewDefinitionAsync(
-            SelectedObject.SourceDatabaseName,
-            SelectedObject.SourceSchemaName,
-            SelectedObject.SourceObjectName);
-
-        string sqlContent = string.IsNullOrWhiteSpace(result?.Definition)
-            ? SQLViewMock.SQLView
-            : result.Definition;
-
-        string cleanedSql = ViewRepo.CleanSqlDefinition(sqlContent);
-
-        await DialogService.OpenAsync<ViewSQLDialog>(
-            $"SQL Source: {SelectedObject.SourceObjectName}",
-            new Dictionary<string, object>
-            {
-                { "SqlContent", cleanedSql }
-            });
     }
 
     private async Task OpenHelp(string id)

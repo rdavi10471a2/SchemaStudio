@@ -8,7 +8,7 @@
 @inject ViewParsingService ParserService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.6")]
+@attribute [FileVersion("1.7")]
 @attribute [AIChange(
     "1.6",
     "2026-04-30 07:21 PM CDT kept Business Name, Business Description, and Developer Notes visible as multiline detail fields even when values are blank.",    AICommandStatus.Pending)]
@@ -531,12 +531,52 @@
     }
 
     .resolved-chain-sql {
+        --sql-keyword-color: #0000ff;
+        --sql-comment-color: #008000;
+        --sql-string-color: #a31515;
         flex: 1;
         min-height: 0;
-        border: 1px solid #444;
+        border: 1px solid #c9d1d9;
         border-radius: 4px;
         overflow: auto;
-        background: #111827;
+        background: #ffffff;
+        color: #111827;
+    }
+
+    .resolved-chain-sql pre[class*="language-"],
+    .resolved-chain-sql code[class*="language-"] {
+        background: #ffffff !important;
+        color: #111827 !important;
+        text-shadow: none !important;
+    }
+
+    .resolved-chain-sql .token.keyword {
+        color: var(--sql-keyword-color) !important;
+        font-weight: 700;
+    }
+
+    .resolved-chain-sql .token.string {
+        color: var(--sql-string-color) !important;
+    }
+
+    .resolved-chain-sql .token.comment {
+        color: var(--sql-comment-color) !important;
+        font-style: normal;
+        font-weight: 500;
+    }
+
+    .resolved-chain-sql .token.operator,
+    .resolved-chain-sql .token.punctuation {
+        color: #374151 !important;
+    }
+
+    .resolved-chain-sql .token.function,
+    .resolved-chain-sql .token.builtin {
+        color: #0f766e !important;
+    }
+
+    .resolved-chain-sql .token.number {
+        color: #b45309 !important;
     }
 
     .chain-dialog-actions {
