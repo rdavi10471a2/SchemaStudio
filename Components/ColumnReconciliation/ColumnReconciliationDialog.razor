@@ -7,7 +7,7 @@
 
 @inject DialogService DialogService
 
-@attribute [FileVersion("1.7")]
+@attribute [FileVersion("1.9")]
 @attribute [AIFileContext("Components/ColumnReconciliation/ColumnReconciliationDialog.razor", "Focused Manage Views column reconciliation dialog that combines decision-first column reconciliation with optional View Details-style selector navigation.", Responsibilities = "Owns filtered candidate navigation, source mapping comparison, parser-owned structure refresh staging, business-value choice staging, explicit DisableInheritance result staging, saved-value origin labeling, and selected-column reconciliation detail for Manage Views Next.", Nuances = "Selector navigation is hidden by default so the dialog opens as a decision surface; Show Selector remains available for broader review. Changed and conflict-style differences are intentionally collapsed into Needs Review because inherited meaning, blank local declarations, and parser drift do not have a clean user-facing semantic split. Source mapping is informational and parser-owned; Apply Merge refreshes parser structure for existing parsed columns. BusinessName and BusinessDescription follow the selected business-value choice. DisableInheritance is staged explicitly from the merge result dropdown. Saved business values are labeled as declared, inherited, or local override from IsBaseView, IsBaseDefinition, and DisableInheritance without adding database fields. DeveloperNotes are outside this reconciliation surface.", RelatedFiles = "Components/Pages/ManageViewsNext/ManageViewsNext.razor; Components/Pages/ManageViewsNext/ManageViewsNext.Columns.cs; WEBSemanticModel/Model/ViewSourcedColumnDefinition.cs; wwwroot/Data/help.json", LastReviewed = "2026-05-03")]
 
 <div class="column-reconciliation">
@@ -228,8 +228,8 @@
                                         {
                                             <tr>
                                                 <td>@row.Label</td>
-                                                <td>@FieldValue(row.ParsedValue, row.IsMultiline, cssClass: row.IsConflict ? "cr-conflict-value" : null)</td>
-                                                <td>@FieldValue(row.SavedValue, row.IsMultiline, row.SavedMissingText, row.IsConflict ? "cr-conflict-value" : null)</td>
+                                                <td>@FieldValue(row.ParsedValue, row.IsMultiline, cssClass: GetBusinessValueClass(row))</td>
+                                                <td>@FieldValue(row.SavedValue, row.IsMultiline, row.SavedMissingText, GetBusinessValueClass(row))</td>
                                                 <td>@ResultValue(SelectedCandidate, row)</td>
                                             </tr>
                                         }
@@ -295,6 +295,7 @@
     private const string RemovedStatus = "Removed";
     private const string UnchangedStatus = "Unchanged";
     private const string ParsedMetadataStatus = "Parsed Metadata";
+    private const string InheritedStatus = "Inherited";
     private const string BusinessValuesTab = "Business Values";
     private const string SourceMappingTab = "Source Mapping Check";
 
@@ -330,7 +331,8 @@
         AddedStatus,
         RemovedStatus,
         UnchangedStatus,
-        ParsedMetadataStatus
+        ParsedMetadataStatus,
+        InheritedStatus
     ];
 
     private IReadOnlyList<SourceTable> CurrentSources => ParsedView?.SourceTables ?? [];
@@ -360,7 +362,8 @@
         new CountChip(AddedStatus, "Added", Candidates.Count(x => x.Status == ReconciliationStatus.Added)),
         new CountChip(RemovedStatus, "Removed", Candidates.Count(x => x.Status == ReconciliationStatus.Removed)),
         new CountChip(UnchangedStatus, "Unchanged", Candidates.Count(x => x.Status == ReconciliationStatus.Unchanged)),
-        new CountChip(ParsedMetadataStatus, "Parsed Metadata", Candidates.Count(x => x.HasParsedMetadata))
+        new CountChip(ParsedMetadataStatus, "Parsed Metadata", Candidates.Count(x => x.HasParsedMetadata)),
+        new CountChip(InheritedStatus, "Inherited", Candidates.Count(x => x.SavedBusinessValuesAreInherited))
     ];
 
     protected override void OnParametersSet()
@@ -412,6 +415,7 @@
             RemovedStatus => candidate.Status == ReconciliationStatus.Removed,
             UnchangedStatus => candidate.Status == ReconciliationStatus.Unchanged,
             ParsedMetadataStatus => candidate.HasParsedMetadata,
+            InheritedStatus => candidate.SavedBusinessValuesAreInherited,
             _ => true
         };
 
@@ -628,6 +632,13 @@
             ? "cr-choice-card selected"
             : "cr-choice-card";
 
+    private static string? GetBusinessValueClass(BusinessRow row) =>
+        row.IsConflict
+            ? "cr-conflict-value"
+            : row.IsInheritedDifference
+                ? "cr-inherited-value"
+                : null;
+
     private static string GetComparisonRowClass(ComparisonRow row) =>
         string.Equals(NormalizeNullableText(row.CurrentValue), NormalizeNullableText(row.PriorValue), StringComparison.Ordinal)
             ? string.Empty
@@ -698,6 +709,7 @@
         string? ResultValue,
         bool IsMultiline,
         bool IsConflict,
+        bool IsInheritedDifference,
         bool IsDisableInheritance,
         string SavedMissingText,
         string ResultMissingText);
@@ -820,6 +832,7 @@
                 Choice == BusinessValueChoice.AcceptParsed ? Parsed?.BusinessName : Saved?.BusinessName,
                 false,
                 HasBusinessValueConflict(Parsed?.BusinessName, Saved?.BusinessName),
+                IsInheritedValueWithBlankCurrentParse(Parsed?.BusinessName, Saved?.BusinessName),
                 false,
                 Saved == null ? "Not saved yet" : string.Empty,
                 string.Empty),
@@ -830,6 +843,7 @@
                 Choice == BusinessValueChoice.AcceptParsed ? Parsed?.BusinessDescription : Saved?.BusinessDescription,
                 true,
                 HasBusinessValueConflict(Parsed?.BusinessDescription, Saved?.BusinessDescription),
+                IsInheritedValueWithBlankCurrentParse(Parsed?.BusinessDescription, Saved?.BusinessDescription),
                 false,
                 Saved == null ? "Not saved yet" : string.Empty,
                 string.Empty),
@@ -840,6 +854,7 @@
                 FormatBool(ResultDisableInheritance),
                 false,
                 Parsed != null && Saved != null && Parsed.DisableInheritance != Saved.DisableInheritance,
+                false,
                 true,
                 Saved == null ? "Not saved yet" : "No",
                 "No")
