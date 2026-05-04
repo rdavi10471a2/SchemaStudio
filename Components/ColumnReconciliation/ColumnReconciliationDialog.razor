@@ -494,22 +494,6 @@
 
     private void ApplyMerge()
     {
-        var removedNames = Candidates
-            .Where(candidate => candidate.Parsed == null)
-            .Select(candidate => candidate.ColumnName)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        if (removedNames.Count > 0)
-        {
-            for (var index = SavedColumns.Count - 1; index >= 0; index--)
-            {
-                if (removedNames.Contains(SavedColumns[index].SourceColumnName))
-                {
-                    SavedColumns.RemoveAt(index);
-                }
-            }
-        }
-
         foreach (var candidate in Candidates)
         {
             if (candidate.Parsed == null)

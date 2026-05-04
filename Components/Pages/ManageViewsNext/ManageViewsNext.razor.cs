@@ -170,7 +170,9 @@ public partial class ManageViewsNext
             return;
         }
 
-        validationMessage = ValidateStringLengths(SavedColumns, "Column");
+        var columnsToSave = BuildColumnSaveSnapshot();
+
+        validationMessage = ValidateStringLengths(columnsToSave, "Column");
         if (!string.IsNullOrWhiteSpace(validationMessage))
         {
             NotificationService.Notify(NotificationSeverity.Warning, "Save blocked", validationMessage, 5000);
@@ -196,14 +198,14 @@ public partial class ManageViewsNext
                 SelectedViewKey = BuildExistingSelectionKey(EditableObject.SchemaObjectId);
             }
 
-            if (EditableObject.SchemaObjectId > 0 && SavedColumns.Count > 0)
+            if (EditableObject.SchemaObjectId > 0 && columnsToSave.Count > 0)
             {
-                foreach (var column in SavedColumns)
+                foreach (var column in columnsToSave)
                 {
                     column.SchemaObjectId = EditableObject.SchemaObjectId;
                 }
 
-                await SchemaObjectColumnRepository.SaveFullSnapshotAsync(SavedColumns);
+                await SchemaObjectColumnRepository.SaveFullSnapshotAsync(columnsToSave);
             }
 
             NotificationService.Notify(NotificationSeverity.Success, "View saved", "View and column metadata were saved successfully.", 2500);
@@ -217,6 +219,29 @@ public partial class ManageViewsNext
         {
             IsBusy = false;
         }
+    }
+
+    private List<SchemaObjectColumnDefinition> BuildColumnSaveSnapshot()
+    {
+        if (CurrentParsedView == null)
+        {
+            return SavedColumns.ToList();
+        }
+
+        var parsedNames = CurrentParsedView.Columns
+            .Where(column => !string.IsNullOrWhiteSpace(column.ColumnName))
+            .Select(column => column.ColumnName!)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        if (parsedNames.Count == 0)
+        {
+            return SavedColumns.ToList();
+        }
+
+        return SavedColumns
+            .Where(column => !string.IsNullOrWhiteSpace(column.SourceColumnName))
+            .Where(column => parsedNames.Contains(column.SourceColumnName))
+            .ToList();
     }
 
     private async Task DeleteViewAsync()
