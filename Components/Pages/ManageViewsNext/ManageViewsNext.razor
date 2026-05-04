@@ -3,6 +3,7 @@
 @using Radzen
 @using Radzen.Blazor
 @using SchemaStudio.AIHelpers
+@using SchemaStudioWebViewer.Components.ColumnReconciliation
 @using SchemaStudio.Data.Models
 @using SchemaStudio.Data.Repositories
 @using SchemaStudioWebViewer.Components.Dialogs
@@ -22,7 +23,7 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("1.36")]
+@attribute [FileVersion("1.37")]
 @attribute [AIChange(
     "1.36",
     "2026-04-30 11:59 PM CDT disabled selector controls during busy operations and rebuilt the column synchronization summary after merge choices are staged.",
@@ -68,7 +69,7 @@
 @attribute [AIChange("1.3", "2026-04-30 02:55 PM CDT fixed the column metadata panels to a local listbox-style height so saved columns scroll inside the selector instead of stretching the page.", AICommandStatus.Pending)]
 @attribute [AIChange("1.2", "2026-04-30 02:49 PM CDT moved column synchronization into the view-definition pane and tightened the prototype shell so column editing keeps the main vertical space.", AICommandStatus.Pending)]
 @attribute [AIChange("1.1", "2026-04-30 04:17 PM CDT tightened the prototype page for a bounded app-height shell and forced selector/tree regions to scroll inside the page.", AICommandStatus.Pending)]
-@attribute [AIFileContext("Components/Pages/ManageViewsNext/ManageViewsNext.razor", "Prototype Manage Views replacement page that keeps the existing ManageViews page intact while testing the accepted one-screen domain/tree selector, combined view-definition and column-metadata editing layout, relocated selected-view toolbar actions, focused merge-review launch, and shared save/delete workflow.", Responsibilities = "Owns the /manage-views-next route, top-level markup, selector shell, view editor markup, column metadata editor markup, focused merge dialog launch, and composition of the partial-class workflow helpers.", Nuances = "The class-level FileVersion lives here; other ManageViewsNext partial files should use AIChange and AIFileContext without duplicating FileVersion. Keep the old ManageViews folder as fallback until this surface is accepted.", RelatedFiles = "ManageViewsNext.razor.cs; ManageViewsNext.Selection.cs; ManageViewsNext.Columns.cs; ManageViewsNext.Parser.cs; ManageViewsNext.razor.css; Components/Dialogs/ColumnMergeReviewDialog.razor; README.md", LastReviewed = "2026-05-01")]
+@attribute [AIFileContext("Components/Pages/ManageViewsNext/ManageViewsNext.razor", "Prototype Manage Views replacement page that keeps the existing ManageViews page intact while testing the accepted one-screen domain/tree selector, combined view-definition and column-metadata editing layout, relocated selected-view toolbar actions, column reconciliation launch, and shared save/delete workflow.", Responsibilities = "Owns the /manage-views-next route, top-level markup, selector shell, view editor markup, column metadata editor markup, focused reconciliation dialog launch, and composition of the partial-class workflow helpers.", Nuances = "The class-level FileVersion lives here; other ManageViewsNext partial files should use AIChange and AIFileContext without duplicating FileVersion. Keep the old ManageViews folder as fallback until this surface is accepted.", RelatedFiles = "ManageViewsNext.razor.cs; ManageViewsNext.Selection.cs; ManageViewsNext.Columns.cs; ManageViewsNext.Parser.cs; ManageViewsNext.razor.css; Components/ColumnReconciliation/ColumnReconciliationDialog.razor; README.md", LastReviewed = "2026-05-03")]
 @attribute [AIChange("1.0", "2026-04-30 03:37 PM CDT added a side-by-side Manage Views prototype route with a scrollable domain tree selector and combined edit surface so the existing page remains untouched for fallback testing.", AICommandStatus.Pending)]
 
 @* 2026-05-01 10:43 PM CDT AI v1.33 manage-views-next marker: sync summary sits under the view title and Review Merge is a regular toolbar action. *@
@@ -566,20 +567,21 @@
             return;
         }
 
-        var result = await DialogService.OpenAsync<ColumnMergeReviewDialog>(
+        var result = await DialogService.OpenAsync<ColumnReconciliationDialog>(
             $"{SelectedViewItem.DisplayName} - Column Merge Review",
             new Dictionary<string, object?>
             {
                 { "ViewDisplayName", SelectedViewItem.DisplayName },
                 { "IsBaseView", EditableObject.IsBaseObject },
                 { "SchemaObjectId", EditableObject.SchemaObjectId },
+                { "ParsedView", CurrentParsedView },
                 { "ParsedColumns", CurrentParsedView.Columns },
                 { "SavedColumns", SavedColumns }
             },
             new DialogOptions
             {
-                Width = "min(1680px, 96vw)",
-                Height = "min(900px, 92vh)",
+                Width = "85vw",
+                Height = "85vh",
                 Resizable = true,
                 Draggable = true
             });
