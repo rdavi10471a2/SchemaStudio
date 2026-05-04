@@ -59,7 +59,8 @@ public partial class ManageViewsNext
                     .Where(part => !string.IsNullOrWhiteSpace(part)));
 
     private bool IsViewDefinitionDirty => EditableObject?.IsDirty ?? false;
-    private bool HasUnsavedColumnChanges => SavedColumns.Any(column => column.IsDirty);
+    private bool HasUnsavedColumnChanges =>
+        SavedColumns.Any(column => column.IsDirty || column.MergeState != SchemaObjectColumnMergeState.None);
     private bool IsWorkspaceDirty => IsViewDefinitionDirty || HasUnsavedColumnChanges;
     private bool CanDeleteCurrentView => SelectedViewItem?.IsExisting == true && EditableObject?.SchemaObjectId > 0;
     private bool CanOpenDependencyTools => EditableObject != null;
@@ -223,9 +224,13 @@ public partial class ManageViewsNext
 
     private List<SchemaObjectColumnDefinition> BuildColumnSaveSnapshot()
     {
+        var sourceColumns = CloneColumns(SavedColumns)
+            .Where(column => column.MergeState != SchemaObjectColumnMergeState.PendingRemove)
+            .ToList();
+
         if (CurrentParsedView == null)
         {
-            return SavedColumns.ToList();
+            return sourceColumns;
         }
 
         var parsedNames = CurrentParsedView.Columns
@@ -235,10 +240,10 @@ public partial class ManageViewsNext
 
         if (parsedNames.Count == 0)
         {
-            return SavedColumns.ToList();
+            return sourceColumns;
         }
 
-        return SavedColumns
+        return sourceColumns
             .Where(column => !string.IsNullOrWhiteSpace(column.SourceColumnName))
             .Where(column => parsedNames.Contains(column.SourceColumnName))
             .ToList();

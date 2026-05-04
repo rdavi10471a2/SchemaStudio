@@ -276,6 +276,21 @@ public partial class ManageViewsNext
             return "Added";
         }
 
+        if (existing?.MergeState == SchemaObjectColumnMergeState.PendingAdd)
+        {
+            return "Added";
+        }
+
+        if (existing?.MergeState == SchemaObjectColumnMergeState.PendingRemove)
+        {
+            return "Removed";
+        }
+
+        if (existing?.MergeState == SchemaObjectColumnMergeState.PendingUpdate)
+        {
+            return "Changed";
+        }
+
         if (parsed == null && existing != null)
         {
             return "Removed";
@@ -376,7 +391,8 @@ public partial class ManageViewsNext
             BusinessName = source.BusinessName,
             BusinessDescription = source.BusinessDescription,
             DeveloperNotes = source.DeveloperNotes,
-            LastSynced = source.LastSynced
+            LastSynced = source.LastSynced,
+            MergeState = source.MergeState
         };
 
         clone.ClearDirty();

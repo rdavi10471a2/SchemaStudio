@@ -203,6 +203,9 @@ public sealed class SchemaObjectColumnDefinition
         set => _isDirty = value;
     }
 
+    [Display(AutoGenerateField = false)]
+    public SchemaObjectColumnMergeState MergeState { get; set; } = SchemaObjectColumnMergeState.None;
+
     public void ClearDirty() => IsDirty = false;
 
     public string FormatDescription()
@@ -231,4 +234,12 @@ public sealed class SchemaObjectColumnDefinition
             IsDirty = true;
         }
     }
+}
+
+public enum SchemaObjectColumnMergeState
+{
+    None,
+    PendingAdd,
+    PendingUpdate,
+    PendingRemove
 }

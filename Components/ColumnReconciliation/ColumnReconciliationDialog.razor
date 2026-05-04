@@ -498,6 +498,11 @@
         {
             if (candidate.Parsed == null)
             {
+                if (candidate.Saved != null)
+                {
+                    candidate.Saved.MergeState = SchemaObjectColumnMergeState.PendingRemove;
+                }
+
                 continue;
             }
 
@@ -505,12 +510,18 @@
             {
                 var column = CreateColumn(candidate.Parsed);
                 column.DisableInheritance = candidate.ResultDisableInheritance;
+                column.MergeState = SchemaObjectColumnMergeState.PendingAdd;
                 SavedColumns.Add(column);
                 continue;
             }
 
             ApplyParserStructure(candidate.Saved, candidate.Parsed, IsBaseView);
             candidate.Saved.IsDirty = true;
+            if (candidate.Status != ReconciliationStatus.Unchanged &&
+                candidate.Saved.MergeState != SchemaObjectColumnMergeState.PendingAdd)
+            {
+                candidate.Saved.MergeState = SchemaObjectColumnMergeState.PendingUpdate;
+            }
 
             if (candidate.Choice == BusinessValueChoice.AcceptParsed)
             {
