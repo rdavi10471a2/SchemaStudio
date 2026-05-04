@@ -6,8 +6,8 @@
 
 @inject DialogService DialogService
 
-@attribute [FileVersion("1.3")]
-@attribute [AIFileContext("Components/ColumnReconciliation/ColumnReconciliationDialog.razor", "Focused Manage Views column reconciliation dialog that combines View Details-style selector navigation with parser-current/prior source checks and business-value merge choices.", Responsibilities = "Owns filtered candidate navigation, source mapping comparison, parser-owned structure refresh staging, business-value choice staging, and selected-column reconciliation detail for Manage Views Next.", Nuances = "Source mapping is informational and parser-owned; Apply Merge refreshes parser structure for existing parsed columns. BusinessName, BusinessDescription, and DisableInheritance follow the selected business-value choice. Header tooltips explain current parsed values, saved values, and merge result without a separate correlation band. DeveloperNotes are outside this reconciliation surface.", RelatedFiles = "Components/Pages/ManageViewsNext/ManageViewsNext.razor; Components/Pages/ManageViewsNext/ManageViewsNext.Columns.cs; WEBSemanticModel/Model/ViewSourcedColumnDefinition.cs", LastReviewed = "2026-05-03")]
+@attribute [FileVersion("1.4")]
+@attribute [AIFileContext("Components/ColumnReconciliation/ColumnReconciliationDialog.razor", "Focused Manage Views column reconciliation dialog that combines View Details-style selector navigation with parser-current/prior source checks and business-value merge choices.", Responsibilities = "Owns filtered candidate navigation, source mapping comparison, parser-owned structure refresh staging, business-value choice staging, explicit DisableInheritance result staging, and selected-column reconciliation detail for Manage Views Next.", Nuances = "Source mapping is informational and parser-owned; Apply Merge refreshes parser structure for existing parsed columns. BusinessName and BusinessDescription follow the selected business-value choice. DisableInheritance is staged explicitly from the merge result dropdown. Header tooltips explain current parsed values, saved values, and merge result without a separate correlation band. DeveloperNotes are outside this reconciliation surface.", RelatedFiles = "Components/Pages/ManageViewsNext/ManageViewsNext.razor; Components/Pages/ManageViewsNext/ManageViewsNext.Columns.cs; WEBSemanticModel/Model/ViewSourcedColumnDefinition.cs", LastReviewed = "2026-05-03")]
 
 <div class="column-reconciliation">
     <section class="cr-filter-band">
@@ -216,7 +216,7 @@
                                             <td>@row.Label</td>
                                             <td>@FieldValue(row.ParsedValue, row.IsMultiline, cssClass: row.IsConflict ? "cr-conflict-value" : null)</td>
                                             <td>@FieldValue(row.SavedValue, row.IsMultiline, row.SavedMissingText, row.IsConflict ? "cr-conflict-value" : null)</td>
-                                            <td>@FieldValue(row.ResultValue, row.IsMultiline, row.ResultMissingText)</td>
+                                            <td>@ResultValue(SelectedCandidate, row)</td>
                                         </tr>
                                     }
                                 </tbody>
@@ -229,7 +229,7 @@
                                         <input type="radio"
                                                name="business-value-choice"
                                                checked="@(SelectedCandidate.Choice == BusinessValueChoice.KeepSaved)"
-                                               @onchange="@(() => SelectedCandidate.Choice = BusinessValueChoice.KeepSaved)" />
+                                               @onchange="@(() => SelectedCandidate.SetChoice(BusinessValueChoice.KeepSaved))" />
                                         <span>
                                             <strong>Keep Saved Business Values</strong>
                                             <small>Preserve the saved business name, description, and inheritance setting.</small>
@@ -240,7 +240,7 @@
                                         <input type="radio"
                                                name="business-value-choice"
                                                checked="@(SelectedCandidate.Choice == BusinessValueChoice.AcceptParsed)"
-                                               @onchange="@(() => SelectedCandidate.Choice = BusinessValueChoice.AcceptParsed)" />
+                                               @onchange="@(() => SelectedCandidate.SetChoice(BusinessValueChoice.AcceptParsed))" />
                                         <span>
                                             <strong>Accept New Parsed Values</strong>
                                             <small>Replace saved business values with values from the current parse.</small>
@@ -468,7 +468,9 @@
 
             if (candidate.Saved == null)
             {
-                SavedColumns.Add(CreateColumn(candidate.Parsed));
+                var column = CreateColumn(candidate.Parsed);
+                column.DisableInheritance = candidate.ResultDisableInheritance;
+                SavedColumns.Add(column);
                 continue;
             }
 
@@ -479,8 +481,9 @@
             {
                 candidate.Saved.BusinessName = NormalizeNullableText(candidate.Parsed.BusinessName);
                 candidate.Saved.BusinessDescription = NormalizeNullableText(candidate.Parsed.BusinessDescription);
-                candidate.Saved.DisableInheritance = candidate.Parsed.DisableInheritance;
             }
+
+            candidate.Saved.DisableInheritance = candidate.ResultDisableInheritance;
         }
 
         DialogService.Close(true);
@@ -554,6 +557,24 @@
             builder.AddAttribute(9, "Style", "width:100%;");
             builder.CloseComponent();
         }
+    };
+
+    private RenderFragment ResultValue(ReconciliationCandidate candidate, BusinessRow row) => builder =>
+    {
+        if (!row.IsDisableInheritance)
+        {
+            builder.AddContent(0, FieldValue(row.ResultValue, row.IsMultiline, row.ResultMissingText));
+            return;
+        }
+
+        builder.OpenComponent<RadzenDropDown<bool>>(1);
+        builder.AddAttribute(2, "Data", BoolOptions);
+        builder.AddAttribute(3, "Value", candidate.ResultDisableInheritance);
+        builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<bool>(this, value => candidate.ResultDisableInheritance = value));
+        builder.AddAttribute(5, "TextProperty", nameof(BoolOption.Label));
+        builder.AddAttribute(6, "ValueProperty", nameof(BoolOption.Value));
+        builder.AddAttribute(7, "Style", "width:100%;");
+        builder.CloseComponent();
     };
 
     private string GetColumnButtonClass(ReconciliationCandidate candidate) =>
@@ -636,6 +657,8 @@
 
     private sealed record ComparisonRow(string Label, string? CurrentValue, string? PriorValue);
 
+    private sealed record BoolOption(bool Value, string Label);
+
     private sealed record BusinessRow(
         string Label,
         string? ParsedValue,
@@ -643,8 +666,15 @@
         string? ResultValue,
         bool IsMultiline,
         bool IsConflict,
+        bool IsDisableInheritance,
         string SavedMissingText,
         string ResultMissingText);
+
+    private IReadOnlyList<BoolOption> BoolOptions { get; } =
+    [
+        new(false, "No"),
+        new(true, "Yes")
+    ];
 
     private sealed class ReconciliationCandidate
     {
@@ -657,13 +687,15 @@
             Choice = Status == ReconciliationStatus.Added
                 ? BusinessValueChoice.AcceptParsed
                 : BusinessValueChoice.KeepSaved;
+            ResultDisableInheritance = GetDefaultDisableInheritance(Choice);
         }
 
         public string ColumnName { get; }
         public ViewSourcedColumnDefinition? Parsed { get; }
         public SchemaObjectColumnDefinition? Saved { get; }
         public ReconciliationStatus Status { get; }
-        public BusinessValueChoice Choice { get; set; }
+        public BusinessValueChoice Choice { get; private set; }
+        public bool ResultDisableInheritance { get; set; }
         public bool IsChoiceEditable => Status is ReconciliationStatus.Changed or ReconciliationStatus.Conflict && Saved != null && Parsed != null;
         public bool HasParsedMetadata => Parsed != null
             && (!string.IsNullOrWhiteSpace(Parsed.BusinessName)
@@ -678,6 +710,12 @@
             ReconciliationStatus.Unchanged => "No business value choice needed.",
             _ => Choice == BusinessValueChoice.AcceptParsed ? "Accept New Parsed Values" : "Keep Saved Business Values"
         };
+
+        public void SetChoice(BusinessValueChoice choice)
+        {
+            Choice = choice;
+            ResultDisableInheritance = GetDefaultDisableInheritance(choice);
+        }
 
         public IReadOnlyList<ComparisonRow> SourceRows =>
         [
@@ -712,6 +750,7 @@
                 Choice == BusinessValueChoice.AcceptParsed ? Parsed?.BusinessName : Saved?.BusinessName,
                 false,
                 HasBusinessValueConflict(Parsed?.BusinessName, Saved?.BusinessName),
+                false,
                 Saved == null ? "Not saved yet" : string.Empty,
                 string.Empty),
             new BusinessRow(
@@ -721,20 +760,25 @@
                 Choice == BusinessValueChoice.AcceptParsed ? Parsed?.BusinessDescription : Saved?.BusinessDescription,
                 true,
                 HasBusinessValueConflict(Parsed?.BusinessDescription, Saved?.BusinessDescription),
+                false,
                 Saved == null ? "Not saved yet" : string.Empty,
                 string.Empty),
             new BusinessRow(
                 "Disable Inheritance",
                 Parsed == null ? null : FormatBool(Parsed.DisableInheritance),
                 Saved == null ? null : FormatBool(Saved.DisableInheritance),
-                FormatBool(Choice == BusinessValueChoice.AcceptParsed
-                    ? Parsed?.DisableInheritance ?? false
-                    : Saved?.DisableInheritance ?? false),
+                FormatBool(ResultDisableInheritance),
                 false,
                 Parsed != null && Saved != null && Parsed.DisableInheritance != Saved.DisableInheritance,
+                true,
                 Saved == null ? "Not saved yet" : "No",
                 "No")
         ];
+
+        private bool GetDefaultDisableInheritance(BusinessValueChoice choice) =>
+            choice == BusinessValueChoice.AcceptParsed
+                ? Parsed?.DisableInheritance ?? false
+                : Saved?.DisableInheritance ?? false;
 
         private bool HasBusinessValueConflict(string? parsedValue, string? savedValue) =>
             Parsed != null
