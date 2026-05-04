@@ -60,7 +60,7 @@ public partial class ManageViewsNext
 
     private bool IsViewDefinitionDirty => EditableObject?.IsDirty ?? false;
     private bool HasUnsavedColumnChanges =>
-        SavedColumns.Any(column => column.IsDirty || column.MergeState != SchemaObjectColumnMergeState.None);
+        SavedColumns.Any(column => column.IsDirty || IsPendingColumnMergeState(column.MergeState));
     private bool IsWorkspaceDirty => IsViewDefinitionDirty || HasUnsavedColumnChanges;
     private bool CanDeleteCurrentView => SelectedViewItem?.IsExisting == true && EditableObject?.SchemaObjectId > 0;
     private bool CanOpenDependencyTools => EditableObject != null;
@@ -72,6 +72,11 @@ public partial class ManageViewsNext
             : EditableObject?.IsBaseObject == true
                 ? "Base"
                 : "Composed";
+
+    private static bool IsPendingColumnMergeState(SchemaObjectColumnMergeState mergeState) =>
+        mergeState is SchemaObjectColumnMergeState.PendingAdd
+            or SchemaObjectColumnMergeState.PendingUpdate
+            or SchemaObjectColumnMergeState.PendingRemove;
 
     private IReadOnlyList<string> ColumnSynchronizationProcessLines =>
     [
