@@ -16,6 +16,8 @@
     border-radius: 6px;
     box-shadow: none;
     box-sizing: border-box;
+}
+
 .cr-panel-header h3,
 .cr-detail-header h3,
 .cr-section h4 {
