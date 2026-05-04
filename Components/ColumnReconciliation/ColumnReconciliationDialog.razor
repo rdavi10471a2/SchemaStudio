@@ -7,7 +7,7 @@
 
 @inject DialogService DialogService
 
-@attribute [FileVersion("1.9")]
+@attribute [FileVersion("1.11")]
 @attribute [AIFileContext("Components/ColumnReconciliation/ColumnReconciliationDialog.razor", "Focused Manage Views column reconciliation dialog that combines decision-first column reconciliation with optional View Details-style selector navigation.", Responsibilities = "Owns filtered candidate navigation, source mapping comparison, parser-owned structure refresh staging, business-value choice staging, explicit DisableInheritance result staging, saved-value origin labeling, and selected-column reconciliation detail for Manage Views Next.", Nuances = "Selector navigation is hidden by default so the dialog opens as a decision surface; Show Selector remains available for broader review. Changed and conflict-style differences are intentionally collapsed into Needs Review because inherited meaning, blank local declarations, and parser drift do not have a clean user-facing semantic split. Source mapping is informational and parser-owned; Apply Merge refreshes parser structure for existing parsed columns. BusinessName and BusinessDescription follow the selected business-value choice. DisableInheritance is staged explicitly from the merge result dropdown. Saved business values are labeled as declared, inherited, or local override from IsBaseView, IsBaseDefinition, and DisableInheritance without adding database fields. DeveloperNotes are outside this reconciliation surface.", RelatedFiles = "Components/Pages/ManageViewsNext/ManageViewsNext.razor; Components/Pages/ManageViewsNext/ManageViewsNext.Columns.cs; WEBSemanticModel/Model/ViewSourcedColumnDefinition.cs; wwwroot/Data/help.json", LastReviewed = "2026-05-03")]
 
 <div class="column-reconciliation">
@@ -134,6 +134,10 @@
                             @if (!string.IsNullOrWhiteSpace(SelectedCandidate.SavedOriginLabel))
                             {
                                 <span class="cr-chip neutral" title="@SelectedCandidate.SavedOriginHelp">@SelectedCandidate.SavedOriginLabel</span>
+                            }
+                            @if (SelectedCandidate.SavedBusinessValuesAreBlank)
+                            {
+                                <span class="cr-chip neutral" title="@SelectedCandidate.ValueStateHelp">Blank</span>
                             }
                         </div>
                     </div>
@@ -296,6 +300,10 @@
     private const string UnchangedStatus = "Unchanged";
     private const string ParsedMetadataStatus = "Parsed Metadata";
     private const string InheritedStatus = "Inherited";
+    private const string DeclaredStatus = "Declared";
+    private const string LocalOverrideStatus = "Local Override";
+    private const string HasValuesStatus = "Has Values";
+    private const string BlankStatus = "Blank";
     private const string BusinessValuesTab = "Business Values";
     private const string SourceMappingTab = "Source Mapping Check";
 
@@ -332,7 +340,11 @@
         RemovedStatus,
         UnchangedStatus,
         ParsedMetadataStatus,
-        InheritedStatus
+        InheritedStatus,
+        DeclaredStatus,
+        LocalOverrideStatus,
+        HasValuesStatus,
+        BlankStatus
     ];
 
     private IReadOnlyList<SourceTable> CurrentSources => ParsedView?.SourceTables ?? [];
@@ -363,7 +375,11 @@
         new CountChip(RemovedStatus, "Removed", Candidates.Count(x => x.Status == ReconciliationStatus.Removed)),
         new CountChip(UnchangedStatus, "Unchanged", Candidates.Count(x => x.Status == ReconciliationStatus.Unchanged)),
         new CountChip(ParsedMetadataStatus, "Parsed Metadata", Candidates.Count(x => x.HasParsedMetadata)),
-        new CountChip(InheritedStatus, "Inherited", Candidates.Count(x => x.SavedBusinessValuesAreInherited))
+        new CountChip(InheritedStatus, "Inherited", Candidates.Count(x => x.SavedBusinessValuesAreInherited)),
+        new CountChip(DeclaredStatus, "Declared", Candidates.Count(x => x.SavedBusinessValuesAreDeclared)),
+        new CountChip(LocalOverrideStatus, "Local Override", Candidates.Count(x => x.SavedBusinessValuesAreLocalOverride)),
+        new CountChip(HasValuesStatus, "Has Values", Candidates.Count(x => x.SavedBusinessValuesHaveValues)),
+        new CountChip(BlankStatus, "Blank", Candidates.Count(x => x.SavedBusinessValuesAreBlank))
     ];
 
     protected override void OnParametersSet()
@@ -416,6 +432,10 @@
             UnchangedStatus => candidate.Status == ReconciliationStatus.Unchanged,
             ParsedMetadataStatus => candidate.HasParsedMetadata,
             InheritedStatus => candidate.SavedBusinessValuesAreInherited,
+            DeclaredStatus => candidate.SavedBusinessValuesAreDeclared,
+            LocalOverrideStatus => candidate.SavedBusinessValuesAreLocalOverride,
+            HasValuesStatus => candidate.SavedBusinessValuesHaveValues,
+            BlankStatus => candidate.SavedBusinessValuesAreBlank,
             _ => true
         };
 
@@ -751,6 +771,14 @@
         public string StatusLabel => GetStatusLabel(Status);
         public bool SavedBusinessValuesAreInherited => Saved != null && !IsBaseView && !Saved.DisableInheritance;
         public bool SavedBusinessValuesAreLocalOverride => Saved != null && !IsBaseView && Saved.DisableInheritance;
+        public bool SavedBusinessValuesAreDeclared => Saved != null && IsBaseView;
+        public bool SavedBusinessValuesHaveValues => Saved != null
+            && (!string.IsNullOrWhiteSpace(Saved.BusinessName)
+                || !string.IsNullOrWhiteSpace(Saved.BusinessDescription));
+        public bool SavedBusinessValuesAreBlank => Saved != null && !SavedBusinessValuesHaveValues;
+        public string ValueStateHelp => SavedBusinessValuesAreBlank
+            ? $"{SavedOriginLabel} business values are blank."
+            : $"{SavedOriginLabel} business values have a business name or description.";
         public string SavedOriginLabel => Saved == null
             ? string.Empty
             : SavedBusinessValuesAreInherited
