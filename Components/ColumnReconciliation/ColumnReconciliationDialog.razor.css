@@ -25,8 +25,7 @@
     color: #101828;
 }
 
-.cr-section p,
-.cr-definition-band span {
+.cr-section p {
     margin: 0;
     color: #667085;
     font-size: 0.82rem;
@@ -315,7 +314,7 @@
 
 .cr-detail {
     display: grid;
-    grid-template-rows: auto auto auto minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr);
 }
 
 .cr-detail-header {
@@ -338,25 +337,6 @@
 .cr-navigator {
     color: #475467;
     white-space: nowrap;
-}
-
-.cr-definition-band {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.75rem;
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid #e7ebf2;
-    background: #fbfcfe;
-}
-
-.cr-definition-band div {
-    display: grid;
-    gap: 0.18rem;
-    min-width: 0;
-}
-
-.cr-definition-band strong {
-    color: #182230;
 }
 
 .cr-tabs {
@@ -586,7 +566,6 @@
     .cr-filter-band,
     .cr-body,
     .cr-navigation,
-    .cr-definition-band,
     .cr-choice-row {
         grid-template-columns: 1fr;
     }
