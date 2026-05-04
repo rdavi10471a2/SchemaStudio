@@ -517,7 +517,11 @@
 
             ApplyParserStructure(candidate.Saved, candidate.Parsed, IsBaseView);
             candidate.Saved.IsDirty = true;
-            if (candidate.Status != ReconciliationStatus.Unchanged &&
+            if (candidate.Status == ReconciliationStatus.Added)
+            {
+                candidate.Saved.MergeState = SchemaObjectColumnMergeState.PendingAdd;
+            }
+            else if (candidate.Status != ReconciliationStatus.Unchanged &&
                 candidate.Saved.MergeState != SchemaObjectColumnMergeState.PendingAdd)
             {
                 candidate.Saved.MergeState = SchemaObjectColumnMergeState.PendingUpdate;
@@ -918,6 +922,16 @@
 
         private static ReconciliationStatus DetermineStatus(ViewSourcedColumnDefinition? parsed, SchemaObjectColumnDefinition? saved)
         {
+            if (saved?.MergeState is SchemaObjectColumnMergeState.DetectedAdd or SchemaObjectColumnMergeState.PendingAdd)
+            {
+                return ReconciliationStatus.Added;
+            }
+
+            if (saved?.MergeState is SchemaObjectColumnMergeState.DetectedRemove or SchemaObjectColumnMergeState.PendingRemove)
+            {
+                return ReconciliationStatus.Removed;
+            }
+
             if (parsed != null && saved == null)
             {
                 return ReconciliationStatus.Added;
