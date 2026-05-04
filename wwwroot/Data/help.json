@@ -134,6 +134,59 @@
     ]
   },
   {
+    "Id": "column-reconciliation",
+    "Title": "Column Reconciliation",
+    "Subtitle": "Review parser changes against saved column metadata",
+    "Icon": "published_with_changes",
+    "Details": [
+      {
+        "Id": "purpose",
+        "Label": "What This Dialog Does",
+        "Section": "Overview",
+        "Subtitle": "Parser result compared to saved metadata",
+        "Description": "Column Reconciliation compares the current parser result for a view with the column metadata currently saved in Schema Studio.\n\nUse it after refreshing or adding a view to decide how parser-owned structure and business metadata should be staged before saving.",
+        "Icon": "compare_arrows",
+        "CustomFragmentName": ""
+      },
+      {
+        "Id": "current-parsed-values",
+        "Label": "Current Parsed Values",
+        "Section": "Business Values",
+        "Subtitle": "Values read from the live SQL definition",
+        "Description": "Current Parsed Values come from annotations found during the current parser run.\n\nIf a current parsed business value is blank, the SQL did not declare a local business name or description for that projected column. For composed or integration views, this can be expected because meaning may be inherited from a semantic source.",
+        "Icon": "data_object",
+        "CustomFragmentName": ""
+      },
+      {
+        "Id": "saved-value-origin",
+        "Label": "Saved Value Origin",
+        "Section": "Business Values",
+        "Subtitle": "Declared, inherited, or local override",
+        "Description": "Saved business values are labeled by origin so the comparison is not misleading.\n\nDeclared values belong to a base definition. Inherited saved values belong to a non-base view where inheritance is allowed, and are populated by semantic inheritance. Local override values belong to a non-base view where inheritance is disabled.\n\nThis uses existing view and column state; no extra database field is required.",
+        "Icon": "account_tree",
+        "CustomFragmentName": ""
+      },
+      {
+        "Id": "keep-vs-accept",
+        "Label": "Keep Saved vs Accept Parsed",
+        "Section": "Merge Choice",
+        "Subtitle": "Which business values survive",
+        "Description": "Keep Saved preserves the saved business name, description, and inheritance setting. If the saved values are inherited, this keeps the inherited semantic meaning.\n\nAccept New Parsed Values replaces saved business values with values from the current parse. Use this when the SQL annotations are the intended new local meaning.\n\nParser-owned source mapping is refreshed from the current parse when Apply Merge is used; it is informational and is not a business-value choice.",
+        "Icon": "rule",
+        "CustomFragmentName": ""
+      },
+      {
+        "Id": "is-base-definition",
+        "Label": "Base Definition Hygiene",
+        "Section": "Merge Choice",
+        "Subtitle": "How base-definition state is staged",
+        "Description": "During reconciliation, a base view stages its columns as base definitions. A non-base view stages its columns as non-base definitions.\n\nThat keeps integration and composed view columns from being mistaken for the authority that declared the business meaning.",
+        "Icon": "verified",
+        "CustomFragmentName": ""
+      }
+    ]
+  },
+  {
     "Id": "manage-databases",
     "Title": "Manage Databases",
     "Subtitle": "Database and domain maintenance",

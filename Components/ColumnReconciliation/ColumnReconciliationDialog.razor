@@ -2,12 +2,13 @@
 @using Radzen.Blazor
 @using SchemaStudio.AIHelpers
 @using SchemaStudio.Data.Models
+@using SchemaStudioWebViewer.Components.HelpSystem
 @using SchemaStudioWebViewer.WEBSemanticModel.Model
 
 @inject DialogService DialogService
 
-@attribute [FileVersion("1.6")]
-@attribute [AIFileContext("Components/ColumnReconciliation/ColumnReconciliationDialog.razor", "Focused Manage Views column reconciliation dialog that combines decision-first column reconciliation with optional View Details-style selector navigation.", Responsibilities = "Owns filtered candidate navigation, source mapping comparison, parser-owned structure refresh staging, business-value choice staging, explicit DisableInheritance result staging, and selected-column reconciliation detail for Manage Views Next.", Nuances = "Selector navigation is hidden by default so the dialog opens as a decision surface; Show Selector remains available for broader review. Changed and conflict-style differences are intentionally collapsed into Needs Review because inherited meaning, blank local declarations, and parser drift do not have a clean user-facing semantic split. Source mapping is informational and parser-owned; Apply Merge refreshes parser structure for existing parsed columns. BusinessName and BusinessDescription follow the selected business-value choice. DisableInheritance is staged explicitly from the merge result dropdown. Header tooltips explain current parsed values, saved values, and merge result without a separate correlation band. DeveloperNotes are outside this reconciliation surface.", RelatedFiles = "Components/Pages/ManageViewsNext/ManageViewsNext.razor; Components/Pages/ManageViewsNext/ManageViewsNext.Columns.cs; WEBSemanticModel/Model/ViewSourcedColumnDefinition.cs", LastReviewed = "2026-05-03")]
+@attribute [FileVersion("1.7")]
+@attribute [AIFileContext("Components/ColumnReconciliation/ColumnReconciliationDialog.razor", "Focused Manage Views column reconciliation dialog that combines decision-first column reconciliation with optional View Details-style selector navigation.", Responsibilities = "Owns filtered candidate navigation, source mapping comparison, parser-owned structure refresh staging, business-value choice staging, explicit DisableInheritance result staging, saved-value origin labeling, and selected-column reconciliation detail for Manage Views Next.", Nuances = "Selector navigation is hidden by default so the dialog opens as a decision surface; Show Selector remains available for broader review. Changed and conflict-style differences are intentionally collapsed into Needs Review because inherited meaning, blank local declarations, and parser drift do not have a clean user-facing semantic split. Source mapping is informational and parser-owned; Apply Merge refreshes parser structure for existing parsed columns. BusinessName and BusinessDescription follow the selected business-value choice. DisableInheritance is staged explicitly from the merge result dropdown. Saved business values are labeled as declared, inherited, or local override from IsBaseView, IsBaseDefinition, and DisableInheritance without adding database fields. DeveloperNotes are outside this reconciliation surface.", RelatedFiles = "Components/Pages/ManageViewsNext/ManageViewsNext.razor; Components/Pages/ManageViewsNext/ManageViewsNext.Columns.cs; WEBSemanticModel/Model/ViewSourcedColumnDefinition.cs; wwwroot/Data/help.json", LastReviewed = "2026-05-03")]
 
 <div class="column-reconciliation">
     <section class="cr-filter-band">
@@ -45,6 +46,12 @@
                       Size="ButtonSize.Small"
                       class="cr-selector-toggle"
                       Click="@ToggleNavigation" />
+
+        <RadzenIcon Icon="help_outline"
+                    title="Column reconciliation help"
+                    aria-label="Column reconciliation help"
+                    class="cr-help-icon"
+                    @onclick="@OpenHelpAsync" />
     </section>
 
     @if (Candidates.Count == 0)
@@ -124,6 +131,10 @@
                         <div class="cr-selected-title">
                             <h3>@SelectedCandidate.ColumnName</h3>
                             <span class="@GetStatusBadgeClass(SelectedCandidate.Status)">@SelectedCandidate.StatusLabel</span>
+                            @if (!string.IsNullOrWhiteSpace(SelectedCandidate.SavedOriginLabel))
+                            {
+                                <span class="cr-chip neutral" title="@SelectedCandidate.SavedOriginHelp">@SelectedCandidate.SavedOriginLabel</span>
+                            }
                         </div>
                     </div>
 
@@ -207,8 +218,8 @@
                                     <thead>
                                         <tr>
                                             <th>Field @HelpIcon("Business metadata field being compared.")</th>
-                                            <th>Current Parsed Values @HelpIcon("Business metadata read from annotations in the current parser run.")</th>
-                                            <th>Saved Values @HelpIcon("Business metadata currently saved for this column. Keeping saved values makes no business metadata change.")</th>
+                                            <th>Current Parsed Values @HelpIcon("Business metadata read from annotations in the current parser run. Blank means the current SQL did not declare a local business value.")</th>
+                                            <th>@SelectedCandidate.SavedValuesHeader @HelpIcon(SelectedCandidate.SavedValuesHelp)</th>
                                             <th>Merge Result @HelpIcon("The business metadata value that will be staged by Apply Merge based on the selected choice.")</th>
                                         </tr>
                                     </thead>
@@ -235,8 +246,8 @@
                                                checked="@(SelectedCandidate.Choice == BusinessValueChoice.KeepSaved)"
                                                @onchange="@(() => SelectedCandidate.SetChoice(BusinessValueChoice.KeepSaved))" />
                                         <span>
-                                            <strong>Keep Saved Business Values</strong>
-                                            <small>Preserve the saved business name, description, and inheritance setting.</small>
+                                            <strong>@SelectedCandidate.KeepSavedChoiceTitle</strong>
+                                            <small>@SelectedCandidate.KeepSavedChoiceDescription</small>
                                         </span>
                                     </label>
 
@@ -388,7 +399,7 @@
             {
                 parsedByName.TryGetValue(name, out var parsed);
                 savedByName.TryGetValue(name, out var saved);
-                return new ReconciliationCandidate(name, parsed, saved);
+                return new ReconciliationCandidate(name, parsed, saved, IsBaseView);
             })
             .ToList();
     }
@@ -474,7 +485,7 @@
                 continue;
             }
 
-            ApplyParserStructure(candidate.Saved, candidate.Parsed);
+            ApplyParserStructure(candidate.Saved, candidate.Parsed, IsBaseView);
             candidate.Saved.IsDirty = true;
 
             if (candidate.Choice == BusinessValueChoice.AcceptParsed)
@@ -498,14 +509,14 @@
             DeveloperNotes = null
         };
 
-        ApplyParserStructure(column, parsed);
+        ApplyParserStructure(column, parsed, IsBaseView);
         column.BusinessName = NormalizeNullableText(parsed.BusinessName);
         column.BusinessDescription = NormalizeNullableText(parsed.BusinessDescription);
         column.DisableInheritance = parsed.DisableInheritance;
         return column;
     }
 
-    private static void ApplyParserStructure(SchemaObjectColumnDefinition saved, ViewSourcedColumnDefinition parsed)
+    private static void ApplyParserStructure(SchemaObjectColumnDefinition saved, ViewSourcedColumnDefinition parsed, bool isBaseView)
     {
         saved.OrdinalPosition = parsed.OrdinalPosition;
         saved.SourceColumnName = parsed.ColumnName ?? string.Empty;
@@ -518,7 +529,24 @@
         saved.SemanticSchema = NormalizeNullableText(parsed.SemanticSchema);
         saved.SemanticObject = NormalizeNullableText(parsed.SemanticObject);
         saved.SemanticColumn = NormalizeNullableText(parsed.SemanticColumn);
-        saved.IsBaseDefinition = false;
+        saved.IsBaseDefinition = isBaseView;
+    }
+
+    private async Task OpenHelpAsync()
+    {
+        await DialogService.OpenAsync<HelpDialog>(
+            "Schema Studio Help Console",
+            new Dictionary<string, object?>
+            {
+                { "InitialSubjectId", "column-reconciliation" }
+            },
+            new DialogOptions
+            {
+                Width = "1200px",
+                Height = "800px",
+                Resizable = true,
+                Draggable = true
+            });
     }
 
     private void Cancel()
@@ -682,11 +710,12 @@
 
     private sealed class ReconciliationCandidate
     {
-        public ReconciliationCandidate(string columnName, ViewSourcedColumnDefinition? parsed, SchemaObjectColumnDefinition? saved)
+        public ReconciliationCandidate(string columnName, ViewSourcedColumnDefinition? parsed, SchemaObjectColumnDefinition? saved, bool isBaseView)
         {
             ColumnName = columnName;
             Parsed = parsed;
             Saved = saved;
+            IsBaseView = isBaseView;
             Status = DetermineStatus(parsed, saved);
             Choice = Status == ReconciliationStatus.Added
                 ? BusinessValueChoice.AcceptParsed
@@ -697,6 +726,7 @@
         public string ColumnName { get; }
         public ViewSourcedColumnDefinition? Parsed { get; }
         public SchemaObjectColumnDefinition? Saved { get; }
+        public bool IsBaseView { get; }
         public ReconciliationStatus Status { get; }
         public BusinessValueChoice Choice { get; private set; }
         public bool ResultDisableInheritance { get; set; }
@@ -707,6 +737,42 @@
                 || Parsed.DisableInheritance);
 
         public string StatusLabel => GetStatusLabel(Status);
+        public bool SavedBusinessValuesAreInherited => Saved != null && !IsBaseView && !Saved.DisableInheritance;
+        public bool SavedBusinessValuesAreLocalOverride => Saved != null && !IsBaseView && Saved.DisableInheritance;
+        public string SavedOriginLabel => Saved == null
+            ? string.Empty
+            : SavedBusinessValuesAreInherited
+                ? "Inherited"
+                : SavedBusinessValuesAreLocalOverride
+                    ? "Local Override"
+                    : "Declared";
+        public string SavedOriginHelp => Saved == null
+            ? string.Empty
+            : SavedBusinessValuesAreInherited
+                ? "Saved business values came from semantic inheritance: this is a non-base view and inheritance is allowed."
+                : SavedBusinessValuesAreLocalOverride
+                    ? "Saved business values are protected on this non-base view because inheritance is disabled."
+                    : "Saved business values are declared on this base definition.";
+        public string SavedValuesHeader => SavedBusinessValuesAreInherited
+            ? "Inherited Saved Values"
+            : SavedBusinessValuesAreLocalOverride
+                ? "Local Override Values"
+                : "Saved Values";
+        public string SavedValuesHelp => SavedBusinessValuesAreInherited
+            ? "These saved business values were populated by semantic inheritance. A blank current parse means the SQL did not declare a local replacement."
+            : SavedBusinessValuesAreLocalOverride
+                ? "These saved business values are local override values because inheritance is disabled for this non-base column."
+                : "Business metadata currently saved for this column. Keeping saved values makes no business metadata change.";
+        public string KeepSavedChoiceTitle => SavedBusinessValuesAreInherited
+            ? "Keep Inherited Saved Values"
+            : SavedBusinessValuesAreLocalOverride
+                ? "Keep Local Override Values"
+                : "Keep Saved Business Values";
+        public string KeepSavedChoiceDescription => SavedBusinessValuesAreInherited
+            ? "Preserve the inherited business name, description, and inheritance setting."
+            : SavedBusinessValuesAreLocalOverride
+                ? "Preserve the local override business name, description, and inheritance setting."
+                : "Preserve the saved business name, description, and inheritance setting.";
         public string FixedChoiceText => Status switch
         {
             ReconciliationStatus.Added => "New columns accept parsed business values.",
@@ -787,7 +853,13 @@
         private bool HasBusinessValueConflict(string? parsedValue, string? savedValue) =>
             Parsed != null
             && Saved != null
+            && !IsInheritedValueWithBlankCurrentParse(parsedValue, savedValue)
             && !string.Equals(NormalizeNullableText(parsedValue), NormalizeNullableText(savedValue), StringComparison.Ordinal);
+
+        private bool IsInheritedValueWithBlankCurrentParse(string? parsedValue, string? savedValue) =>
+            SavedBusinessValuesAreInherited
+            && string.IsNullOrWhiteSpace(parsedValue)
+            && !string.IsNullOrWhiteSpace(savedValue);
 
         private static ReconciliationStatus DetermineStatus(ViewSourcedColumnDefinition? parsed, SchemaObjectColumnDefinition? saved)
         {
