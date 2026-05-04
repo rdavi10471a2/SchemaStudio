@@ -8,7 +8,7 @@
 @inject ViewParsingService ParserService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.7")]
+@attribute [FileVersion("1.8")]
 @attribute [AIChange(
     "1.6",
     "2026-04-30 07:21 PM CDT kept Business Name, Business Description, and Developer Notes visible as multiline detail fields even when values are blank.",    AICommandStatus.Pending)]
@@ -658,15 +658,12 @@
 
     private static bool IsMultilineDetailField(string label) =>
         string.Equals(label, "Business Name", StringComparison.Ordinal)
-        || string.Equals(label, "Business Description", StringComparison.Ordinal)
-        || string.Equals(label, "Developer Notes", StringComparison.Ordinal);
+        || string.Equals(label, "Business Description", StringComparison.Ordinal);
 
     private static int GetDetailTextRows(string label) =>
         string.Equals(label, "Business Description", StringComparison.Ordinal)
             ? 4
-            : string.Equals(label, "Developer Notes", StringComparison.Ordinal)
-                ? 3
-                : 2;
+            : 2;
 
     private void OnTreeSelectionChanged(TreeEventArgs args)
     {
@@ -774,7 +771,6 @@
                 AddDetail(node, "Column", column.ColumnName);
                 AddDetail(node, "Business Name", column.BusinessName, keepWhenBlank: true);
                 AddDetail(node, "Business Description", column.BusinessDescription, keepWhenBlank: true);
-                AddDetail(node, "Developer Notes", column.DeveloperNotes, keepWhenBlank: true);
                 AddDetail(node, "Semantic Source", FormatQualifiedName(column.SemanticDatabase, column.SemanticSchema, column.SemanticObject, column.SemanticColumn));
                 AddDetail(node, "Physical Lineage", FormatQualifiedName(column.BaseDatabase, column.BaseSchema, column.BaseTable, column.BaseColumn));
                 AddDetail(node, "Inheritance", column.DisableInheritance ? "Disabled for this column" : "Allowed");
