@@ -259,7 +259,13 @@ public partial class ManageViewsNext
         }
 
         var message =
-            $"This view has parser-detected column changes: {unmergedChanged} changed, {unmergedAdded} added, {unmergedRemoved} removed." +
+            "Parser-detected column changes remain:" +
+            $"{Environment.NewLine}{Environment.NewLine}" +
+            $"Changed: {unmergedChanged}" +
+            $"{Environment.NewLine}" +
+            $"Added: {unmergedAdded}" +
+            $"{Environment.NewLine}" +
+            $"Removed: {unmergedRemoved}" +
             $"{Environment.NewLine}{Environment.NewLine}" +
             "Save All will save editable metadata only. Use Review Merge when you want to apply column shape changes.";
 
