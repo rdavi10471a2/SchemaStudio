@@ -413,6 +413,12 @@
     border-right: 0;
 }
 
+.cr-table th:last-child,
+.cr-table td:last-child {
+    border-left: 2px solid #b8c4ff;
+    background: #f8faff;
+}
+
 .cr-table tr:last-child td {
     border-bottom: 0;
 }
@@ -500,6 +506,12 @@
     color: #8f1d2c !important;
 }
 
+.cr-inherited-value {
+    background: #fff7e6 !important;
+    border-color: #f5c46b !important;
+    color: #7a4a00 !important;
+}
+
 ::deep textarea.cr-textarea,
 ::deep .cr-textarea textarea,
 ::deep .cr-table textarea.rz-textarea {
@@ -521,6 +533,15 @@
     background: #fff1f2 !important;
     border-color: #f3a6ad !important;
     color: #8f1d2c !important;
+}
+
+::deep .cr-inherited-value input,
+::deep input.cr-inherited-value,
+::deep .cr-inherited-value textarea,
+::deep textarea.cr-inherited-value {
+    background: #fff7e6 !important;
+    border-color: #f5c46b !important;
+    color: #7a4a00 !important;
 }
 
 .cr-status-badge.added {
