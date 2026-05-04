@@ -223,7 +223,7 @@ public partial class ManageViewsNext
                 SemanticSchema = NormalizeNullableText(column.SemanticSchema),
                 SemanticObject = NormalizeNullableText(column.SemanticObject),
                 SemanticColumn = NormalizeNullableText(column.SemanticColumn),
-                IsBaseDefinition = false,
+                IsBaseDefinition = EditableObject.IsBaseObject,
                 DisableInheritance = column.DisableInheritance,
                 BusinessName = NormalizeNullableText(column.BusinessName),
                 BusinessDescription = NormalizeNullableText(column.BusinessDescription),
