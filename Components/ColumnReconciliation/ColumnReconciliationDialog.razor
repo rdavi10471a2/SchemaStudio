@@ -6,18 +6,10 @@
 
 @inject DialogService DialogService
 
-@attribute [FileVersion("1.0")]
-@attribute [AIFileContext("Components/ColumnReconciliation/ColumnReconciliationDialog.razor", "Focused Manage Views column reconciliation dialog that combines View Details-style navigation with parser-current/prior source checks and business-value merge choices.", Responsibilities = "Owns filtered candidate navigation, source mapping comparison, parser-owned structure refresh staging, business-value choice staging, and user-owned notes visibility for Manage Views Next.", Nuances = "Source mapping is informational and parser-owned; Apply Merge refreshes parser structure for existing parsed columns. BusinessName, BusinessDescription, and DisableInheritance follow the selected business-value choice. DeveloperNotes are user-owned and never parser-merged.", RelatedFiles = "Components/Pages/ManageViewsNext/ManageViewsNext.razor; Components/Pages/ManageViewsNext/ManageViewsNext.Columns.cs; WEBSemanticModel/Model/ViewSourcedColumnDefinition.cs", LastReviewed = "2026-05-03")]
+@attribute [FileVersion("1.1")]
+@attribute [AIFileContext("Components/ColumnReconciliation/ColumnReconciliationDialog.razor", "Focused Manage Views column reconciliation dialog that combines View Details-style selector navigation with parser-current/prior source checks and business-value merge choices.", Responsibilities = "Owns filtered candidate navigation, source mapping comparison, parser-owned structure refresh staging, business-value choice staging, and selected-column reconciliation detail for Manage Views Next.", Nuances = "Source mapping is informational and parser-owned; Apply Merge refreshes parser structure for existing parsed columns. BusinessName, BusinessDescription, and DisableInheritance follow the selected business-value choice. DeveloperNotes are user-owned and intentionally excluded from this reconciliation surface.", RelatedFiles = "Components/Pages/ManageViewsNext/ManageViewsNext.razor; Components/Pages/ManageViewsNext/ManageViewsNext.Columns.cs; WEBSemanticModel/Model/ViewSourcedColumnDefinition.cs", LastReviewed = "2026-05-03")]
 
 <div class="column-reconciliation">
-    <header class="cr-header">
-        <div>
-            <h2>Column Reconciliation</h2>
-            <p>Review the current parser result against the last saved column state before staging changes.</p>
-        </div>
-        @HelpIcon("Current Parse is the runtime parse of the live view. Prior Parse is parser-owned data from the saved column. Business Values are user-reviewable metadata.")
-    </header>
-
     <section class="cr-filter-band">
         <div class="cr-view-name">
             <strong>@ViewDisplayName</strong>
@@ -26,11 +18,6 @@
                 <span class="cr-chip neutral">Base</span>
             }
         </div>
-
-        <RadzenTextBox @bind-Value="@SearchText"
-                       Placeholder="Search columns..."
-                       class="cr-search"
-                       Change="@(_ => SelectFirstFilteredCandidate())" />
 
         <div class="cr-status-select">
             <span>Status</span>
@@ -51,16 +38,14 @@
                 </button>
             }
         </div>
-    </section>
 
-    <div class="cr-workbar">
-        <RadzenButton Text="@(IsNavigationHidden ? "Show navigation" : "Hide navigation")"
+        <RadzenButton Text="@(IsNavigationHidden ? "Show Selector" : "Hide Selector")"
                       Icon="@(IsNavigationHidden ? "left_panel_open" : "left_panel_close")"
                       ButtonStyle="ButtonStyle.Light"
                       Size="ButtonSize.Small"
+                      class="cr-selector-toggle"
                       Click="@ToggleNavigation" />
-        <span>Top filters control the column list; selected column controls the detail panel.</span>
-    </div>
+    </section>
 
     @if (Candidates.Count == 0)
     {
@@ -80,6 +65,13 @@
                         <div class="cr-panel-header">
                             <h3>Select Columns (@Candidates.Count)</h3>
                             @HelpIcon("Filtered by search, status, and count chips.")
+                        </div>
+
+                        <div class="cr-selector-search">
+                            <RadzenTextBox @bind-Value="@SearchText"
+                                           Placeholder="Search columns..."
+                                           class="cr-search"
+                                           Change="@(_ => SelectFirstFilteredCandidate())" />
                         </div>
 
                         <div class="cr-column-list">
