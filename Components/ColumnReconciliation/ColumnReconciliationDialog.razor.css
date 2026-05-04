@@ -315,7 +315,7 @@
 
 .cr-detail {
     display: grid;
-    grid-template-rows: auto auto minmax(0, 1fr);
+    grid-template-rows: auto auto auto minmax(0, 1fr);
 }
 
 .cr-detail-header {
@@ -357,6 +357,36 @@
 
 .cr-definition-band strong {
     color: #182230;
+}
+
+.cr-tabs {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0 1rem;
+    border-bottom: 1px solid #e7ebf2;
+    background: #fff;
+}
+
+.cr-tab-button {
+    min-height: 40px;
+    border: 0;
+    border-bottom: 3px solid transparent;
+    background: transparent;
+    color: #475467;
+    padding: 0.65rem 0.85rem 0.55rem;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 650;
+}
+
+.cr-tab-button:hover {
+    background: #f7f9fc;
+}
+
+.cr-tab-button.selected {
+    border-bottom-color: var(--rz-primary);
+    color: var(--rz-primary);
 }
 
 .cr-detail-scroll {
@@ -485,11 +515,6 @@
     min-height: 96px;
     width: 100% !important;
     resize: vertical !important;
-}
-
-.cr-notes {
-    margin: 0.85rem;
-    width: calc(100% - 1.7rem) !important;
 }
 
 ::deep textarea.cr-textarea,

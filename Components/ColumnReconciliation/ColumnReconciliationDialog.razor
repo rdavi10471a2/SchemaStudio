@@ -6,8 +6,8 @@
 
 @inject DialogService DialogService
 
-@attribute [FileVersion("1.1")]
-@attribute [AIFileContext("Components/ColumnReconciliation/ColumnReconciliationDialog.razor", "Focused Manage Views column reconciliation dialog that combines View Details-style selector navigation with parser-current/prior source checks and business-value merge choices.", Responsibilities = "Owns filtered candidate navigation, source mapping comparison, parser-owned structure refresh staging, business-value choice staging, and selected-column reconciliation detail for Manage Views Next.", Nuances = "Source mapping is informational and parser-owned; Apply Merge refreshes parser structure for existing parsed columns. BusinessName, BusinessDescription, and DisableInheritance follow the selected business-value choice. DeveloperNotes are user-owned and intentionally excluded from this reconciliation surface.", RelatedFiles = "Components/Pages/ManageViewsNext/ManageViewsNext.razor; Components/Pages/ManageViewsNext/ManageViewsNext.Columns.cs; WEBSemanticModel/Model/ViewSourcedColumnDefinition.cs", LastReviewed = "2026-05-03")]
+@attribute [FileVersion("1.2")]
+@attribute [AIFileContext("Components/ColumnReconciliation/ColumnReconciliationDialog.razor", "Focused Manage Views column reconciliation dialog that combines View Details-style selector navigation with parser-current/prior source checks and business-value merge choices.", Responsibilities = "Owns filtered candidate navigation, source mapping comparison, parser-owned structure refresh staging, business-value choice staging, and selected-column reconciliation detail for Manage Views Next.", Nuances = "Source mapping is informational and parser-owned; Apply Merge refreshes parser structure for existing parsed columns. BusinessName, BusinessDescription, and DisableInheritance follow the selected business-value choice. DeveloperNotes are outside this reconciliation surface.", RelatedFiles = "Components/Pages/ManageViewsNext/ManageViewsNext.razor; Components/Pages/ManageViewsNext/ManageViewsNext.Columns.cs; WEBSemanticModel/Model/ViewSourcedColumnDefinition.cs", LastReviewed = "2026-05-03")]
 
 <div class="column-reconciliation">
     <section class="cr-filter-band">
@@ -157,113 +157,120 @@
                     </div>
                 </div>
 
+                <div class="cr-tabs" role="tablist" aria-label="Column reconciliation detail views">
+                    <button type="button"
+                            class="@GetDetailTabClass(BusinessValuesTab)"
+                            role="tab"
+                            aria-selected="@(SelectedDetailTab == BusinessValuesTab)"
+                            @onclick="@(() => SelectedDetailTab = BusinessValuesTab)">
+                        Business Values
+                    </button>
+                    <button type="button"
+                            class="@GetDetailTabClass(SourceMappingTab)"
+                            role="tab"
+                            aria-selected="@(SelectedDetailTab == SourceMappingTab)"
+                            @onclick="@(() => SelectedDetailTab = SourceMappingTab)">
+                        Source Mapping Check
+                    </button>
+                </div>
+
                 <div class="cr-detail-scroll">
-                    <section class="cr-section">
-                        <div class="cr-section-header">
-                            <div>
-                                <h4>Source Mapping Check</h4>
-                                <p>Informational comparison only. Parser-owned structure is refreshed from the current parse when merge is applied.</p>
+                    @if (SelectedDetailTab == SourceMappingTab)
+                    {
+                        <section class="cr-section">
+                            <div class="cr-section-header">
+                                <div>
+                                    <h4>Source Mapping Check</h4>
+                                    <p>Informational comparison only. Parser-owned structure is refreshed from the current parse when merge is applied.</p>
+                                </div>
+                                <span class="cr-chip parser-owned">Parser-owned</span>
                             </div>
-                            <span class="cr-chip parser-owned">Parser-owned</span>
-                        </div>
 
-                        <table class="cr-table">
-                            <thead>
-                                <tr>
-                                    <th>Field</th>
-                                    <th>Current Parse</th>
-                                    <th>Prior Parse</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var row in SelectedCandidate.SourceRows)
-                                {
-                                    <tr class="@GetComparisonRowClass(row)">
-                                        <td>@row.Label</td>
-                                        <td>@DisplayValue(row.CurrentValue)</td>
-                                        <td>@DisplayValue(row.PriorValue)</td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </section>
-
-                    <section class="cr-section">
-                        <div class="cr-section-header">
-                            <div>
-                                <h4>Business Values</h4>
-                                <p>Choose whether saved business values stay in place or are replaced by parser annotations from the current parse.</p>
-                            </div>
-                        </div>
-
-                        <table class="cr-table">
-                            <thead>
-                                <tr>
-                                    <th>Field</th>
-                                    <th>Parsed Current</th>
-                                    <th>Saved Values</th>
-                                    <th>Result</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var row in SelectedCandidate.BusinessRows)
-                                {
+                            <table class="cr-table">
+                                <thead>
                                     <tr>
-                                        <td>@row.Label</td>
-                                        <td>@FieldValue(row.ParsedValue, row.IsMultiline)</td>
-                                        <td>@FieldValue(row.SavedValue, row.IsMultiline, row.SavedMissingText)</td>
-                                        <td>@FieldValue(row.ResultValue, row.IsMultiline, row.ResultMissingText)</td>
+                                        <th>Field</th>
+                                        <th>Current Parse</th>
+                                        <th>Prior Parse</th>
                                     </tr>
-                                }
-                            </tbody>
-                        </table>
-
-                        @if (SelectedCandidate.IsChoiceEditable)
-                        {
-                            <div class="cr-choice-row">
-                                <label class="@GetChoiceClass(SelectedCandidate, BusinessValueChoice.KeepSaved)">
-                                    <input type="radio"
-                                           name="business-value-choice"
-                                           checked="@(SelectedCandidate.Choice == BusinessValueChoice.KeepSaved)"
-                                           @onchange="@(() => SelectedCandidate.Choice = BusinessValueChoice.KeepSaved)" />
-                                    <span>
-                                        <strong>Keep Saved Business Values</strong>
-                                        <small>Preserve the saved business name, description, and inheritance setting.</small>
-                                    </span>
-                                </label>
-
-                                <label class="@GetChoiceClass(SelectedCandidate, BusinessValueChoice.AcceptParsed)">
-                                    <input type="radio"
-                                           name="business-value-choice"
-                                           checked="@(SelectedCandidate.Choice == BusinessValueChoice.AcceptParsed)"
-                                           @onchange="@(() => SelectedCandidate.Choice = BusinessValueChoice.AcceptParsed)" />
-                                    <span>
-                                        <strong>Accept New Parsed Values</strong>
-                                        <small>Replace saved business values with values from the current parse.</small>
-                                    </span>
-                                </label>
+                                </thead>
+                                <tbody>
+                                    @foreach (var row in SelectedCandidate.SourceRows)
+                                    {
+                                        <tr class="@GetComparisonRowClass(row)">
+                                            <td>@row.Label</td>
+                                            <td>@DisplayValue(row.CurrentValue)</td>
+                                            <td>@DisplayValue(row.PriorValue)</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </section>
+                    }
+                    else
+                    {
+                        <section class="cr-section">
+                            <div class="cr-section-header">
+                                <div>
+                                    <h4>Business Values</h4>
+                                    <p>Choose whether saved business values stay in place or are replaced by parser annotations from the current parse.</p>
+                                </div>
                             </div>
-                        }
-                        else
-                        {
-                            <div class="cr-fixed-choice">@SelectedCandidate.FixedChoiceText</div>
-                        }
-                    </section>
 
-                    <section class="cr-section">
-                        <div class="cr-section-header">
-                            <div>
-                                <h4>User-Owned Notes</h4>
-                                <p>Developer notes are shown for context and are never changed by parser reconciliation.</p>
-                            </div>
-                            <span class="cr-chip neutral">Never parser-merged</span>
-                        </div>
+                            <table class="cr-table">
+                                <thead>
+                                    <tr>
+                                        <th>Field</th>
+                                        <th>Parsed Current</th>
+                                        <th>Saved Values</th>
+                                        <th>Result</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var row in SelectedCandidate.BusinessRows)
+                                    {
+                                        <tr>
+                                            <td>@row.Label</td>
+                                            <td>@FieldValue(row.ParsedValue, row.IsMultiline)</td>
+                                            <td>@FieldValue(row.SavedValue, row.IsMultiline, row.SavedMissingText)</td>
+                                            <td>@FieldValue(row.ResultValue, row.IsMultiline, row.ResultMissingText)</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
 
-                        <RadzenTextArea Value="@SelectedCandidate.Saved?.DeveloperNotes"
-                                        ReadOnly="true"
-                                        class="cr-textarea cr-notes"
-                                        Style="width:100%; max-width:100%; min-width:0; box-sizing:border-box; resize:vertical; overflow-y:scroll;" />
-                    </section>
+                            @if (SelectedCandidate.IsChoiceEditable)
+                            {
+                                <div class="cr-choice-row">
+                                    <label class="@GetChoiceClass(SelectedCandidate, BusinessValueChoice.KeepSaved)">
+                                        <input type="radio"
+                                               name="business-value-choice"
+                                               checked="@(SelectedCandidate.Choice == BusinessValueChoice.KeepSaved)"
+                                               @onchange="@(() => SelectedCandidate.Choice = BusinessValueChoice.KeepSaved)" />
+                                        <span>
+                                            <strong>Keep Saved Business Values</strong>
+                                            <small>Preserve the saved business name, description, and inheritance setting.</small>
+                                        </span>
+                                    </label>
+
+                                    <label class="@GetChoiceClass(SelectedCandidate, BusinessValueChoice.AcceptParsed)">
+                                        <input type="radio"
+                                               name="business-value-choice"
+                                               checked="@(SelectedCandidate.Choice == BusinessValueChoice.AcceptParsed)"
+                                               @onchange="@(() => SelectedCandidate.Choice = BusinessValueChoice.AcceptParsed)" />
+                                        <span>
+                                            <strong>Accept New Parsed Values</strong>
+                                            <small>Replace saved business values with values from the current parse.</small>
+                                        </span>
+                                    </label>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="cr-fixed-choice">@SelectedCandidate.FixedChoiceText</div>
+                            }
+                        </section>
+                    }
                 </div>
             </section>
         </main>
@@ -291,6 +298,8 @@
     private const string ConflictStatus = "Conflicts";
     private const string UnchangedStatus = "Unchanged";
     private const string ParsedMetadataStatus = "Parsed Metadata";
+    private const string BusinessValuesTab = "Business Values";
+    private const string SourceMappingTab = "Source Mapping Check";
 
     [Parameter]
     public string ViewDisplayName { get; set; } = string.Empty;
@@ -313,6 +322,7 @@
     private string SearchText { get; set; } = string.Empty;
     private string StatusFilter { get; set; } = ChangedStatus;
     private string? SelectedColumnName { get; set; }
+    private string SelectedDetailTab { get; set; } = BusinessValuesTab;
     private bool IsNavigationHidden { get; set; }
     private List<ReconciliationCandidate> Candidates { get; set; } = new();
 
@@ -424,7 +434,6 @@
             || Contains(candidate.Parsed?.BusinessDescription, search)
             || Contains(candidate.Saved?.BusinessName, search)
             || Contains(candidate.Saved?.BusinessDescription, search)
-            || Contains(candidate.Saved?.DeveloperNotes, search)
             || candidate.SourceRows.Any(row => Contains(row.CurrentValue, search) || Contains(row.PriorValue, search));
     }
 
@@ -571,6 +580,11 @@
         string.Equals(StatusFilter, status, StringComparison.Ordinal)
             ? $"cr-count-chip selected {GetStatusToken(status)}"
             : $"cr-count-chip {GetStatusToken(status)}";
+
+    private string GetDetailTabClass(string tab) =>
+        string.Equals(SelectedDetailTab, tab, StringComparison.Ordinal)
+            ? "cr-tab-button selected"
+            : "cr-tab-button";
 
     private static string GetStatusBadgeClass(ReconciliationStatus status) =>
         $"cr-status-badge {status.ToString().ToLowerInvariant()}";
