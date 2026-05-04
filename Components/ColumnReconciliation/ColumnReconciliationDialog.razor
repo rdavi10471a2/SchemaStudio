@@ -170,25 +170,27 @@
                                 <span class="cr-chip parser-owned">Parser-owned</span>
                             </div>
 
-                            <table class="cr-table">
-                                <thead>
-                                    <tr>
-                                        <th>Field @HelpIcon("Parser-owned source mapping field being compared.")</th>
-                                        <th>Current Parse @HelpIcon("Runtime parser output from the live SQL view. Parser-owned structure is refreshed from this side when merge is applied.")</th>
-                                        <th>Prior Parse @HelpIcon("Parser-owned values saved from the previous parse. This is informational and is not a business metadata choice.")</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach (var row in SelectedCandidate.SourceRows)
-                                    {
-                                        <tr class="@GetComparisonRowClass(row)">
-                                            <td>@row.Label</td>
-                                            <td>@DisplayValue(row.CurrentValue)</td>
-                                            <td>@DisplayValue(row.PriorValue)</td>
+                            <div class="cr-section-scroll">
+                                <table class="cr-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Field @HelpIcon("Parser-owned source mapping field being compared.")</th>
+                                            <th>Current Parse @HelpIcon("Runtime parser output from the live SQL view. Parser-owned structure is refreshed from this side when merge is applied.")</th>
+                                            <th>Prior Parse @HelpIcon("Parser-owned values saved from the previous parse. This is informational and is not a business metadata choice.")</th>
                                         </tr>
-                                    }
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var row in SelectedCandidate.SourceRows)
+                                        {
+                                            <tr class="@GetComparisonRowClass(row)">
+                                                <td>@row.Label</td>
+                                                <td>@DisplayValue(row.CurrentValue)</td>
+                                                <td>@DisplayValue(row.PriorValue)</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
                         </section>
                     }
                     else
@@ -200,27 +202,29 @@
                                 </div>
                             </div>
 
-                            <table class="cr-table">
-                                <thead>
-                                    <tr>
-                                        <th>Field @HelpIcon("Business metadata field being compared.")</th>
-                                        <th>Current Parsed Values @HelpIcon("Business metadata read from annotations in the current parser run.")</th>
-                                        <th>Saved Values @HelpIcon("Business metadata currently saved for this column. Keeping saved values makes no business metadata change.")</th>
-                                        <th>Merge Result @HelpIcon("The business metadata value that will be staged by Apply Merge based on the selected choice.")</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach (var row in SelectedCandidate.BusinessRows)
-                                    {
+                            <div class="cr-section-scroll">
+                                <table class="cr-table">
+                                    <thead>
                                         <tr>
-                                            <td>@row.Label</td>
-                                            <td>@FieldValue(row.ParsedValue, row.IsMultiline, cssClass: row.IsConflict ? "cr-conflict-value" : null)</td>
-                                            <td>@FieldValue(row.SavedValue, row.IsMultiline, row.SavedMissingText, row.IsConflict ? "cr-conflict-value" : null)</td>
-                                            <td>@ResultValue(SelectedCandidate, row)</td>
+                                            <th>Field @HelpIcon("Business metadata field being compared.")</th>
+                                            <th>Current Parsed Values @HelpIcon("Business metadata read from annotations in the current parser run.")</th>
+                                            <th>Saved Values @HelpIcon("Business metadata currently saved for this column. Keeping saved values makes no business metadata change.")</th>
+                                            <th>Merge Result @HelpIcon("The business metadata value that will be staged by Apply Merge based on the selected choice.")</th>
                                         </tr>
-                                    }
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var row in SelectedCandidate.BusinessRows)
+                                        {
+                                            <tr>
+                                                <td>@row.Label</td>
+                                                <td>@FieldValue(row.ParsedValue, row.IsMultiline, cssClass: row.IsConflict ? "cr-conflict-value" : null)</td>
+                                                <td>@FieldValue(row.SavedValue, row.IsMultiline, row.SavedMissingText, row.IsConflict ? "cr-conflict-value" : null)</td>
+                                                <td>@ResultValue(SelectedCandidate, row)</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
 
                             @if (SelectedCandidate.IsChoiceEditable)
                             {
