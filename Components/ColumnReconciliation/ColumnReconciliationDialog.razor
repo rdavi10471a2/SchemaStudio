@@ -6,8 +6,8 @@
 
 @inject DialogService DialogService
 
-@attribute [FileVersion("1.5")]
-@attribute [AIFileContext("Components/ColumnReconciliation/ColumnReconciliationDialog.razor", "Focused Manage Views column reconciliation dialog that combines decision-first column reconciliation with optional View Details-style selector navigation.", Responsibilities = "Owns filtered candidate navigation, source mapping comparison, parser-owned structure refresh staging, business-value choice staging, explicit DisableInheritance result staging, and selected-column reconciliation detail for Manage Views Next.", Nuances = "Selector navigation is hidden by default so the dialog opens as a decision surface; Show Selector remains available for broader review. Source mapping is informational and parser-owned; Apply Merge refreshes parser structure for existing parsed columns. BusinessName and BusinessDescription follow the selected business-value choice. DisableInheritance is staged explicitly from the merge result dropdown. Header tooltips explain current parsed values, saved values, and merge result without a separate correlation band. DeveloperNotes are outside this reconciliation surface.", RelatedFiles = "Components/Pages/ManageViewsNext/ManageViewsNext.razor; Components/Pages/ManageViewsNext/ManageViewsNext.Columns.cs; WEBSemanticModel/Model/ViewSourcedColumnDefinition.cs", LastReviewed = "2026-05-03")]
+@attribute [FileVersion("1.6")]
+@attribute [AIFileContext("Components/ColumnReconciliation/ColumnReconciliationDialog.razor", "Focused Manage Views column reconciliation dialog that combines decision-first column reconciliation with optional View Details-style selector navigation.", Responsibilities = "Owns filtered candidate navigation, source mapping comparison, parser-owned structure refresh staging, business-value choice staging, explicit DisableInheritance result staging, and selected-column reconciliation detail for Manage Views Next.", Nuances = "Selector navigation is hidden by default so the dialog opens as a decision surface; Show Selector remains available for broader review. Changed and conflict-style differences are intentionally collapsed into Needs Review because inherited meaning, blank local declarations, and parser drift do not have a clean user-facing semantic split. Source mapping is informational and parser-owned; Apply Merge refreshes parser structure for existing parsed columns. BusinessName and BusinessDescription follow the selected business-value choice. DisableInheritance is staged explicitly from the merge result dropdown. Header tooltips explain current parsed values, saved values, and merge result without a separate correlation band. DeveloperNotes are outside this reconciliation surface.", RelatedFiles = "Components/Pages/ManageViewsNext/ManageViewsNext.razor; Components/Pages/ManageViewsNext/ManageViewsNext.Columns.cs; WEBSemanticModel/Model/ViewSourcedColumnDefinition.cs", LastReviewed = "2026-05-03")]
 
 <div class="column-reconciliation">
     <section class="cr-filter-band">
@@ -280,9 +280,8 @@
 @code {
     private const string AllStatus = "All";
     private const string AddedStatus = "Added";
-    private const string ChangedStatus = "Changed";
+    private const string NeedsReviewStatus = "Needs Review";
     private const string RemovedStatus = "Removed";
-    private const string ConflictStatus = "Conflicts";
     private const string UnchangedStatus = "Unchanged";
     private const string ParsedMetadataStatus = "Parsed Metadata";
     private const string BusinessValuesTab = "Business Values";
@@ -307,7 +306,7 @@
     public IList<SchemaObjectColumnDefinition> SavedColumns { get; set; } = Array.Empty<SchemaObjectColumnDefinition>();
 
     private string SearchText { get; set; } = string.Empty;
-    private string StatusFilter { get; set; } = ChangedStatus;
+    private string StatusFilter { get; set; } = NeedsReviewStatus;
     private string? SelectedColumnName { get; set; }
     private string SelectedDetailTab { get; set; } = BusinessValuesTab;
     private bool IsNavigationHidden { get; set; } = true;
@@ -316,10 +315,9 @@
     private IReadOnlyList<string> StatusOptions { get; } =
     [
         AllStatus,
-        ChangedStatus,
+        NeedsReviewStatus,
         AddedStatus,
         RemovedStatus,
-        ConflictStatus,
         UnchangedStatus,
         ParsedMetadataStatus
     ];
@@ -347,10 +345,9 @@
 
     private IEnumerable<CountChip> CountChips =>
     [
-        new CountChip(ChangedStatus, "Changed", Candidates.Count(x => x.Status == ReconciliationStatus.Changed)),
+        new CountChip(NeedsReviewStatus, "Needs Review", Candidates.Count(x => x.Status == ReconciliationStatus.NeedsReview)),
         new CountChip(AddedStatus, "Added", Candidates.Count(x => x.Status == ReconciliationStatus.Added)),
         new CountChip(RemovedStatus, "Removed", Candidates.Count(x => x.Status == ReconciliationStatus.Removed)),
-        new CountChip(ConflictStatus, "Conflicts", Candidates.Count(x => x.Status == ReconciliationStatus.Conflict)),
         new CountChip(UnchangedStatus, "Unchanged", Candidates.Count(x => x.Status == ReconciliationStatus.Unchanged)),
         new CountChip(ParsedMetadataStatus, "Parsed Metadata", Candidates.Count(x => x.HasParsedMetadata))
     ];
@@ -400,9 +397,8 @@
         StatusFilter switch
         {
             AddedStatus => candidate.Status == ReconciliationStatus.Added,
-            ChangedStatus => candidate.Status == ReconciliationStatus.Changed,
+            NeedsReviewStatus => candidate.Status == ReconciliationStatus.NeedsReview,
             RemovedStatus => candidate.Status == ReconciliationStatus.Removed,
-            ConflictStatus => candidate.Status == ReconciliationStatus.Conflict,
             UnchangedStatus => candidate.Status == ReconciliationStatus.Unchanged,
             ParsedMetadataStatus => candidate.HasParsedMetadata,
             _ => true
@@ -597,7 +593,7 @@
             : "cr-tab-button";
 
     private static string GetStatusBadgeClass(ReconciliationStatus status) =>
-        $"cr-status-badge {status.ToString().ToLowerInvariant()}";
+        $"cr-status-badge {GetStatusToken(GetStatusLabel(status))}";
 
     private static string GetChoiceClass(ReconciliationCandidate candidate, BusinessValueChoice choice) =>
         candidate.Choice == choice
@@ -611,6 +607,11 @@
 
     private static string GetStatusToken(string status) =>
         status.ToLowerInvariant().Replace(" ", "-");
+
+    private static string GetStatusLabel(ReconciliationStatus status) =>
+        status == ReconciliationStatus.NeedsReview
+            ? NeedsReviewStatus
+            : status.ToString();
 
     private static string DisplayValue(string? value) =>
         string.IsNullOrWhiteSpace(value) ? string.Empty : value;
@@ -646,8 +647,7 @@
     {
         Added,
         Removed,
-        Changed,
-        Conflict,
+        NeedsReview,
         Unchanged
     }
 
@@ -700,13 +700,13 @@
         public ReconciliationStatus Status { get; }
         public BusinessValueChoice Choice { get; private set; }
         public bool ResultDisableInheritance { get; set; }
-        public bool IsChoiceEditable => Status is ReconciliationStatus.Changed or ReconciliationStatus.Conflict && Saved != null && Parsed != null;
+        public bool IsChoiceEditable => Status == ReconciliationStatus.NeedsReview && Saved != null && Parsed != null;
         public bool HasParsedMetadata => Parsed != null
             && (!string.IsNullOrWhiteSpace(Parsed.BusinessName)
                 || !string.IsNullOrWhiteSpace(Parsed.BusinessDescription)
                 || Parsed.DisableInheritance);
 
-        public string StatusLabel => Status == ReconciliationStatus.Conflict ? "Conflicts" : Status.ToString();
+        public string StatusLabel => GetStatusLabel(Status);
         public string FixedChoiceText => Status switch
         {
             ReconciliationStatus.Added => "New columns accept parsed business values.",
@@ -816,16 +816,7 @@
                 return ReconciliationStatus.Unchanged;
             }
 
-            var savedHasMetadata = !string.IsNullOrWhiteSpace(saved.BusinessName)
-                || !string.IsNullOrWhiteSpace(saved.BusinessDescription)
-                || saved.DisableInheritance;
-            var parsedHasMetadata = !string.IsNullOrWhiteSpace(parsed.BusinessName)
-                || !string.IsNullOrWhiteSpace(parsed.BusinessDescription)
-                || parsed.DisableInheritance;
-
-            return savedHasMetadata && parsedHasMetadata && (nameChanged || descriptionChanged || inheritanceChanged)
-                ? ReconciliationStatus.Conflict
-                : ReconciliationStatus.Changed;
+            return ReconciliationStatus.NeedsReview;
         }
 
         private static bool SourceRowsMatch(ViewSourcedColumnDefinition parsed, SchemaObjectColumnDefinition saved) =>

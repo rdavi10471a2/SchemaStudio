@@ -112,16 +112,12 @@
     background: #1f9d5a;
 }
 
-.cr-count-chip.changed::before {
+.cr-count-chip.needs-review::before {
     background: #3355ff;
 }
 
 .cr-count-chip.removed::before {
     background: #dc3545;
-}
-
-.cr-count-chip.conflicts::before {
-    background: #f59e0b;
 }
 
 .cr-count-chip.parsed-metadata::before {
@@ -533,7 +529,7 @@
     color: #23824a;
 }
 
-.cr-status-badge.changed {
+.cr-status-badge.needs-review {
     background: #edf1ff;
     border: 1px solid #cbd6ff;
     color: #3355ff;
@@ -543,12 +539,6 @@
     background: #fde8e8;
     border: 1px solid #f8b4b4;
     color: #c81e1e;
-}
-
-.cr-status-badge.conflict {
-    background: #fff7ed;
-    border: 1px solid #fed7aa;
-    color: #b45309;
 }
 
 .cr-status-badge.unchanged {
