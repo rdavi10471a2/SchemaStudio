@@ -113,7 +113,7 @@ public partial class ManageViewsNext
         }
 
         await DialogService.OpenAsync<ResolvedDependencyChainDialog>(
-            $"View Details: {EditableObject.SourceObjectName}",
+            $"Current Parsed Shape: {EditableObject.SourceObjectName}",
             new Dictionary<string, object?>
             {
                 { "ParsedView", CurrentParsedView },
