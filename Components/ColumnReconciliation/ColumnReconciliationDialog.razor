@@ -24,7 +24,7 @@
             <span>Status</span>
             <RadzenDropDown Data="@StatusOptions"
                             @bind-Value="@StatusFilter"
-                            Change="@(_ => SelectFirstFilteredCandidate())"
+                            Change="@(_ => RefreshViewState())"
                             Style="width: 150px;" />
         </div>
 
@@ -32,6 +32,7 @@
             @foreach (var count in CountChips)
             {
                 <button type="button"
+                        @key="count.Status"
                         class="@GetCountChipClass(count.Status)"
                         @onclick="@(() => SetStatusFilter(count.Status))">
                     <span>@count.Label</span>
@@ -78,13 +79,14 @@
                             <RadzenTextBox @bind-Value="@SearchText"
                                            Placeholder="Search columns..."
                                            class="cr-search"
-                                           Change="@(_ => SelectFirstFilteredCandidate())" />
+                                           Change="@(_ => RefreshViewState())" />
                         </div>
 
                         <div class="cr-column-list">
                             @foreach (var candidate in FilteredCandidates)
                             {
                                 <button type="button"
+                                        @key="candidate.ColumnName"
                                         class="@GetColumnButtonClass(candidate)"
                                         title="@candidate.ColumnName"
                                         @onclick="@(() => SelectCandidate(candidate))">
@@ -114,7 +116,7 @@
                             </div>
                             @foreach (var source in CurrentSources)
                             {
-                                <div class="cr-source-row">
+                                <div class="cr-source-row" @key="FormatSource(source)">
                                     <span class="cr-source-chip table">@GetSourceKindLabel(source)</span>
                                     <span>@FormatSource(source)</span>
                                 </div>
@@ -197,7 +199,7 @@
                                     <tbody>
                                         @foreach (var row in SelectedCandidate.SourceRows)
                                         {
-                                            <tr class="@GetComparisonRowClass(row)">
+                                            <tr @key="row.Label" class="@GetComparisonRowClass(row)">
                                                 <td>@row.Label</td>
                                                 <td>@DisplayValue(row.CurrentValue)</td>
                                                 <td>@DisplayValue(row.PriorValue)</td>
@@ -230,7 +232,7 @@
                                     <tbody>
                                         @foreach (var row in SelectedCandidate.BusinessRows)
                                         {
-                                            <tr>
+                                            <tr @key="row.Label">
                                                 <td>@row.Label</td>
                                                 <td>@FieldValue(row.ParsedValue, row.IsMultiline, cssClass: GetBusinessValueClass(row))</td>
                                                 <td>@FieldValue(row.SavedValue, row.IsMultiline, row.SavedMissingText, GetBusinessValueClass(row))</td>
@@ -331,6 +333,8 @@
     private string SelectedDetailTab { get; set; } = BusinessValuesTab;
     private bool IsNavigationHidden { get; set; } = true;
     private List<ReconciliationCandidate> Candidates { get; set; } = new();
+    private List<ReconciliationCandidate> FilteredCandidates { get; set; } = new();
+    private List<CountChip> CountChips { get; set; } = new();
 
     private IReadOnlyList<string> StatusOptions { get; } =
     [
@@ -353,34 +357,13 @@
         ? "Current parsed view"
         : ViewDisplayName;
 
-    private List<ReconciliationCandidate> FilteredCandidates =>
-        Candidates
-            .Where(MatchesStatusFilter)
-            .Where(MatchesSearch)
-            .ToList();
-
     private ReconciliationCandidate? SelectedCandidate =>
-        FilteredCandidates.FirstOrDefault(candidate => string.Equals(candidate.ColumnName, SelectedColumnName, StringComparison.OrdinalIgnoreCase))
-        ?? FilteredCandidates.FirstOrDefault();
+        FilteredCandidates.FirstOrDefault(candidate => string.Equals(candidate.ColumnName, SelectedColumnName, StringComparison.OrdinalIgnoreCase));
 
     private int SelectedIndex =>
         SelectedCandidate == null
             ? -1
             : FilteredCandidates.FindIndex(candidate => string.Equals(candidate.ColumnName, SelectedCandidate.ColumnName, StringComparison.OrdinalIgnoreCase));
-
-    private IEnumerable<CountChip> CountChips =>
-    [
-        new CountChip(NeedsReviewStatus, "Needs Review", Candidates.Count(x => x.Status == ReconciliationStatus.NeedsReview)),
-        new CountChip(AddedStatus, "Added", Candidates.Count(x => x.Status == ReconciliationStatus.Added)),
-        new CountChip(RemovedStatus, "Removed", Candidates.Count(x => x.Status == ReconciliationStatus.Removed)),
-        new CountChip(UnchangedStatus, "Unchanged", Candidates.Count(x => x.Status == ReconciliationStatus.Unchanged)),
-        new CountChip(ParsedMetadataStatus, "Parsed Metadata", Candidates.Count(x => x.HasParsedMetadata)),
-        new CountChip(InheritedStatus, "Inherited", Candidates.Count(x => x.SavedBusinessValuesAreInherited)),
-        new CountChip(DeclaredStatus, "Declared", Candidates.Count(x => x.SavedBusinessValuesAreDeclared)),
-        new CountChip(LocalOverrideStatus, "Local Override", Candidates.Count(x => x.SavedBusinessValuesAreLocalOverride)),
-        new CountChip(HasValuesStatus, "Has Values", Candidates.Count(x => x.SavedBusinessValuesHaveValues)),
-        new CountChip(BlankStatus, "Blank", Candidates.Count(x => x.SavedBusinessValuesAreBlank))
-    ];
 
     protected override void OnParametersSet()
     {
@@ -395,7 +378,7 @@
             StatusFilter = AllStatus;
         }
 
-        SelectFirstFilteredCandidate();
+        RefreshViewState();
     }
 
     private List<ReconciliationCandidate> BuildCandidates()
@@ -458,7 +441,7 @@
     private void SetStatusFilter(string status)
     {
         StatusFilter = status;
-        SelectFirstFilteredCandidate();
+        RefreshViewState();
     }
 
     private void ToggleNavigation()
@@ -471,8 +454,37 @@
         SelectedColumnName = candidate.ColumnName;
     }
 
-    private void SelectFirstFilteredCandidate()
+    private void RefreshViewState()
     {
+        CountChips = BuildCountChips();
+        FilteredCandidates = Candidates
+            .Where(MatchesStatusFilter)
+            .Where(MatchesSearch)
+            .ToList();
+        EnsureValidSelection();
+    }
+
+    private List<CountChip> BuildCountChips() =>
+    [
+        new CountChip(NeedsReviewStatus, "Needs Review", Candidates.Count(x => x.Status == ReconciliationStatus.NeedsReview)),
+        new CountChip(AddedStatus, "Added", Candidates.Count(x => x.Status == ReconciliationStatus.Added)),
+        new CountChip(RemovedStatus, "Removed", Candidates.Count(x => x.Status == ReconciliationStatus.Removed)),
+        new CountChip(UnchangedStatus, "Unchanged", Candidates.Count(x => x.Status == ReconciliationStatus.Unchanged)),
+        new CountChip(ParsedMetadataStatus, "Parsed Metadata", Candidates.Count(x => x.HasParsedMetadata)),
+        new CountChip(InheritedStatus, "Inherited", Candidates.Count(x => x.SavedBusinessValuesAreInherited)),
+        new CountChip(DeclaredStatus, "Declared", Candidates.Count(x => x.SavedBusinessValuesAreDeclared)),
+        new CountChip(LocalOverrideStatus, "Local Override", Candidates.Count(x => x.SavedBusinessValuesAreLocalOverride)),
+        new CountChip(HasValuesStatus, "Has Values", Candidates.Count(x => x.SavedBusinessValuesHaveValues)),
+        new CountChip(BlankStatus, "Blank", Candidates.Count(x => x.SavedBusinessValuesAreBlank))
+    ];
+
+    private void EnsureValidSelection()
+    {
+        if (FilteredCandidates.Any(candidate => string.Equals(candidate.ColumnName, SelectedColumnName, StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
         SelectedColumnName = FilteredCandidates.FirstOrDefault()?.ColumnName;
     }
 
