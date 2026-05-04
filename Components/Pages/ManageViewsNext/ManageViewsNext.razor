@@ -497,13 +497,6 @@
                                     }
                                     else
                                     {
-                                        @if (!CanEditSelectedColumnMetadata)
-                                        {
-                                            <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat">
-                                                Inherited metadata is read-only for composed views until base editing rules are finalized.
-                                            </RadzenAlert>
-                                        }
-
                                         <div class="mvn-column-fields">
                                             <label class="mvn-check-field mvn-inheritance-check">
                                                 @ColumnFieldLabel(nameof(SchemaObjectColumnDefinition.DisableInheritance))
@@ -517,7 +510,7 @@
                                                 <RadzenTextBox @bind-Value="@SelectedColumn.BusinessName"
                                                                MaxLength="@GetMaxLength(nameof(SchemaObjectColumnDefinition.BusinessName))"
                                                                Style="width:100%;"
-                                                               Disabled="@(!CanEditSelectedColumnMetadata)" />
+                                                               ReadOnly="@(!CanEditSelectedColumnMetadata)" />
                                             </div>
 
                                             <div class="mvn-field">
@@ -526,7 +519,7 @@
                                                                 MaxLength="@GetMaxLength(nameof(SchemaObjectColumnDefinition.BusinessDescription))"
                                                                 Style="width:100%; max-width:100%; min-width:0; box-sizing:border-box; resize:vertical; overflow-y:scroll;"
                                                                 class="mvn-textarea"
-                                                                Disabled="@(!CanEditSelectedColumnMetadata)" />
+                                                                ReadOnly="@(!CanEditSelectedColumnMetadata)" />
                                             </div>
 
                                             <div class="mvn-field">
@@ -535,7 +528,7 @@
                                                                 MaxLength="@GetMaxLength(nameof(SchemaObjectColumnDefinition.DeveloperNotes))"
                                                                 Style="width:100%; max-width:100%; min-width:0; box-sizing:border-box; resize:vertical; overflow-y:scroll;"
                                                                 class="mvn-textarea"
-                                                                Disabled="@(!CanEditSelectedColumnMetadata)" />
+                                                                ReadOnly="@(!CanEditSelectedColumnMetadata)" />
                                             </div>
 
                                         </div>
