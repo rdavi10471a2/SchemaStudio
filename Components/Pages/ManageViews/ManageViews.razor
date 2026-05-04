@@ -23,7 +23,7 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("3.12")]
+@attribute [FileVersion("3.13")]
 @attribute [AIChange("3.12", "2026-04-30 12:42 PM CDT included dirty saved-column edits in the Manage Views navigation guard so selector changes cannot silently discard column editor work.", AICommandStatus.Pending)]
 @attribute [AIChange("3.11", "2026-04-30 12:36 PM CDT made Save View persist dirty saved-column edits from the new selector/editor columns tab in the same save operation.", AICommandStatus.Pending)]
 @attribute [AIChange("3.10", "2026-04-27 11:58 AM CDT moved selection/workspace and parser/dependency actions into ManageViews.Selection.cs and ManageViews.Parser.cs so the Razor page shell is smaller before the next feature set.", AICommandStatus.Pending)]
@@ -431,6 +431,24 @@
             {
                 await SchemaObjectRepository.UpdateAsync(EditableObject);
                 SelectedViewKey = BuildExistingSelectionKey(EditableObject.SchemaObjectId);
+            }
+
+            var parsedColumnNames = CurrentParsedView?.Columns
+                .Select(column => column.ColumnName)
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Select(name => name!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList() ?? new List<string>();
+
+            if (EditableObject.SchemaObjectId > 0 && parsedColumnNames.Count > 0)
+            {
+                await SchemaObjectColumnRepository.DeleteMissingForObjectAsync(
+                    EditableObject.SchemaObjectId,
+                    parsedColumnNames);
+
+                SavedColumns = SavedColumns
+                    .Where(column => parsedColumnNames.Contains(column.SourceColumnName, StringComparer.OrdinalIgnoreCase))
+                    .ToList();
             }
 
             if (EditableObject.SchemaObjectId > 0 && SavedColumns.Any(column => column.IsDirty))

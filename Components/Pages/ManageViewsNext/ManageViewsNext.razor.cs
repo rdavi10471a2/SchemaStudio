@@ -173,6 +173,12 @@ public partial class ManageViewsNext
         var columnsToPersist = SavedColumns
             .Where(column => column.IsDirty || column.SchemaObjectColumnId == 0)
             .ToList();
+        var parsedColumnNames = CurrentParsedView?.Columns
+            .Select(column => column.ColumnName)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Select(name => name!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList() ?? new List<string>();
 
         validationMessage = ValidateStringLengths(columnsToPersist, "Column");
         if (!string.IsNullOrWhiteSpace(validationMessage))
@@ -198,6 +204,17 @@ public partial class ManageViewsNext
             {
                 await SchemaObjectRepository.UpdateAsync(EditableObject);
                 SelectedViewKey = BuildExistingSelectionKey(EditableObject.SchemaObjectId);
+            }
+
+            if (EditableObject.SchemaObjectId > 0 && parsedColumnNames.Count > 0)
+            {
+                await SchemaObjectColumnRepository.DeleteMissingForObjectAsync(
+                    EditableObject.SchemaObjectId,
+                    parsedColumnNames);
+
+                columnsToPersist = columnsToPersist
+                    .Where(column => parsedColumnNames.Contains(column.SourceColumnName, StringComparer.OrdinalIgnoreCase))
+                    .ToList();
             }
 
             if (EditableObject.SchemaObjectId > 0 && columnsToPersist.Count > 0)
