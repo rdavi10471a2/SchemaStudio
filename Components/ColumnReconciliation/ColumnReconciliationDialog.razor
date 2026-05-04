@@ -6,8 +6,8 @@
 
 @inject DialogService DialogService
 
-@attribute [FileVersion("1.2")]
-@attribute [AIFileContext("Components/ColumnReconciliation/ColumnReconciliationDialog.razor", "Focused Manage Views column reconciliation dialog that combines View Details-style selector navigation with parser-current/prior source checks and business-value merge choices.", Responsibilities = "Owns filtered candidate navigation, source mapping comparison, parser-owned structure refresh staging, business-value choice staging, and selected-column reconciliation detail for Manage Views Next.", Nuances = "Source mapping is informational and parser-owned; Apply Merge refreshes parser structure for existing parsed columns. BusinessName, BusinessDescription, and DisableInheritance follow the selected business-value choice. DeveloperNotes are outside this reconciliation surface.", RelatedFiles = "Components/Pages/ManageViewsNext/ManageViewsNext.razor; Components/Pages/ManageViewsNext/ManageViewsNext.Columns.cs; WEBSemanticModel/Model/ViewSourcedColumnDefinition.cs", LastReviewed = "2026-05-03")]
+@attribute [FileVersion("1.3")]
+@attribute [AIFileContext("Components/ColumnReconciliation/ColumnReconciliationDialog.razor", "Focused Manage Views column reconciliation dialog that combines View Details-style selector navigation with parser-current/prior source checks and business-value merge choices.", Responsibilities = "Owns filtered candidate navigation, source mapping comparison, parser-owned structure refresh staging, business-value choice staging, and selected-column reconciliation detail for Manage Views Next.", Nuances = "Source mapping is informational and parser-owned; Apply Merge refreshes parser structure for existing parsed columns. BusinessName, BusinessDescription, and DisableInheritance follow the selected business-value choice. Header tooltips explain current parsed values, saved values, and merge result without a separate correlation band. DeveloperNotes are outside this reconciliation surface.", RelatedFiles = "Components/Pages/ManageViewsNext/ManageViewsNext.razor; Components/Pages/ManageViewsNext/ManageViewsNext.Columns.cs; WEBSemanticModel/Model/ViewSourcedColumnDefinition.cs", LastReviewed = "2026-05-03")]
 
 <div class="column-reconciliation">
     <section class="cr-filter-band">
@@ -142,21 +142,6 @@
                     </div>
                 </div>
 
-                <div class="cr-definition-band">
-                    <div>
-                        <strong>Current Parse</strong>
-                        <span>Runtime parse of the live view.</span>
-                    </div>
-                    <div>
-                        <strong>Prior Parse</strong>
-                        <span>Parser-owned values from the saved column.</span>
-                    </div>
-                    <div>
-                        <strong>Saved Business Values</strong>
-                        <span>User-reviewable business metadata currently saved.</span>
-                    </div>
-                </div>
-
                 <div class="cr-tabs" role="tablist" aria-label="Column reconciliation detail views">
                     <button type="button"
                             class="@GetDetailTabClass(BusinessValuesTab)"
@@ -181,7 +166,6 @@
                             <div class="cr-section-header">
                                 <div>
                                     <h4>Source Mapping Check</h4>
-                                    <p>Informational comparison only. Parser-owned structure is refreshed from the current parse when merge is applied.</p>
                                 </div>
                                 <span class="cr-chip parser-owned">Parser-owned</span>
                             </div>
@@ -189,9 +173,9 @@
                             <table class="cr-table">
                                 <thead>
                                     <tr>
-                                        <th>Field</th>
-                                        <th>Current Parse</th>
-                                        <th>Prior Parse</th>
+                                        <th>Field @HelpIcon("Parser-owned source mapping field being compared.")</th>
+                                        <th>Current Parse @HelpIcon("Runtime parser output from the live SQL view. Parser-owned structure is refreshed from this side when merge is applied.")</th>
+                                        <th>Prior Parse @HelpIcon("Parser-owned values saved from the previous parse. This is informational and is not a business metadata choice.")</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -213,17 +197,16 @@
                             <div class="cr-section-header">
                                 <div>
                                     <h4>Business Values</h4>
-                                    <p>Choose whether saved business values stay in place or are replaced by parser annotations from the current parse.</p>
                                 </div>
                             </div>
 
                             <table class="cr-table">
                                 <thead>
                                     <tr>
-                                        <th>Field</th>
-                                        <th>Parsed Current</th>
-                                        <th>Saved Values</th>
-                                        <th>Result</th>
+                                        <th>Field @HelpIcon("Business metadata field being compared.")</th>
+                                        <th>Current Parsed Values @HelpIcon("Business metadata read from annotations in the current parser run.")</th>
+                                        <th>Saved Values @HelpIcon("Business metadata currently saved for this column. Keeping saved values makes no business metadata change.")</th>
+                                        <th>Merge Result @HelpIcon("The business metadata value that will be staged by Apply Merge based on the selected choice.")</th>
                                     </tr>
                                 </thead>
                                 <tbody>
