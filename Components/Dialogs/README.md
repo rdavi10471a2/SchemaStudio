@@ -2,7 +2,13 @@
 
 This folder holds shared Radzen dialog components used by Schema Studio Web.
 
-## ColumnMergeReviewDialog
+## Column Merge Review Status
+
+The original `ColumnMergeReviewDialog` remains in this folder as legacy/fallback code. The active Manage Views Next `Review Merge` workflow now uses `Components/ColumnReconciliation/ColumnReconciliationDialog.razor`.
+
+Use the `Components/ColumnReconciliation/README.md` map for the accepted column reconciliation workflow.
+
+## Legacy ColumnMergeReviewDialog
 
 Files:
 
@@ -11,14 +17,11 @@ Files:
 
 Launch point:
 
-- `Components/Pages/ManageViewsNext/ManageViewsNext.razor`
-- `Review Merge` opens the dialog from `OpenColumnMergeReviewAsync`.
+- Legacy/fallback only. Do not wire new Manage Views Next behavior to this dialog.
 
 Purpose:
 
-- Compare parser-current metadata against saved Schema Studio column metadata.
-- Stage merge choices into the caller's in-memory column list.
-- Leave persistence to the main page's `Save All Changes` action.
+- Preserve the previous one-column-at-a-time merge review implementation for short-term reference while the accepted reconciliation dialog stabilizes.
 
 Merge ownership:
 

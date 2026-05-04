@@ -19,11 +19,15 @@ This folder keeps the new layout isolated from the current Manage Views page whi
 - `ManageViewsNext.razor.cs` - shared state, grouping, labels, save/delete helpers.
 - `ManageViewsNext.Selection.cs` - database reload, workspace load, selector changes, reset, dirty navigation guard.
 - `ManageViewsNext.Columns.cs` - column selector/editor, reset selected column, merge review, parser-to-column mapping.
-- `Components/Dialogs/ColumnMergeReviewDialog.razor` - focused merge-review dialog used by this prototype. It owns candidate filtering, parsed-vs-saved comparison, effective-result preview, and Apply Merge staging for Business Name, Business Description, and Disable Inheritance.
+- `Components/ColumnReconciliation/ColumnReconciliationDialog.razor` - accepted column reconciliation dialog used by `Review Merge`. It owns candidate filtering, optional selector navigation, parser-current vs saved comparison, source mapping checks, saved-value origin labeling, and Apply Merge staging for parser-owned structure plus chosen business values.
 - `ManageViewsNext.Parser.cs` - refresh view, show SQL, view details, where-used actions.
 - `ManageViewsNext.razor.css` - isolated layout and tree/editor styling, including the selected-view toolbar's responsive button grid for narrower desktop viewports.
 
 ## Notes
 
 The old `Components/Pages/ManageViews` page remains in the project as fallback code, but its main navigation entry is hidden while this surface is promoted.
-Developer Notes are intentionally excluded from the merge review; they are preserved as app-owned metadata rather than parser-owned SQL annotations.
+Developer Notes are intentionally excluded from parser merge decisions. They are not parser-owned SQL annotations in this screen; current inheritance behavior is owned by the database inheritance procedure and repository state.
+
+The accepted merge workflow treats the parser as structural/current evidence and the saved column rows as governed state. Apply Merge refreshes parser-owned structure such as ordinal, source kind, physical lineage, and semantic source. Business Name and Business Description only change when the user chooses `Accept New Parsed Values`; otherwise saved, inherited, or local-override values remain in place.
+
+The reconciliation dialog is intentionally modal-style: resizable, non-draggable, protected from overlay-click close, and internally scrollable. This keeps review context stable while still allowing long metadata fields and comparison tables to be inspected.
