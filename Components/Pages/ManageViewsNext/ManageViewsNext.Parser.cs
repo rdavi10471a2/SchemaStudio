@@ -26,7 +26,7 @@ public partial class ManageViewsNext
             EditableObject.SourceObjectName);
 
         var parsedColumns = CurrentParsedView?.Columns.ToViewColumnDtos() ?? new List<ViewColumnDto>();
-        ReviewRows = BuildColumnReviewRows(parsedColumns, existingColumns).ToList();
+        ReviewRows = BuildColumnReviewRows(parsedColumns, existingColumns, EditableObject.IsBaseObject).ToList();
         ApplyDetectedColumnStates(parsedColumns);
         await InvokeAsync(StateHasChanged);
     }
@@ -48,7 +48,7 @@ public partial class ManageViewsNext
                 EditableObject.SourceObjectName);
 
             var parsedColumns = CurrentParsedView?.Columns.ToViewColumnDtos() ?? new List<ViewColumnDto>();
-            ReviewRows = BuildColumnReviewRows(parsedColumns, SavedColumns).ToList();
+            ReviewRows = BuildColumnReviewRows(parsedColumns, SavedColumns, EditableObject.IsBaseObject).ToList();
             ApplyDetectedColumnStates(parsedColumns);
             NotificationService.Notify(NotificationSeverity.Success, "View refreshed", "The selected view SQL and parser review state were refreshed.", 2500);
             await InvokeAsync(StateHasChanged);

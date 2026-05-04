@@ -580,7 +580,7 @@
         if (result is true)
         {
             var parsedColumns = CurrentParsedView.Columns.ToViewColumnDtos();
-            ReviewRows = BuildColumnReviewRows(parsedColumns, SavedColumns).ToList();
+            ReviewRows = BuildColumnReviewRows(parsedColumns, SavedColumns, EditableObject.IsBaseObject).ToList();
             EnsureSelectedColumn();
             NotificationService.Notify(NotificationSeverity.Success, "Merge applied", "Column merge choices were staged. Use Save All Changes to commit them.", 3000);
             await InvokeAsync(StateHasChanged);

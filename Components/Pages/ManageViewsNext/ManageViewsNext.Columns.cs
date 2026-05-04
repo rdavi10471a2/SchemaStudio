@@ -255,7 +255,8 @@ public partial class ManageViewsNext
 
     private static IEnumerable<ManageViewsColumnReviewRow> BuildColumnReviewRows(
         IReadOnlyList<ViewColumnDto> parsedColumns,
-        IEnumerable<SchemaObjectColumnDefinition> existingColumns)
+        IEnumerable<SchemaObjectColumnDefinition> existingColumns,
+        bool isBaseView)
     {
         var parsedByName = parsedColumns
             .Where(x => !string.IsNullOrWhiteSpace(x.ColumnName))
@@ -277,12 +278,12 @@ public partial class ManageViewsNext
             parsedByName.TryGetValue(name, out var parsed);
             existingByName.TryGetValue(name, out var existing);
 
-            var status = GetStatus(parsed, existing);
+            var status = GetStatus(parsed, existing, isBaseView);
             yield return new ManageViewsColumnReviewRow
             {
                 ColumnName = name,
                 Status = status,
-                ChangeSummary = BuildChangeSummary(parsed, existing, status),
+                ChangeSummary = BuildChangeSummary(parsed, existing, status, isBaseView),
                 ParsedPreview = BuildParsedPreview(parsed),
                 ExistingPreview = BuildExistingPreview(existing),
                 AcceptMerge = status is "Added" or "Changed"
@@ -290,7 +291,7 @@ public partial class ManageViewsNext
         }
     }
 
-    private static string GetStatus(ViewColumnDto? parsed, SchemaObjectColumnDefinition? existing)
+    private static string GetStatus(ViewColumnDto? parsed, SchemaObjectColumnDefinition? existing, bool isBaseView)
     {
         if (parsed != null && existing == null)
         {
@@ -317,33 +318,47 @@ public partial class ManageViewsNext
             return "Unchanged";
         }
 
-        return string.Equals(parsed.BusinessName, existing.BusinessName, StringComparison.Ordinal) &&
-               string.Equals(parsed.BusinessDescription, existing.BusinessDescription, StringComparison.Ordinal)
+        if (!ParserShapeMatches(parsed, existing))
+        {
+            return "Changed";
+        }
+
+        if (!isBaseView)
+        {
+            return "Unchanged";
+        }
+
+        return BusinessMetadataMatches(parsed, existing)
             ? "Unchanged"
             : "Changed";
     }
 
-    private static string BuildChangeSummary(ViewColumnDto? parsed, SchemaObjectColumnDefinition? existing, string status)
+    private static string BuildChangeSummary(ViewColumnDto? parsed, SchemaObjectColumnDefinition? existing, string status, bool isBaseView)
     {
         return status switch
         {
             "Added" => "Parser found a new column that is not yet in Schema Studio.",
             "Removed" => "Existing column is not present in the current parser result.",
-            "Changed" => BuildChangedFieldSummary(parsed, existing),
+            "Changed" => BuildChangedFieldSummary(parsed, existing, isBaseView),
             _ => "Business metadata matches the current saved record."
         };
     }
 
-    private static string BuildChangedFieldSummary(ViewColumnDto? parsed, SchemaObjectColumnDefinition? existing)
+    private static string BuildChangedFieldSummary(ViewColumnDto? parsed, SchemaObjectColumnDefinition? existing, bool isBaseView)
     {
         var changes = new List<string>();
 
-        if (!string.Equals(parsed?.BusinessName, existing?.BusinessName, StringComparison.Ordinal))
+        if (!ParserShapeMatches(parsed, existing))
+        {
+            changes.Add("parser-owned source mapping");
+        }
+
+        if (isBaseView && !string.Equals(NormalizeNullableText(parsed?.BusinessName), NormalizeNullableText(existing?.BusinessName), StringComparison.Ordinal))
         {
             changes.Add("Business Name");
         }
 
-        if (!string.Equals(parsed?.BusinessDescription, existing?.BusinessDescription, StringComparison.Ordinal))
+        if (isBaseView && !string.Equals(NormalizeNullableText(parsed?.BusinessDescription), NormalizeNullableText(existing?.BusinessDescription), StringComparison.Ordinal))
         {
             changes.Add("Description");
         }
@@ -351,6 +366,33 @@ public partial class ManageViewsNext
         return changes.Count == 0
             ? "Parser and existing values differ."
             : $"{string.Join(", ", changes)} differ.";
+    }
+
+    private static bool BusinessMetadataMatches(ViewColumnDto parsed, SchemaObjectColumnDefinition existing) =>
+        string.Equals(NormalizeNullableText(parsed.BusinessName), NormalizeNullableText(existing.BusinessName), StringComparison.Ordinal) &&
+        string.Equals(NormalizeNullableText(parsed.BusinessDescription), NormalizeNullableText(existing.BusinessDescription), StringComparison.Ordinal);
+
+    private static bool ParserShapeMatches(ViewColumnDto? parsed, SchemaObjectColumnDefinition? existing)
+    {
+        if (parsed == null || existing == null)
+        {
+            return true;
+        }
+
+        return parsed.OrdinalPosition == existing.OrdinalPosition
+            && string.Equals(NormalizeNullableText(parsed.ColumnKind), NormalizeNullableText(existing.SourceColumnKind), StringComparison.Ordinal)
+            && string.Equals(FormatQualifiedName(parsed.BaseDatabase, parsed.BaseSchema, parsed.BaseTable, parsed.BaseColumn), FormatQualifiedName(existing.BaseDatabaseName, existing.BaseSchemaName, existing.BaseObjectName, existing.BaseColumnName), StringComparison.Ordinal)
+            && string.Equals(FormatQualifiedName(parsed.SemanticDatabase, parsed.SemanticSchema, parsed.SemanticObject, parsed.SemanticColumn), FormatQualifiedName(existing.SemanticDatabase, existing.SemanticSchema, existing.SemanticObject, existing.SemanticColumn), StringComparison.Ordinal);
+    }
+
+    private static string? FormatQualifiedName(string? database, string? schema, string? objectName, string? columnName)
+    {
+        var parts = new[] { database, schema, objectName, columnName }
+            .Where(part => !string.IsNullOrWhiteSpace(part))
+            .Select(part => part!.Trim())
+            .ToList();
+
+        return parts.Count == 0 ? null : string.Join(".", parts);
     }
 
     private static string BuildParsedPreview(ViewColumnDto? parsed)
