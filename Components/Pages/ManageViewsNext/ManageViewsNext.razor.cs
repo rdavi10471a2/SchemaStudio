@@ -242,6 +242,30 @@ public partial class ManageViewsNext
         return sourceColumns;
     }
 
+    private async Task<bool> ConfirmSaveWithUnmergedParserChangesAsync()
+    {
+        var unmergedAdded = ReviewRows.Count(row => row.Status == "Added");
+        var unmergedChanged = ReviewRows.Count(row => row.Status == "Changed");
+        var unmergedRemoved = ReviewRows.Count(row => row.Status == "Removed");
+
+        if (unmergedAdded == 0 && unmergedChanged == 0 && unmergedRemoved == 0)
+        {
+            return true;
+        }
+
+        var message =
+            $"Unmerged parser changes remain: {unmergedChanged} changed, {unmergedAdded} added, {unmergedRemoved} removed column(s)." +
+            $"{Environment.NewLine}{Environment.NewLine}" +
+            "Save All will save the current view and staged metadata only. It will not add, remove, or reconcile these parser changes until Review Merge is applied.";
+
+        var confirmed = await DialogService.Confirm(
+            message,
+            "Unmerged Parser Changes",
+            new ConfirmOptions { OkButtonText = "Save Anyway", CancelButtonText = "Review Merge" });
+
+        return confirmed == true;
+    }
+
     private async Task DeleteViewAsync()
     {
         if (!CanDeleteCurrentView || EditableObject == null || SelectedDatabaseId == null)
