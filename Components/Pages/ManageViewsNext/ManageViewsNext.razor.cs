@@ -261,7 +261,7 @@ public partial class ManageViewsNext
 
         var confirmed = await DialogService.OpenAsync<UnmergedParserChangesDialog>(
             "Parser Changes Not Applied",
-            new Dictionary<string, object>
+            new Dictionary<string, object?>
             {
                 ["Changed"] = unmergedChanged,
                 ["Added"] = unmergedAdded,
