@@ -532,7 +532,7 @@
         builder.CloseComponent();
     };
 
-    private RenderFragment FieldValue(string? value, bool multiline, string missingText = "Blank", string? cssClass = null) => builder =>
+    private RenderFragment FieldValue(string? value, bool multiline, string missingText = "", string? cssClass = null) => builder =>
     {
         var displayValue = string.IsNullOrWhiteSpace(value) ? missingText : value;
         var fieldClass = string.IsNullOrWhiteSpace(cssClass) ? "cr-field-value" : $"cr-field-value {cssClass}";
@@ -588,7 +588,7 @@
         status.ToLowerInvariant().Replace(" ", "-");
 
     private static string DisplayValue(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? "Blank" : value;
+        string.IsNullOrWhiteSpace(value) ? string.Empty : value;
 
     private static bool Contains(string? value, string search) =>
         !string.IsNullOrWhiteSpace(value)
@@ -712,8 +712,8 @@
                 Choice == BusinessValueChoice.AcceptParsed ? Parsed?.BusinessName : Saved?.BusinessName,
                 false,
                 HasBusinessValueConflict(Parsed?.BusinessName, Saved?.BusinessName),
-                Saved == null ? "Not saved yet" : "Blank",
-                "Blank"),
+                Saved == null ? "Not saved yet" : string.Empty,
+                string.Empty),
             new BusinessRow(
                 "Business Description",
                 Parsed?.BusinessDescription,
@@ -721,8 +721,8 @@
                 Choice == BusinessValueChoice.AcceptParsed ? Parsed?.BusinessDescription : Saved?.BusinessDescription,
                 true,
                 HasBusinessValueConflict(Parsed?.BusinessDescription, Saved?.BusinessDescription),
-                Saved == null ? "Not saved yet" : "Blank",
-                "Blank"),
+                Saved == null ? "Not saved yet" : string.Empty,
+                string.Empty),
             new BusinessRow(
                 "Disable Inheritance",
                 Parsed == null ? null : FormatBool(Parsed.DisableInheritance),
