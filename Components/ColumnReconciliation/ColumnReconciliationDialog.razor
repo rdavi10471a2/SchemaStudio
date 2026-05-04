@@ -214,8 +214,8 @@
                                     {
                                         <tr>
                                             <td>@row.Label</td>
-                                            <td>@FieldValue(row.ParsedValue, row.IsMultiline)</td>
-                                            <td>@FieldValue(row.SavedValue, row.IsMultiline, row.SavedMissingText)</td>
+                                            <td>@FieldValue(row.ParsedValue, row.IsMultiline, cssClass: row.IsConflict ? "cr-conflict-value" : null)</td>
+                                            <td>@FieldValue(row.SavedValue, row.IsMultiline, row.SavedMissingText, row.IsConflict ? "cr-conflict-value" : null)</td>
                                             <td>@FieldValue(row.ResultValue, row.IsMultiline, row.ResultMissingText)</td>
                                         </tr>
                                     }
@@ -532,15 +532,16 @@
         builder.CloseComponent();
     };
 
-    private RenderFragment FieldValue(string? value, bool multiline, string missingText = "Blank") => builder =>
+    private RenderFragment FieldValue(string? value, bool multiline, string missingText = "Blank", string? cssClass = null) => builder =>
     {
         var displayValue = string.IsNullOrWhiteSpace(value) ? missingText : value;
+        var fieldClass = string.IsNullOrWhiteSpace(cssClass) ? "cr-field-value" : $"cr-field-value {cssClass}";
         if (multiline)
         {
             builder.OpenComponent<RadzenTextArea>(0);
             builder.AddAttribute(1, "Value", displayValue);
             builder.AddAttribute(2, "ReadOnly", true);
-            builder.AddAttribute(3, "class", "cr-textarea");
+            builder.AddAttribute(3, "class", $"cr-textarea {fieldClass}");
             builder.AddAttribute(4, "Style", "width:100%; max-width:100%; min-width:0; box-sizing:border-box; resize:vertical; overflow-y:scroll;");
             builder.CloseComponent();
         }
@@ -549,7 +550,8 @@
             builder.OpenComponent<RadzenTextBox>(5);
             builder.AddAttribute(6, "Value", displayValue);
             builder.AddAttribute(7, "ReadOnly", true);
-            builder.AddAttribute(8, "Style", "width:100%;");
+            builder.AddAttribute(8, "class", fieldClass);
+            builder.AddAttribute(9, "Style", "width:100%;");
             builder.CloseComponent();
         }
     };
@@ -640,6 +642,7 @@
         string? SavedValue,
         string? ResultValue,
         bool IsMultiline,
+        bool IsConflict,
         string SavedMissingText,
         string ResultMissingText);
 
@@ -708,6 +711,7 @@
                 Saved?.BusinessName,
                 Choice == BusinessValueChoice.AcceptParsed ? Parsed?.BusinessName : Saved?.BusinessName,
                 false,
+                HasBusinessValueConflict(Parsed?.BusinessName, Saved?.BusinessName),
                 Saved == null ? "Not saved yet" : "Blank",
                 "Blank"),
             new BusinessRow(
@@ -716,6 +720,7 @@
                 Saved?.BusinessDescription,
                 Choice == BusinessValueChoice.AcceptParsed ? Parsed?.BusinessDescription : Saved?.BusinessDescription,
                 true,
+                HasBusinessValueConflict(Parsed?.BusinessDescription, Saved?.BusinessDescription),
                 Saved == null ? "Not saved yet" : "Blank",
                 "Blank"),
             new BusinessRow(
@@ -726,9 +731,15 @@
                     ? Parsed?.DisableInheritance ?? false
                     : Saved?.DisableInheritance ?? false),
                 false,
+                Parsed != null && Saved != null && Parsed.DisableInheritance != Saved.DisableInheritance,
                 Saved == null ? "Not saved yet" : "No",
                 "No")
         ];
+
+        private bool HasBusinessValueConflict(string? parsedValue, string? savedValue) =>
+            Parsed != null
+            && Saved != null
+            && !string.Equals(NormalizeNullableText(parsedValue), NormalizeNullableText(savedValue), StringComparison.Ordinal);
 
         private static ReconciliationStatus DetermineStatus(ViewSourcedColumnDefinition? parsed, SchemaObjectColumnDefinition? saved)
         {
