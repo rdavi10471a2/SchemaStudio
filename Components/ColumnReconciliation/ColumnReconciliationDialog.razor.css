@@ -375,6 +375,9 @@
 }
 
 .cr-section {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    min-height: 0;
     border: 1px solid #e7ebf2;
     border-radius: 6px;
     background: #fff;
@@ -391,6 +394,12 @@
     display: grid;
     gap: 0.2rem;
     min-width: 0;
+}
+
+.cr-section-scroll {
+    min-height: 0;
+    max-height: calc(90vh - 390px);
+    overflow: auto;
 }
 
 .cr-table {
