@@ -87,36 +87,6 @@ WHERE SchemaObjectColumnId = @schemaObjectColumnId;
         }
     }
 
-    public async Task DeleteMissingForObjectAsync(int schemaObjectId, IEnumerable<string> sourceColumnNames)
-    {
-        var names = sourceColumnNames
-            .Where(name => !string.IsNullOrWhiteSpace(name))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        await using (var connection = new SqlConnection(_connectionString))
-        {
-            if (names.Count == 0)
-            {
-                const string deleteAllSql = """
-DELETE FROM dbo.SchemaObjectColumn
-WHERE SchemaObjectId = @schemaObjectId;
-""";
-
-                await connection.ExecuteAsync(deleteAllSql, new { schemaObjectId });
-                return;
-            }
-
-            const string sql = """
-DELETE FROM dbo.SchemaObjectColumn
-WHERE SchemaObjectId = @schemaObjectId
-  AND SourceColumnName NOT IN @names;
-""";
-
-            await connection.ExecuteAsync(sql, new { schemaObjectId, names });
-        }
-    }
-
     public async Task<int> CreateAsync(SchemaObjectColumnDefinition model)
     {
         await using (var connection = new SqlConnection(_connectionString))
@@ -229,51 +199,8 @@ WHERE SchemaObjectColumnId = @schemaObjectColumnId;
 
         await using (var connection = new SqlConnection(_connectionString))
         {
-            var data = new DataTable();
-            data.Columns.Add("SchemaObjectColumnId", typeof(int));
-            data.Columns.Add("SchemaObjectId", typeof(int));
-            data.Columns.Add("OrdinalPosition", typeof(int));
-            data.Columns.Add("SourceColumnName", typeof(string));
-            data.Columns.Add("SourceColumnKind", typeof(string));
-            data.Columns.Add("BaseDatabaseName", typeof(string));
-            data.Columns.Add("BaseSchemaName", typeof(string));
-            data.Columns.Add("BaseObjectName", typeof(string));
-            data.Columns.Add("BaseColumnName", typeof(string));
-            data.Columns.Add("IsBaseDefinition", typeof(bool));
-            data.Columns.Add("DisableInheritance", typeof(bool));
-            data.Columns.Add("BusinessName", typeof(string));
-            data.Columns.Add("BusinessDescription", typeof(string));
-            data.Columns.Add("DeveloperNotes", typeof(string));
-            data.Columns.Add("SemanticDatabase", typeof(string));
-            data.Columns.Add("SemanticSchema", typeof(string));
-            data.Columns.Add("SemanticObject", typeof(string));
-            data.Columns.Add("SemanticColumn", typeof(string));
-
-            foreach (var model in items)
-            {
-                data.Rows.Add(
-                    model.SchemaObjectColumnId,
-                    model.SchemaObjectId,
-                    model.OrdinalPosition,
-                    model.SourceColumnName,
-                    model.SourceColumnKind,
-                    model.BaseDatabaseName,
-                    model.BaseSchemaName,
-                    model.BaseObjectName,
-                    model.BaseColumnName,
-                    model.IsBaseDefinition,
-                    model.DisableInheritance,
-                    model.BusinessName,
-                    model.BusinessDescription,
-                    model.DeveloperNotes,
-                    model.SemanticDatabase,
-                    model.SemanticSchema,
-                    model.SemanticObject,
-                    model.SemanticColumn);
-            }
-
             var parameters = new DynamicParameters();
-            parameters.Add("@Items", data.AsTableValuedParameter("dbo.SchemaObjectColumnUpsertType"));
+            parameters.Add("@Items", BuildUpsertTable(items).AsTableValuedParameter("dbo.SchemaObjectColumnUpsertType"));
 
             await connection.ExecuteAsync(
                 "dbo.SchemaObjectColumn_Upsert",
@@ -285,6 +212,79 @@ WHERE SchemaObjectColumnId = @schemaObjectColumnId;
         {
             model.ClearDirty();
         }
+    }
+
+    public async Task SaveFullSnapshotAsync(IEnumerable<SchemaObjectColumnDefinition> models)
+    {
+        var items = models.ToList();
+        if (items.Count == 0)
+        {
+            return;
+        }
+
+        await using (var connection = new SqlConnection(_connectionString))
+        {
+            var parameters = new DynamicParameters();
+            parameters.Add("@Items", BuildUpsertTable(items).AsTableValuedParameter("dbo.SchemaObjectColumnUpsertType"));
+
+            await connection.ExecuteAsync(
+                "dbo.SchemaObjectColumn_UpsertFull",
+                parameters,
+                commandType: CommandType.StoredProcedure);
+        }
+
+        foreach (var model in items)
+        {
+            model.ClearDirty();
+        }
+    }
+
+    private static DataTable BuildUpsertTable(IEnumerable<SchemaObjectColumnDefinition> models)
+    {
+        var data = new DataTable();
+        data.Columns.Add("SchemaObjectColumnId", typeof(int));
+        data.Columns.Add("SchemaObjectId", typeof(int));
+        data.Columns.Add("OrdinalPosition", typeof(int));
+        data.Columns.Add("SourceColumnName", typeof(string));
+        data.Columns.Add("SourceColumnKind", typeof(string));
+        data.Columns.Add("BaseDatabaseName", typeof(string));
+        data.Columns.Add("BaseSchemaName", typeof(string));
+        data.Columns.Add("BaseObjectName", typeof(string));
+        data.Columns.Add("BaseColumnName", typeof(string));
+        data.Columns.Add("IsBaseDefinition", typeof(bool));
+        data.Columns.Add("DisableInheritance", typeof(bool));
+        data.Columns.Add("BusinessName", typeof(string));
+        data.Columns.Add("BusinessDescription", typeof(string));
+        data.Columns.Add("DeveloperNotes", typeof(string));
+        data.Columns.Add("SemanticDatabase", typeof(string));
+        data.Columns.Add("SemanticSchema", typeof(string));
+        data.Columns.Add("SemanticObject", typeof(string));
+        data.Columns.Add("SemanticColumn", typeof(string));
+
+        foreach (var model in models)
+        {
+            data.Rows.Add(
+                model.SchemaObjectColumnId,
+                model.SchemaObjectId,
+                model.OrdinalPosition,
+                model.SourceColumnName,
+                model.SourceColumnKind,
+                model.BaseDatabaseName,
+                model.BaseSchemaName,
+                model.BaseObjectName,
+                model.BaseColumnName,
+                model.IsBaseDefinition,
+                model.DisableInheritance,
+                model.BusinessName,
+                model.BusinessDescription,
+                model.DeveloperNotes,
+                model.SemanticDatabase,
+                model.SemanticSchema,
+                model.SemanticObject,
+                model.SemanticColumn);
+        }
+
+        return data;
     }
 
     private static SchemaObjectColumnDefinition ClearDirty(SchemaObjectColumnDefinition item)

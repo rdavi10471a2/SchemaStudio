@@ -170,17 +170,7 @@ public partial class ManageViewsNext
             return;
         }
 
-        var columnsToPersist = SavedColumns
-            .Where(column => column.IsDirty || column.SchemaObjectColumnId == 0)
-            .ToList();
-        var parsedColumnNames = CurrentParsedView?.Columns
-            .Select(column => column.ColumnName)
-            .Where(name => !string.IsNullOrWhiteSpace(name))
-            .Select(name => name!)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList() ?? new List<string>();
-
-        validationMessage = ValidateStringLengths(columnsToPersist, "Column");
+        validationMessage = ValidateStringLengths(SavedColumns, "Column");
         if (!string.IsNullOrWhiteSpace(validationMessage))
         {
             NotificationService.Notify(NotificationSeverity.Warning, "Save blocked", validationMessage, 5000);
@@ -206,20 +196,14 @@ public partial class ManageViewsNext
                 SelectedViewKey = BuildExistingSelectionKey(EditableObject.SchemaObjectId);
             }
 
-            if (EditableObject.SchemaObjectId > 0 && parsedColumnNames.Count > 0)
+            if (EditableObject.SchemaObjectId > 0 && SavedColumns.Count > 0)
             {
-                await SchemaObjectColumnRepository.DeleteMissingForObjectAsync(
-                    EditableObject.SchemaObjectId,
-                    parsedColumnNames);
+                foreach (var column in SavedColumns)
+                {
+                    column.SchemaObjectId = EditableObject.SchemaObjectId;
+                }
 
-                columnsToPersist = columnsToPersist
-                    .Where(column => parsedColumnNames.Contains(column.SourceColumnName, StringComparer.OrdinalIgnoreCase))
-                    .ToList();
-            }
-
-            if (EditableObject.SchemaObjectId > 0 && columnsToPersist.Count > 0)
-            {
-                await SchemaObjectColumnRepository.SaveAllAsync(columnsToPersist);
+                await SchemaObjectColumnRepository.SaveFullSnapshotAsync(SavedColumns);
             }
 
             NotificationService.Notify(NotificationSeverity.Success, "View saved", "View and column metadata were saved successfully.", 2500);

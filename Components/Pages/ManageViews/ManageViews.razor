@@ -433,27 +433,14 @@
                 SelectedViewKey = BuildExistingSelectionKey(EditableObject.SchemaObjectId);
             }
 
-            var parsedColumnNames = CurrentParsedView?.Columns
-                .Select(column => column.ColumnName)
-                .Where(name => !string.IsNullOrWhiteSpace(name))
-                .Select(name => name!)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList() ?? new List<string>();
-
-            if (EditableObject.SchemaObjectId > 0 && parsedColumnNames.Count > 0)
+            if (EditableObject.SchemaObjectId > 0 && SavedColumns.Count > 0)
             {
-                await SchemaObjectColumnRepository.DeleteMissingForObjectAsync(
-                    EditableObject.SchemaObjectId,
-                    parsedColumnNames);
+                foreach (var column in SavedColumns)
+                {
+                    column.SchemaObjectId = EditableObject.SchemaObjectId;
+                }
 
-                SavedColumns = SavedColumns
-                    .Where(column => parsedColumnNames.Contains(column.SourceColumnName, StringComparer.OrdinalIgnoreCase))
-                    .ToList();
-            }
-
-            if (EditableObject.SchemaObjectId > 0 && SavedColumns.Any(column => column.IsDirty))
-            {
-                await SchemaObjectColumnRepository.SaveAllAsync(SavedColumns);
+                await SchemaObjectColumnRepository.SaveFullSnapshotAsync(SavedColumns);
             }
 
             NotificationService.Notify(NotificationSeverity.Success, "View saved", "View and column metadata were saved successfully.", 2500);
