@@ -5,6 +5,7 @@ using Radzen;
 using Radzen.Blazor;
 using SchemaStudio.AIHelpers;
 using SchemaStudio.Data.Models;
+using SchemaStudioWebViewer.Components.Dialogs;
 using SchemaStudioWebViewer.Components.Pages.ManageViews;
 using SchemaStudioWebViewer.Utils;
 using SchemaStudioWebViewer.WEBSemanticModel.Model;
@@ -258,21 +259,21 @@ public partial class ManageViewsNext
             return true;
         }
 
-        var message =
-            "Parser-detected column changes remain:" +
-            $"{Environment.NewLine}{Environment.NewLine}" +
-            $"Changed: {unmergedChanged}" +
-            $"{Environment.NewLine}" +
-            $"Added: {unmergedAdded}" +
-            $"{Environment.NewLine}" +
-            $"Removed: {unmergedRemoved}" +
-            $"{Environment.NewLine}{Environment.NewLine}" +
-            "Save All will save editable metadata only. Use Review Merge when you want to apply column shape changes.";
-
-        var confirmed = await DialogService.Confirm(
-            message,
+        var confirmed = await DialogService.OpenAsync<UnmergedParserChangesDialog>(
             "Parser Changes Not Applied",
-            new ConfirmOptions { OkButtonText = "Save Metadata", CancelButtonText = "Cancel" });
+            new Dictionary<string, object>
+            {
+                ["Changed"] = unmergedChanged,
+                ["Added"] = unmergedAdded,
+                ["Removed"] = unmergedRemoved
+            },
+            new DialogOptions
+            {
+                Width = "430px",
+                Resizable = false,
+                Draggable = false,
+                CloseDialogOnOverlayClick = false
+            });
 
         return confirmed == true;
     }
