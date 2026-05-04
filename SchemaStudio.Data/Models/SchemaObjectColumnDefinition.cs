@@ -239,6 +239,8 @@ public sealed class SchemaObjectColumnDefinition
 public enum SchemaObjectColumnMergeState
 {
     None,
+    DetectedAdd,
+    DetectedRemove,
     PendingAdd,
     PendingUpdate,
     PendingRemove

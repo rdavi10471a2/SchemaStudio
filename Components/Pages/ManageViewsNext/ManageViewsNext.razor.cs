@@ -226,27 +226,15 @@ public partial class ManageViewsNext
     {
         var sourceColumns = CloneColumns(SavedColumns)
             .Where(column => column.MergeState != SchemaObjectColumnMergeState.PendingRemove)
+            .Where(column => column.MergeState != SchemaObjectColumnMergeState.DetectedAdd)
             .ToList();
 
-        if (CurrentParsedView == null)
+        foreach (var column in sourceColumns)
         {
-            return sourceColumns;
+            column.MergeState = SchemaObjectColumnMergeState.None;
         }
 
-        var parsedNames = CurrentParsedView.Columns
-            .Where(column => !string.IsNullOrWhiteSpace(column.ColumnName))
-            .Select(column => column.ColumnName!)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        if (parsedNames.Count == 0)
-        {
-            return sourceColumns;
-        }
-
-        return sourceColumns
-            .Where(column => !string.IsNullOrWhiteSpace(column.SourceColumnName))
-            .Where(column => parsedNames.Contains(column.SourceColumnName))
-            .ToList();
+        return sourceColumns;
     }
 
     private async Task DeleteViewAsync()

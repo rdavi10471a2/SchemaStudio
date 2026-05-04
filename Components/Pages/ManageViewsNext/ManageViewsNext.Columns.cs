@@ -17,7 +17,10 @@ public partial class ManageViewsNext
     {
         get
         {
-            var query = SavedColumns.OrderBy(column => column.OrdinalPosition).AsEnumerable();
+            var query = SavedColumns
+                .OrderBy(column => column.MergeState == SchemaObjectColumnMergeState.DetectedRemove ? int.MaxValue - 1 : column.OrdinalPosition)
+                .ThenBy(column => column.SourceColumnName, StringComparer.OrdinalIgnoreCase)
+                .AsEnumerable();
             if (!string.IsNullOrWhiteSpace(ColumnFilter))
             {
                 query = query.Where(ColumnMatchesFilter);
@@ -75,6 +78,24 @@ public partial class ManageViewsNext
         SelectedColumn != null && GetColumnKey(column) == GetColumnKey(SelectedColumn)
             ? "mvn-column-item selected"
             : "mvn-column-item";
+
+    private static string GetColumnStateChipText(SchemaObjectColumnDefinition column) =>
+        column.MergeState switch
+        {
+            SchemaObjectColumnMergeState.DetectedAdd or SchemaObjectColumnMergeState.PendingAdd => "Added",
+            SchemaObjectColumnMergeState.DetectedRemove or SchemaObjectColumnMergeState.PendingRemove => "Removed",
+            SchemaObjectColumnMergeState.PendingUpdate => "Edited",
+            _ => "Edited"
+        };
+
+    private static string GetColumnStateChipClass(SchemaObjectColumnDefinition column) =>
+        column.MergeState switch
+        {
+            SchemaObjectColumnMergeState.DetectedAdd or SchemaObjectColumnMergeState.PendingAdd => "mvn-state-chip added",
+            SchemaObjectColumnMergeState.DetectedRemove or SchemaObjectColumnMergeState.PendingRemove => "mvn-state-chip removed",
+            SchemaObjectColumnMergeState.PendingUpdate => "mvn-state-chip edited",
+            _ => "mvn-state-chip edited"
+        };
 
     private bool ColumnMatchesFilter(SchemaObjectColumnDefinition column)
     {
@@ -276,19 +297,14 @@ public partial class ManageViewsNext
             return "Added";
         }
 
-        if (existing?.MergeState == SchemaObjectColumnMergeState.PendingAdd)
+        if (existing?.MergeState is SchemaObjectColumnMergeState.DetectedAdd or SchemaObjectColumnMergeState.PendingAdd)
         {
             return "Added";
         }
 
-        if (existing?.MergeState == SchemaObjectColumnMergeState.PendingRemove)
+        if (existing?.MergeState is SchemaObjectColumnMergeState.DetectedRemove or SchemaObjectColumnMergeState.PendingRemove)
         {
             return "Removed";
-        }
-
-        if (existing?.MergeState == SchemaObjectColumnMergeState.PendingUpdate)
-        {
-            return "Changed";
         }
 
         if (parsed == null && existing != null)

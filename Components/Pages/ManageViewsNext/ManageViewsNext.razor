@@ -464,7 +464,11 @@
                                                 <span class="mvn-column-labels">
                                                     <strong>@column.SourceColumnName</strong>
                                                 </span>
-                                                @if (column.IsDirty)
+                                                @if (column.MergeState != SchemaObjectColumnMergeState.None)
+                                                {
+                                                    <span class="@GetColumnStateChipClass(column)">@GetColumnStateChipText(column)</span>
+                                                }
+                                                else if (column.IsDirty)
                                                 {
                                                     <span class="mvn-edited-chip">Edited</span>
                                                 }

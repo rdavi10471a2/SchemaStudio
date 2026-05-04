@@ -315,7 +315,8 @@
 }
 
 .mvn-status-chip,
-.mvn-edited-chip {
+.mvn-edited-chip,
+.mvn-state-chip {
     display: inline-flex;
     align-items: center;
     border-radius: 999px;
@@ -336,6 +337,24 @@
     background: #e8f6ee;
     border: 1px solid #b7dfc5;
     color: #23824a;
+}
+
+.mvn-state-chip.added {
+    background: #e8f6ee;
+    border: 1px solid #b7dfc5;
+    color: #23824a;
+}
+
+.mvn-state-chip.removed {
+    background: #fff0f1;
+    border: 1px solid #f3a8b0;
+    color: #b42335;
+}
+
+.mvn-state-chip.edited {
+    background: #fff6e7;
+    border: 1px solid #f2c879;
+    color: #8a5a00;
 }
 
 .mvn-editor-grid {

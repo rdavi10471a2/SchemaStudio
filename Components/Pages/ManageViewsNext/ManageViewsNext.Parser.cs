@@ -27,6 +27,7 @@ public partial class ManageViewsNext
 
         var parsedColumns = CurrentParsedView?.Columns.ToViewColumnDtos() ?? new List<ViewColumnDto>();
         ReviewRows = BuildColumnReviewRows(parsedColumns, existingColumns).ToList();
+        ApplyDetectedColumnStates(parsedColumns);
         await InvokeAsync(StateHasChanged);
     }
 
@@ -48,6 +49,7 @@ public partial class ManageViewsNext
 
             var parsedColumns = CurrentParsedView?.Columns.ToViewColumnDtos() ?? new List<ViewColumnDto>();
             ReviewRows = BuildColumnReviewRows(parsedColumns, SavedColumns).ToList();
+            ApplyDetectedColumnStates(parsedColumns);
             NotificationService.Notify(NotificationSeverity.Success, "View refreshed", "The selected view SQL and parser review state were refreshed.", 2500);
             await InvokeAsync(StateHasChanged);
         }
@@ -165,5 +167,78 @@ public partial class ManageViewsNext
         {
             NotifyFailure("Where-used lookup failed", ex);
         }
+    }
+
+    private void ApplyDetectedColumnStates(IReadOnlyList<ViewColumnDto> parsedColumns)
+    {
+        if (EditableObject == null)
+        {
+            return;
+        }
+
+        SavedColumns.RemoveAll(column => column.MergeState == SchemaObjectColumnMergeState.DetectedAdd);
+
+        foreach (var column in SavedColumns.Where(column => column.MergeState == SchemaObjectColumnMergeState.DetectedRemove))
+        {
+            column.MergeState = SchemaObjectColumnMergeState.None;
+        }
+
+        var savedByName = SavedColumns
+            .Where(column => !string.IsNullOrWhiteSpace(column.SourceColumnName))
+            .GroupBy(column => column.SourceColumnName, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+
+        var parsedByName = parsedColumns
+            .Where(column => !string.IsNullOrWhiteSpace(column.ColumnName))
+            .GroupBy(column => column.ColumnName!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+
+        foreach (var savedColumn in SavedColumns.Where(column => !string.IsNullOrWhiteSpace(column.SourceColumnName)))
+        {
+            if (!parsedByName.ContainsKey(savedColumn.SourceColumnName) &&
+                savedColumn.MergeState == SchemaObjectColumnMergeState.None)
+            {
+                savedColumn.MergeState = SchemaObjectColumnMergeState.DetectedRemove;
+            }
+        }
+
+        foreach (var parsedColumn in parsedByName.Values.OrderBy(column => column.OrdinalPosition))
+        {
+            if (savedByName.ContainsKey(parsedColumn.ColumnName!))
+            {
+                continue;
+            }
+
+            SavedColumns.Add(CreateDetectedColumn(parsedColumn));
+        }
+    }
+
+    private SchemaObjectColumnDefinition CreateDetectedColumn(ViewColumnDto parsed)
+    {
+        var column = new SchemaObjectColumnDefinition
+        {
+            SchemaObjectColumnId = 0,
+            SchemaObjectId = EditableObject?.SchemaObjectId ?? 0,
+            OrdinalPosition = parsed.OrdinalPosition,
+            SourceColumnName = parsed.ColumnName ?? string.Empty,
+            SourceColumnKind = NormalizeNullableText(parsed.ColumnKind),
+            BaseDatabaseName = NormalizeNullableText(parsed.BaseDatabase),
+            BaseSchemaName = NormalizeNullableText(parsed.BaseSchema),
+            BaseObjectName = NormalizeNullableText(parsed.BaseTable),
+            BaseColumnName = NormalizeNullableText(parsed.BaseColumn),
+            SemanticDatabase = NormalizeNullableText(parsed.SemanticDatabase),
+            SemanticSchema = NormalizeNullableText(parsed.SemanticSchema),
+            SemanticObject = NormalizeNullableText(parsed.SemanticObject),
+            SemanticColumn = NormalizeNullableText(parsed.SemanticColumn),
+            IsBaseDefinition = EditableObject?.IsBaseObject == true,
+            DisableInheritance = false,
+            BusinessName = NormalizeNullableText(parsed.BusinessName),
+            BusinessDescription = NormalizeNullableText(parsed.BusinessDescription),
+            DeveloperNotes = null,
+            MergeState = SchemaObjectColumnMergeState.DetectedAdd
+        };
+
+        column.ClearDirty();
+        return column;
     }
 }

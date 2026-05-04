@@ -933,12 +933,11 @@
                 return ReconciliationStatus.Unchanged;
             }
 
-            var sourceChanged = !SourceRowsMatch(parsed, saved);
             var nameChanged = !string.Equals(NormalizeNullableText(parsed.BusinessName), NormalizeNullableText(saved.BusinessName), StringComparison.Ordinal);
             var descriptionChanged = !string.Equals(NormalizeNullableText(parsed.BusinessDescription), NormalizeNullableText(saved.BusinessDescription), StringComparison.Ordinal);
             var inheritanceChanged = parsed.DisableInheritance != saved.DisableInheritance;
 
-            if (!sourceChanged && !nameChanged && !descriptionChanged && !inheritanceChanged)
+            if (!nameChanged && !descriptionChanged && !inheritanceChanged)
             {
                 return ReconciliationStatus.Unchanged;
             }
