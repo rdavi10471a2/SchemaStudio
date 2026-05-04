@@ -176,6 +176,11 @@ public partial class ManageViewsNext
             return;
         }
 
+        if (!await ConfirmSaveWithUnmergedParserChangesAsync())
+        {
+            return;
+        }
+
         var columnsToSave = BuildColumnSaveSnapshot();
 
         validationMessage = ValidateStringLengths(columnsToSave, "Column");
@@ -254,14 +259,14 @@ public partial class ManageViewsNext
         }
 
         var message =
-            $"Unmerged parser changes remain: {unmergedChanged} changed, {unmergedAdded} added, {unmergedRemoved} removed column(s)." +
+            $"This view has parser-detected column changes: {unmergedChanged} changed, {unmergedAdded} added, {unmergedRemoved} removed." +
             $"{Environment.NewLine}{Environment.NewLine}" +
-            "Save All will save the current view and staged metadata only. It will not add, remove, or reconcile these parser changes until Review Merge is applied.";
+            "Save All will save editable metadata only. Use Review Merge when you want to apply column shape changes.";
 
         var confirmed = await DialogService.Confirm(
             message,
-            "Unmerged Parser Changes",
-            new ConfirmOptions { OkButtonText = "Save Anyway", CancelButtonText = "Review Merge" });
+            "Parser Changes Not Applied",
+            new ConfirmOptions { OkButtonText = "Save Metadata", CancelButtonText = "Cancel" });
 
         return confirmed == true;
     }
