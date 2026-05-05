@@ -974,7 +974,6 @@
 
         AddMetadataPart(parts, "BusinessName", column.BusinessName);
         AddMetadataPart(parts, "BusinessDescription", column.BusinessDescription);
-        AddMetadataPart(parts, "DeveloperNotes", column.DeveloperNotes);
 
         if (column.DisableInheritance)
         {
@@ -991,7 +990,7 @@
 
     private static string BuildMultilineMetadataComment(IReadOnlyList<string> parts, string projection)
     {
-        var continuationIndent = new string(' ', projection.Length + 4);
+        var continuationIndent = new string(' ', projection.Length + 7);
         var builder = new StringBuilder();
         builder.Append($" /* {parts[0]}");
 
