@@ -11,7 +11,7 @@
 @inject ViewParsingService ParserService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.10")]
+@attribute [FileVersion("1.11")]
 @attribute [AIChange(
     "1.6",
     "2026-04-30 07:21 PM CDT kept Business Name, Business Description, and Developer Notes visible as multiline detail fields even when values are blank.",    AICommandStatus.Pending)]
@@ -198,6 +198,9 @@
                                           Size="ButtonSize.Small"
                                           ButtonStyle="ButtonStyle.Primary"
                                           Click="@CopyAnnotatedSqlAsync" />
+                        </div>
+                        <div class="annotated-sql-warning">
+                            This reconstructs the SELECT projection from parser output and saved metadata. Extra comments and formatting from the original view are not preserved.
                         </div>
                         <div class="sql-code-container resolved-chain-sql">
                             <pre class="language-sql"><code class="language-sql">@AnnotatedSql</code></pre>
@@ -632,6 +635,16 @@
         font-size: 0.875rem;
     }
 
+    .annotated-sql-warning {
+        flex: 0 0 auto;
+        padding: 0.55rem 0.75rem;
+        border-bottom: 1px solid #f4c790;
+        background: #fff8eb;
+        color: #8a4b0f;
+        font-size: 0.9rem;
+        line-height: 1.35;
+    }
+
     .annotated-sql-empty {
         margin: 0.75rem;
         padding: 1rem;
@@ -828,6 +841,7 @@
 
         builder.AppendLine("-- Generated annotated SELECT projection.");
         builder.AppendLine("-- Parser shape owns the projection; saved base-view metadata owns emitted comments.");
+        builder.AppendLine("-- This is a reconstruction, not a merge. Original extra comments and formatting are not preserved.");
         builder.AppendLine("-- Review before copying into a view definition.");
         builder.AppendLine();
         builder.AppendLine("SELECT");
