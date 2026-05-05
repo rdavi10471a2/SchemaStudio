@@ -474,7 +474,13 @@
                                     <div class="mvn-column-detail-header">
                                         <div>
                                             <span class="mvn-detail-label">Selected Column</span>
-                                            <h3>@(SelectedColumn?.SourceColumnName ?? "No column selected")</h3>
+                                            <div class="mvn-selected-column-title">
+                                                <h3>@(SelectedColumn?.SourceColumnName ?? "No column selected")</h3>
+                                                @if (SelectedColumnMetadataIsInherited)
+                                                {
+                                                    <span class="mvn-origin-chip inherited">Inherited</span>
+                                                }
+                                            </div>
                                         </div>
                                         <RadzenButton Text="Reset Column Changes"
                                                       Icon="restart_alt"
@@ -491,6 +497,14 @@
                                     else
                                     {
                                         <div class="mvn-column-fields">
+                                            @if (!string.IsNullOrWhiteSpace(SelectedColumnInheritedFrom))
+                                            {
+                                                <div class="mvn-inherited-source">
+                                                    <span>Inherited from</span>
+                                                    <strong>@SelectedColumnInheritedFrom</strong>
+                                                </div>
+                                            }
+
                                             <label class="mvn-check-field mvn-inheritance-check">
                                                 @ColumnFieldLabel(nameof(SchemaObjectColumnDefinition.DisableInheritance))
                                                 <RadzenCheckBox @bind-Value="@SelectedColumn.DisableInheritance"

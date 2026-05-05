@@ -35,6 +35,20 @@ public partial class ManageViewsNext
             ? null
             : SavedColumns.FirstOrDefault(column => GetColumnKey(column) == SelectedColumnId.Value);
 
+    private bool SelectedColumnMetadataIsInherited =>
+        SelectedColumn != null &&
+        EditableObject?.IsBaseObject != true &&
+        !SelectedColumn.DisableInheritance;
+
+    private string? SelectedColumnInheritedFrom =>
+        SelectedColumnMetadataIsInherited
+            ? FormatQualifiedName(
+                SelectedColumn?.SemanticDatabase,
+                SelectedColumn?.SemanticSchema,
+                SelectedColumn?.SemanticObject,
+                SelectedColumn?.SemanticColumn)
+            : null;
+
     private void EnsureSelectedColumn()
     {
         if (SelectedColumn != null && FilteredColumns.Any(column => GetColumnKey(column) == SelectedColumnId))

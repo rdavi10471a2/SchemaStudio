@@ -357,6 +357,24 @@
     color: #8a5a00;
 }
 
+.mvn-origin-chip {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    padding: 0.2rem 0.5rem;
+    text-transform: uppercase;
+}
+
+.mvn-origin-chip.inherited {
+    background: #eef2f7;
+    border: 1px solid #cfd8e3;
+    color: #344054;
+}
+
 .mvn-editor-grid {
     display: grid;
     grid-template-columns: minmax(320px, 0.75fr) minmax(560px, 1.45fr);
@@ -594,6 +612,32 @@
     padding-right: 0.25rem;
 }
 
+.mvn-inherited-source {
+    display: grid;
+    gap: 0.25rem;
+    min-width: 0;
+    border: 1px solid #e5eaf2;
+    border-radius: 6px;
+    background: #f8fafc;
+    padding: 0.55rem 0.65rem;
+}
+
+.mvn-inherited-source span {
+    color: #667085;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.mvn-inherited-source strong {
+    color: #233142;
+    font-size: 0.86rem;
+    font-weight: 700;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
 .mvn-column-item {
     width: 100%;
     border: 0;
@@ -655,6 +699,14 @@
 .mvn-column-detail-header h3 {
     margin: 0.15rem 0 0 0;
     font-size: 1.25rem;
+}
+
+.mvn-selected-column-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+    flex-wrap: wrap;
 }
 
 .mvn-column-empty {
