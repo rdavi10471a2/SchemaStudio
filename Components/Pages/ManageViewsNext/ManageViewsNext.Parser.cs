@@ -117,7 +117,9 @@ public partial class ManageViewsNext
             new Dictionary<string, object?>
             {
                 { "ParsedView", CurrentParsedView },
-                { "SqlContent", CurrentParsedView.SourceQuery ?? string.Empty }
+                { "SqlContent", CurrentParsedView.SourceQuery ?? string.Empty },
+                { "SavedColumns", SavedColumns.ToList() },
+                { "IsBaseObject", EditableObject.IsBaseObject }
             },
             new DialogOptions
             {

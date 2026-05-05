@@ -1,8 +1,11 @@
 @using Radzen
+@using SchemaStudio.Data.Models
 @using SchemaStudio.AIHelpers
 @using SchemaStudioWebViewer.Components.HelpSystem
 @using SchemaStudioWebViewer.WEBSemanticModel.Model
 @using SchemaStudioWebViewer.WEBSemanticModel.Services
+@using System.Text
+@using System.Text.RegularExpressions
 @inject DialogService DialogService
 @inject IJSRuntime JSRuntime
 @inject ViewParsingService ParserService
@@ -172,6 +175,36 @@
                     </div>
                 </RadzenTabsItem>
             }
+            <RadzenTabsItem Text="Generate Annotated SQL">
+                <div class="resolved-chain-sql-pane">
+                    @if (!IsBaseObject)
+                    {
+                        <div class="annotated-sql-empty">
+                            Annotated SQL generation is available for base views only. Composed views inherit metadata from base definitions and should not own parser comments.
+                        </div>
+                    }
+                    else if (string.IsNullOrWhiteSpace(AnnotatedSql))
+                    {
+                        <div class="annotated-sql-empty">
+                            No parsed projection was available to generate annotated SQL.
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="annotated-sql-toolbar">
+                            <span>@AnnotatedSqlSummary</span>
+                            <RadzenButton Text="Copy SQL"
+                                          Icon="content_copy"
+                                          Size="ButtonSize.Small"
+                                          ButtonStyle="ButtonStyle.Primary"
+                                          Click="@CopyAnnotatedSqlAsync" />
+                        </div>
+                        <div class="sql-code-container resolved-chain-sql">
+                            <pre class="language-sql"><code class="language-sql">@AnnotatedSql</code></pre>
+                        </div>
+                    }
+                </div>
+            </RadzenTabsItem>
         </Tabs>
     </RadzenTabs>
 
@@ -586,18 +619,43 @@
         gap: 0.75rem;
         padding: 0.5rem 0.75rem 0.75rem;
     }
+
+    .annotated-sql-toolbar {
+        flex: 0 0 auto;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.75rem;
+        border-bottom: 1px solid #dee2e6;
+        color: #475467;
+        font-size: 0.875rem;
+    }
+
+    .annotated-sql-empty {
+        margin: 0.75rem;
+        padding: 1rem;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        background: #f8fafc;
+        color: #475467;
+    }
 </style>
 
 @code {
     [Parameter] public ParsedQuery? ParsedView { get; set; }
     [Parameter] public string SqlContent { get; set; } = string.Empty;
     [Parameter] public string SelectedViewName { get; set; } = string.Empty;
+    [Parameter] public IReadOnlyList<SchemaObjectColumnDefinition> SavedColumns { get; set; } = Array.Empty<SchemaObjectColumnDefinition>();
+    [Parameter] public bool IsBaseObject { get; set; }
 
     private List<ExplorerTreeNode> ColumnNodes { get; set; } = new();
     private List<ExplorerTreeNode> SourceNodes { get; set; } = new();
     private List<SqlViewTab> SqlTabs { get; set; } = new();
     private ExplorerTreeNode? SelectedNode { get; set; }
     private int SelectedTabIndex { get; set; }
+    private string AnnotatedSql { get; set; } = string.Empty;
+    private string AnnotatedSqlSummary { get; set; } = string.Empty;
 
     private string SelectedTitle => SelectedNode?.Kind switch
     {
@@ -613,6 +671,7 @@
     {
         ColumnNodes = BuildColumnNodes(ParsedView?.Columns ?? new List<ViewSourcedColumnDefinition>());
         SourceNodes = BuildSourceNodes(ParsedView, SelectedViewName);
+        BuildAnnotatedSql();
         EnsureInitialSqlTab();
         SelectedNode ??= ColumnNodes.FirstOrDefault();
     }
@@ -736,6 +795,208 @@
             SelectedTabIndex--;
         }
     }
+
+    private async Task CopyAnnotatedSqlAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(AnnotatedSql))
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", AnnotatedSql);
+        }
+    }
+
+    private void BuildAnnotatedSql()
+    {
+        AnnotatedSql = string.Empty;
+        AnnotatedSqlSummary = string.Empty;
+
+        if (!IsBaseObject || ParsedView?.SelectItems.Count == 0)
+        {
+            return;
+        }
+
+        var savedByName = SavedColumns
+            .Where(column => !string.IsNullOrWhiteSpace(column.SourceColumnName))
+            .GroupBy(column => column.SourceColumnName, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+
+        var builder = new StringBuilder();
+        var matchedSavedColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var annotatedCount = 0;
+        var parsedWithoutMetadataCount = 0;
+        var activeLines = new List<string>();
+
+        builder.AppendLine("-- Generated annotated SELECT projection.");
+        builder.AppendLine("-- Parser shape owns the projection; saved base-view metadata owns emitted comments.");
+        builder.AppendLine("-- Review before copying into a view definition.");
+        builder.AppendLine();
+        builder.AppendLine("SELECT");
+
+        foreach (var selectItem in ParsedView.SelectItems)
+        {
+            var projection = BuildProjectionText(selectItem);
+            if (string.IsNullOrWhiteSpace(projection))
+            {
+                continue;
+            }
+
+            var annotation = string.Empty;
+            if (!string.IsNullOrWhiteSpace(selectItem.Alias) &&
+                savedByName.TryGetValue(selectItem.Alias, out var savedColumn))
+            {
+                annotation = BuildMetadataComment(savedColumn);
+                matchedSavedColumns.Add(savedColumn.SourceColumnName);
+                if (!string.IsNullOrWhiteSpace(annotation))
+                {
+                    annotatedCount++;
+                }
+            }
+            else
+            {
+                parsedWithoutMetadataCount++;
+            }
+
+            activeLines.Add($"    {projection}{annotation}");
+        }
+
+        for (var index = 0; index < activeLines.Count; index++)
+        {
+            builder.Append(activeLines[index]);
+            if (index < activeLines.Count - 1)
+            {
+                builder.Append(',');
+            }
+
+            builder.AppendLine();
+        }
+
+        var savedOnlyColumns = SavedColumns
+            .Where(column => !string.IsNullOrWhiteSpace(column.SourceColumnName))
+            .Where(column => !matchedSavedColumns.Contains(column.SourceColumnName))
+            .OrderBy(column => column.OrdinalPosition)
+            .ThenBy(column => column.SourceColumnName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (savedOnlyColumns.Count > 0)
+        {
+            builder.AppendLine();
+            builder.AppendLine("-- ============================================================");
+            builder.AppendLine("-- SAVED COLUMNS NOT FOUND IN CURRENT PARSED SHAPE");
+            builder.AppendLine("-- This is a merge/view-shape issue. These saved columns were");
+            builder.AppendLine("-- not emitted into the active SELECT projection.");
+            builder.AppendLine("-- Resolve with Review Merge or update the SQL view text.");
+            builder.AppendLine("-- ============================================================");
+
+            foreach (var savedOnly in savedOnlyColumns)
+            {
+                var annotation = BuildMetadataComment(savedOnly);
+                builder.AppendLine($"-- {FormatDelimitedIdentifier(savedOnly.SourceColumnName)}{annotation}");
+            }
+        }
+
+        AnnotatedSql = builder.ToString().TrimEnd();
+        var generatedText = annotatedCount == 1
+            ? "Generated 1 metadata comment"
+            : $"Generated {annotatedCount} metadata comments";
+
+        AnnotatedSqlSummary = $"{generatedText} from saved base-view metadata. {parsedWithoutMetadataCount} parsed columns had no saved metadata. {savedOnlyColumns.Count} saved columns were not found in the current parsed shape.";
+    }
+
+    private static string BuildProjectionText(SelectItem selectItem)
+    {
+        var expression = !string.IsNullOrWhiteSpace(selectItem.ExpressionText)
+            ? selectItem.ExpressionText
+            : selectItem.Expression;
+
+        expression = NormalizeProjectionExpression(expression);
+        if (string.IsNullOrWhiteSpace(expression))
+        {
+            return string.Empty;
+        }
+
+        if (string.IsNullOrWhiteSpace(selectItem.Alias) || ProjectionAlreadyNamesAlias(expression, selectItem.Alias, selectItem.Kind))
+        {
+            return expression;
+        }
+
+        return $"{expression} AS {FormatDelimitedIdentifier(selectItem.Alias)}";
+    }
+
+    private static string NormalizeProjectionExpression(string? expression) =>
+        string.IsNullOrWhiteSpace(expression)
+            ? string.Empty
+            : Regex.Replace(expression, @"\s+", " ").Trim();
+
+    private static bool ProjectionAlreadyNamesAlias(string expression, string alias, ColumnKind kind)
+    {
+        if (kind != ColumnKind.Simple)
+        {
+            return false;
+        }
+
+        var tail = expression.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).LastOrDefault();
+        tail = UnquoteIdentifier(tail);
+        return string.Equals(tail, alias, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string FormatDelimitedIdentifier(string identifier) =>
+        NeedsDelimitedIdentifier(identifier)
+            ? $"[{identifier.Replace("]", "]]", StringComparison.Ordinal)}]"
+            : identifier;
+
+    private static bool NeedsDelimitedIdentifier(string identifier) =>
+        string.IsNullOrWhiteSpace(identifier)
+        || !Regex.IsMatch(identifier, @"^[A-Za-z_][A-Za-z0-9_]*$");
+
+    private static string? UnquoteIdentifier(string? identifier)
+    {
+        if (string.IsNullOrWhiteSpace(identifier))
+        {
+            return identifier;
+        }
+
+        identifier = identifier.Trim();
+        if (identifier.Length >= 2 &&
+            ((identifier[0] == '[' && identifier[^1] == ']') ||
+             (identifier[0] == '"' && identifier[^1] == '"') ||
+             (identifier[0] == '\'' && identifier[^1] == '\'')))
+        {
+            return identifier[1..^1].Replace("]]", "]", StringComparison.Ordinal);
+        }
+
+        return identifier;
+    }
+
+    private static string BuildMetadataComment(SchemaObjectColumnDefinition column)
+    {
+        var parts = new List<string>();
+
+        AddMetadataPart(parts, "BusinessName", column.BusinessName);
+        AddMetadataPart(parts, "BusinessDescription", column.BusinessDescription);
+        AddMetadataPart(parts, "DeveloperNotes", column.DeveloperNotes);
+
+        if (column.DisableInheritance)
+        {
+            parts.Add("@DisableInheritance: True");
+        }
+
+        return parts.Count == 0
+            ? string.Empty
+            : $" /* {string.Join(" ", parts)} */";
+    }
+
+    private static void AddMetadataPart(List<string> parts, string tag, string? value)
+    {
+        var cleaned = NormalizeMetadataValue(value);
+        if (!string.IsNullOrWhiteSpace(cleaned))
+        {
+            parts.Add($"@{tag}: {cleaned}");
+        }
+    }
+
+    private static string NormalizeMetadataValue(string? value) =>
+        string.IsNullOrWhiteSpace(value)
+            ? string.Empty
+            : Regex.Replace(value.Replace("*/", "* /", StringComparison.Ordinal), @"\s+", " ").Trim();
 
     private async Task OpenHelpAsync()
     {
