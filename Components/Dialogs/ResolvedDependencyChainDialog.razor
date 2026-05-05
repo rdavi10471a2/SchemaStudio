@@ -810,7 +810,7 @@
         AnnotatedSqlSummary = string.Empty;
 
         var parsedView = ParsedView;
-        if (!IsBaseObject || parsedView?.SelectItems.Count == 0)
+        if (!IsBaseObject || parsedView == null || parsedView.SelectItems.Count == 0)
         {
             return;
         }
