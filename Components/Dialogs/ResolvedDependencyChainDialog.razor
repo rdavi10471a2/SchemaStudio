@@ -809,7 +809,8 @@
         AnnotatedSql = string.Empty;
         AnnotatedSqlSummary = string.Empty;
 
-        if (!IsBaseObject || ParsedView?.SelectItems.Count == 0)
+        var parsedView = ParsedView;
+        if (!IsBaseObject || parsedView?.SelectItems.Count == 0)
         {
             return;
         }
@@ -831,7 +832,7 @@
         builder.AppendLine();
         builder.AppendLine("SELECT");
 
-        foreach (var selectItem in ParsedView.SelectItems)
+        foreach (var selectItem in parsedView.SelectItems)
         {
             var projection = BuildProjectionText(selectItem);
             if (string.IsNullOrWhiteSpace(projection))
