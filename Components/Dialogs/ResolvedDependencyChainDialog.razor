@@ -990,19 +990,20 @@
 
     private static string BuildMultilineMetadataComment(IReadOnlyList<string> parts, string projection)
     {
-        var continuationIndent = new string(' ', projection.Length + 7);
+        var tagIndent = new string(' ', projection.Length + 8);
+        var closeIndent = new string(' ', projection.Length + 4);
         var builder = new StringBuilder();
         builder.Append($" /* {parts[0]}");
 
         for (var index = 1; index < parts.Count; index++)
         {
             builder.AppendLine();
-            builder.Append(continuationIndent);
+            builder.Append(tagIndent);
             builder.Append(parts[index]);
         }
 
         builder.AppendLine();
-        builder.Append(continuationIndent);
+        builder.Append(closeIndent);
         builder.Append("*/");
         return builder.ToString();
     }
