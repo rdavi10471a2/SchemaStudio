@@ -991,7 +991,7 @@
 
     private static string BuildMultilineMetadataComment(IReadOnlyList<string> parts, string projection)
     {
-        var continuationIndent = new string(' ', projection.Length + 2);
+        var continuationIndent = new string(' ', projection.Length + 4);
         var builder = new StringBuilder();
         builder.Append($" /* {parts[0]}");
 
@@ -1002,7 +1002,9 @@
             builder.Append(parts[index]);
         }
 
-        builder.Append(" */");
+        builder.AppendLine();
+        builder.Append(continuationIndent);
+        builder.Append("*/");
         return builder.ToString();
     }
 
