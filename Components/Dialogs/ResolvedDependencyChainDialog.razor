@@ -844,7 +844,7 @@
             if (!string.IsNullOrWhiteSpace(selectItem.Alias) &&
                 savedByName.TryGetValue(selectItem.Alias, out var savedColumn))
             {
-                annotation = BuildMetadataComment(savedColumn);
+                annotation = BuildMetadataComment(savedColumn, projection);
                 matchedSavedColumns.Add(savedColumn.SourceColumnName);
                 if (!string.IsNullOrWhiteSpace(annotation))
                 {
@@ -889,8 +889,9 @@
 
             foreach (var savedOnly in savedOnlyColumns)
             {
-                var annotation = BuildMetadataComment(savedOnly);
-                builder.AppendLine($"-- {FormatDelimitedIdentifier(savedOnly.SourceColumnName)}{annotation}");
+                var projection = FormatDelimitedIdentifier(savedOnly.SourceColumnName);
+                var annotation = BuildMetadataComment(savedOnly, projection);
+                builder.AppendLine($"-- {projection}{annotation.Replace(Environment.NewLine, $"{Environment.NewLine}-- ", StringComparison.Ordinal)}");
             }
         }
 
@@ -967,7 +968,7 @@
         return identifier;
     }
 
-    private static string BuildMetadataComment(SchemaObjectColumnDefinition column)
+    private static string BuildMetadataComment(SchemaObjectColumnDefinition column, string projection)
     {
         var parts = new List<string>();
 
@@ -980,9 +981,29 @@
             parts.Add("@DisableInheritance: True");
         }
 
-        return parts.Count == 0
-            ? string.Empty
-            : $" /* {string.Join(" ", parts)} */";
+        return parts.Count switch
+        {
+            0 => string.Empty,
+            1 => $" /* {parts[0]} */",
+            _ => BuildMultilineMetadataComment(parts, projection)
+        };
+    }
+
+    private static string BuildMultilineMetadataComment(IReadOnlyList<string> parts, string projection)
+    {
+        var continuationIndent = new string(' ', projection.Length + 2);
+        var builder = new StringBuilder();
+        builder.Append($" /* {parts[0]}");
+
+        for (var index = 1; index < parts.Count; index++)
+        {
+            builder.AppendLine();
+            builder.Append(continuationIndent);
+            builder.Append(parts[index]);
+        }
+
+        builder.Append(" */");
+        return builder.ToString();
     }
 
     private static void AddMetadataPart(List<string> parts, string tag, string? value)
