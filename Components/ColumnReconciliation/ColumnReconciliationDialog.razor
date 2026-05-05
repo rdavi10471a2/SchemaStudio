@@ -6,6 +6,7 @@
 @using SchemaStudioWebViewer.WEBSemanticModel.Model
 
 @inject DialogService DialogService
+@inject TooltipService TooltipService
 
 @attribute [FileVersion("1.11")]
 @attribute [AIFileContext("Components/ColumnReconciliation/ColumnReconciliationDialog.razor", "Focused Manage Views column reconciliation dialog that combines decision-first column reconciliation with optional View Details-style selector navigation.", Responsibilities = "Owns filtered candidate navigation, source mapping comparison, parser-owned structure refresh staging, business-value choice staging, explicit DisableInheritance result staging, saved-value origin labeling, and selected-column reconciliation detail for Manage Views Next.", Nuances = "Selector navigation is hidden by default so the dialog opens as a decision surface; Show Selector remains available for broader review. Changed and conflict-style differences are intentionally collapsed into Needs Review because inherited meaning, blank local declarations, and parser drift do not have a clean user-facing semantic split. Source mapping is informational and parser-owned; Apply Merge refreshes parser structure for existing parsed columns. BusinessName and BusinessDescription follow the selected business-value choice. DisableInheritance is staged explicitly from the merge result dropdown. Saved business values are labeled as declared, inherited, or local override from IsBaseView, IsBaseDefinition, and DisableInheritance without adding database fields. DeveloperNotes are outside this reconciliation surface.", RelatedFiles = "Components/Pages/ManageViewsNext/ManageViewsNext.razor; Components/Pages/ManageViewsNext/ManageViewsNext.Columns.cs; WEBSemanticModel/Model/ViewSourcedColumnDefinition.cs; wwwroot/Data/help.json", LastReviewed = "2026-05-03")]
@@ -52,6 +53,7 @@
                     title="Column reconciliation help"
                     aria-label="Column reconciliation help"
                     class="cr-help-icon"
+                    MouseEnter='@(args => TooltipService.Open(args, "Open the detailed help page for column reconciliation concepts and workflow."))'
                     @onclick="@OpenHelpAsync" />
     </section>
 
@@ -612,6 +614,7 @@
         builder.AddAttribute(1, "Icon", "help_outline");
         builder.AddAttribute(2, "title", helpText);
         builder.AddAttribute(3, "class", "cr-help-icon");
+        builder.AddAttribute(4, "MouseEnter", EventCallback.Factory.Create<ElementReference>(this, args => TooltipService.Open(args, helpText)));
         builder.CloseComponent();
     };
 
