@@ -35,6 +35,8 @@
                 <button type="button"
                         @key="count.Status"
                         class="@GetCountChipClass(count.Status)"
+                        title="@count.HelpText"
+                        aria-label="@count.HelpText"
                         @onclick="@(() => SetStatusFilter(count.Status))">
                     <span>@count.Label</span>
                     <strong>@count.Count</strong>
@@ -468,16 +470,16 @@
 
     private List<CountChip> BuildCountChips() =>
     [
-        new CountChip(NeedsReviewStatus, "Needs Review", Candidates.Count(x => x.Status == ReconciliationStatus.NeedsReview)),
-        new CountChip(AddedStatus, "Added", Candidates.Count(x => x.Status == ReconciliationStatus.Added)),
-        new CountChip(RemovedStatus, "Removed", Candidates.Count(x => x.Status == ReconciliationStatus.Removed)),
-        new CountChip(UnchangedStatus, "Unchanged", Candidates.Count(x => x.Status == ReconciliationStatus.Unchanged)),
-        new CountChip(ParsedMetadataStatus, "Parsed Metadata", Candidates.Count(x => x.HasParsedMetadata)),
-        new CountChip(InheritedStatus, "Inherited", Candidates.Count(x => x.SavedBusinessValuesAreInherited)),
-        new CountChip(DeclaredStatus, "Declared", Candidates.Count(x => x.SavedBusinessValuesAreDeclared)),
-        new CountChip(LocalOverrideStatus, "Local Override", Candidates.Count(x => x.SavedBusinessValuesAreLocalOverride)),
-        new CountChip(HasValuesStatus, "Has Values", Candidates.Count(x => x.SavedBusinessValuesHaveValues)),
-        new CountChip(BlankStatus, "Blank", Candidates.Count(x => x.SavedBusinessValuesAreBlank))
+        new CountChip(NeedsReviewStatus, "Needs Review", Candidates.Count(x => x.Status == ReconciliationStatus.NeedsReview), "Columns where the parser snapshot and saved repository shape need review before applying parser changes."),
+        new CountChip(AddedStatus, "Added", Candidates.Count(x => x.Status == ReconciliationStatus.Added), "Columns present in the current parser snapshot but not yet saved in the repository."),
+        new CountChip(RemovedStatus, "Removed", Candidates.Count(x => x.Status == ReconciliationStatus.Removed), "Columns saved in the repository that are no longer present in the current parser snapshot."),
+        new CountChip(UnchangedStatus, "Unchanged", Candidates.Count(x => x.Status == ReconciliationStatus.Unchanged), "Columns whose parser-owned shape/source mapping does not need reconciliation. Inherited business values may still differ from parser annotations by design."),
+        new CountChip(ParsedMetadataStatus, "Parsed Metadata", Candidates.Count(x => x.HasParsedMetadata), "Columns where the current SQL parse found business metadata annotations."),
+        new CountChip(InheritedStatus, "Inherited", Candidates.Count(x => x.SavedBusinessValuesAreInherited), "Columns whose saved business values are inherited from an upstream semantic source and are not locally owned here."),
+        new CountChip(DeclaredStatus, "Declared", Candidates.Count(x => x.SavedBusinessValuesAreDeclared), "Columns whose saved business values are declared on this base definition."),
+        new CountChip(LocalOverrideStatus, "Local Override", Candidates.Count(x => x.SavedBusinessValuesAreLocalOverride), "Columns where inheritance is disabled so this definition keeps a local business meaning."),
+        new CountChip(HasValuesStatus, "Has Values", Candidates.Count(x => x.SavedBusinessValuesHaveValues), "Columns with at least one saved business name or business description value."),
+        new CountChip(BlankStatus, "Blank", Candidates.Count(x => x.SavedBusinessValuesAreBlank), "Columns with no saved business name or business description value.")
     ];
 
     private void EnsureValidSelection()
@@ -747,7 +749,7 @@
         AcceptParsed
     }
 
-    private sealed record CountChip(string Status, string Label, int Count);
+    private sealed record CountChip(string Status, string Label, int Count, string HelpText);
 
     private sealed record ComparisonRow(string Label, string? CurrentValue, string? PriorValue);
 
