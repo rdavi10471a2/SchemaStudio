@@ -11,7 +11,7 @@
 @inject ViewParsingService ParserService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.9")]
+@attribute [FileVersion("1.10")]
 @attribute [AIChange(
     "1.6",
     "2026-04-30 07:21 PM CDT kept Business Name, Business Description, and Developer Notes visible as multiline detail fields even when values are blank.",    AICommandStatus.Pending)]
@@ -857,18 +857,15 @@
                 parsedWithoutMetadataCount++;
             }
 
-            activeLines.Add($"    {projection}{annotation}");
+            var linePrefix = activeLines.Count == 0
+                ? "    "
+                : "  , ";
+            activeLines.Add($"{linePrefix}{projection}{annotation}");
         }
 
         for (var index = 0; index < activeLines.Count; index++)
         {
-            builder.Append(activeLines[index]);
-            if (index < activeLines.Count - 1)
-            {
-                builder.Append(',');
-            }
-
-            builder.AppendLine();
+            builder.AppendLine(activeLines[index]);
         }
 
         var savedOnlyColumns = SavedColumns
