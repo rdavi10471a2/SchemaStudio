@@ -11,7 +11,7 @@
 @inject ViewParsingService ParserService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.8")]
+@attribute [FileVersion("1.9")]
 @attribute [AIChange(
     "1.6",
     "2026-04-30 07:21 PM CDT kept Business Name, Business Description, and Developer Notes visible as multiline detail fields even when values are blank.",    AICommandStatus.Pending)]
@@ -841,10 +841,11 @@
             }
 
             var annotation = string.Empty;
-            if (!string.IsNullOrWhiteSpace(selectItem.Alias) &&
-                savedByName.TryGetValue(selectItem.Alias, out var savedColumn))
+            var outputName = GetSelectItemOutputName(selectItem);
+            if (!string.IsNullOrWhiteSpace(outputName) &&
+                savedByName.TryGetValue(outputName, out var savedColumn))
             {
-                annotation = BuildMetadataComment(savedColumn, projection);
+                annotation = BuildMetadataComment(savedColumn, projection, selectItem.DisableInheritance);
                 matchedSavedColumns.Add(savedColumn.SourceColumnName);
                 if (!string.IsNullOrWhiteSpace(annotation))
                 {
@@ -923,6 +924,29 @@
         return $"{expression} AS {FormatDelimitedIdentifier(selectItem.Alias)}";
     }
 
+    private static string GetSelectItemOutputName(SelectItem selectItem)
+    {
+        if (!string.IsNullOrWhiteSpace(selectItem.Alias))
+        {
+            return selectItem.Alias;
+        }
+
+        if (selectItem.Kind != ColumnKind.Simple)
+        {
+            return string.Empty;
+        }
+
+        var expression = !string.IsNullOrWhiteSpace(selectItem.ExpressionText)
+            ? selectItem.ExpressionText
+            : selectItem.Expression;
+
+        var tail = NormalizeProjectionExpression(expression)
+            .Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .LastOrDefault();
+
+        return UnquoteIdentifier(tail) ?? string.Empty;
+    }
+
     private static string NormalizeProjectionExpression(string? expression) =>
         string.IsNullOrWhiteSpace(expression)
             ? string.Empty
@@ -968,14 +992,14 @@
         return identifier;
     }
 
-    private static string BuildMetadataComment(SchemaObjectColumnDefinition column, string projection)
+    private static string BuildMetadataComment(SchemaObjectColumnDefinition column, string projection, bool parsedDisableInheritance = false)
     {
         var parts = new List<string>();
 
         AddMetadataPart(parts, "BusinessName", column.BusinessName);
         AddMetadataPart(parts, "BusinessDescription", column.BusinessDescription);
 
-        if (column.DisableInheritance)
+        if (column.DisableInheritance || parsedDisableInheritance)
         {
             parts.Add("@DisableInheritance: True");
         }
