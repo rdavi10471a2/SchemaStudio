@@ -46,31 +46,6 @@ n/* 2026-05-01 09:48 AM CDT AI manage-views-next marker: disabled and enabled me
     overflow: hidden;
 }
 
-.manage-views-next {
-    outline: 3px solid rgba(220, 38, 38, 0.9) !important;
-    background: rgba(220, 38, 38, 0.04) !important;
-}
-
-.mvn-page-header {
-    outline: 3px solid rgba(37, 99, 235, 0.9) !important;
-    background: rgba(37, 99, 235, 0.08) !important;
-}
-
-.mvn-shell {
-    outline: 3px solid rgba(22, 163, 74, 0.9) !important;
-    background: rgba(22, 163, 74, 0.04) !important;
-}
-
-.mvn-workspace {
-    outline: 3px solid rgba(249, 115, 22, 0.9) !important;
-    background: rgba(249, 115, 22, 0.04) !important;
-}
-
-.mvn-selector-panel {
-    outline: 3px solid rgba(168, 85, 247, 0.9) !important;
-    background: rgba(168, 85, 247, 0.04) !important;
-}
-
 .mvn-page-header,
 .mvn-selected-header,
 .mvn-panel-header,
