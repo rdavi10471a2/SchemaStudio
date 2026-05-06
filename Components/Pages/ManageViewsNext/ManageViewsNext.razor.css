@@ -36,11 +36,12 @@
 /* 2026-04-30 03:37 PM CDT AI v1.0 manage-views-next marker: isolated styles keep the prototype layout separate from the current ManageViews page. */
 .manage-views-next {
     min-width: 0;
-    min-height: 100%;
+    height: calc(100dvh - 82px);
+    max-height: calc(100dvh - 82px);
     display: flex;
     flex-direction: column;
     gap: 0.55rem !important;
-    overflow: visible;
+    overflow: hidden;
 }
 
 .mvn-page-header,
@@ -68,7 +69,7 @@
     gap: 0.5rem;
     flex: 1 1 auto;
     min-height: 0;
-    overflow: visible;
+    overflow: hidden;
     align-items: stretch;
 }
 
@@ -125,8 +126,8 @@
 
 .mvn-selector-panel {
     min-height: 0;
-    height: var(--mvn-selector-height, calc(100dvh - 96px));
-    max-height: calc(100dvh - 80px);
+    height: var(--mvn-selector-height, 100%);
+    max-height: 100%;
     align-self: stretch;
     position: sticky;
     top: 0;
@@ -278,7 +279,8 @@
     gap: 1rem;
     min-width: 0;
     min-height: 0;
-    overflow: visible;
+    overflow: auto;
+    padding-right: 0.2rem;
 }
 
 .mvn-card {
@@ -295,20 +297,20 @@
     display: flex;
     justify-content: flex-end;
     min-width: 0;
-    max-width: min(100%, 800px);
-    width: auto;
+    max-width: min(100%, 760px);
+    width: min(100%, 760px);
     overflow: hidden;
 }
 
 .mvn-header-toolbar {
     display: grid !important;
-    grid-template-columns: repeat(auto-fit, minmax(92px, 124px));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     justify-content: end;
     align-items: start;
     grid-auto-rows: min-content;
     gap: 0.35rem !important;
     min-width: 0;
-    width: auto;
+    width: 100%;
     max-width: 100%;
     overflow: hidden;
 }
@@ -819,13 +821,13 @@
 
     .mvn-header-toolbar-shell {
         justify-self: end;
-        width: auto;
-        max-width: min(100%, 800px);
+        width: min(100%, 760px);
+        max-width: min(100%, 760px);
     }
 
     .mvn-header-toolbar {
-        grid-template-columns: repeat(auto-fit, minmax(92px, 124px));
-        width: auto;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        width: 100%;
         max-width: 100%;
         justify-self: end;
     }
@@ -850,6 +852,7 @@
     }
 
     .mvn-header-toolbar {
+        grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
         width: 100%;
         justify-self: stretch;
     }
