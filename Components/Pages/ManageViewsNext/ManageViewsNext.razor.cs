@@ -160,7 +160,8 @@ public partial class ManageViewsNext
             var changed = ReviewRows.Count(x => x.Status == "Changed");
             var removed = ReviewRows.Count(x => x.Status == "Removed");
             var unchanged = ReviewRows.Count(x => x.Status == "Unchanged");
-            return $"{changed} changed, {added} added, {removed} removed, {unchanged} unchanged";
+            var addedLabel = SelectedViewItem?.IsExisting == false ? "available" : "added";
+            return $"{changed} changed, {added} {addedLabel}, {removed} removed, {unchanged} unchanged";
         }
     }
 
