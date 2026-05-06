@@ -289,23 +289,25 @@
 
 .mvn-selected-header {
     flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
     align-items: start;
-    flex-wrap: wrap;
+    gap: 0.65rem;
 }
 
 .mvn-header-toolbar-shell {
     display: flex;
-    justify-content: flex-end;
+    justify-content: flex-start;
     min-width: 0;
-    max-width: min(100%, 760px);
-    width: min(100%, 760px);
+    max-width: 100%;
+    width: 100%;
     overflow: hidden;
 }
 
 .mvn-header-toolbar {
     display: grid !important;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-    justify-content: end;
+    grid-template-columns: repeat(6, minmax(92px, 126px));
+    justify-content: start;
     align-items: start;
     grid-auto-rows: min-content;
     gap: 0.35rem !important;
@@ -815,21 +817,21 @@
 @media (max-width: 1540px) {
     .mvn-selected-header {
         display: grid;
-        grid-template-columns: minmax(250px, 0.7fr) minmax(0, 1.3fr);
+        grid-template-columns: minmax(0, 1fr);
         align-items: start;
     }
 
-    .mvn-header-toolbar-shell {
-        justify-self: end;
-        width: min(100%, 760px);
-        max-width: min(100%, 760px);
+.mvn-header-toolbar-shell {
+        justify-self: stretch;
+        width: 100%;
+        max-width: 100%;
     }
 
     .mvn-header-toolbar {
-        grid-template-columns: repeat(6, minmax(0, 1fr));
+        grid-template-columns: repeat(6, minmax(92px, 126px));
         width: 100%;
         max-width: 100%;
-        justify-self: end;
+        justify-self: start;
     }
 
     ::deep .mvn-header-toolbar .rz-button {
