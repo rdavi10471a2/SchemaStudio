@@ -308,6 +308,8 @@ public partial class ManageViewsNext
 
         IsBusy = true;
         IsSaving = true;
+        await InvokeAsync(StateHasChanged);
+        await Task.Yield();
 
         try
         {
