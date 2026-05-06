@@ -11,7 +11,7 @@
 @inject ViewParsingService ParserService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.11")]
+@attribute [FileVersion("1.12")]
 @attribute [AIChange(
     "1.6",
     "2026-04-30 07:21 PM CDT kept Business Name, Business Description, and Developer Notes visible as multiline detail fields even when values are blank.",    AICommandStatus.Pending)]
@@ -1010,9 +1010,13 @@
         AddMetadataPart(parts, "BusinessName", column.BusinessName);
         AddMetadataPart(parts, "BusinessDescription", column.BusinessDescription);
 
-        if (column.DisableInheritance || parsedDisableInheritance)
+        if (column.DisableInheritance)
         {
             parts.Add("@DisableInheritance: True");
+        }
+        else if (parsedDisableInheritance)
+        {
+            parts.Add("@DisableInheritance: False");
         }
 
         return parts.Count switch
