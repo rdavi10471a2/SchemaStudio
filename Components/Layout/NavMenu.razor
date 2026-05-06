@@ -12,16 +12,15 @@
                          Icon="account_tree"
                          Path="/parser-lab" />
 
-    @* Old Manage Views navigation is intentionally hidden while Manage Views Next is promoted for current use.
+    @* Legacy Manage Views navigation is intentionally hidden now that the accepted Manage Views surface owns /manage-views.
     <RadzenPanelMenuItem Text="Manage Views"
                          Icon="view_sidebar"
-                         Path="/manage-views" />
+                         Path="/manage-views-legacy" />
     *@
 
-    @* 2026-04-30 04:02 PM CDT AI nav marker: expose the isolated Manage Views prototype route for side-by-side testing before it replaces the current page. *@
     <RadzenPanelMenuItem Text="Manage Views"
                          Icon="view_week"
-                         Path="/manage-views-next" />
+                         Path="/manage-views" />
 
     <RadzenPanelMenuItem Text="Manage Databases"
                          Icon="database"
