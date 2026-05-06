@@ -23,7 +23,7 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("1.38")]
+@attribute [FileVersion("1.39")]
 @attribute [AIChange(
     "1.36",
     "2026-04-30 11:59 PM CDT disabled selector controls during busy operations and rebuilt the column synchronization summary after merge choices are staged.",
@@ -286,10 +286,10 @@
                     <RadzenButton Text="Reload Databases"
                                   Icon="refresh"
                                   ButtonStyle="ButtonStyle.Light"
+                                  title="Refreshes database choices, domains, imported views, and available candidates."
                                   Click="@ReloadDatabasesAsync"
                                   Disabled="@IsBusy"
                                   Style="width:100%;" />
-                    <div>Refreshes database choices, domains, imported views, and available candidates.</div>
                 </div>
             </aside>
             <button type="button"

@@ -121,8 +121,8 @@
 
 .mvn-selector-panel {
     min-height: 0;
-    height: calc(100vh - 128px);
-    max-height: calc(100vh - 128px);
+    height: calc(100dvh - 246px);
+    max-height: calc(100dvh - 246px);
     align-self: stretch;
     position: sticky;
     top: 0;
@@ -236,12 +236,7 @@
 }
 
 .mvn-selector-reload {
-    padding-top: 0.75rem;
-    color: #6c757d;
-    font-size: 0.78rem;
-    line-height: 1.35;
-    display: grid;
-    gap: 0.45rem;
+    padding-top: 0.5rem;
 }
 
 .mvn-workspace {
