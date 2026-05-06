@@ -23,7 +23,7 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("1.40")]
+@attribute [FileVersion("1.41")]
 @attribute [AIChange(
     "1.36",
     "2026-04-30 11:59 PM CDT disabled selector controls during busy operations and rebuilt the column synchronization summary after merge choices are staged.",
@@ -116,13 +116,13 @@
 
 <PageTitle>Manage Views</PageTitle>
 
-<RadzenStack Gap="1rem"
+<RadzenStack Gap="0.3rem"
              class="@ManageViewsNextClass"
              Style="@PaneResizeStyle"
              @onpointermove="@ResizePane"
              @onpointerup="@EndPaneResize">
     <div class="mvn-page-header">
-        <RadzenText TextStyle="TextStyle.H4" class="rz-m-0">Manage Views</RadzenText>
+        <h1 class="mvn-page-title">Manage Views</h1>
         <RadzenButton Text="@(IsLeftPanelHidden ? "Show View Selector" : "Hide View Selector")"
                       Icon="@(IsLeftPanelHidden ? "right_panel_open" : "left_panel_close")"
                       ButtonStyle="ButtonStyle.Light"

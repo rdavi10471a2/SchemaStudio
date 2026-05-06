@@ -65,8 +65,10 @@
     border-radius: 0;
 }
 
+.mvn-page-title,
 ::deep .mvn-page-header :is(h1, h2, h3, h4, h5, .rz-text, .rz-text-h4) {
     font-size: 1.45rem !important;
+    font-weight: 650;
     line-height: 1 !important;
     margin: 0 !important;
 }
