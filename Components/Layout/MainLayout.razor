@@ -10,7 +10,7 @@
 @inject DialogService DialogService
 @inject IJSRuntime JSRuntime
 
-@attribute [FileVersion("1.15")]
+@attribute [FileVersion("1.16")]
 @attribute [AIChange(
     "1.14",
     "2026-05-01 09:20 AM CDT replaced native details menus with explicit Blazor menu state so commands close dropdowns and navigate without route flicker.",
@@ -89,14 +89,6 @@
             margin: 0;
             box-shadow: none;
             border: 0;
-        }
-
-    .rz-body:has(.manage-views-next) {
-        padding: 0.25rem 0.5rem !important;
-    }
-
-        .rz-body > .rz-p-4:has(.manage-views-next) {
-            overflow: hidden;
         }
 
     .kiosk-shell .rz-body > .rz-p-4 {
