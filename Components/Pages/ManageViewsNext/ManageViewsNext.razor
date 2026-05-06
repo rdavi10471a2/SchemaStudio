@@ -23,7 +23,7 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("1.37")]
+@attribute [FileVersion("1.38")]
 @attribute [AIChange(
     "1.36",
     "2026-04-30 11:59 PM CDT disabled selector controls during busy operations and rebuilt the column synchronization summary after merge choices are staged.",
@@ -116,7 +116,11 @@
 
 <PageTitle>Manage Views</PageTitle>
 
-<RadzenStack Gap="1rem" class="manage-views-next">
+<RadzenStack Gap="1rem"
+             class="@ManageViewsNextClass"
+             Style="@PaneResizeStyle"
+             @onpointermove="@ResizePane"
+             @onpointerup="@EndPaneResize">
     <div class="mvn-page-header">
         <RadzenText TextStyle="TextStyle.H4" class="rz-m-0">Manage Views</RadzenText>
         <RadzenButton Text="@(IsLeftPanelHidden ? "Show View Selector" : "Hide View Selector")"
@@ -288,6 +292,11 @@
                     <div>Refreshes database choices, domains, imported views, and available candidates.</div>
                 </div>
             </aside>
+            <button type="button"
+                    class="mvn-resize-handle mvn-shell-resize-handle"
+                    title="Resize view selector"
+                    aria-label="Resize view selector"
+                    @onpointerdown="@(args => BeginPaneResize(ResizeTarget.Selector, args))"></button>
         }
 
         <main class="mvn-workspace">
@@ -416,6 +425,11 @@
                                           Disabled="@IsBusy" />
                         </div>
                     </section>
+                    <button type="button"
+                            class="mvn-resize-handle mvn-editor-resize-handle"
+                            title="Resize view definition"
+                            aria-label="Resize view definition"
+                            @onpointerdown="@(args => BeginPaneResize(ResizeTarget.ViewDefinition, args))"></button>
 
                     <section class="mvn-card mvn-column-editor">
                         <div class="mvn-panel-header">
@@ -469,6 +483,11 @@
                                         }
                                     </div>
                                 </div>
+                                <button type="button"
+                                        class="mvn-resize-handle mvn-column-list-resize-handle"
+                                        title="Resize column list"
+                                        aria-label="Resize column list"
+                                        @onpointerdown="@(args => BeginPaneResize(ResizeTarget.ColumnList, args))"></button>
 
                                 <div class="mvn-column-detail-panel">
                                     <div class="mvn-column-detail-header">

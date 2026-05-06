@@ -64,8 +64,8 @@
 
 .mvn-shell {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    gap: 1rem;
+    grid-template-columns: var(--mvn-selector-width, 380px) 10px minmax(0, 1fr);
+    gap: 0.5rem;
     flex: 1 1 auto;
     min-height: 0;
     overflow: visible;
@@ -74,6 +74,39 @@
 
 .mvn-shell-collapsed {
     grid-template-columns: minmax(0, 1fr);
+}
+
+.mvn-resize-handle {
+    align-self: stretch;
+    min-width: 10px;
+    width: 10px;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    cursor: col-resize;
+    position: relative;
+}
+
+.mvn-resize-handle::before {
+    content: "";
+    position: absolute;
+    top: 0.75rem;
+    bottom: 0.75rem;
+    left: 4px;
+    width: 2px;
+    border-radius: 999px;
+    background: #c7cfda;
+}
+
+.mvn-resize-handle:hover::before,
+.mvn-resizing .mvn-resize-handle::before {
+    background: var(--rz-primary);
+}
+
+.mvn-resizing {
+    cursor: col-resize;
+    user-select: none;
 }
 
 .mvn-selector-panel,
@@ -87,9 +120,6 @@
 }
 
 .mvn-selector-panel {
-    width: 380px;
-    min-width: 280px;
-    max-width: min(520px, 42vw);
     min-height: 0;
     height: calc(100vh - 128px);
     max-height: calc(100vh - 128px);
@@ -100,7 +130,6 @@
     grid-template-rows: auto auto minmax(0, 1fr) auto;
     padding: 0.85rem;
     overflow: hidden;
-    resize: horizontal;
 }
 
 .mvn-selector-header {
@@ -381,8 +410,8 @@
 
 .mvn-editor-grid {
     display: grid;
-    grid-template-columns: minmax(270px, 0.72fr) minmax(510px, 1.42fr);
-    gap: 1rem;
+    grid-template-columns: var(--mvn-view-definition-width, 490px) 10px minmax(0, 1fr);
+    gap: 0.5rem;
     min-width: 0;
     min-height: 0;
     flex: 1 1 auto;
@@ -563,8 +592,8 @@
 
 .mvn-column-grid {
     display: grid;
-    grid-template-columns: minmax(250px, 0.85fr) minmax(320px, 1.15fr);
-    gap: 1rem;
+    grid-template-columns: var(--mvn-column-list-width, 390px) 10px minmax(0, 1fr);
+    gap: 0.5rem;
     flex: 1 1 auto;
     min-height: 0;
     min-width: 0;
@@ -738,6 +767,10 @@
         max-height: none;
         min-height: 520px;
         position: static;
+    }
+
+    .mvn-resize-handle {
+        display: none;
     }
 
     .manage-views-next {

@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Reflection;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 using Radzen;
 using Radzen.Blazor;
 using SchemaStudio.AIHelpers;
@@ -26,6 +27,15 @@ public partial class ManageViewsNext
     // 2026-04-30 03:37 PM CDT AI v1.0 manage-views-next marker: shared prototype state is kept in a code-behind partial to preserve the split-file page pattern.
     private const string DefaultSourceCatalogDatabase = "VVGBI_Integrations";
     private const string UnknownDomain = "Unknown";
+    private const int SelectorPanelDefaultWidth = 380;
+    private const int SelectorPanelMinWidth = 280;
+    private const int SelectorPanelMaxWidth = 560;
+    private const int ViewDefinitionDefaultWidth = 490;
+    private const int ViewDefinitionMinWidth = 270;
+    private const int ViewDefinitionMaxWidth = 700;
+    private const int ColumnListDefaultWidth = 390;
+    private const int ColumnListMinWidth = 250;
+    private const int ColumnListMaxWidth = 520;
 
     private List<DatabaseDefinition> Databases = new();
     private List<DatabaseDomainDefinition> Domains = new();
@@ -46,12 +56,33 @@ public partial class ManageViewsNext
     private ParsedQuery? CurrentParsedView;
     private bool IsBusy;
     private string LoadError = string.Empty;
+    private ResizeTarget? ActiveResizeTarget;
+    private double ResizeStartX;
+    private int ResizeStartWidth;
+    private int SelectorPanelWidth = SelectorPanelDefaultWidth;
+    private int ViewDefinitionWidth = ViewDefinitionDefaultWidth;
+    private int ColumnListWidth = ColumnListDefaultWidth;
 
     private enum WorkspaceResetLevel
     {
         View,
         Workspace
     }
+
+    private enum ResizeTarget
+    {
+        Selector,
+        ViewDefinition,
+        ColumnList
+    }
+
+    private string ManageViewsNextClass =>
+        ActiveResizeTarget == null
+            ? "manage-views-next"
+            : "manage-views-next mvn-resizing";
+
+    private string PaneResizeStyle =>
+        $"--mvn-selector-width: {SelectorPanelWidth}px; --mvn-view-definition-width: {ViewDefinitionWidth}px; --mvn-column-list-width: {ColumnListWidth}px;";
 
     private string CurrentSourceFullName =>
         EditableObject == null
@@ -155,6 +186,47 @@ public partial class ManageViewsNext
     private void ToggleLeftPanel()
     {
         IsLeftPanelHidden = !IsLeftPanelHidden;
+    }
+
+    private void BeginPaneResize(ResizeTarget target, PointerEventArgs args)
+    {
+        ActiveResizeTarget = target;
+        ResizeStartX = args.ClientX;
+        ResizeStartWidth = target switch
+        {
+            ResizeTarget.Selector => SelectorPanelWidth,
+            ResizeTarget.ViewDefinition => ViewDefinitionWidth,
+            ResizeTarget.ColumnList => ColumnListWidth,
+            _ => 0
+        };
+    }
+
+    private void ResizePane(PointerEventArgs args)
+    {
+        if (ActiveResizeTarget == null)
+        {
+            return;
+        }
+
+        var nextWidth = ResizeStartWidth + (int)Math.Round(args.ClientX - ResizeStartX);
+
+        switch (ActiveResizeTarget)
+        {
+            case ResizeTarget.Selector:
+                SelectorPanelWidth = Math.Clamp(nextWidth, SelectorPanelMinWidth, SelectorPanelMaxWidth);
+                break;
+            case ResizeTarget.ViewDefinition:
+                ViewDefinitionWidth = Math.Clamp(nextWidth, ViewDefinitionMinWidth, ViewDefinitionMaxWidth);
+                break;
+            case ResizeTarget.ColumnList:
+                ColumnListWidth = Math.Clamp(nextWidth, ColumnListMinWidth, ColumnListMaxWidth);
+                break;
+        }
+    }
+
+    private void EndPaneResize()
+    {
+        ActiveResizeTarget = null;
     }
 
     private async Task SaveViewAsync()
