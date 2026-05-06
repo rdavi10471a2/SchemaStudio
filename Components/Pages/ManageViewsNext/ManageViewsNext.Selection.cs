@@ -31,7 +31,10 @@ public partial class ManageViewsNext
                 ? previousDatabaseId.Value
                 : Databases[0].DatabaseId;
 
-            await LoadWorkspaceAsync(SelectedDatabaseId.Value, preferredSelectionKey);
+            await LoadWorkspaceAsync(
+                SelectedDatabaseId.Value,
+                preferredSelectionKey,
+                autoSelectFirst: !string.IsNullOrWhiteSpace(preferredSelectionKey));
             LoadError = string.Empty;
         }
         catch (Exception ex)
