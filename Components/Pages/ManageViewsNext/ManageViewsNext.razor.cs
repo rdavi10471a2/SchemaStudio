@@ -58,6 +58,7 @@ public partial class ManageViewsNext
     private SchemaObjectDefinition? EditableObject;
     private ParsedQuery? CurrentParsedView;
     private bool IsBusy;
+    private bool IsSaving;
     private string LoadError = string.Empty;
     private bool IsViewToolsOpen;
     private ResizeTarget? ActiveResizeTarget;
@@ -286,12 +287,17 @@ public partial class ManageViewsNext
             return;
         }
 
+        var columnsToSave = BuildColumnSaveSnapshot();
+
+        if (ShouldSaveInitialParserColumnSnapshot(columnsToSave))
+        {
+            columnsToSave = BuildInitialParserColumnSnapshot();
+        }
+
         if (!await ConfirmSaveWithUnmergedParserChangesAsync())
         {
             return;
         }
-
-        var columnsToSave = BuildColumnSaveSnapshot();
 
         validationMessage = ValidateStringLengths(columnsToSave, "Column");
         if (!string.IsNullOrWhiteSpace(validationMessage))
@@ -301,6 +307,7 @@ public partial class ManageViewsNext
         }
 
         IsBusy = true;
+        IsSaving = true;
 
         try
         {
@@ -324,6 +331,7 @@ public partial class ManageViewsNext
                 foreach (var column in columnsToSave)
                 {
                     column.SchemaObjectId = EditableObject.SchemaObjectId;
+                    column.MergeState = SchemaObjectColumnMergeState.None;
                 }
 
                 await SchemaObjectColumnRepository.SaveFullSnapshotAsync(columnsToSave);
@@ -338,6 +346,7 @@ public partial class ManageViewsNext
         }
         finally
         {
+            IsSaving = false;
             IsBusy = false;
         }
     }
@@ -364,9 +373,36 @@ public partial class ManageViewsNext
         (EditableObject.SchemaObjectId <= 0 || OriginalSavedColumns.Count == 0) &&
         SavedColumns.Any(column => column.MergeState == SchemaObjectColumnMergeState.DetectedAdd);
 
+    private bool ShouldSaveInitialParserColumnSnapshot(IReadOnlyCollection<SchemaObjectColumnDefinition> columnsToSave) =>
+        EditableObject != null &&
+        (EditableObject.SchemaObjectId <= 0 || OriginalSavedColumns.Count == 0) &&
+        columnsToSave.Count == 0 &&
+        CurrentParsedView?.Columns.Any() == true;
+
+    private List<SchemaObjectColumnDefinition> BuildInitialParserColumnSnapshot()
+    {
+        if (CurrentParsedView == null)
+        {
+            return new List<SchemaObjectColumnDefinition>();
+        }
+
+        return CurrentParsedView.Columns
+            .ToViewColumnDtos()
+            .Where(column => !string.IsNullOrWhiteSpace(column.ColumnName))
+            .OrderBy(column => column.OrdinalPosition)
+            .Select(column =>
+            {
+                var savedColumn = CreateDetectedColumn(column);
+                savedColumn.MergeState = SchemaObjectColumnMergeState.None;
+                savedColumn.ClearDirty();
+                return savedColumn;
+            })
+            .ToList();
+    }
+
     private async Task<bool> ConfirmSaveWithUnmergedParserChangesAsync()
     {
-        var unmergedAdded = ShouldSaveDetectedAddsAsInitialSnapshot()
+        var unmergedAdded = ShouldSaveDetectedAddsAsInitialSnapshot() || ShouldSaveInitialParserColumnSnapshot(Array.Empty<SchemaObjectColumnDefinition>())
             ? 0
             : ReviewRows.Count(row => row.Status == "Added");
         var unmergedChanged = ReviewRows.Count(row => row.Status == "Changed");

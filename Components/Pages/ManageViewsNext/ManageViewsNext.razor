@@ -23,7 +23,7 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("1.42")]
+@attribute [FileVersion("1.43")]
 @attribute [AIChange(
     "1.36",
     "2026-04-30 11:59 PM CDT disabled selector controls during busy operations and rebuilt the column synchronization summary after merge choices are staged.",
@@ -426,6 +426,13 @@
                                           title="Save the view definition and all edited column metadata together."
                                           Click="@SaveViewAsync"
                                           Disabled="@IsBusy" />
+                            @if (IsSaving)
+                            {
+                                <span class="mvn-save-spinner" role="status" aria-live="polite">
+                                    <span class="mvn-save-spinner-dot" aria-hidden="true"></span>
+                                    <span>Saving</span>
+                                </span>
+                            }
                             @if (CanDeleteCurrentView)
                             {
                                 <RadzenButton Text="Delete View"
@@ -448,19 +455,7 @@
                             <RadzenText TextStyle="TextStyle.H6" class="rz-m-0">Column Metadata</RadzenText>
                         </div>
 
-                        @if (!CanEditColumns)
-                        {
-                            <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat" class="rz-mt-2">
-                                Save the view definition first, then initialize or review columns.
-                            </RadzenAlert>
-                        }
-                        else if (SavedColumns.Count == 0)
-                        {
-                            <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat" class="rz-mt-2">
-                                No saved columns exist for this view yet. Review merge when you are ready to initialize columns.
-                            </RadzenAlert>
-                        }
-                        else
+                        @if (CanEditColumns && SavedColumns.Count > 0)
                         {
                             <div class="mvn-column-grid">
                                 <div class="mvn-column-list-panel">

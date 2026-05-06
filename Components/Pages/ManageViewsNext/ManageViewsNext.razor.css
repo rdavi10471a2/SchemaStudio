@@ -648,6 +648,30 @@ n/* 2026-05-01 09:48 AM CDT AI manage-views-next marker: disabled and enabled me
     height: 32px;
 }
 
+.mvn-save-spinner {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 32px;
+    color: #526071;
+    font-size: 0.82rem;
+}
+
+.mvn-save-spinner-dot {
+    width: 16px;
+    height: 16px;
+    border: 2px solid #c7cfda;
+    border-top-color: var(--rz-primary);
+    border-radius: 999px;
+    animation: mvn-spin 0.8s linear infinite;
+}
+
+@keyframes mvn-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 .mvn-sync-compact {
     border: 1px solid #dee2e6;
     border-radius: 6px;
