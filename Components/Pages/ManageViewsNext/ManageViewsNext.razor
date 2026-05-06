@@ -23,7 +23,7 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("1.45")]
+@attribute [FileVersion("1.46")]
 @attribute [AIChange(
     "1.36",
     "2026-04-30 11:59 PM CDT disabled selector controls during busy operations and rebuilt the column synchronization summary after merge choices are staged.",
@@ -138,9 +138,11 @@
 
     @if (IsBusy)
     {
-        <div class="mvn-busy-strip" role="status" aria-live="polite">
-            <span class="mvn-busy-spinner" aria-hidden="true"></span>
-            <span>Loading view workspace</span>
+        <div class="mvn-busy-overlay" role="status" aria-live="polite">
+            <div class="mvn-busy-card">
+                <span class="mvn-busy-spinner" aria-hidden="true"></span>
+                <span>Loading view workspace</span>
+            </div>
         </div>
     }
 
@@ -193,7 +195,7 @@
                      aria-label="Views grouped by domain and type">
                     @foreach (var group in DomainTreeGroups)
                     {
-                        <details class="mvn-tree-domain" open>
+                        <details class="mvn-tree-domain">
                             <summary>
                                 <RadzenIcon Icon="database" />
                                 <span>@group.Domain</span>
@@ -222,7 +224,7 @@
                             }
                             else
                             {
-                                <details class="mvn-tree-folder" open>
+                                <details class="mvn-tree-folder">
                                     <summary>
                                         <RadzenIcon Icon="folder" />
                                         <span>Base Views</span>
@@ -247,7 +249,7 @@
                                     }
                                 </details>
 
-                                <details class="mvn-tree-folder" open>
+                                <details class="mvn-tree-folder">
                                     <summary>
                                         <RadzenIcon Icon="folder" />
                                         <span>Composed Views</span>
@@ -275,7 +277,7 @@
                         </details>
                     }
 
-                    <details class="mvn-tree-domain" open>
+                    <details class="mvn-tree-domain">
                         <summary>
                             <RadzenIcon Icon="playlist_add" />
                             <span>Available Views</span>
