@@ -314,7 +314,8 @@
 
     private bool IsKioskRoute =>
         AppConfig.Current.Kiosk.Enabled &&
-        string.Equals(CurrentRelativePath, AppConfig.Current.Kiosk.Route.Trim('/'), StringComparison.OrdinalIgnoreCase);
+        (string.IsNullOrWhiteSpace(CurrentRelativePath) ||
+         string.Equals(CurrentRelativePath, AppConfig.Current.Kiosk.Route.Trim('/'), StringComparison.OrdinalIgnoreCase));
 
     private bool HideNavigationChrome =>
         IsKioskRoute &&
@@ -428,7 +429,7 @@
     private Task NavigateToSchemaExplorerAsync()
     {
         openMenu = null;
-        NavigationManager.NavigateTo("/");
+        NavigationManager.NavigateTo("/explore");
         return Task.CompletedTask;
     }
 

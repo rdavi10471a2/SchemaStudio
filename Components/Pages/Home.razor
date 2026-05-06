@@ -2,6 +2,8 @@
 
 @page "/kiosk"
 
+@page "/explore"
+
 @implements IDisposable
 
 @using SchemaStudio.AIHelpers
@@ -23,7 +25,7 @@
 @inject IJSRuntime JSRuntime
 @inject NavigationManager NavigationManager
 
-@attribute [FileVersion("1.12")]
+@attribute [FileVersion("1.13")]
 @attribute [AIChange("1.11", "2026-05-01 10:07 AM CDT delayed normal Home auth gating until session auth is loaded so menu navigation to Schema Explorer does not briefly render the login state.", AICommandStatus.Pending)]
 @attribute [AIChange("1.10", "2026-05-01 09:06 AM CDT notified the shared layout when simple login state changes so the top menu appears and hides immediately.", AICommandStatus.Pending)]
 @attribute [AIChange("1.9", "2026-04-23 10:10 AM CDT skipped the duplicate first-render database load on Home when startup already attempted it and no databases were loaded.", AICommandStatus.Pending)]
@@ -483,9 +485,10 @@
     }
 
     private bool IsKioskRoute =>
+        string.IsNullOrWhiteSpace(CurrentRelativePath) ||
         string.Equals(CurrentRelativePath, AppConfig.Current.Kiosk.Route.Trim('/'), StringComparison.OrdinalIgnoreCase);
 
-    private bool IsNormalHomeRoute => string.IsNullOrWhiteSpace(CurrentRelativePath);
+    private bool IsNormalHomeRoute => string.Equals(CurrentRelativePath, "explore", StringComparison.OrdinalIgnoreCase);
 
     private bool RequiresNormalHomeAuth =>
         AppConfig.Current.Auth.Enabled &&
@@ -696,7 +699,7 @@
 
         if (IsKioskRoute)
         {
-            NavigationManager.NavigateTo("/");
+            NavigationManager.NavigateTo("/explore");
             return;
         }
 
