@@ -10,7 +10,7 @@
 @inject DialogService DialogService
 @inject IJSRuntime JSRuntime
 
-@attribute [FileVersion("1.16")]
+@attribute [FileVersion("1.17")]
 @attribute [AIChange(
     "1.14",
     "2026-05-01 09:20 AM CDT replaced native details menus with explicit Blazor menu state so commands close dropdowns and navigate without route flicker.",
@@ -70,6 +70,8 @@
     }
 
     .rz-body {
+        height: 100% !important;
+        max-height: 100% !important;
         min-height: 0 !important;
         overflow: hidden !important;
         padding: 0.55rem 0.75rem !important;
