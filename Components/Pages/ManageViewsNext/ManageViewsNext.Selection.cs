@@ -14,7 +14,7 @@ public partial class ManageViewsNext
     // 2026-04-30 03:37 PM CDT AI v1.0 manage-views-next marker: selector flow reloads databases plus the selected workspace while keeping the prototype isolated from ManageViews.
     private async Task LoadDatabasesAsync(string? preferredSelectionKey)
     {
-        IsBusy = true;
+        await EnterBusyAsync();
 
         try
         {
@@ -169,7 +169,7 @@ public partial class ManageViewsNext
 
     private async Task LoadWorkspaceAsync(int databaseId, string? preferredSelectionKey, bool autoSelectFirst = true)
     {
-        IsBusy = true;
+        await EnterBusyAsync();
 
         try
         {
@@ -258,7 +258,7 @@ public partial class ManageViewsNext
 
     private async Task SelectViewAsync(string selectionKey)
     {
-        IsBusy = true;
+        await EnterBusyAsync();
 
         try
         {

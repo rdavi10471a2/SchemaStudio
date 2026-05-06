@@ -138,6 +138,13 @@ public partial class ManageViewsNext
         await action();
     }
 
+    private async Task EnterBusyAsync()
+    {
+        IsBusy = true;
+        await InvokeAsync(StateHasChanged);
+        await Task.Yield();
+    }
+
     private IReadOnlyList<string> ColumnSynchronizationProcessLines =>
     [
         "Reviews parser-detected added, changed, and removed columns for the selected view.",
@@ -306,10 +313,8 @@ public partial class ManageViewsNext
             return;
         }
 
-        IsBusy = true;
         IsSaving = true;
-        await InvokeAsync(StateHasChanged);
-        await Task.Yield();
+        await EnterBusyAsync();
 
         try
         {

@@ -80,6 +80,24 @@
     padding-block: 0.15rem;
 }
 
+.mvn-busy-strip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-height: 30px;
+    color: #526071;
+    font-size: 0.85rem;
+}
+
+.mvn-busy-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid #c7cfda;
+    border-top-color: var(--rz-primary);
+    border-radius: 999px;
+    animation: mvn-spin 0.8s linear infinite;
+}
+
 .mvn-shell {
     display: grid;
     grid-template-columns: var(--mvn-selector-width, 380px) 10px minmax(0, 1fr);

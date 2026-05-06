@@ -23,7 +23,7 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("1.44")]
+@attribute [FileVersion("1.45")]
 @attribute [AIChange(
     "1.36",
     "2026-04-30 11:59 PM CDT disabled selector controls during busy operations and rebuilt the column synchronization summary after merge choices are staged.",
@@ -134,6 +134,14 @@
         <RadzenAlert AlertStyle="AlertStyle.Danger" Variant="Variant.Flat">
             @LoadError
         </RadzenAlert>
+    }
+
+    @if (IsBusy)
+    {
+        <div class="mvn-busy-strip" role="status" aria-live="polite">
+            <span class="mvn-busy-spinner" aria-hidden="true"></span>
+            <span>Loading view workspace</span>
+        </div>
     }
 
     <div class="@(IsLeftPanelHidden ? "mvn-shell mvn-shell-collapsed" : "mvn-shell")">
