@@ -41,7 +41,7 @@
     max-height: 100%;
     display: flex;
     flex-direction: column;
-    gap: 0.55rem !important;
+    gap: 0.3rem !important;
     overflow: hidden;
 }
 
@@ -58,15 +58,23 @@
 
 .mvn-page-header {
     flex: 0 0 auto;
+    min-height: 28px;
     padding: 0;
     background: transparent;
     border: 0;
     border-radius: 0;
 }
 
-::deep .mvn-page-header .rz-text {
-    font-size: 1.75rem;
-    line-height: 1.05;
+::deep .mvn-page-header :is(h1, h2, h3, h4, h5, .rz-text, .rz-text-h4) {
+    font-size: 1.45rem !important;
+    line-height: 1 !important;
+    margin: 0 !important;
+}
+
+::deep .mvn-page-header .rz-button {
+    min-height: 30px;
+    height: 30px;
+    padding-block: 0.15rem;
 }
 
 .mvn-shell {
