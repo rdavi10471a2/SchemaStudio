@@ -59,6 +59,7 @@ public partial class ManageViewsNext
     private ParsedQuery? CurrentParsedView;
     private bool IsBusy;
     private string LoadError = string.Empty;
+    private bool IsViewToolsOpen;
     private ResizeTarget? ActiveResizeTarget;
     private double ResizeStartX;
     private double ResizeStartY;
@@ -124,6 +125,17 @@ public partial class ManageViewsNext
         mergeState is SchemaObjectColumnMergeState.PendingAdd
             or SchemaObjectColumnMergeState.PendingUpdate
             or SchemaObjectColumnMergeState.PendingRemove;
+
+    private void ToggleViewTools()
+    {
+        IsViewToolsOpen = !IsViewToolsOpen;
+    }
+
+    private async Task RunViewToolAsync(Func<Task> action)
+    {
+        IsViewToolsOpen = false;
+        await action();
+    }
 
     private IReadOnlyList<string> ColumnSynchronizationProcessLines =>
     [
