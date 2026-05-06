@@ -109,6 +109,10 @@
     user-select: none;
 }
 
+.mvn-resizing-height {
+    cursor: row-resize;
+}
+
 .mvn-selector-panel,
 .mvn-card {
     background: #fff;
@@ -121,15 +125,44 @@
 
 .mvn-selector-panel {
     min-height: 0;
-    height: calc(100dvh - 246px);
-    max-height: calc(100dvh - 246px);
+    height: var(--mvn-selector-height, calc(100dvh - 96px));
+    max-height: calc(100dvh - 80px);
     align-self: stretch;
     position: sticky;
     top: 0;
     display: grid;
     grid-template-rows: auto auto minmax(0, 1fr) auto;
-    padding: 0.85rem;
+    padding: 0.85rem 0.85rem 1.05rem;
     overflow: hidden;
+}
+
+.mvn-height-resize-handle {
+    position: absolute;
+    right: 0.85rem;
+    bottom: 0.25rem;
+    left: 0.85rem;
+    height: 10px;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    cursor: row-resize;
+}
+
+.mvn-height-resize-handle::before {
+    content: "";
+    position: absolute;
+    top: 4px;
+    right: 0;
+    left: 0;
+    height: 2px;
+    border-radius: 999px;
+    background: #c7cfda;
+}
+
+.mvn-height-resize-handle:hover::before,
+.mvn-resizing-height .mvn-height-resize-handle::before {
+    background: var(--rz-primary);
 }
 
 .mvn-selector-header {
@@ -262,20 +295,20 @@
     display: flex;
     justify-content: flex-end;
     min-width: 0;
-    max-width: 100%;
-    width: min(100%, 1040px);
+    max-width: min(100%, 800px);
+    width: auto;
     overflow: hidden;
 }
 
 .mvn-header-toolbar {
     display: grid !important;
-    grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
-    justify-content: stretch;
+    grid-template-columns: repeat(auto-fit, minmax(92px, 124px));
+    justify-content: end;
     align-items: start;
     grid-auto-rows: min-content;
-    gap: 0.45rem !important;
+    gap: 0.35rem !important;
     min-width: 0;
-    width: 100%;
+    width: auto;
     max-width: 100%;
     overflow: hidden;
 }
@@ -284,11 +317,11 @@
     width: 100%;
     min-width: 0;
     max-width: none;
-    height: 40px;
-    min-height: 40px;
+    height: 32px;
+    min-height: 32px;
     justify-content: center;
-    font-size: 12px;
-    padding-inline: 0.45rem;
+    font-size: 11px;
+    padding-inline: 0.32rem;
 }
 
 ::deep .mvn-header-toolbar .rz-button .rz-button-text {
@@ -768,6 +801,10 @@
         display: none;
     }
 
+    .mvn-height-resize-handle {
+        display: none;
+    }
+
     .manage-views-next {
         overflow: auto;
     }
@@ -782,13 +819,13 @@
 
     .mvn-header-toolbar-shell {
         justify-self: end;
-        width: 100%;
-        max-width: 100%;
+        width: auto;
+        max-width: min(100%, 800px);
     }
 
     .mvn-header-toolbar {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        width: 100%;
+        grid-template-columns: repeat(auto-fit, minmax(92px, 124px));
+        width: auto;
         max-width: 100%;
         justify-self: end;
     }

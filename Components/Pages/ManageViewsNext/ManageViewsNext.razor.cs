@@ -30,6 +30,9 @@ public partial class ManageViewsNext
     private const int SelectorPanelDefaultWidth = 380;
     private const int SelectorPanelMinWidth = 280;
     private const int SelectorPanelMaxWidth = 560;
+    private const int SelectorPanelDefaultHeight = 740;
+    private const int SelectorPanelMinHeight = 520;
+    private const int SelectorPanelMaxHeight = 980;
     private const int ViewDefinitionDefaultWidth = 490;
     private const int ViewDefinitionMinWidth = 270;
     private const int ViewDefinitionMaxWidth = 700;
@@ -58,8 +61,10 @@ public partial class ManageViewsNext
     private string LoadError = string.Empty;
     private ResizeTarget? ActiveResizeTarget;
     private double ResizeStartX;
-    private int ResizeStartWidth;
+    private double ResizeStartY;
+    private int ResizeStartSize;
     private int SelectorPanelWidth = SelectorPanelDefaultWidth;
+    private int? SelectorPanelHeight;
     private int ViewDefinitionWidth = ViewDefinitionDefaultWidth;
     private int ColumnListWidth = ColumnListDefaultWidth;
 
@@ -72,17 +77,26 @@ public partial class ManageViewsNext
     private enum ResizeTarget
     {
         Selector,
+        SelectorHeight,
         ViewDefinition,
         ColumnList
     }
 
     private string ManageViewsNextClass =>
-        ActiveResizeTarget == null
-            ? "manage-views-next"
-            : "manage-views-next mvn-resizing";
+        ActiveResizeTarget switch
+        {
+            ResizeTarget.SelectorHeight => "manage-views-next mvn-resizing mvn-resizing-height",
+            null => "manage-views-next",
+            _ => "manage-views-next mvn-resizing"
+        };
 
     private string PaneResizeStyle =>
-        $"--mvn-selector-width: {SelectorPanelWidth}px; --mvn-view-definition-width: {ViewDefinitionWidth}px; --mvn-column-list-width: {ColumnListWidth}px;";
+        $"--mvn-selector-width: {SelectorPanelWidth}px; --mvn-selector-height: {SelectorPanelHeightStyle}; --mvn-view-definition-width: {ViewDefinitionWidth}px; --mvn-column-list-width: {ColumnListWidth}px;";
+
+    private string SelectorPanelHeightStyle =>
+        SelectorPanelHeight.HasValue
+            ? $"{SelectorPanelHeight.Value}px"
+            : "calc(100dvh - 96px)";
 
     private string CurrentSourceFullName =>
         EditableObject == null
@@ -192,9 +206,11 @@ public partial class ManageViewsNext
     {
         ActiveResizeTarget = target;
         ResizeStartX = args.ClientX;
-        ResizeStartWidth = target switch
+        ResizeStartY = args.ClientY;
+        ResizeStartSize = target switch
         {
             ResizeTarget.Selector => SelectorPanelWidth,
+            ResizeTarget.SelectorHeight => SelectorPanelHeight ?? SelectorPanelDefaultHeight,
             ResizeTarget.ViewDefinition => ViewDefinitionWidth,
             ResizeTarget.ColumnList => ColumnListWidth,
             _ => 0
@@ -208,17 +224,25 @@ public partial class ManageViewsNext
             return;
         }
 
-        var nextWidth = ResizeStartWidth + (int)Math.Round(args.ClientX - ResizeStartX);
+        var horizontalDelta = (int)Math.Round(args.ClientX - ResizeStartX);
+        var verticalDelta = (int)Math.Round(args.ClientY - ResizeStartY);
 
         switch (ActiveResizeTarget)
         {
             case ResizeTarget.Selector:
+                var nextWidth = ResizeStartSize + horizontalDelta;
                 SelectorPanelWidth = Math.Clamp(nextWidth, SelectorPanelMinWidth, SelectorPanelMaxWidth);
                 break;
+            case ResizeTarget.SelectorHeight:
+                var nextHeight = ResizeStartSize + verticalDelta;
+                SelectorPanelHeight = Math.Clamp(nextHeight, SelectorPanelMinHeight, SelectorPanelMaxHeight);
+                break;
             case ResizeTarget.ViewDefinition:
+                nextWidth = ResizeStartSize + horizontalDelta;
                 ViewDefinitionWidth = Math.Clamp(nextWidth, ViewDefinitionMinWidth, ViewDefinitionMaxWidth);
                 break;
             case ResizeTarget.ColumnList:
+                nextWidth = ResizeStartSize + horizontalDelta;
                 ColumnListWidth = Math.Clamp(nextWidth, ColumnListMinWidth, ColumnListMaxWidth);
                 break;
         }

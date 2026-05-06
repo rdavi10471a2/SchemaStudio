@@ -23,7 +23,7 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("1.39")]
+@attribute [FileVersion("1.40")]
 @attribute [AIChange(
     "1.36",
     "2026-04-30 11:59 PM CDT disabled selector controls during busy operations and rebuilt the column synchronization summary after merge choices are staged.",
@@ -291,6 +291,11 @@
                                   Disabled="@IsBusy"
                                   Style="width:100%;" />
                 </div>
+                <button type="button"
+                        class="mvn-height-resize-handle"
+                        title="Resize view selector height"
+                        aria-label="Resize view selector height"
+                        @onpointerdown="@(args => BeginPaneResize(ResizeTarget.SelectorHeight, args))"></button>
             </aside>
             <button type="button"
                     class="mvn-resize-handle mvn-shell-resize-handle"
