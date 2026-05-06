@@ -312,50 +312,9 @@ n/* 2026-05-01 09:48 AM CDT AI manage-views-next marker: disabled and enabled me
 .mvn-selected-header {
     flex: 0 0 auto;
     display: grid;
-    grid-template-columns: minmax(280px, 1fr) auto;
-    align-items: end;
-    gap: 0.65rem 1rem;
-}
-
-.mvn-header-toolbar-shell {
-    display: flex;
-    justify-content: flex-end;
-    min-width: 0;
-    max-width: 100%;
-    width: auto;
-    overflow: hidden;
-}
-
-.mvn-header-toolbar {
-    display: grid !important;
-    grid-template-columns: repeat(6, minmax(82px, 116px));
-    justify-content: end;
+    grid-template-columns: minmax(0, 1fr);
     align-items: start;
-    grid-auto-rows: min-content;
-    gap: 0.35rem !important;
-    min-width: 0;
-    width: auto;
-    max-width: 100%;
-    overflow: hidden;
-}
-
-::deep .mvn-header-toolbar .rz-button {
-    width: 100%;
-    min-width: 0;
-    max-width: none;
-    height: 32px;
-    min-height: 32px;
-    justify-content: center;
-    font-size: 11px;
-    padding-inline: 0.32rem;
-}
-
-::deep .mvn-header-toolbar .rz-button .rz-button-text {
-    min-width: 0;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    gap: 0.45rem;
 }
 
 .mvn-placeholder {
@@ -399,6 +358,73 @@ n/* 2026-05-01 09:48 AM CDT AI manage-views-next marker: disabled and enabled me
     font-weight: 800;
     letter-spacing: 0.04em;
     text-transform: uppercase;
+}
+
+.mvn-view-tools {
+    position: relative;
+    flex: 0 0 auto;
+}
+
+.mvn-view-tools summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 30px;
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+    background: #e7e9ee;
+    color: #263445;
+    cursor: pointer;
+    font-size: 0.82rem;
+    font-weight: 600;
+    list-style: none;
+}
+
+.mvn-view-tools summary::-webkit-details-marker {
+    display: none;
+}
+
+.mvn-view-tools[open] summary,
+.mvn-view-tools summary:hover {
+    background: #eef1f6;
+}
+
+.mvn-view-tools-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    z-index: 30;
+    min-width: 220px;
+    padding: 0.35rem;
+    border: 1px solid #d6dce7;
+    border-radius: 6px;
+    background: #fff;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.16);
+}
+
+.mvn-view-tools-menu button {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    width: 100%;
+    min-height: 32px;
+    padding: 0.35rem 0.5rem;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: #263445;
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+}
+
+.mvn-view-tools-menu button:hover {
+    background: #f3f5f9;
+}
+
+.mvn-view-tools-menu button:disabled {
+    color: #a8b0bc;
+    cursor: not-allowed;
 }
 
 .mvn-status-chip,
@@ -611,10 +637,15 @@ n/* 2026-05-01 09:48 AM CDT AI manage-views-next marker: disabled and enabled me
 .mvn-view-actions {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.45rem;
     flex-wrap: wrap;
     padding-top: 0.5rem;
     border-top: 1px solid #edf0f4;
+}
+
+::deep .mvn-view-actions .rz-button {
+    min-height: 32px;
+    height: 32px;
 }
 
 .mvn-sync-compact {
@@ -839,45 +870,13 @@ n/* 2026-05-01 09:48 AM CDT AI manage-views-next marker: disabled and enabled me
 @media (max-width: 1540px) {
     .mvn-selected-header {
         display: grid;
-        grid-template-columns: minmax(280px, 1fr) auto;
-        align-items: end;
-    }
-
-    .mvn-header-toolbar-shell {
-        justify-self: end;
-        width: auto;
-        max-width: 100%;
-    }
-
-    .mvn-header-toolbar {
-        grid-template-columns: repeat(6, minmax(82px, 116px));
-        width: auto;
-        max-width: 100%;
-        justify-self: end;
-    }
-
-    ::deep .mvn-header-toolbar .rz-button {
-        max-width: none;
-    }
-
-    ::deep .mvn-header-toolbar .rz-button .rz-button-text {
-        max-width: 100%;
+        grid-template-columns: minmax(0, 1fr);
+        align-items: start;
     }
 }
 
 @media (max-width: 980px) {
     .mvn-selected-header {
         grid-template-columns: 1fr;
-    }
-
-    .mvn-header-toolbar-shell {
-        justify-self: stretch;
-        width: 100%;
-    }
-
-    .mvn-header-toolbar {
-        grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
-        width: 100%;
-        justify-self: stretch;
     }
 }
