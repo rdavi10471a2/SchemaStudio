@@ -312,29 +312,29 @@ n/* 2026-05-01 09:48 AM CDT AI manage-views-next marker: disabled and enabled me
 .mvn-selected-header {
     flex: 0 0 auto;
     display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    align-items: start;
-    gap: 0.65rem;
+    grid-template-columns: minmax(280px, 1fr) auto;
+    align-items: end;
+    gap: 0.65rem 1rem;
 }
 
 .mvn-header-toolbar-shell {
     display: flex;
-    justify-content: flex-start;
+    justify-content: flex-end;
     min-width: 0;
     max-width: 100%;
-    width: 100%;
+    width: auto;
     overflow: hidden;
 }
 
 .mvn-header-toolbar {
     display: grid !important;
-    grid-template-columns: repeat(6, minmax(92px, 126px));
-    justify-content: start;
+    grid-template-columns: repeat(6, minmax(82px, 116px));
+    justify-content: end;
     align-items: start;
     grid-auto-rows: min-content;
     gap: 0.35rem !important;
     min-width: 0;
-    width: 100%;
+    width: auto;
     max-width: 100%;
     overflow: hidden;
 }
@@ -839,21 +839,21 @@ n/* 2026-05-01 09:48 AM CDT AI manage-views-next marker: disabled and enabled me
 @media (max-width: 1540px) {
     .mvn-selected-header {
         display: grid;
-        grid-template-columns: minmax(0, 1fr);
-        align-items: start;
+        grid-template-columns: minmax(280px, 1fr) auto;
+        align-items: end;
     }
 
-.mvn-header-toolbar-shell {
-        justify-self: stretch;
-        width: 100%;
+    .mvn-header-toolbar-shell {
+        justify-self: end;
+        width: auto;
         max-width: 100%;
     }
 
     .mvn-header-toolbar {
-        grid-template-columns: repeat(6, minmax(92px, 126px));
-        width: 100%;
+        grid-template-columns: repeat(6, minmax(82px, 116px));
+        width: auto;
         max-width: 100%;
-        justify-self: start;
+        justify-self: end;
     }
 
     ::deep .mvn-header-toolbar .rz-button {
