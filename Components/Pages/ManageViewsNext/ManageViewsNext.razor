@@ -144,6 +144,16 @@
                     <RadzenText TextStyle="TextStyle.H6" class="rz-m-0">View Selector</RadzenText>
                 </div>
 
+                <div class="mvn-selector-reload">
+                    <RadzenButton Text="Reload Databases"
+                                  Icon="refresh"
+                                  ButtonStyle="ButtonStyle.Light"
+                                  title="Refreshes database choices, domains, imported views, and available candidates."
+                                  Click="@ReloadDatabasesAsync"
+                                  Disabled="@IsBusy"
+                                  Style="width:100%;" />
+                </div>
+
                 <div class="mvn-selector-filters">
                     <div class="mvn-field">
                         @FieldLabel(typeof(DatabaseDefinition), nameof(DatabaseDefinition.DatabaseName))
@@ -282,15 +292,6 @@
                     </details>
                 </div>
 
-                <div class="mvn-selector-reload">
-                    <RadzenButton Text="Reload Databases"
-                                  Icon="refresh"
-                                  ButtonStyle="ButtonStyle.Light"
-                                  title="Refreshes database choices, domains, imported views, and available candidates."
-                                  Click="@ReloadDatabasesAsync"
-                                  Disabled="@IsBusy"
-                                  Style="width:100%;" />
-                </div>
                 <button type="button"
                         class="mvn-height-resize-handle"
                         title="Resize view selector height"
