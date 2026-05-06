@@ -98,7 +98,7 @@ public partial class ManageViewsNext
     private string SelectorPanelHeightStyle =>
         SelectorPanelHeight.HasValue
             ? $"{SelectorPanelHeight.Value}px"
-            : "70dvh";
+            : "85dvh";
 
     private string CurrentSourceFullName =>
         EditableObject == null
