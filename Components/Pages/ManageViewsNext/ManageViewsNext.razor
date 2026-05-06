@@ -142,16 +142,13 @@
             <aside class="mvn-selector-panel">
                 <div class="mvn-selector-header">
                     <RadzenText TextStyle="TextStyle.H6" class="rz-m-0">View Selector</RadzenText>
-                </div>
-
-                <div class="mvn-selector-reload">
                     <RadzenButton Text="Reload Databases"
                                   Icon="refresh"
                                   ButtonStyle="ButtonStyle.Light"
                                   title="Refreshes database choices, domains, imported views, and available candidates."
                                   Click="@ReloadDatabasesAsync"
                                   Disabled="@IsBusy"
-                                  Style="width:100%;" />
+                                  class="mvn-selector-reload-button" />
                 </div>
 
                 <div class="mvn-selector-filters">
