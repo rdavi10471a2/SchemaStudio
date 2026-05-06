@@ -1,6 +1,6 @@
 ﻿@using SchemaStudio.AIHelpers
 
-@attribute [FileVersion("1.4")]
+@attribute [FileVersion("1.5")]
 @attribute [AIFileContext("Components/App.razor", "Defines the root HTML shell, shared browser-side state helpers, script references, and global client behaviors for the Blazor app.")]
 @attribute [AIChange("1.4", "2026-05-01 08:58 AM CDT stopped clearing session authentication on pagehide so browser refresh does not immediately log the user out.", AICommandStatus.Pending)]
 @attribute [AIChange("1.3", "2026-04-22 06:06 PM CDT restored Radzen script before Blazor so dropdowns and other Radzen components initialize their JavaScript.", AICommandStatus.Pending)]
@@ -13,6 +13,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SUSStudio -- Schema Understanding Service</title>
     <base href="/" />
     <link rel="stylesheet" href="app.css" />
     <link rel="stylesheet" href="SchemaStudioWebViewer.styles.css" />
