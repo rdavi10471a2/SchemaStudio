@@ -23,7 +23,7 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("1.43")]
+@attribute [FileVersion("1.44")]
 @attribute [AIChange(
     "1.36",
     "2026-04-30 11:59 PM CDT disabled selector controls during busy operations and rebuilt the column synchronization summary after merge choices are staged.",
@@ -139,8 +139,9 @@
     <div class="@(IsLeftPanelHidden ? "mvn-shell mvn-shell-collapsed" : "mvn-shell")">
         @if (!IsLeftPanelHidden)
         {
-            <aside class="mvn-selector-panel">
-                <div class="mvn-selector-header">
+            <aside class="mvn-selector-panel"
+                   style="display:flex; flex-direction:column; min-height:0; overflow:hidden;">
+                <div class="mvn-selector-header" style="flex:0 0 auto;">
                     <RadzenText TextStyle="TextStyle.H6" class="rz-m-0">View Selector</RadzenText>
                     <RadzenButton Text="Reload"
                                   Icon="refresh"
@@ -151,7 +152,7 @@
                                   class="mvn-selector-reload-button" />
                 </div>
 
-                <div class="mvn-selector-filters">
+                <div class="mvn-selector-filters" style="flex:0 0 auto;">
                     <div class="mvn-field">
                         @FieldLabel(typeof(DatabaseDefinition), nameof(DatabaseDefinition.DatabaseName))
                         <RadzenDropDown Data="@Databases"
@@ -178,7 +179,10 @@
                     </div>
                 </div>
 
-                <div class="mvn-tree-scroll" role="tree" aria-label="Views grouped by domain and type">
+                <div class="mvn-tree-scroll"
+                     style="flex:1 1 auto; min-height:0; overflow:auto; overflow-x:hidden;"
+                     role="tree"
+                     aria-label="Views grouped by domain and type">
                     @foreach (var group in DomainTreeGroups)
                     {
                         <details class="mvn-tree-domain" open>
