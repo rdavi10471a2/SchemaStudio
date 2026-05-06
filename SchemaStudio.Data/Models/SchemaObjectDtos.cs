@@ -134,6 +134,10 @@ public sealed class ViewColumnDto
     public string FullyQualifiedSemanticColumnName =>
         SqlQualify(SemanticDatabase, SemanticSchema, SemanticObject, SemanticColumn);
 
+    [Display(Name = "Disable Inheritance", Order = 25)]
+    [Description("Whether this parsed view column should opt out of inherited semantic metadata.")]
+    public bool DisableInheritance { get; set; }
+
     [Display(Name = "Business Name", Order = 30)]
     [Description("Business Name for this column.")]
     public string? BusinessName { get; set; }

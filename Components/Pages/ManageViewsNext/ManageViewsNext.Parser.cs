@@ -233,7 +233,7 @@ public partial class ManageViewsNext
             SemanticObject = NormalizeNullableText(parsed.SemanticObject),
             SemanticColumn = NormalizeNullableText(parsed.SemanticColumn),
             IsBaseDefinition = EditableObject?.IsBaseObject == true,
-            DisableInheritance = false,
+            DisableInheritance = GetParsedDisableInheritance(parsed),
             BusinessName = NormalizeNullableText(parsed.BusinessName),
             BusinessDescription = NormalizeNullableText(parsed.BusinessDescription),
             DeveloperNotes = null,
@@ -242,5 +242,17 @@ public partial class ManageViewsNext
 
         column.ClearDirty();
         return column;
+    }
+
+    private bool GetParsedDisableInheritance(ViewColumnDto parsed)
+    {
+        if (CurrentParsedView == null || string.IsNullOrWhiteSpace(parsed.ColumnName))
+        {
+            return false;
+        }
+
+        return CurrentParsedView.Columns
+            .FirstOrDefault(column => string.Equals(column.ColumnName, parsed.ColumnName, StringComparison.OrdinalIgnoreCase))
+            ?.DisableInheritance == true;
     }
 }
