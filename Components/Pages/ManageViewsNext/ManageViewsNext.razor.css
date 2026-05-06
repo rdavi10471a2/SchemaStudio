@@ -1,4 +1,4 @@
-n/* 2026-05-01 09:48 AM CDT AI manage-views-next marker: disabled and enabled metadata checkboxes keep the same visible target treatment. */
+/* 2026-05-01 09:48 AM CDT AI manage-views-next marker: disabled and enabled metadata checkboxes keep the same visible target treatment. */
 /* 2026-04-30 11:21 PM CDT AI v1.38 manage-views-next marker: selector and View Definition panels stretch farther down the viewport so the left side no longer stops short of Column Metadata. */
 /* 2026-05-01 10:53 PM CDT AI v1.37 manage-views-next marker: flattened the Manage Views page title strip and tightened the page stack gap so the header stops consuming extra vertical space. */
 /* 2026-05-01 10:39 PM CDT AI v1.35 manage-views-next marker: action toolbar starts farther left and Column Synchronization spans two toolbar columns without forcing its own full row. */
@@ -85,9 +85,14 @@ n/* 2026-05-01 09:48 AM CDT AI manage-views-next marker: disabled and enabled me
     grid-template-columns: var(--mvn-selector-width, 380px) 10px minmax(0, 1fr);
     gap: 0.5rem;
     height: 100%;
+    max-height: 100%;
     min-height: 0;
     overflow: hidden;
     align-items: stretch;
+}
+
+.mvn-shell > * {
+    min-height: 0;
 }
 
 .mvn-shell-collapsed {
@@ -199,7 +204,7 @@ n/* 2026-05-01 09:48 AM CDT AI manage-views-next marker: disabled and enabled me
 
 .mvn-tree-scroll {
     min-height: 0;
-    height: 100%;
+    max-height: 100%;
     overflow: auto;
     overflow-x: hidden;
     padding: 0.25rem 0.25rem 0.25rem 0;
@@ -305,7 +310,8 @@ n/* 2026-05-01 09:48 AM CDT AI manage-views-next marker: disabled and enabled me
     gap: 0.75rem;
     min-width: 0;
     min-height: 0;
-    overflow: auto;
+    max-height: 100%;
+    overflow: hidden;
     padding-right: 0.2rem;
 }
 
@@ -495,7 +501,7 @@ n/* 2026-05-01 09:48 AM CDT AI manage-views-next marker: disabled and enabled me
     min-width: 0;
     min-height: 0;
     flex: 1 1 auto;
-    overflow: visible;
+    overflow: hidden;
     align-items: stretch;
 }
 
