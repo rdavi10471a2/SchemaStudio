@@ -366,27 +366,23 @@ n/* 2026-05-01 09:48 AM CDT AI manage-views-next marker: disabled and enabled me
     flex: 0 0 auto;
 }
 
-.mvn-view-tools summary {
+.mvn-view-tools-trigger {
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
     min-height: 30px;
     padding: 0.25rem 0.6rem;
+    border: 0;
     border-radius: 4px;
     background: #e7e9ee;
     color: #263445;
     cursor: pointer;
     font-size: 0.82rem;
     font-weight: 600;
-    list-style: none;
 }
 
-.mvn-view-tools summary::-webkit-details-marker {
-    display: none;
-}
-
-.mvn-view-tools[open] summary,
-.mvn-view-tools summary:hover {
+.mvn-view-tools-trigger[aria-expanded="true"],
+.mvn-view-tools-trigger:hover {
     background: #eef1f6;
 }
 

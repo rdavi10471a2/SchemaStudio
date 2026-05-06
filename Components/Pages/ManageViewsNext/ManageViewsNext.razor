@@ -332,42 +332,49 @@
                     <section class="mvn-card mvn-view-editor">
                         <div class="mvn-panel-header">
                             <RadzenText TextStyle="TextStyle.H6" class="rz-m-0">View Definition</RadzenText>
-                            <details class="mvn-view-tools">
-                                <summary title="Open view-level tools">
+                            <div class="mvn-view-tools">
+                                <button type="button"
+                                        class="mvn-view-tools-trigger"
+                                        title="Open view-level tools"
+                                        aria-expanded="@IsViewToolsOpen"
+                                        @onclick="@ToggleViewTools">
                                     <RadzenIcon Icon="build" />
                                     <span>View Tools</span>
-                                </summary>
-                                <div class="mvn-view-tools-menu">
-                                    <button type="button"
-                                            title="Review parser-detected column changes before applying synchronization decisions."
-                                            disabled="@IsBusy"
-                                            @onclick="@OpenColumnMergeReviewAsync">
-                                        <RadzenIcon Icon="published_with_changes" />
-                                        <span>Review Merge</span>
-                                    </button>
-                                    <button type="button"
-                                            title="Reload this view's SQL from the database, clear parser cache for it, and rebuild the column synchronization review."
-                                            disabled="@(!CanOpenDependencyTools || IsBusy)"
-                                            @onclick="@RefreshCurrentViewAsync">
-                                        <RadzenIcon Icon="sync" />
-                                        <span>Refresh Parsed View</span>
-                                    </button>
-                                    <button type="button"
-                                            title="Open the parser's view of this SQL view, including parsed columns, source chain, and the view SQL tab."
-                                            disabled="@(!CanOpenDependencyTools || IsBusy)"
-                                            @onclick="@ShowParsedDependenciesAsync">
-                                        <RadzenIcon Icon="table_view" />
-                                        <span>Parsed Details</span>
-                                    </button>
-                                    <button type="button"
-                                            title="Show SQL Server dependency metadata for objects that reference this view."
-                                            disabled="@(!CanOpenDependencyTools || IsBusy)"
-                                            @onclick="@ShowWhereUsedAsync">
-                                        <RadzenIcon Icon="device_hub" />
-                                        <span>Where Used</span>
-                                    </button>
-                                </div>
-                            </details>
+                                </button>
+                                @if (IsViewToolsOpen)
+                                {
+                                    <div class="mvn-view-tools-menu">
+                                        <button type="button"
+                                                title="Review parser-detected column changes before applying synchronization decisions."
+                                                disabled="@IsBusy"
+                                                @onclick="@(() => RunViewToolAsync(OpenColumnMergeReviewAsync))">
+                                            <RadzenIcon Icon="published_with_changes" />
+                                            <span>Review Merge</span>
+                                        </button>
+                                        <button type="button"
+                                                title="Reload this view's SQL from the database, clear parser cache for it, and rebuild the column synchronization review."
+                                                disabled="@(!CanOpenDependencyTools || IsBusy)"
+                                                @onclick="@(() => RunViewToolAsync(RefreshCurrentViewAsync))">
+                                            <RadzenIcon Icon="sync" />
+                                            <span>Refresh Parsed View</span>
+                                        </button>
+                                        <button type="button"
+                                                title="Open the parser's view of this SQL view, including parsed columns, source chain, and the view SQL tab."
+                                                disabled="@(!CanOpenDependencyTools || IsBusy)"
+                                                @onclick="@(() => RunViewToolAsync(ShowParsedDependenciesAsync))">
+                                            <RadzenIcon Icon="table_view" />
+                                            <span>Parsed Details</span>
+                                        </button>
+                                        <button type="button"
+                                                title="Show SQL Server dependency metadata for objects that reference this view."
+                                                disabled="@(!CanOpenDependencyTools || IsBusy)"
+                                                @onclick="@(() => RunViewToolAsync(ShowWhereUsedAsync))">
+                                            <RadzenIcon Icon="device_hub" />
+                                            <span>Where Used</span>
+                                        </button>
+                                    </div>
+                                }
+                            </div>
                         </div>
 
                         <div class="mvn-field">
