@@ -341,8 +341,8 @@
 }
 
 .bvg-muted-row {
-    color: #6b7280;
-    background: #fafafa;
+    color: #7f1d1d;
+    background: #fff1f2;
 }
 
 .bvg-muted-row select,
@@ -351,7 +351,7 @@
 }
 
 .bvg-muted-cell {
-    color: #6b7280;
+    color: #9f1239;
     font-size: 0.78rem;
     font-weight: 800;
     text-transform: uppercase;
