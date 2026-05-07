@@ -11,8 +11,9 @@
 @inject DatabaseRepository DatabaseRepository
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject IJSRuntime JSRuntime
+@inject NotificationService NotificationService
 
-@attribute [FileVersion("1.15")]
+@attribute [FileVersion("1.16")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -37,14 +38,7 @@
         </div>
     </section>
 
-    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
-    {
-        <div class="bvg-alert">
-            <span>@ErrorMessage</span>
-            <button type="button" class="bvg-dismiss" title="Clear error" @onclick="ClearMessages">x</button>
-        </div>
-    }
-    else if (!string.IsNullOrWhiteSpace(StatusMessage))
+    @if (!string.IsNullOrWhiteSpace(StatusMessage))
     {
         <div class="bvg-status">@StatusMessage</div>
     }
@@ -219,7 +213,6 @@
     private bool IncludeLookupDisplayColumns = true;
     private bool IgnoreSelfJoins = true;
     private bool IncludeMetadataPlaceholders;
-    private string ErrorMessage = "";
     private string StatusMessage = "";
     private string SelectedDatabaseName = "";
     private string SelectedSchemaName = "";
@@ -403,12 +396,6 @@
         ColumnFilter = args.Value?.ToString() ?? "";
     }
 
-    private void ClearMessages()
-    {
-        ErrorMessage = "";
-        StatusMessage = "";
-    }
-
     private void RegenerateSql()
     {
         if (string.IsNullOrWhiteSpace(SelectedDatabaseName) ||
@@ -572,7 +559,6 @@
     private async Task RunPageOperationAsync(Func<Task> operation, string failureMessage)
     {
         IsBusy = true;
-        ErrorMessage = "";
         await InvokeAsync(StateHasChanged);
         await Task.Yield();
 
@@ -583,7 +569,7 @@
         catch (Exception ex)
         {
             StatusMessage = "";
-            ErrorMessage = $"{failureMessage} {ex.Message}";
+            NotificationService.Notify(NotificationSeverity.Error, failureMessage, ex.Message, 6000);
         }
         finally
         {
