@@ -340,22 +340,33 @@
     background: #ffffff;
     color: #111827;
     border: 0;
-    --sql-keyword-color: #0000ff;
-    --sql-comment-color: #008000;
-    --sql-string-color: #a31515;
 }
 
 .bvg-sql-output pre[class*="language-"],
 .bvg-sql-output code[class*="language-"] {
-    min-height: 100%;
     margin: 0;
-    padding: 0.8rem;
     background: #ffffff !important;
     color: #111827 !important;
-    font-family: Consolas, "Courier New", monospace;
+    font-family: "Cascadia Mono", Consolas, "Courier New", monospace !important;
     font-size: 0.86rem;
     line-height: 1.4;
+    tab-size: 4;
     text-shadow: none !important;
+    white-space: pre !important;
+    word-break: normal !important;
+    overflow-wrap: normal !important;
+}
+
+.bvg-sql-output pre[class*="language-"] {
+    display: block;
+    min-height: 100%;
+    min-width: max-content;
+    padding: 0.8rem;
+}
+
+.bvg-sql-output code[class*="language-"] {
+    display: block;
+    min-width: max-content;
 }
 
 .bvg-sql-output ::deep .token.keyword {
