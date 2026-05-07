@@ -56,8 +56,11 @@ namespace SchemaStudioWebViewer
             builder.Services.AddScoped(_ =>
                 new SchemaMCPRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
             builder.Services.AddScoped<SchemaCatalogMcpTools>();
-            builder.Services.AddScoped(_ =>
-                new TableSchemaSmoRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
+            builder.Services.AddSingleton<TableDisplayColumnPolicy>();
+            builder.Services.AddScoped(sp =>
+                new TableSchemaSmoRepository(
+                    AppConfig.Current.ConnectionStrings.DefaultConnection,
+                    sp.GetRequiredService<TableDisplayColumnPolicy>()));
             builder.Services.AddScoped<ViewParsingService>(_ =>
                 new ViewParsingService(AppConfig.Current.ConnectionStrings.DefaultConnection));
             builder.Services.AddScoped(_ =>

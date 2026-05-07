@@ -4,15 +4,17 @@ using SchemaStudio.AIHelpers;
 
 namespace SchemaStudioWebViewer.Data;
 
-[FileVersion("1.2")]
+[FileVersion("1.3")]
 [AIFileContext("Repositories/TableSchemaSmoRepository.cs", "Reads SQL Server table metadata for the Base View Generator page.", Responsibilities = "Provides schema, table, column, and many-to-one foreign-key metadata from a selected source database without changing the configured connection string.", Nuances = "The class name is retained from the first SMO implementation, but the metadata reads use targeted sys catalog queries because SMO object hydration was too slow for interactive use.", LastReviewed = "2026-05-07")]
 public sealed class TableSchemaSmoRepository
 {
     private readonly string connectionString;
+    private readonly TableDisplayColumnPolicy displayColumnPolicy;
 
-    public TableSchemaSmoRepository(string connectionString)
+    public TableSchemaSmoRepository(string connectionString, TableDisplayColumnPolicy? displayColumnPolicy = null)
     {
         this.connectionString = connectionString;
+        this.displayColumnPolicy = displayColumnPolicy ?? new TableDisplayColumnPolicy();
     }
 
     public async Task<IReadOnlyList<string>> GetSchemasAsync(string databaseName)
@@ -79,14 +81,15 @@ ORDER BY t.name;
 
         var columnByName = columns.ToDictionary(column => column.ColumnName, StringComparer.OrdinalIgnoreCase);
         var relationshipRows = (await connection.QueryAsync<TableSchemaRelationshipRow>(BuildRelationshipsSql(database), new { tableObjectId })).ToList();
+        var displayColumnsByObjectId = await GetDisplayColumnsByObjectIdAsync(connection, database, databaseName, relationshipRows);
         var relationships = new List<TableSchemaRelationshipInfo>();
 
         foreach (var group in relationshipRows.GroupBy(row => new
                  {
                      row.ForeignKeyName,
+                     row.ReferencedObjectId,
                      row.ReferencedSchemaName,
-                     row.ReferencedTableName,
-                     row.DisplayColumnName
+                     row.ReferencedTableName
                  }))
         {
             var pairs = group
@@ -109,7 +112,7 @@ ORDER BY t.name;
                 group.Key.ForeignKeyName,
                 group.Key.ReferencedSchemaName,
                 group.Key.ReferencedTableName,
-                group.Key.DisplayColumnName,
+                displayColumnsByObjectId.GetValueOrDefault(group.Key.ReferencedObjectId),
                 isRequired,
                 isRequired ? "INNER JOIN" : "LEFT JOIN",
                 pairs));
@@ -147,6 +150,58 @@ WHERE t.is_ms_shipped = 0
         }
 
         return objectId.Value;
+    }
+
+    private async Task<IReadOnlyDictionary<int, string>> GetDisplayColumnsByObjectIdAsync(
+        SqlConnection connection,
+        string database,
+        string databaseName,
+        IReadOnlyList<TableSchemaRelationshipRow> relationshipRows)
+    {
+        var referencedObjectIds = relationshipRows
+            .Select(row => row.ReferencedObjectId)
+            .Distinct()
+            .ToList();
+
+        if (referencedObjectIds.Count == 0)
+        {
+            return new Dictionary<int, string>();
+        }
+
+        var candidateColumnNames = displayColumnPolicy.GetCandidateColumnNames(databaseName);
+        var sql = $"""
+SELECT
+    t.object_id AS ReferencedObjectId,
+    s.name AS ReferencedSchemaName,
+    t.name AS ReferencedTableName,
+    c.name AS ColumnName
+FROM {database}.sys.tables AS t
+JOIN {database}.sys.schemas AS s
+    ON s.schema_id = t.schema_id
+JOIN {database}.sys.columns AS c
+    ON c.object_id = t.object_id
+WHERE t.object_id IN @referencedObjectIds
+    AND c.name IN @candidateColumnNames;
+""";
+
+        var candidates = (await connection.QueryAsync<TableSchemaDisplayColumnCandidateRow>(
+                sql,
+                new { referencedObjectIds, candidateColumnNames }))
+            .GroupBy(row => row.ReferencedObjectId)
+            .ToDictionary(
+                group => group.Key,
+                group =>
+                {
+                    var first = group.First();
+                    var availableColumns = group.Select(row => row.ColumnName).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                    return displayColumnPolicy
+                        .GetPreferredDisplayColumns(databaseName, first.ReferencedSchemaName, first.ReferencedTableName)
+                        .FirstOrDefault(availableColumns.Contains) ?? "";
+                });
+
+        return candidates
+            .Where(pair => !string.IsNullOrWhiteSpace(pair.Value))
+            .ToDictionary(pair => pair.Key, pair => pair.Value);
     }
 
     private static string BuildColumnsSql(string database)
@@ -189,32 +244,11 @@ ORDER BY c.column_id;
     private static string BuildRelationshipsSql(string database)
     {
         return $"""
-WITH DisplayColumns AS
-(
-    SELECT
-        c.object_id,
-        c.name AS DisplayColumnName,
-        ROW_NUMBER() OVER
-        (
-            PARTITION BY c.object_id
-            ORDER BY CASE c.name
-                WHEN 'Des' THEN 1
-                WHEN 'Des1' THEN 2
-                WHEN 'Name' THEN 3
-                WHEN 'Description' THEN 4
-                WHEN 'Desc' THEN 5
-                WHEN 'Title' THEN 6
-                ELSE 99
-            END
-        ) AS DisplayRank
-    FROM {database}.sys.columns AS c
-    WHERE c.name IN ('Des', 'Des1', 'Name', 'Description', 'Desc', 'Title')
-)
 SELECT
     fk.name AS ForeignKeyName,
+    rt.object_id AS ReferencedObjectId,
     rs.name AS ReferencedSchemaName,
     rt.name AS ReferencedTableName,
-    dc.DisplayColumnName,
     fkc.constraint_column_id AS ConstraintColumnId,
     pc.name AS LocalColumnName,
     rc.name AS ReferencedColumnName
@@ -231,9 +265,6 @@ JOIN {database}.sys.schemas AS rs
 JOIN {database}.sys.columns AS rc
     ON rc.object_id = fkc.referenced_object_id
     AND rc.column_id = fkc.referenced_column_id
-LEFT JOIN DisplayColumns AS dc
-    ON dc.object_id = rt.object_id
-    AND dc.DisplayRank = 1
 WHERE fk.parent_object_id = @tableObjectId
 ORDER BY fk.name, fkc.constraint_column_id;
 """;
@@ -261,12 +292,20 @@ ORDER BY fk.name, fkc.constraint_column_id;
     private sealed class TableSchemaRelationshipRow
     {
         public string ForeignKeyName { get; set; } = "";
+        public int ReferencedObjectId { get; set; }
         public string ReferencedSchemaName { get; set; } = "";
         public string ReferencedTableName { get; set; } = "";
-        public string? DisplayColumnName { get; set; }
         public int ConstraintColumnId { get; set; }
         public string LocalColumnName { get; set; } = "";
         public string ReferencedColumnName { get; set; } = "";
+    }
+
+    private sealed class TableSchemaDisplayColumnCandidateRow
+    {
+        public int ReferencedObjectId { get; set; }
+        public string ReferencedSchemaName { get; set; } = "";
+        public string ReferencedTableName { get; set; } = "";
+        public string ColumnName { get; set; } = "";
     }
 }
 
