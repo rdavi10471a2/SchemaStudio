@@ -12,7 +12,7 @@
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject IJSRuntime JSRuntime
 
-@attribute [FileVersion("1.4")]
+@attribute [FileVersion("1.5")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SMO table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -60,16 +60,7 @@
 
                 <label>
                     <span>Source Schema</span>
-                    <RadzenDropDown TValue="string"
-                                    Data="@Schemas"
-                                    @bind-Value="@SelectedSchemaName"
-                                    Change="@OnSchemaChangedAsync"
-                                    AllowClear="true"
-                                    AllowFiltering="true"
-                                    FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
-                                    Disabled="@(IsBusy || !Schemas.Any())"
-                                    Placeholder="Select schema"
-                                    Style="width: 100%;" />
+                    <input value="@SelectedSchemaName" @oninput="OnSchemaNameChanged" placeholder="dbo" disabled="@IsBusy" />
                 </label>
 
                 <label>
@@ -221,7 +212,6 @@
     private string GeneratedSql = "";
 
     private List<DatabaseDefinition> Databases = new();
-    private List<string> Schemas = new();
     private List<TableSchemaColumnInfo> Columns = new();
     private List<TableSchemaRelationshipInfo> Relationships = new();
 
@@ -258,18 +248,16 @@
         StatusMessage = "";
 
         var selectedDatabase = Databases.FirstOrDefault(database => string.Equals(database.DatabaseName, SelectedDatabaseName, StringComparison.OrdinalIgnoreCase));
-        SelectedSchemaName = selectedDatabase?.DefaultSchema ?? "";
+        SelectedSchemaName = string.IsNullOrWhiteSpace(selectedDatabase?.DefaultSchema)
+            ? DefaultTargetSchemaName
+            : selectedDatabase.DefaultSchema;
 
-        await LoadSchemasAsync();
-        if (!string.IsNullOrWhiteSpace(SelectedSchemaName))
-        {
-            StatusMessage = $"Schema [{SelectedSchemaName}] selected from database definition. Type a table name and click Load.";
-        }
+        StatusMessage = $"Schema [{SelectedSchemaName}] selected from database definition. Type a table name and click Load.";
     }
 
-    private async Task OnSchemaChangedAsync(object value)
+    private void OnSchemaNameChanged(ChangeEventArgs args)
     {
-        SelectedSchemaName = value?.ToString() ?? "";
+        SelectedSchemaName = args.Value?.ToString()?.Trim() ?? "";
         SelectedTableName = "";
         Columns.Clear();
         Relationships.Clear();
@@ -307,35 +295,13 @@
     {
         if (string.IsNullOrWhiteSpace(SelectedTableName))
         {
-            await LoadSchemasAsync();
+            StatusMessage = string.IsNullOrWhiteSpace(SelectedDatabaseName) || string.IsNullOrWhiteSpace(SelectedSchemaName)
+                ? "Select a source database and schema, then type a table name."
+                : $"Ready to check [{SelectedDatabaseName}].[{SelectedSchemaName}]. Type a table name and click Load.";
             return;
         }
 
         await LoadTableDetailsAsync();
-    }
-
-    private async Task LoadSchemasAsync()
-    {
-        if (string.IsNullOrWhiteSpace(SelectedDatabaseName))
-        {
-            Schemas.Clear();
-            StatusMessage = "Select a source database before loading schemas.";
-            return;
-        }
-
-        await RunPageOperationAsync(async () =>
-        {
-            Schemas = (await TableSchemaRepository.GetSchemasAsync(SelectedDatabaseName)).ToList();
-            if (!string.IsNullOrWhiteSpace(SelectedSchemaName) &&
-                !Schemas.Contains(SelectedSchemaName, StringComparer.OrdinalIgnoreCase))
-            {
-                SelectedSchemaName = "";
-            }
-
-            StatusMessage = Schemas.Count == 0
-                ? $"No user schemas were found in [{SelectedDatabaseName}]."
-                : $"Loaded {Schemas.Count} schemas from [{SelectedDatabaseName}].";
-        }, "Failed to load schemas.");
     }
 
     private async Task LoadTableDetailsAsync()
