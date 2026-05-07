@@ -1,0 +1,514 @@
+@page "/base-view-generator"
+
+@using SchemaStudio.AIHelpers
+@using SchemaStudioWebViewer.Data
+@using SchemaStudioWebViewer.Models
+
+@inject SchemaMCPRepository DatabaseRepository
+@inject TableSchemaSmoRepository TableSchemaRepository
+@inject IJSRuntime JSRuntime
+
+@attribute [FileVersion("1.0")]
+@attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SMO table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
+
+<PageTitle>Base View Generator</PageTitle>
+
+<div class="bvg-page">
+    <section class="bvg-header">
+        <div>
+            <h1>Base View Generator</h1>
+            <p>Generate deterministic base view SQL from SMO table metadata and M-to-1 foreign keys.</p>
+        </div>
+        <div class="bvg-header-actions">
+            <button type="button" class="bvg-button secondary" @onclick="RefreshMetadataAsync" disabled="@IsBusy">Refresh Metadata</button>
+            <button type="button" class="bvg-button primary" @onclick="CopySqlAsync" disabled="@string.IsNullOrWhiteSpace(GeneratedSql)">Copy SQL</button>
+        </div>
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="bvg-alert">@ErrorMessage</div>
+    }
+
+    <div class="bvg-layout">
+        <section class="bvg-panel bvg-source-panel">
+            <header class="bvg-panel-header">Source Table</header>
+            <div class="bvg-form-grid">
+                <label>
+                    <span>Source Database</span>
+                    <select value="@SelectedDatabaseName" @onchange="OnDatabaseChangedAsync" disabled="@IsBusy">
+                        <option value="">Select database</option>
+                        @foreach (var database in Databases)
+                        {
+                            <option value="@database.DatabaseName">@database.DatabaseName</option>
+                        }
+                    </select>
+                </label>
+
+                <label>
+                    <span>Source Schema</span>
+                    <select value="@SelectedSchemaName" @onchange="OnSchemaChangedAsync" disabled="@IsBusy || !Schemas.Any()">
+                        <option value="">Select schema</option>
+                        @foreach (var schema in Schemas)
+                        {
+                            <option value="@schema">@schema</option>
+                        }
+                    </select>
+                </label>
+
+                <label>
+                    <span>Source Table</span>
+                    <select value="@SelectedTableName" @onchange="OnTableChangedAsync" disabled="@IsBusy || !Tables.Any()">
+                        <option value="">Select table</option>
+                        @foreach (var table in Tables)
+                        {
+                            <option value="@table.TableName">@table.TableName</option>
+                        }
+                    </select>
+                </label>
+
+                <label>
+                    <span>Base Alias</span>
+                    <input value="@BaseAlias" @oninput="OnBaseAliasChanged" />
+                </label>
+            </div>
+
+            <div class="bvg-target">
+                <h2>Target View</h2>
+                <div class="bvg-form-grid">
+                    <label>
+                        <span>Target Database</span>
+                        <input value="@TargetDatabaseName" @oninput="OnTargetDatabaseChanged" />
+                    </label>
+                    <label>
+                        <span>Target Schema</span>
+                        <input value="@TargetSchemaName" @oninput="OnTargetSchemaChanged" />
+                    </label>
+                    <label class="bvg-wide">
+                        <span>View Name</span>
+                        <input value="@TargetViewName" @oninput="OnTargetViewNameChanged" />
+                    </label>
+                </div>
+                <div class="bvg-preview-line">@TargetViewPreview</div>
+            </div>
+
+            <div class="bvg-options">
+                <label><input type="checkbox" @bind="IncludeLookupDisplayColumns" @bind:after="RegenerateSql" /> Include lookup display columns</label>
+                <label><input type="checkbox" @bind="IgnoreSelfJoins" @bind:after="RefreshMetadataAsync" /> Ignore self joins</label>
+                <label><input type="checkbox" @bind="IncludeMetadataPlaceholders" @bind:after="RegenerateSql" /> Include metadata placeholders</label>
+            </div>
+
+            <section class="bvg-relationships">
+                <h2>Detected M-to-1 Relationships (@Relationships.Count)</h2>
+                <div class="bvg-note">
+                    @BaseAlias is the many-side table. Join defaults are inferred from FK column nullability; override each relationship before copying SQL.
+                </div>
+                <div class="bvg-table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Include</th>
+                                <th>FK Column</th>
+                                <th>Referenced Table</th>
+                                <th>Required</th>
+                                <th>Join</th>
+                                <th>Display Column</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var relationship in Relationships)
+                            {
+                                <tr>
+                                    <td><input type="checkbox" @bind="relationship.Include" @bind:after="RegenerateSql" /></td>
+                                    <td>@relationship.LocalColumns</td>
+                                    <td>@QualifiedName(SelectedDatabaseName, relationship.ReferencedSchemaName, relationship.ReferencedTableName)</td>
+                                    <td>@(relationship.IsRequired ? "Yes" : "No")</td>
+                                    <td>
+                                        <select @bind="relationship.SelectedJoinType" @bind:after="RegenerateSql">
+                                            <option>INNER JOIN</option>
+                                            <option>LEFT JOIN</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <div class="bvg-display-cell">
+                                            <input type="checkbox" @bind="relationship.IncludeDisplayColumn" @bind:after="RegenerateSql" disabled="@string.IsNullOrWhiteSpace(relationship.DisplayColumnName)" />
+                                            <input value="@relationship.DisplayColumnName" @oninput="args => OnRelationshipDisplayColumnChanged(relationship, args)" disabled="@(!relationship.IncludeDisplayColumn)" />
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </section>
+
+        <section class="bvg-panel bvg-sql-panel">
+            <header class="bvg-panel-header">Generated SQL</header>
+            <pre class="bvg-sql-output">@GeneratedSql</pre>
+        </section>
+
+        <section class="bvg-panel bvg-column-panel">
+            <header class="bvg-panel-header">Columns</header>
+            <div class="bvg-column-filter">
+                <input placeholder="Filter columns" value="@ColumnFilter" @oninput="OnColumnFilterChanged" />
+            </div>
+            <div class="bvg-table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Include</th>
+                            <th>Column</th>
+                            <th>Data Type</th>
+                            <th>Nullable</th>
+                            <th>Key Role</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var column in FilteredColumns)
+                        {
+                            <tr>
+                                <td><input type="checkbox" @bind="column.Include" @bind:after="RegenerateSql" /></td>
+                                <td>@column.ColumnName</td>
+                                <td>@column.DataType</td>
+                                <td>@(column.IsNullable ? "Yes" : "No")</td>
+                                <td>@column.KeyRole</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+</div>
+
+@code {
+    private const string DefaultTargetDatabaseName = "VVGBI_Integrations";
+    private const string DefaultTargetSchemaName = "dbo";
+
+    private bool IsBusy;
+    private bool IncludeLookupDisplayColumns = true;
+    private bool IgnoreSelfJoins = true;
+    private bool IncludeMetadataPlaceholders;
+    private string ErrorMessage = "";
+    private string SelectedDatabaseName = "";
+    private string SelectedSchemaName = "";
+    private string SelectedTableName = "";
+    private string BaseAlias = "";
+    private string TargetDatabaseName = DefaultTargetDatabaseName;
+    private string TargetSchemaName = DefaultTargetSchemaName;
+    private string TargetViewName = "";
+    private string ColumnFilter = "";
+    private string GeneratedSql = "";
+
+    private List<DatabaseModel> Databases = new();
+    private List<string> Schemas = new();
+    private List<TableSchemaTableInfo> Tables = new();
+    private List<TableSchemaColumnInfo> Columns = new();
+    private List<TableSchemaRelationshipInfo> Relationships = new();
+
+    private string TargetViewPreview =>
+        string.IsNullOrWhiteSpace(TargetViewName)
+            ? "Select a table to generate a target view name."
+            : $"CREATE OR ALTER VIEW {QualifiedName(TargetDatabaseName, TargetSchemaName, TargetViewName)}";
+
+    private IEnumerable<TableSchemaColumnInfo> FilteredColumns =>
+        string.IsNullOrWhiteSpace(ColumnFilter)
+            ? Columns
+            : Columns.Where(column => column.ColumnName.Contains(ColumnFilter, StringComparison.OrdinalIgnoreCase)
+                                   || column.DataType.Contains(ColumnFilter, StringComparison.OrdinalIgnoreCase)
+                                   || column.KeyRole.Contains(ColumnFilter, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RunPageOperationAsync(async () =>
+        {
+            Databases = (await DatabaseRepository.GetDatabasesAsync(250)).ToList();
+        }, "Failed to load databases.");
+    }
+
+    private async Task OnDatabaseChangedAsync(ChangeEventArgs args)
+    {
+        SelectedDatabaseName = args.Value?.ToString() ?? "";
+        SelectedTableName = "";
+        Tables.Clear();
+        Columns.Clear();
+        Relationships.Clear();
+        GeneratedSql = "";
+
+        var selectedDatabase = Databases.FirstOrDefault(database => string.Equals(database.DatabaseName, SelectedDatabaseName, StringComparison.OrdinalIgnoreCase));
+        SelectedSchemaName = selectedDatabase?.DefaultSchema ?? "";
+
+        await LoadSchemasAsync();
+        if (!string.IsNullOrWhiteSpace(SelectedSchemaName))
+        {
+            await LoadTablesAsync();
+        }
+    }
+
+    private async Task OnSchemaChangedAsync(ChangeEventArgs args)
+    {
+        SelectedSchemaName = args.Value?.ToString() ?? "";
+        SelectedTableName = "";
+        Columns.Clear();
+        Relationships.Clear();
+        GeneratedSql = "";
+        await LoadTablesAsync();
+    }
+
+    private async Task OnTableChangedAsync(ChangeEventArgs args)
+    {
+        SelectedTableName = args.Value?.ToString() ?? "";
+        BaseAlias = SelectedTableName;
+        TargetViewName = string.IsNullOrWhiteSpace(SelectedDatabaseName) || string.IsNullOrWhiteSpace(SelectedTableName)
+            ? ""
+            : $"SS_{SelectedDatabaseName}_{SelectedTableName}";
+        await LoadTableDetailsAsync();
+    }
+
+    private async Task RefreshMetadataAsync()
+    {
+        if (string.IsNullOrWhiteSpace(SelectedTableName))
+        {
+            await LoadTablesAsync();
+            return;
+        }
+
+        await LoadTableDetailsAsync();
+    }
+
+    private async Task LoadSchemasAsync()
+    {
+        if (string.IsNullOrWhiteSpace(SelectedDatabaseName))
+        {
+            Schemas.Clear();
+            return;
+        }
+
+        await RunPageOperationAsync(async () =>
+        {
+            Schemas = (await TableSchemaRepository.GetSchemasAsync(SelectedDatabaseName)).ToList();
+            if (!string.IsNullOrWhiteSpace(SelectedSchemaName) &&
+                !Schemas.Contains(SelectedSchemaName, StringComparer.OrdinalIgnoreCase))
+            {
+                SelectedSchemaName = Schemas.FirstOrDefault() ?? "";
+            }
+        }, "Failed to load schemas.");
+    }
+
+    private async Task LoadTablesAsync()
+    {
+        if (string.IsNullOrWhiteSpace(SelectedDatabaseName) || string.IsNullOrWhiteSpace(SelectedSchemaName))
+        {
+            Tables.Clear();
+            return;
+        }
+
+        await RunPageOperationAsync(async () =>
+        {
+            Tables = (await TableSchemaRepository.GetTablesAsync(SelectedDatabaseName, SelectedSchemaName)).ToList();
+        }, "Failed to load tables.");
+    }
+
+    private async Task LoadTableDetailsAsync()
+    {
+        if (string.IsNullOrWhiteSpace(SelectedDatabaseName) ||
+            string.IsNullOrWhiteSpace(SelectedSchemaName) ||
+            string.IsNullOrWhiteSpace(SelectedTableName))
+        {
+            return;
+        }
+
+        await RunPageOperationAsync(async () =>
+        {
+            var details = await TableSchemaRepository.GetTableDetailsAsync(SelectedDatabaseName, SelectedSchemaName, SelectedTableName);
+            Columns = details.Columns.ToList();
+            Relationships = details.Relationships
+                .Where(relationship => !IgnoreSelfJoins ||
+                    !string.Equals(relationship.ReferencedSchemaName, SelectedSchemaName, StringComparison.OrdinalIgnoreCase) ||
+                    !string.Equals(relationship.ReferencedTableName, SelectedTableName, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            RegenerateSql();
+        }, "Failed to load table details.");
+    }
+
+    private void OnBaseAliasChanged(ChangeEventArgs args)
+    {
+        BaseAlias = args.Value?.ToString() ?? "";
+        RegenerateSql();
+    }
+
+    private void OnTargetDatabaseChanged(ChangeEventArgs args)
+    {
+        TargetDatabaseName = args.Value?.ToString() ?? "";
+        RegenerateSql();
+    }
+
+    private void OnTargetSchemaChanged(ChangeEventArgs args)
+    {
+        TargetSchemaName = args.Value?.ToString() ?? "";
+        RegenerateSql();
+    }
+
+    private void OnTargetViewNameChanged(ChangeEventArgs args)
+    {
+        TargetViewName = args.Value?.ToString() ?? "";
+        RegenerateSql();
+    }
+
+    private void OnRelationshipDisplayColumnChanged(TableSchemaRelationshipInfo relationship, ChangeEventArgs args)
+    {
+        relationship.DisplayColumnName = args.Value?.ToString();
+        RegenerateSql();
+    }
+
+    private void OnColumnFilterChanged(ChangeEventArgs args)
+    {
+        ColumnFilter = args.Value?.ToString() ?? "";
+    }
+
+    private void RegenerateSql()
+    {
+        if (string.IsNullOrWhiteSpace(SelectedDatabaseName) ||
+            string.IsNullOrWhiteSpace(SelectedSchemaName) ||
+            string.IsNullOrWhiteSpace(SelectedTableName) ||
+            string.IsNullOrWhiteSpace(BaseAlias) ||
+            string.IsNullOrWhiteSpace(TargetDatabaseName) ||
+            string.IsNullOrWhiteSpace(TargetSchemaName) ||
+            string.IsNullOrWhiteSpace(TargetViewName))
+        {
+            GeneratedSql = "";
+            return;
+        }
+
+        var lines = new List<string>
+        {
+            $"CREATE OR ALTER VIEW {QualifiedName(TargetDatabaseName, TargetSchemaName, TargetViewName)}",
+            "AS",
+            "SELECT"
+        };
+
+        var projectionLines = BuildProjectionLines().ToList();
+        if (projectionLines.Count == 0)
+        {
+            lines.Add("      -- Select at least one column.");
+        }
+        else
+        {
+            lines.AddRange(projectionLines);
+        }
+
+        lines.Add("");
+        lines.Add($"FROM {QualifiedName(SelectedDatabaseName, SelectedSchemaName, SelectedTableName)} AS {QuoteIdentifier(BaseAlias)}");
+
+        foreach (var relationship in Relationships.Where(relationship => relationship.Include))
+        {
+            lines.Add("");
+            lines.AddRange(BuildJoinLines(relationship));
+        }
+
+        GeneratedSql = string.Join(Environment.NewLine, lines);
+    }
+
+    private IEnumerable<string> BuildProjectionLines()
+    {
+        var first = true;
+        foreach (var column in Columns.Where(column => column.Include))
+        {
+            yield return $"{ProjectionPrefix(first)}{QuoteIdentifier(BaseAlias)}.{QuoteIdentifier(column.ColumnName)}{BuildMetadataPlaceholder(column.ColumnName)}";
+            first = false;
+        }
+
+        if (!IncludeLookupDisplayColumns)
+        {
+            yield break;
+        }
+
+        foreach (var relationship in Relationships
+            .Where(relationship => relationship.Include && relationship.IncludeDisplayColumn && !string.IsNullOrWhiteSpace(relationship.DisplayColumnName)))
+        {
+            var alias = BuildLookupAlias(relationship);
+            var columnAlias = BuildLookupProjectionAlias(relationship);
+            yield return $"{ProjectionPrefix(first)}{QuoteIdentifier(alias)}.{QuoteIdentifier(relationship.DisplayColumnName!)} AS {QuoteIdentifier(columnAlias)}{BuildMetadataPlaceholder(columnAlias)}";
+            first = false;
+        }
+    }
+
+    private IEnumerable<string> BuildJoinLines(TableSchemaRelationshipInfo relationship)
+    {
+        var alias = BuildLookupAlias(relationship);
+        yield return $"{relationship.SelectedJoinType} {QualifiedName(SelectedDatabaseName, relationship.ReferencedSchemaName, relationship.ReferencedTableName)} AS {QuoteIdentifier(alias)}";
+
+        for (var index = 0; index < relationship.Columns.Count; index++)
+        {
+            var pair = relationship.Columns[index];
+            var prefix = index == 0 ? "    ON " : "   AND ";
+            yield return $"{prefix}{QuoteIdentifier(alias)}.{QuoteIdentifier(pair.ReferencedColumnName)} = {QuoteIdentifier(BaseAlias)}.{QuoteIdentifier(pair.LocalColumnName)}";
+        }
+    }
+
+    private string BuildLookupAlias(TableSchemaRelationshipInfo relationship)
+    {
+        var referencedTable = relationship.ReferencedTableName;
+        var duplicateCount = Relationships
+            .Where(candidate => string.Equals(candidate.ReferencedSchemaName, relationship.ReferencedSchemaName, StringComparison.OrdinalIgnoreCase))
+            .Where(candidate => string.Equals(candidate.ReferencedTableName, relationship.ReferencedTableName, StringComparison.OrdinalIgnoreCase))
+            .TakeWhile(candidate => !ReferenceEquals(candidate, relationship))
+            .Count();
+
+        return duplicateCount == 0
+            ? referencedTable
+            : $"{referencedTable}_{relationship.LocalColumns.Replace(",", "_", StringComparison.Ordinal).Replace(" ", "", StringComparison.Ordinal)}";
+    }
+
+    private static string BuildLookupProjectionAlias(TableSchemaRelationshipInfo relationship)
+    {
+        var localColumn = relationship.Columns.FirstOrDefault()?.LocalColumnName ?? relationship.ReferencedTableName;
+        var cleaned = localColumn.EndsWith("Id", StringComparison.OrdinalIgnoreCase)
+            ? localColumn[..^2]
+            : localColumn;
+
+        return $"{cleaned}Description";
+    }
+
+    private string BuildMetadataPlaceholder(string columnName) =>
+        IncludeMetadataPlaceholders
+            ? " /*@BusinessName:  @BusinessDescription:  */"
+            : string.Empty;
+
+    private static string ProjectionPrefix(bool first) =>
+        first ? "      " : "    , ";
+
+    private static string QualifiedName(params string?[] parts) =>
+        string.Join(".", parts.Where(part => !string.IsNullOrWhiteSpace(part)).Select(QuoteIdentifier));
+
+    private static string QuoteIdentifier(string identifier) =>
+        $"[{identifier.Replace("]", "]]", StringComparison.Ordinal)}]";
+
+    private async Task CopySqlAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(GeneratedSql))
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", GeneratedSql);
+        }
+    }
+
+    private async Task RunPageOperationAsync(Func<Task> operation, string failureMessage)
+    {
+        IsBusy = true;
+        ErrorMessage = "";
+
+        try
+        {
+            await operation();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"{failureMessage} {ex.Message}";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+}

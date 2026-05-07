@@ -10,6 +10,7 @@
     <PackageReference Include="Dapper" Version="2.1.72" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.5" />
+    <PackageReference Include="Microsoft.SqlServer.SqlManagementObjects" Version="181.19.0" />
     <PackageReference Include="ModelContextProtocol" Version="1.2.0" />
     <PackageReference Include="ModelContextProtocol.AspNetCore" Version="1.2.0" />
     <PackageReference Include="Radzen.Blazor" Version="10.2.2" />
@@ -46,9 +47,7 @@
 
   <!-- AI 2026-04-15 10:36: restored post-build Git checkpoint hook for build snapshots. -->
   <Target Name="PostBuildGitCheckpoint" AfterTargets="Build">
-    <Exec
-      WorkingDirectory="$(MSBuildProjectDirectory)"
-      Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\post-build-git-checkpoint.ps1&quot; -CommitMessage &quot;Checkpoint successful build SchemaStudioWebViewer&quot;" />
+    <Exec WorkingDirectory="$(MSBuildProjectDirectory)" Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\post-build-git-checkpoint.ps1&quot; -CommitMessage &quot;Checkpoint successful build SchemaStudioWebViewer&quot;" />
   </Target>
 
 </Project>
