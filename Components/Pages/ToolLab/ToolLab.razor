@@ -16,7 +16,7 @@
 @inject SchemaMCPRepository Repository
 @inject SchemaCatalogMcpTools Tools
 
-@attribute [FileVersion("1.10")]
+@attribute [FileVersion("1.11")]
 @attribute [AIFileContext("Components/Pages/ToolLab/ToolLab.razor", "Debug page for manually exercising Schema Studio MCP schema tools from inside the authenticated web UI.", Responsibilities = "Provides real database-backed dropdowns for tool parameters, invokes the same MCP tool wrapper methods used by the MCP endpoint, and displays request/response JSON for chain testing.", Nuances = "This page is a human test harness only; the /mcp endpoint remains independently mapped and is not gated by this page's simple-auth check.", RelatedFiles = "McpTools/SchemaCatalogMcpTools.cs; Repositories/SchemaMCPRepository.cs; Program.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Tool Lab</PageTitle>
@@ -348,7 +348,7 @@ else
         await RunPageOperationAsync(async () =>
         {
             Databases = (await Repository.GetDatabasesAsync(DropdownLoadLimit)).ToList();
-            if (SelectedDatabaseId is null && Databases.Count > 0)
+            if (SelectedDatabaseId is null && Databases.Count == 1)
             {
                 SelectedDatabaseId = Databases[0].DatabaseId;
             }
@@ -397,7 +397,7 @@ else
     {
         if ((NeedsDatabase || NeedsDomain || NeedsSchemaObject || NeedsField) &&
             SelectedDatabaseId is null &&
-            Databases.Count > 0)
+            Databases.Count == 1)
         {
             SelectedDatabaseId = Databases[0].DatabaseId;
         }
@@ -407,27 +407,9 @@ else
             await LoadDomainsAsync();
         }
 
-        if (NeedsDomain && string.IsNullOrWhiteSpace(SelectedDomain) && Domains.Count > 0)
-        {
-            SelectedDomain = Domains[0].Domain;
-        }
-
         if ((NeedsSchemaObject || NeedsField) && !SchemaObjects.Any())
         {
             await LoadObjectsAsync();
-        }
-
-        if ((NeedsSchemaObject || NeedsField) &&
-            SelectedSchemaObjectId is null &&
-            SchemaObjects.Count > 0)
-        {
-            SelectedSchemaObjectId = SchemaObjects[0].SchemaObjectId;
-            await LoadFieldsAsync();
-        }
-
-        if (NeedsField && SelectedFieldId is null && Fields.Count > 0)
-        {
-            SelectedFieldId = Fields[0].SchemaObjectColumnId;
         }
     }
 
