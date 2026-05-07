@@ -13,7 +13,7 @@
 @inject IJSRuntime JSRuntime
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("1.17")]
+@attribute [FileVersion("1.18")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -105,7 +105,8 @@
 
             <div class="bvg-options">
                 <label><input type="checkbox" @bind="IncludeLookupDisplayColumns" @bind:after="RegenerateSql" /> Include lookup display columns</label>
-                <label><input type="checkbox" @bind="IgnoreSelfJoins" @bind:after="RefreshMetadataAsync" /> Ignore self joins</label>
+                <label><input type="checkbox" @bind="IgnoreSelfJoins" @bind:after="ApplyRelationshipFiltersAndRegenerate" /> Ignore self joins</label>
+                <label><input type="checkbox" @bind="IgnoreRelationshipsWithoutDisplay" @bind:after="ApplyRelationshipFiltersAndRegenerate" /> Ignore FK relationships without display columns</label>
                 <label><input type="checkbox" @bind="IncludeMetadataPlaceholders" @bind:after="RegenerateSql" /> Include metadata placeholders</label>
             </div>
 
@@ -212,8 +213,10 @@
     private bool IsBusy;
     private bool IncludeLookupDisplayColumns = true;
     private bool IgnoreSelfJoins = true;
+    private bool IgnoreRelationshipsWithoutDisplay = true;
     private bool IncludeMetadataPlaceholders;
     private string StatusMessage = "";
+    private string RelationshipTelemetryMessage = "";
     private string SelectedDatabaseName = "";
     private string SelectedSchemaName = "";
     private string SelectedTableName = "";
@@ -227,6 +230,7 @@
 
     private List<DatabaseDefinition> Databases = new();
     private List<TableSchemaColumnInfo> Columns = new();
+    private List<TableSchemaRelationshipInfo> AllRelationships = new();
     private List<TableSchemaRelationshipInfo> Relationships = new();
 
     private string TargetViewPreview =>
@@ -275,8 +279,10 @@
         SelectedDatabaseName = databaseName;
         SelectedTableName = "";
         Columns.Clear();
+        AllRelationships.Clear();
         Relationships.Clear();
         GeneratedSql = "";
+        RelationshipTelemetryMessage = "";
         StatusMessage = "";
 
         var selectedDatabase = Databases.FirstOrDefault(database => string.Equals(database.DatabaseName, SelectedDatabaseName, StringComparison.OrdinalIgnoreCase));
@@ -294,8 +300,10 @@
         SelectedSchemaName = args.Value?.ToString()?.Trim() ?? "";
         SelectedTableName = "";
         Columns.Clear();
+        AllRelationships.Clear();
         Relationships.Clear();
         GeneratedSql = "";
+        RelationshipTelemetryMessage = "";
         StatusMessage = string.IsNullOrWhiteSpace(SelectedSchemaName)
             ? "Select a source schema before loading a table."
             : $"Schema [{SelectedSchemaName}] selected. Type a table name and click Load.";
@@ -306,8 +314,10 @@
         SelectedTableName = args.Value?.ToString()?.Trim() ?? "";
         BaseAlias = SelectedTableName;
         Columns.Clear();
+        AllRelationships.Clear();
         Relationships.Clear();
         GeneratedSql = "";
+        RelationshipTelemetryMessage = "";
         TargetViewName = string.IsNullOrWhiteSpace(SelectedDatabaseName) || string.IsNullOrWhiteSpace(SelectedTableName)
             ? ""
             : $"SS_{SelectedDatabaseName}_{SelectedTableName}";
@@ -351,14 +361,36 @@
         {
             var details = await TableSchemaRepository.GetTableDetailsAsync(SelectedDatabaseName, SelectedSchemaName, SelectedTableName);
             Columns = details.Columns.ToList();
-            Relationships = details.Relationships
-                .Where(relationship => !IgnoreSelfJoins ||
-                    !string.Equals(relationship.ReferencedSchemaName, SelectedSchemaName, StringComparison.OrdinalIgnoreCase) ||
-                    !string.Equals(relationship.ReferencedTableName, SelectedTableName, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-            RegenerateSql();
-            StatusMessage = $"Loaded {Columns.Count} columns and {Relationships.Count} M-to-1 relationships from [{SelectedDatabaseName}].[{SelectedSchemaName}].[{SelectedTableName}].";
+            AllRelationships = details.Relationships.ToList();
+            ApplyRelationshipFiltersAndRegenerate();
+            StatusMessage = BuildLoadedStatusMessage();
         }, $"Failed to load table details from [{SelectedDatabaseName}].[{SelectedSchemaName}].[{SelectedTableName}].");
+    }
+
+    private void ApplyRelationshipFiltersAndRegenerate()
+    {
+        var filteredRelationships = AllRelationships.AsEnumerable();
+
+        if (IgnoreSelfJoins)
+        {
+            filteredRelationships = filteredRelationships.Where(relationship =>
+                !string.Equals(relationship.ReferencedSchemaName, SelectedSchemaName, StringComparison.OrdinalIgnoreCase) ||
+                !string.Equals(relationship.ReferencedTableName, SelectedTableName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (IgnoreRelationshipsWithoutDisplay)
+        {
+            filteredRelationships = filteredRelationships.Where(HasDisplayColumn);
+        }
+
+        Relationships = filteredRelationships.ToList();
+        RelationshipTelemetryMessage = BuildRelationshipTelemetryMessage();
+        RegenerateSql();
+
+        if (Columns.Count > 0)
+        {
+            StatusMessage = BuildLoadedStatusMessage();
+        }
     }
 
     private void OnBaseAliasChanged(ChangeEventArgs args)
@@ -395,6 +427,41 @@
     {
         ColumnFilter = args.Value?.ToString() ?? "";
     }
+
+    private string BuildLoadedStatusMessage()
+    {
+        var message = $"Loaded {Columns.Count} columns and {Relationships.Count} active M-to-1 relationships from [{SelectedDatabaseName}].[{SelectedSchemaName}].[{SelectedTableName}].";
+        return string.IsNullOrWhiteSpace(RelationshipTelemetryMessage)
+            ? message
+            : $"{message} {RelationshipTelemetryMessage}";
+    }
+
+    private string BuildRelationshipTelemetryMessage()
+    {
+        var relationshipsWithoutDisplay = AllRelationships
+            .Where(relationship => !HasDisplayColumn(relationship))
+            .ToList();
+
+        if (relationshipsWithoutDisplay.Count == 0)
+        {
+            return "";
+        }
+
+        var examples = relationshipsWithoutDisplay
+            .Take(5)
+            .Select(relationship => $"{relationship.LocalColumns}->{relationship.ReferencedTableName}")
+            .ToList();
+
+        var suffix = relationshipsWithoutDisplay.Count > examples.Count
+            ? $", +{relationshipsWithoutDisplay.Count - examples.Count} more"
+            : "";
+        var action = IgnoreRelationshipsWithoutDisplay ? "Ignored" : "Detected";
+
+        return $"{action} {relationshipsWithoutDisplay.Count} FK relationship(s) without display columns: {string.Join(", ", examples)}{suffix}.";
+    }
+
+    private static bool HasDisplayColumn(TableSchemaRelationshipInfo relationship) =>
+        !string.IsNullOrWhiteSpace(relationship.DisplayColumnName);
 
     private void RegenerateSql()
     {
