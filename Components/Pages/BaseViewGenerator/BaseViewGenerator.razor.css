@@ -3,7 +3,10 @@
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+    height: 100%;
+    max-height: 100%;
     min-height: 0;
+    overflow: hidden;
 }
 
 .bvg-busy-overlay {
@@ -110,7 +113,10 @@
         "source sql"
         "source columns";
     gap: 0.75rem;
+    flex: 1 1 auto;
+    height: 100%;
     min-height: 0;
+    overflow: hidden;
 }
 
 .bvg-panel {
@@ -276,6 +282,10 @@
     font-size: 0.82rem;
 }
 
+.bvg-relationships .bvg-table-wrap table {
+    min-width: 760px;
+}
+
 .bvg-table-wrap th,
 .bvg-table-wrap td {
     padding: 0.42rem 0.5rem;
@@ -297,9 +307,43 @@
     text-transform: uppercase;
 }
 
+.bvg-relationships th:nth-child(1),
+.bvg-relationships td:nth-child(1) {
+    width: 58px;
+}
+
+.bvg-relationships th:nth-child(2),
+.bvg-relationships td:nth-child(2) {
+    min-width: 92px;
+}
+
+.bvg-relationships th:nth-child(3),
+.bvg-relationships td:nth-child(3) {
+    min-width: 190px;
+}
+
+.bvg-relationships th:nth-child(4),
+.bvg-relationships td:nth-child(4) {
+    width: 76px;
+}
+
+.bvg-relationships th:nth-child(5),
+.bvg-relationships td:nth-child(5) {
+    min-width: 118px;
+}
+
+.bvg-relationships th:nth-child(6),
+.bvg-relationships td:nth-child(6) {
+    min-width: 180px;
+}
+
+.bvg-relationships select {
+    min-width: 112px;
+}
+
 .bvg-display-cell {
     display: grid;
-    grid-template-columns: auto minmax(120px, 1fr);
+    grid-template-columns: auto minmax(140px, 1fr);
     gap: 0.35rem;
     align-items: center;
 }

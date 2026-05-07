@@ -12,8 +12,8 @@
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject IJSRuntime JSRuntime
 
-@attribute [FileVersion("1.6")]
-@attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SMO table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
+@attribute [FileVersion("1.7")]
+@attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
 
@@ -29,7 +29,7 @@
     <section class="bvg-header">
         <div>
             <h1>Base View Generator</h1>
-            <p>Generate deterministic base view SQL from SMO table metadata and M-to-1 foreign keys.</p>
+            <p>Generate deterministic base view SQL from table metadata and M-to-1 foreign keys.</p>
         </div>
         <div class="bvg-header-actions">
             <button type="button" class="bvg-button secondary" @onclick="RefreshMetadataAsync" disabled="@IsBusy">Refresh Metadata</button>
