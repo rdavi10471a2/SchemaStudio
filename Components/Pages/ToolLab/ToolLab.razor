@@ -15,7 +15,7 @@
 @inject SchemaMCPRepository Repository
 @inject SchemaCatalogMcpTools Tools
 
-@attribute [FileVersion("1.4")]
+@attribute [FileVersion("1.5")]
 @attribute [AIFileContext("Components/Pages/ToolLab/ToolLab.razor", "Debug page for manually exercising Schema Studio MCP schema tools from inside the authenticated web UI.", Responsibilities = "Provides real database-backed dropdowns for tool parameters, invokes the same MCP tool wrapper methods used by the MCP endpoint, and displays request/response JSON for chain testing.", Nuances = "This page is a human test harness only; the /mcp endpoint remains independently mapped and is not gated by this page's simple-auth check.", RelatedFiles = "McpTools/SchemaCatalogMcpTools.cs; Repositories/SchemaMCPRepository.cs; Program.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Tool Lab</PageTitle>
@@ -66,6 +66,10 @@ else
                     <div>
                         <span class="tool-identity-label">MCP endpoint</span>
                         <strong>@McpEndpointDisplay</strong>
+                    </div>
+                    <div>
+                        <span class="tool-identity-label">Endpoint URL</span>
+                        <strong>@McpEndpointUrl</strong>
                     </div>
                     <div>
                         <span class="tool-identity-label">Tool attribute</span>
@@ -217,6 +221,9 @@ else
         AppConfig.Current.Mcp.Enabled
             ? $"{AppConfig.Current.Mcp.EffectiveRoute} ({(AppConfig.Current.Mcp.UseSse ? "SSE transport" : "HTTP transport")})"
             : $"{AppConfig.Current.Mcp.EffectiveRoute} (MCP disabled in config)";
+
+    private string McpEndpointUrl =>
+        NavigationManager.ToAbsoluteUri(AppConfig.Current.Mcp.EffectiveRoute).ToString();
 
     private bool NeedsDatabase =>
         SelectedTool is not "schema_list_databases";
