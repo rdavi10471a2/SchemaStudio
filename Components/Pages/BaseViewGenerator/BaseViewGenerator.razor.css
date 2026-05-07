@@ -110,11 +110,9 @@
 
 .bvg-layout {
     display: grid;
-    grid-template-columns: minmax(420px, 0.72fr) minmax(0, 1.28fr);
-    grid-template-rows: minmax(0, 1.35fr) minmax(0, 0.65fr);
+    grid-template-columns: minmax(420px, 0.58fr) minmax(0, 1.42fr);
     grid-template-areas:
-        "source sql"
-        "source columns";
+        "source workspace";
     gap: 0.75rem;
     flex: 1 1 auto;
     min-height: 0;
@@ -137,12 +135,8 @@
     overflow: hidden;
 }
 
-.bvg-sql-panel {
-    grid-area: sql;
-}
-
-.bvg-column-panel {
-    grid-area: columns;
+.bvg-workspace-panel {
+    grid-area: workspace;
 }
 
 .bvg-panel-header {
@@ -247,7 +241,6 @@
     margin-top: 0.75rem;
     padding: 0.65rem 0;
     border-top: 1px solid #e7ebf0;
-    border-bottom: 1px solid #e7ebf0;
 }
 
 .bvg-options label {
@@ -262,8 +255,7 @@
     flex: 1;
     flex-direction: column;
     min-height: 0;
-    margin-top: 0.75rem;
-    margin-bottom: 0.75rem;
+    padding: 0.75rem;
 }
 
 .bvg-note {
@@ -364,6 +356,47 @@
     line-height: 1.4;
 }
 
+.bvg-tabs {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: flex-end;
+    gap: 0.15rem;
+    padding: 0.55rem 0.75rem 0;
+    border-bottom: 1px solid #d8dde6;
+    background: #f8f9fb;
+}
+
+.bvg-tab {
+    min-height: 36px;
+    padding: 0.45rem 0.8rem;
+    border: 1px solid transparent;
+    border-bottom: 0;
+    border-radius: 5px 5px 0 0;
+    background: transparent;
+    color: #354152;
+    font: inherit;
+    font-weight: 750;
+    cursor: pointer;
+}
+
+.bvg-tab:hover {
+    background: #eef2f8;
+}
+
+.bvg-tab.active {
+    border-color: #d8dde6;
+    background: #ffffff;
+    color: #0f172a;
+}
+
+.bvg-tab-body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
 .bvg-column-filter {
     padding: 0.65rem 0.75rem;
     border-bottom: 1px solid #e7ebf0;
@@ -372,11 +405,11 @@
 @media (max-width: 1200px) {
     .bvg-layout {
         grid-template-columns: minmax(0, 1fr);
-        grid-template-rows: auto auto auto;
+        grid-template-rows: auto minmax(520px, 1fr);
         grid-template-areas:
             "source"
-            "sql"
-            "columns";
+            "workspace";
+        overflow: auto;
     }
 
     .bvg-header {
