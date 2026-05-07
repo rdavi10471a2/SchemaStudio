@@ -337,13 +337,54 @@
     flex: 1;
     min-height: 0;
     overflow: auto;
+    background: #ffffff;
+    color: #111827;
+    border: 0;
+    --sql-keyword-color: #0000ff;
+    --sql-comment-color: #008000;
+    --sql-string-color: #a31515;
+}
+
+.bvg-sql-output pre[class*="language-"],
+.bvg-sql-output code[class*="language-"] {
+    min-height: 100%;
     margin: 0;
     padding: 0.8rem;
-    background: #ffffff;
-    color: #0f172a;
+    background: #ffffff !important;
+    color: #111827 !important;
     font-family: Consolas, "Courier New", monospace;
     font-size: 0.86rem;
     line-height: 1.4;
+    text-shadow: none !important;
+}
+
+.bvg-sql-output ::deep .token.keyword {
+    color: var(--sql-keyword-color) !important;
+    font-weight: 700;
+}
+
+.bvg-sql-output ::deep .token.string {
+    color: var(--sql-string-color) !important;
+}
+
+.bvg-sql-output ::deep .token.comment {
+    color: var(--sql-comment-color) !important;
+    font-style: normal;
+    font-weight: 500;
+}
+
+.bvg-sql-output ::deep .token.operator,
+.bvg-sql-output ::deep .token.punctuation {
+    color: #374151 !important;
+}
+
+.bvg-sql-output ::deep .token.function,
+.bvg-sql-output ::deep .token.builtin {
+    color: #0f766e !important;
+}
+
+.bvg-sql-output ::deep .token.number {
+    color: #b45309 !important;
 }
 
 .bvg-tabs {
