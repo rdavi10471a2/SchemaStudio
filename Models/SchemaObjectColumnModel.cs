@@ -61,6 +61,9 @@ namespace SchemaStudioWebViewer.Models
         [Description("The Column Name used in the view.")]
         public string SourceColumnName { get; set; } = "";
 
+        [Display(AutoGenerateField = false)]
+        public string? SourceColumnKind { get; set; }
+
         [Display(Name = "Business Name", Order = 30)]
         [Description("Business Name for this column.")]
         public string? BusinessName { get; set; }
@@ -88,6 +91,6 @@ namespace SchemaStudioWebViewer.Models
             string.Join(".",
                 parts
                     .Where(x => !string.IsNullOrWhiteSpace(x))
-                    .Select(x => $"[{x}]"));
+                    .Select(x => $"[{x.Replace("]", "]]", StringComparison.Ordinal)}]"));
     }
 }

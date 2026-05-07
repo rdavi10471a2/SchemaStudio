@@ -23,7 +23,10 @@ namespace SchemaStudioWebViewer.Models
         [Display(Name = "Physical Source", Order = 5)]
         [Description("The fully qualified 3-part name of the source object.")]
         [DetailViewOnly]
-        public string SourceName => $"{SourceDatabaseName}.{SourceSchemaName}.{SourceObjectName}";
+        public string SourceName => string.Join(
+            ".",
+            new[] { SourceDatabaseName, SourceSchemaName, SourceObjectName }
+                .Select(x => string.IsNullOrWhiteSpace(x) ? "[unknown]" : x));
 
         [Display(Name = "Business Name", Order = 30)]
         [Description("Name for this View Object that represents is Business Meaning.")]
