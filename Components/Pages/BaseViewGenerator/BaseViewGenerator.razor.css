@@ -63,6 +63,15 @@
     font-weight: 600;
 }
 
+.bvg-status {
+    padding: 0.55rem 0.7rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    background: #f8fafc;
+    color: #354152;
+    font-weight: 600;
+}
+
 .bvg-layout {
     display: grid;
     grid-template-columns: minmax(420px, 0.72fr) minmax(0, 1.28fr);

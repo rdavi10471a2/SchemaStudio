@@ -5,7 +5,7 @@ using SchemaStudio.AIHelpers;
 
 namespace SchemaStudioWebViewer.Data;
 
-[FileVersion("1.0")]
+[FileVersion("1.1")]
 [AIFileContext("Repositories/TableSchemaSmoRepository.cs", "Reads SQL Server table metadata through SMO for the Base View Generator page.", Responsibilities = "Provides schema, table, column, and many-to-one foreign-key metadata from a selected source database without changing the configured connection string.", Nuances = "The connection string can point at the application/default database; SMO navigates to the selected source database through Server.Databases.", LastReviewed = "2026-05-07")]
 public sealed class TableSchemaSmoRepository
 {
@@ -21,6 +21,8 @@ public sealed class TableSchemaSmoRepository
         return Task.Run<IReadOnlyList<string>>(() =>
         {
             var database = GetDatabase(databaseName);
+            database.Schemas.Refresh();
+
             return database.Schemas
                 .Cast<Schema>()
                 .Where(schema => !schema.IsSystemObject)
@@ -35,6 +37,8 @@ public sealed class TableSchemaSmoRepository
         return Task.Run<IReadOnlyList<TableSchemaTableInfo>>(() =>
         {
             var database = GetDatabase(databaseName);
+            database.Tables.Refresh();
+
             return database.Tables
                 .Cast<Table>()
                 .Where(table => !table.IsSystemObject)

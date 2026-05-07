@@ -10,7 +10,7 @@
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject IJSRuntime JSRuntime
 
-@attribute [FileVersion("1.1")]
+@attribute [FileVersion("1.2")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SMO table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -30,6 +30,10 @@
     @if (!string.IsNullOrWhiteSpace(ErrorMessage))
     {
         <div class="bvg-alert">@ErrorMessage</div>
+    }
+    else if (!string.IsNullOrWhiteSpace(StatusMessage))
+    {
+        <div class="bvg-status">@StatusMessage</div>
     }
 
     <div class="bvg-layout">
@@ -76,7 +80,6 @@
                                     Change="@OnTableChangedAsync"
                                     AllowClear="true"
                                     AllowFiltering="true"
-                                    AllowVirtualization="true"
                                     FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
                                     Disabled="@(IsBusy || !Tables.Any())"
                                     Placeholder="Select table"
@@ -207,6 +210,7 @@
     private bool IgnoreSelfJoins = true;
     private bool IncludeMetadataPlaceholders;
     private string ErrorMessage = "";
+    private string StatusMessage = "";
     private string SelectedDatabaseName = "";
     private string SelectedSchemaName = "";
     private string SelectedTableName = "";
@@ -240,6 +244,9 @@
         await RunPageOperationAsync(async () =>
         {
             Databases = (await DatabaseRepository.GetDatabasesAsync(250)).ToList();
+            StatusMessage = Databases.Count == 0
+                ? "No SchemaStudio database definitions are available."
+                : $"Loaded {Databases.Count} SchemaStudio database definitions.";
         }, "Failed to load databases.");
     }
 
@@ -251,6 +258,7 @@
         Columns.Clear();
         Relationships.Clear();
         GeneratedSql = "";
+        StatusMessage = "";
 
         var selectedDatabase = Databases.FirstOrDefault(database => string.Equals(database.DatabaseName, SelectedDatabaseName, StringComparison.OrdinalIgnoreCase));
         SelectedSchemaName = selectedDatabase?.DefaultSchema ?? "";
@@ -269,6 +277,7 @@
         Columns.Clear();
         Relationships.Clear();
         GeneratedSql = "";
+        StatusMessage = "";
         await LoadTablesAsync();
     }
 
@@ -276,6 +285,10 @@
     {
         SelectedTableName = value?.ToString() ?? "";
         BaseAlias = SelectedTableName;
+        Columns.Clear();
+        Relationships.Clear();
+        GeneratedSql = "";
+        StatusMessage = "";
         TargetViewName = string.IsNullOrWhiteSpace(SelectedDatabaseName) || string.IsNullOrWhiteSpace(SelectedTableName)
             ? ""
             : $"SS_{SelectedDatabaseName}_{SelectedTableName}";
@@ -298,6 +311,7 @@
         if (string.IsNullOrWhiteSpace(SelectedDatabaseName))
         {
             Schemas.Clear();
+            StatusMessage = "Select a source database before loading schemas.";
             return;
         }
 
@@ -309,6 +323,10 @@
             {
                 SelectedSchemaName = "";
             }
+
+            StatusMessage = Schemas.Count == 0
+                ? $"No user schemas were found in [{SelectedDatabaseName}]."
+                : $"Loaded {Schemas.Count} schemas from [{SelectedDatabaseName}].";
         }, "Failed to load schemas.");
     }
 
@@ -317,13 +335,17 @@
         if (string.IsNullOrWhiteSpace(SelectedDatabaseName) || string.IsNullOrWhiteSpace(SelectedSchemaName))
         {
             Tables.Clear();
+            StatusMessage = "Select a source database and schema before loading tables.";
             return;
         }
 
         await RunPageOperationAsync(async () =>
         {
             Tables = (await TableSchemaRepository.GetTablesAsync(SelectedDatabaseName, SelectedSchemaName)).ToList();
-        }, "Failed to load tables.");
+            StatusMessage = Tables.Count == 0
+                ? $"No user tables were found in [{SelectedDatabaseName}].[{SelectedSchemaName}]."
+                : $"Loaded {Tables.Count} tables from [{SelectedDatabaseName}].[{SelectedSchemaName}].";
+        }, $"Failed to load tables from [{SelectedDatabaseName}].[{SelectedSchemaName}].");
     }
 
     private async Task LoadTableDetailsAsync()
@@ -345,7 +367,8 @@
                     !string.Equals(relationship.ReferencedTableName, SelectedTableName, StringComparison.OrdinalIgnoreCase))
                 .ToList();
             RegenerateSql();
-        }, "Failed to load table details.");
+            StatusMessage = $"Loaded {Columns.Count} columns and {Relationships.Count} M-to-1 relationships from [{SelectedDatabaseName}].[{SelectedSchemaName}].[{SelectedTableName}].";
+        }, $"Failed to load table details from [{SelectedDatabaseName}].[{SelectedSchemaName}].[{SelectedTableName}].");
     }
 
     private void OnBaseAliasChanged(ChangeEventArgs args)
@@ -520,6 +543,7 @@
         }
         catch (Exception ex)
         {
+            StatusMessage = "";
             ErrorMessage = $"{failureMessage} {ex.Message}";
         }
         finally
