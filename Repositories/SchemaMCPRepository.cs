@@ -2,10 +2,11 @@ using Dapper;
 using Microsoft.Data.SqlClient;
 using SchemaStudio.AIHelpers;
 using SchemaStudioWebViewer.Models;
+using System.Text.RegularExpressions;
 
 namespace SchemaStudioWebViewer.Repositories;
 
-[FileVersion("1.0")]
+[FileVersion("1.1")]
 [AIFileContext("Repositories/SchemaMCPRepository.cs", "Read-only Dapper repository for MCP schema discovery tools. Provides the database/domain/object/field lookup chain used by MCP tool wrappers and the Tool Lab debug page.", Responsibilities = "Owns read-only Schema Studio metadata queries for AI-facing schema discovery without exposing write operations.", Nuances = "Keep this repository query-focused and async; tool wrappers own exception-to-tool-response conversion so failures stay structured for AI callers.", LastReviewed = "2026-05-07")]
 public sealed class SchemaMCPRepository
 {
@@ -187,5 +188,83 @@ FROM SchemaObjectColumn
 WHERE SchemaObjectColumnId = @schemaObjectColumnId";
 
         return await connection.QueryFirstOrDefaultAsync<SchemaObjectColumnModel>(sql, new { schemaObjectColumnId });
+    }
+
+    public async Task<ViewDefinitionResult?> GetViewSqlAsync(int schemaObjectId)
+    {
+        var schemaObject = await GetSchemaObjectAsync(schemaObjectId);
+        if (schemaObject is null)
+        {
+            return null;
+        }
+
+        return await GetViewSqlAsync(schemaObject);
+    }
+
+    public async Task<ViewDefinitionResult?> GetViewSqlAsync(SchemaObjectModel schemaObject)
+    {
+        if (string.IsNullOrWhiteSpace(schemaObject.SourceDatabaseName))
+        {
+            throw new ArgumentException("Schema object does not have a source database name.");
+        }
+
+        if (string.IsNullOrWhiteSpace(schemaObject.SourceSchemaName))
+        {
+            throw new ArgumentException("Schema object does not have a source schema name.");
+        }
+
+        if (string.IsNullOrWhiteSpace(schemaObject.SourceObjectName))
+        {
+            throw new ArgumentException("Schema object does not have a source object name.");
+        }
+
+        var databaseName = BracketSqlIdentifier(schemaObject.SourceDatabaseName);
+
+        var sql = $@"
+SELECT
+    sm.definition AS Definition,
+    v.modify_date AS ModifyDate
+FROM {databaseName}.sys.views v
+INNER JOIN {databaseName}.sys.schemas s
+    ON v.schema_id = s.schema_id
+INNER JOIN {databaseName}.sys.sql_modules sm
+    ON v.object_id = sm.object_id
+WHERE s.name = @schemaName
+AND v.name = @objectName";
+
+        await using var connection = new SqlConnection(connectionString);
+        return await connection.QueryFirstOrDefaultAsync<ViewDefinitionResult>(
+            sql,
+            new
+            {
+                schemaName = schemaObject.SourceSchemaName,
+                objectName = schemaObject.SourceObjectName
+            });
+    }
+
+    public static string CleanSqlDefinition(string rawSql)
+    {
+        if (string.IsNullOrWhiteSpace(rawSql))
+        {
+            return string.Empty;
+        }
+
+        const string pattern = @"/\*\s*@BusinessName.*?\*/";
+
+        return Regex.Replace(
+            rawSql,
+            pattern,
+            string.Empty,
+            RegexOptions.Singleline | RegexOptions.IgnoreCase).Trim();
+    }
+
+    private static string BracketSqlIdentifier(string identifier)
+    {
+        if (string.IsNullOrWhiteSpace(identifier))
+        {
+            throw new ArgumentException("SQL identifier is required.", nameof(identifier));
+        }
+
+        return $"[{identifier.Replace("]", "]]")}]";
     }
 }

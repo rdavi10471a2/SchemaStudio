@@ -7,7 +7,7 @@ using SchemaStudioWebViewer.Repositories;
 namespace SchemaStudioWebViewer.McpTools;
 
 [McpServerToolType]
-[FileVersion("1.1")]
+[FileVersion("1.2")]
 [AIFileContext("McpTools/SchemaCatalogMcpTools.cs", "MCP tool surface for read-only Schema Studio catalog discovery. Wraps SchemaMCPRepository calls in structured success/error objects for AI callers.", Responsibilities = "Exposes chainable MCP tools for listing databases, domains, schema objects, object fields, and focused object/field descriptions.", Nuances = "Keep repository exceptions contained here so MCP callers receive recoverable JSON instead of transport-level failures for normal lookup mistakes.", LastReviewed = "2026-05-07")]
 public sealed class SchemaCatalogMcpTools
 {
@@ -138,6 +138,47 @@ public sealed class SchemaCatalogMcpTools
         }
     }
 
+    [McpServerTool(Name = "schema_get_view_sql")]
+    [Description("Get the SQL definition text for one Schema Studio view/object. Use this when an AI needs an example query shape before rewriting or generating a query.")]
+    public async Task<object> GetViewSqlAsync(
+        [Description("Schema object id returned by schema_list_objects.")] int schemaObjectId,
+        [Description("When true, remove Schema Studio parser metadata comment blocks from the returned SQL.")] bool cleanMetadataComments = false)
+    {
+        try
+        {
+            var schemaObject = await repository.GetSchemaObjectAsync(schemaObjectId);
+            if (schemaObject is null)
+            {
+                return Fail("object_not_found", $"Schema object id {schemaObjectId} was not found or is inactive.");
+            }
+
+            var viewSql = await repository.GetViewSqlAsync(schemaObject);
+            if (viewSql is null || string.IsNullOrWhiteSpace(viewSql.Definition))
+            {
+                return Fail(
+                    "view_sql_not_found",
+                    $"SQL definition was not found for schema object id {schemaObjectId}.",
+                    details: ProjectSchemaObject(schemaObject));
+            }
+
+            var sqlText = cleanMetadataComments
+                ? SchemaMCPRepository.CleanSqlDefinition(viewSql.Definition)
+                : viewSql.Definition;
+
+            return Ok(new
+            {
+                schemaObject = ProjectSchemaObject(schemaObject),
+                cleanMetadataComments,
+                modifyDate = viewSql.ModifyDate,
+                sql = sqlText
+            });
+        }
+        catch (Exception ex)
+        {
+            return Fail("view_sql_failed", $"Failed to get view SQL for schema object id {schemaObjectId}.", ex);
+        }
+    }
+
     [McpServerTool(Name = "schema_list_fields")]
     [Description("List fields/columns for one Schema Studio object.")]
     public async Task<object> ListFieldsAsync(
@@ -262,6 +303,14 @@ public sealed class SchemaCatalogMcpTools
             listFields = new
             {
                 tool = "schema_list_fields",
+                arguments = new
+                {
+                    schemaObjectId = schemaObject.SchemaObjectId
+                }
+            },
+            getViewSql = new
+            {
+                tool = "schema_get_view_sql",
                 arguments = new
                 {
                     schemaObjectId = schemaObject.SchemaObjectId
