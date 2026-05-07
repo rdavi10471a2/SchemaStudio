@@ -40,6 +40,7 @@
 
 .bvg-header {
     display: flex;
+    flex: 0 0 auto;
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
@@ -88,6 +89,7 @@
 }
 
 .bvg-alert {
+    flex: 0 0 auto;
     padding: 0.55rem 0.7rem;
     border: 1px solid #f3c37a;
     border-radius: 4px;
@@ -97,6 +99,7 @@
 }
 
 .bvg-status {
+    flex: 0 0 auto;
     padding: 0.55rem 0.7rem;
     border: 1px solid #cbd5e1;
     border-radius: 4px;
@@ -108,13 +111,12 @@
 .bvg-layout {
     display: grid;
     grid-template-columns: minmax(420px, 0.72fr) minmax(0, 1.28fr);
-    grid-template-rows: minmax(440px, 1.3fr) minmax(240px, 0.7fr);
+    grid-template-rows: minmax(0, 1.35fr) minmax(0, 0.65fr);
     grid-template-areas:
         "source sql"
         "source columns";
     gap: 0.75rem;
     flex: 1 1 auto;
-    height: 100%;
     min-height: 0;
     overflow: hidden;
 }
@@ -132,6 +134,7 @@
 
 .bvg-source-panel {
     grid-area: source;
+    overflow: hidden;
 }
 
 .bvg-sql-panel {
