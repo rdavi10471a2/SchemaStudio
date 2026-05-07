@@ -13,7 +13,7 @@
 @inject IJSRuntime JSRuntime
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("1.26")]
+@attribute [FileVersion("1.27")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -186,21 +186,34 @@
                                 <tbody>
                                     @foreach (var relationship in Relationships)
                                     {
-                                        <tr>
-                                            <td><input type="checkbox" checked="@relationship.Include" @onchange="args => OnRelationshipIncludeChanged(relationship, args)" /></td>
+                                        var joinSuppressed = IsJoinSuppressed(relationship);
+                                        <tr class="@(joinSuppressed ? "bvg-muted-row" : null)">
+                                            <td>
+                                                @if (joinSuppressed)
+                                                {
+                                                    <span class="bvg-muted-cell">Suppressed</span>
+                                                }
+                                                else
+                                                {
+                                                    <input type="checkbox" checked="@relationship.Include" @onchange="args => OnRelationshipIncludeChanged(relationship, args)" />
+                                                }
+                                            </td>
                                             <td>@relationship.LocalColumns</td>
                                             <td>@QualifiedName(SelectedDatabaseName, relationship.ReferencedSchemaName, relationship.ReferencedTableName)</td>
                                             <td>@(relationship.IsRequired ? "Yes" : "No")</td>
                                             <td>
-                                                <select value="@relationship.SelectedJoinType" @onchange="args => OnRelationshipJoinTypeChanged(relationship, args)">
+                                                <select value="@relationship.SelectedJoinType" @onchange="args => OnRelationshipJoinTypeChanged(relationship, args)" disabled="@joinSuppressed">
                                                     <option value="INNER JOIN">INNER JOIN</option>
                                                     <option value="LEFT JOIN">LEFT JOIN</option>
                                                 </select>
                                             </td>
                                             <td>
                                                 <div class="bvg-display-cell">
-                                                    <input type="checkbox" checked="@relationship.IncludeDisplayColumn" @onchange="args => OnRelationshipDisplayIncludeChanged(relationship, args)" disabled="@string.IsNullOrWhiteSpace(relationship.DisplayColumnName)" />
-                                                    <input value="@relationship.DisplayColumnName" @oninput="args => OnRelationshipDisplayColumnChanged(relationship, args)" disabled="@(!relationship.IncludeDisplayColumn)" />
+                                                    @if (!joinSuppressed)
+                                                    {
+                                                        <input type="checkbox" checked="@relationship.IncludeDisplayColumn" @onchange="args => OnRelationshipDisplayIncludeChanged(relationship, args)" disabled="@string.IsNullOrWhiteSpace(relationship.DisplayColumnName)" />
+                                                    }
+                                                    <input value="@relationship.DisplayColumnName" @oninput="args => OnRelationshipDisplayColumnChanged(relationship, args)" disabled="@(joinSuppressed || !relationship.IncludeDisplayColumn)" />
                                                 </div>
                                             </td>
                                         </tr>
@@ -533,9 +546,12 @@
     private static bool HasDisplayColumn(TableSchemaRelationshipInfo relationship) =>
         !string.IsNullOrWhiteSpace(relationship.DisplayColumnName);
 
+    private bool IsJoinSuppressed(TableSchemaRelationshipInfo relationship) =>
+        IgnoreRelationshipsWithoutDisplay && !HasDisplayColumn(relationship);
+
     private bool ShouldGenerateJoin(TableSchemaRelationshipInfo relationship) =>
         relationship.Include &&
-        (!IgnoreRelationshipsWithoutDisplay || HasDisplayColumn(relationship));
+        !IsJoinSuppressed(relationship);
 
     private void RegenerateSql()
     {
@@ -603,6 +619,7 @@
     {
         var first = true;
         var relationshipColumnNames = Relationships
+            .Where(relationship => !IsJoinSuppressed(relationship))
             .SelectMany(relationship => relationship.Columns.Select(column => column.LocalColumnName))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
@@ -619,7 +636,7 @@
 
         foreach (var relationship in Relationships)
         {
-            if (!relationship.Include)
+            if (!relationship.Include || IsJoinSuppressed(relationship))
             {
                 continue;
             }

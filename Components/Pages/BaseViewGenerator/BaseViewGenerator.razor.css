@@ -340,6 +340,23 @@
     align-items: center;
 }
 
+.bvg-muted-row {
+    color: #6b7280;
+    background: #fafafa;
+}
+
+.bvg-muted-row select,
+.bvg-muted-row input {
+    opacity: 0.65;
+}
+
+.bvg-muted-cell {
+    color: #6b7280;
+    font-size: 0.78rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
 .bvg-sql-output {
     flex: 1;
     min-height: 0;
