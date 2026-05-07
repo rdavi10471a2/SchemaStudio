@@ -15,7 +15,7 @@
 @inject SchemaMCPRepository Repository
 @inject SchemaCatalogMcpTools Tools
 
-@attribute [FileVersion("1.3")]
+@attribute [FileVersion("1.4")]
 @attribute [AIFileContext("Components/Pages/ToolLab/ToolLab.razor", "Debug page for manually exercising Schema Studio MCP schema tools from inside the authenticated web UI.", Responsibilities = "Provides real database-backed dropdowns for tool parameters, invokes the same MCP tool wrapper methods used by the MCP endpoint, and displays request/response JSON for chain testing.", Nuances = "This page is a human test harness only; the /mcp endpoint remains independently mapped and is not gated by this page's simple-auth check.", RelatedFiles = "McpTools/SchemaCatalogMcpTools.cs; Repositories/SchemaMCPRepository.cs; Program.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Tool Lab</PageTitle>
@@ -61,6 +61,32 @@ else
                                 @bind-Value="@SelectedTool"
                                 Change="@OnToolChanged"
                                 Style="width: 320px;" />
+
+                <div class="tool-identity">
+                    <div>
+                        <span class="tool-identity-label">MCP endpoint</span>
+                        <strong>@McpEndpointDisplay</strong>
+                    </div>
+                    <div>
+                        <span class="tool-identity-label">Tool attribute</span>
+                        <strong>[McpServerTool(Name = "@SelectedTool")]</strong>
+                    </div>
+                    <div>
+                        <span class="tool-identity-label">Tool type</span>
+                        <strong>[McpServerToolType] SchemaCatalogMcpTools</strong>
+                    </div>
+                    <div>
+                        <span class="tool-identity-label">Lab call path</span>
+                        <strong>In-process wrapper call; MCP clients use the endpoint above.</strong>
+                    </div>
+                    <div class="tool-identity-description">
+                        @SelectedToolDescription
+                    </div>
+                    <div class="tool-identity-parameters">
+                        <span class="tool-identity-label">Parameters</span>
+                        <code>@SelectedToolParameters</code>
+                    </div>
+                </div>
 
                 <div class="tool-lab-grid">
                     <div>
@@ -169,14 +195,28 @@ else
 
     private IReadOnlyList<ToolOption> ToolOptions { get; } = new[]
     {
-        new ToolOption("schema_list_databases", "List Databases"),
-        new ToolOption("schema_list_domains", "List Domains"),
-        new ToolOption("schema_list_objects", "List Objects"),
-        new ToolOption("schema_describe_object", "Describe Object"),
-        new ToolOption("schema_get_view_sql", "Get View SQL"),
-        new ToolOption("schema_list_fields", "List Fields"),
-        new ToolOption("schema_describe_field", "Describe Field")
+        new ToolOption("schema_list_databases", "List Databases", "List active Schema Studio databases. Use this before asking for domains or schema objects.", "none"),
+        new ToolOption("schema_list_domains", "List Domains", "List business domains for an active Schema Studio database.", "databaseId"),
+        new ToolOption("schema_list_objects", "List Objects", "List active schema objects for a database, optionally filtered to one domain.", "databaseId, domain?"),
+        new ToolOption("schema_describe_object", "Describe Object", "Describe one Schema Studio object by schemaObjectId.", "schemaObjectId"),
+        new ToolOption("schema_get_view_sql", "Get View SQL", "Get SQL definition text for one Schema Studio view/object so an AI has an example query shape.", "schemaObjectId, cleanMetadataComments?"),
+        new ToolOption("schema_list_fields", "List Fields", "List fields/columns for one Schema Studio object.", "schemaObjectId"),
+        new ToolOption("schema_describe_field", "Describe Field", "Describe one Schema Studio field by schemaObjectColumnId.", "schemaObjectColumnId")
     };
+
+    private ToolOption SelectedToolOption =>
+        ToolOptions.FirstOrDefault(x => x.Value == SelectedTool) ?? ToolOptions[0];
+
+    private string SelectedToolDescription =>
+        SelectedToolOption.Description;
+
+    private string SelectedToolParameters =>
+        SelectedToolOption.Parameters;
+
+    private string McpEndpointDisplay =>
+        AppConfig.Current.Mcp.Enabled
+            ? $"{AppConfig.Current.Mcp.EffectiveRoute} ({(AppConfig.Current.Mcp.UseSse ? "SSE transport" : "HTTP transport")})"
+            : $"{AppConfig.Current.Mcp.EffectiveRoute} (MCP disabled in config)";
 
     private bool NeedsDatabase =>
         SelectedTool is not "schema_list_databases";
@@ -448,7 +488,7 @@ else
         }
     };
 
-    private sealed record ToolOption(string Value, string Text);
+    private sealed record ToolOption(string Value, string Text, string Description, string Parameters);
     private sealed record ToolLabObjectOption(int SchemaObjectId, string DisplayName, SchemaObjectModel Source);
     private sealed record ToolLabFieldOption(int SchemaObjectColumnId, string DisplayName, SchemaObjectColumnModel Source);
 }
