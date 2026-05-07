@@ -11,7 +11,7 @@ using System.Text.Json;
 
 namespace SchemaStudioWebViewer
 {
-    [FileVersion("1.8")]
+    [FileVersion("1.9")]
     [AIChange("1.6", "2026-04-23 01:29 PM CDT registered the source-view repository for the new manage-views workspace so available import candidates can be queried by database and ViewNameFilter.", AICommandStatus.Pending)]
     [AIFileContext("Program.cs", "Bootstraps the SchemaStudioWebViewer web app, initializes configuration, registers services, and maps the Razor and MCP endpoints.")]
     [AIChange("1.5", "2026-04-22 06:20 PM CDT registered SQL Server dependency metadata repository for ParserLab where-used lookups.", AICommandStatus.Pending)]
@@ -103,28 +103,29 @@ namespace SchemaStudioWebViewer
                 int? schemaObjectId,
                 int? schemaObjectColumnId,
                 bool? cleanMetadataComments,
+                bool? includeNext,
                 SchemaCatalogMcpTools tools) =>
             {
                 object response = toolName switch
                 {
-                    "schema_list_databases" => await tools.ListDatabasesAsync(),
+                    "schema_list_databases" => await tools.ListDatabasesAsync(includeNext),
                     "schema_list_domains" => databaseId is int selectedDatabaseId
-                        ? await tools.ListDomainsAsync(selectedDatabaseId)
+                        ? await tools.ListDomainsAsync(selectedDatabaseId, includeNext)
                         : MissingToolLabParameter("databaseId"),
                     "schema_list_objects" => databaseId is int selectedDatabaseId
-                        ? await tools.ListSchemaObjectsAsync(selectedDatabaseId, domain)
+                        ? await tools.ListSchemaObjectsAsync(selectedDatabaseId, domain, includeNext)
                         : MissingToolLabParameter("databaseId"),
                     "schema_describe_object" => schemaObjectId is int selectedSchemaObjectId
-                        ? await tools.DescribeSchemaObjectAsync(selectedSchemaObjectId)
+                        ? await tools.DescribeSchemaObjectAsync(selectedSchemaObjectId, includeNext)
                         : MissingToolLabParameter("schemaObjectId"),
                     "schema_get_view_sql" => schemaObjectId is int selectedSchemaObjectId
-                        ? await tools.GetViewSqlAsync(selectedSchemaObjectId, cleanMetadataComments ?? false)
+                        ? await tools.GetViewSqlAsync(selectedSchemaObjectId, cleanMetadataComments ?? false, includeNext)
                         : MissingToolLabParameter("schemaObjectId"),
                     "schema_list_fields" => schemaObjectId is int selectedSchemaObjectId
-                        ? await tools.ListFieldsAsync(selectedSchemaObjectId)
+                        ? await tools.ListFieldsAsync(selectedSchemaObjectId, includeNext)
                         : MissingToolLabParameter("schemaObjectId"),
                     "schema_describe_field" => schemaObjectColumnId is int selectedSchemaObjectColumnId
-                        ? await tools.DescribeFieldAsync(selectedSchemaObjectColumnId)
+                        ? await tools.DescribeFieldAsync(selectedSchemaObjectColumnId, includeNext)
                         : MissingToolLabParameter("schemaObjectColumnId"),
                     _ => Results.NotFound(new
                     {

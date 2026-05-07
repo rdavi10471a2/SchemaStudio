@@ -1,6 +1,7 @@
 @page "/tool-lab"
 
 @using System.Text.Json
+@using System.Text.Json.Nodes
 @using Radzen
 @using Radzen.Blazor
 @using SchemaStudio.AIHelpers
@@ -15,7 +16,7 @@
 @inject SchemaMCPRepository Repository
 @inject SchemaCatalogMcpTools Tools
 
-@attribute [FileVersion("1.7")]
+@attribute [FileVersion("1.8")]
 @attribute [AIFileContext("Components/Pages/ToolLab/ToolLab.razor", "Debug page for manually exercising Schema Studio MCP schema tools from inside the authenticated web UI.", Responsibilities = "Provides real database-backed dropdowns for tool parameters, invokes the same MCP tool wrapper methods used by the MCP endpoint, and displays request/response JSON for chain testing.", Nuances = "This page is a human test harness only; the /mcp endpoint remains independently mapped and is not gated by this page's simple-auth check.", RelatedFiles = "McpTools/SchemaCatalogMcpTools.cs; Repositories/SchemaMCPRepository.cs; Program.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Tool Lab</PageTitle>
@@ -167,14 +168,26 @@ else
 
         <div class="tool-lab-results">
             <RadzenCard class="tool-lab-card">
-                <h2>Request JSON</h2>
+                <h2>Tool Call</h2>
                 <pre>@RequestJson</pre>
             </RadzenCard>
             <RadzenCard class="tool-lab-card">
-                <h2>Response JSON</h2>
+                <h2>Response</h2>
+                @if (!string.IsNullOrWhiteSpace(ResponseSummary))
+                {
+                    <div class="response-summary">@ResponseSummary</div>
+                }
                 <pre>@ResponseJson</pre>
             </RadzenCard>
         </div>
+
+        @if (!string.IsNullOrWhiteSpace(SqlOutput))
+        {
+            <RadzenCard class="tool-lab-card">
+                <h2>SQL</h2>
+                <pre class="sql-output">@SqlOutput</pre>
+            </RadzenCard>
+        }
     </div>
 }
 
@@ -192,6 +205,8 @@ else
     private int? SelectedFieldId;
     private string RequestJson = "{}";
     private string ResponseJson = "{}";
+    private string ResponseSummary = "";
+    private string SqlOutput = "";
     private string ErrorMessage = "";
 
     private List<DatabaseModel> Databases = new();
@@ -443,7 +458,7 @@ else
             };
 
             BuildRequestPreview();
-            ResponseJson = JsonSerializer.Serialize(response, JsonOptions);
+            SetResponseOutput(response);
         }, "Tool execution failed.");
     }
 
@@ -462,24 +477,70 @@ else
 
         RequestJson = JsonSerializer.Serialize(new
         {
-            endpoint = McpEndpointUrl,
             browserTestUrl = BrowserTestUrl,
-            note = "MCP clients call one transport endpoint; the selected tool name is sent in the JSON-RPC payload.",
-            listTools = new
+            mcpEndpoint = McpEndpointUrl,
+            mcpToolCall = new
             {
-                jsonrpc = "2.0",
-                id = "list-tools-1",
-                method = "tools/list",
-                @params = new { }
-            },
-            callTool = new
-            {
-                jsonrpc = "2.0",
-                id = "call-tool-1",
                 method = "tools/call",
                 @params = request
             }
         }, JsonOptions);
+    }
+
+    private void SetResponseOutput(object response)
+    {
+        SqlOutput = "";
+        ResponseSummary = "";
+
+        var responseJson = JsonSerializer.Serialize(response, JsonOptions);
+        var root = JsonNode.Parse(responseJson)?.AsObject();
+        if (root is null)
+        {
+            ResponseJson = responseJson;
+            return;
+        }
+
+        var ok = root["ok"]?.GetValue<bool?>() ?? false;
+        ResponseSummary = ok ? "Tool returned successfully." : "Tool returned an error.";
+
+        if (root["error"] is JsonObject error)
+        {
+            var code = error["code"]?.GetValue<string>();
+            var message = error["message"]?.GetValue<string>();
+            ResponseSummary = string.Join(" - ", new[] { code, message }.Where(x => !string.IsNullOrWhiteSpace(x)));
+            ResponseJson = root.ToJsonString(JsonOptions);
+            return;
+        }
+
+        if (root["data"] is JsonObject data)
+        {
+            ExtractSqlOutput(data);
+            ResponseJson = data.ToJsonString(JsonOptions);
+            return;
+        }
+
+        ResponseJson = root.ToJsonString(JsonOptions);
+    }
+
+    private void ExtractSqlOutput(JsonObject data)
+    {
+        var sqlNode = data["sql"];
+        if (sqlNode is null)
+        {
+            return;
+        }
+
+        SqlOutput = sqlNode.GetValue<string>() ?? "";
+        data.Remove("sql");
+
+        if (data["schemaObject"] is JsonObject schemaObject)
+        {
+            var businessName = schemaObject["businessName"]?.GetValue<string>();
+            var sourceName = schemaObject["sourceName"]?.GetValue<string>();
+            ResponseSummary = string.IsNullOrWhiteSpace(businessName)
+                ? $"SQL returned for {sourceName}."
+                : $"SQL returned for {businessName} ({sourceName}).";
+        }
     }
 
     private string BuildBrowserTestRoute()
@@ -530,7 +591,7 @@ else
         catch (Exception ex)
         {
             ErrorMessage = $"{failureMessage} {ex.Message}";
-            ResponseJson = JsonSerializer.Serialize(new
+            SetResponseOutput(new
             {
                 ok = false,
                 data = (object?)null,
@@ -541,7 +602,7 @@ else
                     exceptionType = ex.GetType().Name,
                     exceptionMessage = ex.Message
                 }
-            }, JsonOptions);
+            });
         }
         finally
         {

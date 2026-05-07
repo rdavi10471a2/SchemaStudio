@@ -81,6 +81,16 @@
     font-size: 1rem;
 }
 
+.response-summary {
+    margin-bottom: 0.5rem;
+    padding: 0.45rem 0.6rem;
+    border: 1px solid #d8dde6;
+    border-radius: 4px;
+    background: #f7f9fc;
+    color: #1f2937;
+    font-weight: 600;
+}
+
 .tool-lab pre {
     min-height: 220px;
     max-height: 48vh;
@@ -92,6 +102,13 @@
     color: #edf2ff;
     font-size: 0.85rem;
     line-height: 1.35;
+}
+
+.tool-lab .sql-output {
+    min-height: 360px;
+    max-height: 64vh;
+    background: #ffffff;
+    color: #0f172a;
 }
 
 @media (max-width: 1200px) {
