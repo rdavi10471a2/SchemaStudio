@@ -15,7 +15,7 @@
 @inject SchemaMCPRepository Repository
 @inject SchemaCatalogMcpTools Tools
 
-@attribute [FileVersion("1.5")]
+@attribute [FileVersion("1.7")]
 @attribute [AIFileContext("Components/Pages/ToolLab/ToolLab.razor", "Debug page for manually exercising Schema Studio MCP schema tools from inside the authenticated web UI.", Responsibilities = "Provides real database-backed dropdowns for tool parameters, invokes the same MCP tool wrapper methods used by the MCP endpoint, and displays request/response JSON for chain testing.", Nuances = "This page is a human test harness only; the /mcp endpoint remains independently mapped and is not gated by this page's simple-auth check.", RelatedFiles = "McpTools/SchemaCatalogMcpTools.cs; Repositories/SchemaMCPRepository.cs; Program.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Tool Lab</PageTitle>
@@ -72,6 +72,10 @@ else
                         <strong>@McpEndpointUrl</strong>
                     </div>
                     <div>
+                        <span class="tool-identity-label">Browser test URL</span>
+                        <strong>@BrowserTestUrl</strong>
+                    </div>
+                    <div>
                         <span class="tool-identity-label">Tool attribute</span>
                         <strong>[McpServerTool(Name = "@SelectedTool")]</strong>
                     </div>
@@ -85,6 +89,9 @@ else
                     </div>
                     <div class="tool-identity-description">
                         @SelectedToolDescription
+                    </div>
+                    <div class="tool-identity-description">
+                        MCP does not put the tool name in the URL. Clients connect to the endpoint, list available tools, then call this tool by name in the request payload.
                     </div>
                     <div class="tool-identity-parameters">
                         <span class="tool-identity-label">Parameters</span>
@@ -224,6 +231,9 @@ else
 
     private string McpEndpointUrl =>
         NavigationManager.ToAbsoluteUri(AppConfig.Current.Mcp.EffectiveRoute).ToString();
+
+    private string BrowserTestUrl =>
+        NavigationManager.ToAbsoluteUri(BuildBrowserTestRoute()).ToString();
 
     private bool NeedsDatabase =>
         SelectedTool is not "schema_list_databases";
@@ -450,7 +460,62 @@ else
             _ => new { tool = SelectedTool, arguments = new { } }
         };
 
-        RequestJson = JsonSerializer.Serialize(request, JsonOptions);
+        RequestJson = JsonSerializer.Serialize(new
+        {
+            endpoint = McpEndpointUrl,
+            browserTestUrl = BrowserTestUrl,
+            note = "MCP clients call one transport endpoint; the selected tool name is sent in the JSON-RPC payload.",
+            listTools = new
+            {
+                jsonrpc = "2.0",
+                id = "list-tools-1",
+                method = "tools/list",
+                @params = new { }
+            },
+            callTool = new
+            {
+                jsonrpc = "2.0",
+                id = "call-tool-1",
+                method = "tools/call",
+                @params = request
+            }
+        }, JsonOptions);
+    }
+
+    private string BuildBrowserTestRoute()
+    {
+        var queryParts = new List<string>();
+
+        if (SelectedTool is "schema_list_domains" or "schema_list_objects" && SelectedDatabaseId is int databaseId)
+        {
+            queryParts.Add($"databaseId={databaseId}");
+        }
+
+        if (SelectedTool is "schema_list_objects" && !string.IsNullOrWhiteSpace(SelectedDomain))
+        {
+            queryParts.Add($"domain={Uri.EscapeDataString(SelectedDomain)}");
+        }
+
+        if (SelectedTool is "schema_describe_object" or "schema_get_view_sql" or "schema_list_fields" &&
+            SelectedSchemaObjectId is int schemaObjectId)
+        {
+            queryParts.Add($"schemaObjectId={schemaObjectId}");
+        }
+
+        if (SelectedTool is "schema_get_view_sql")
+        {
+            queryParts.Add("cleanMetadataComments=false");
+        }
+
+        if (SelectedTool is "schema_describe_field" && SelectedFieldId is int fieldId)
+        {
+            queryParts.Add($"schemaObjectColumnId={fieldId}");
+        }
+
+        var route = $"/tool-lab/api/run/{Uri.EscapeDataString(SelectedTool)}";
+        return queryParts.Count == 0
+            ? route
+            : $"{route}?{string.Join("&", queryParts)}";
     }
 
     private async Task RunPageOperationAsync(Func<Task> operation, string failureMessage)

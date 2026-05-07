@@ -7,10 +7,11 @@ using SchemaStudioWebViewer.McpTools;
 using SchemaStudioWebViewer.Repositories;
 using SchemaStudioWebViewer.Utils;
 using SchemaStudioWebViewer.WEBSemanticModel.Services;
+using System.Text.Json;
 
 namespace SchemaStudioWebViewer
 {
-    [FileVersion("1.7")]
+    [FileVersion("1.8")]
     [AIChange("1.6", "2026-04-23 01:29 PM CDT registered the source-view repository for the new manage-views workspace so available import candidates can be queried by database and ViewNameFilter.", AICommandStatus.Pending)]
     [AIFileContext("Program.cs", "Bootstraps the SchemaStudioWebViewer web app, initializes configuration, registers services, and maps the Razor and MCP endpoints.")]
     [AIChange("1.5", "2026-04-22 06:20 PM CDT registered SQL Server dependency metadata repository for ParserLab where-used lookups.", AICommandStatus.Pending)]
@@ -95,7 +96,68 @@ namespace SchemaStudioWebViewer
                 app.MapMcp(AppConfig.Current.Mcp.EffectiveRoute);
             }
 
+            app.MapGet("/tool-lab/api/run/{toolName}", async (
+                string toolName,
+                int? databaseId,
+                string? domain,
+                int? schemaObjectId,
+                int? schemaObjectColumnId,
+                bool cleanMetadataComments,
+                SchemaCatalogMcpTools tools) =>
+            {
+                object response = toolName switch
+                {
+                    "schema_list_databases" => await tools.ListDatabasesAsync(),
+                    "schema_list_domains" => databaseId is int selectedDatabaseId
+                        ? await tools.ListDomainsAsync(selectedDatabaseId)
+                        : MissingToolLabParameter("databaseId"),
+                    "schema_list_objects" => databaseId is int selectedDatabaseId
+                        ? await tools.ListSchemaObjectsAsync(selectedDatabaseId, domain)
+                        : MissingToolLabParameter("databaseId"),
+                    "schema_describe_object" => schemaObjectId is int selectedSchemaObjectId
+                        ? await tools.DescribeSchemaObjectAsync(selectedSchemaObjectId)
+                        : MissingToolLabParameter("schemaObjectId"),
+                    "schema_get_view_sql" => schemaObjectId is int selectedSchemaObjectId
+                        ? await tools.GetViewSqlAsync(selectedSchemaObjectId, cleanMetadataComments)
+                        : MissingToolLabParameter("schemaObjectId"),
+                    "schema_list_fields" => schemaObjectId is int selectedSchemaObjectId
+                        ? await tools.ListFieldsAsync(selectedSchemaObjectId)
+                        : MissingToolLabParameter("schemaObjectId"),
+                    "schema_describe_field" => schemaObjectColumnId is int selectedSchemaObjectColumnId
+                        ? await tools.DescribeFieldAsync(selectedSchemaObjectColumnId)
+                        : MissingToolLabParameter("schemaObjectColumnId"),
+                    _ => Results.NotFound(new
+                    {
+                        ok = false,
+                        data = (object?)null,
+                        error = new
+                        {
+                            code = "tool_not_found",
+                            message = $"Tool '{toolName}' is not registered in the Tool Lab browser test endpoint."
+                        }
+                    })
+                };
+
+                return response is IResult result
+                    ? result
+                    : Results.Json(response, new JsonSerializerOptions(JsonSerializerDefaults.Web)
+                    {
+                        WriteIndented = true
+                    });
+            });
+
             app.Run();
         }
+
+        private static object MissingToolLabParameter(string parameterName) => new
+        {
+            ok = false,
+            data = (object?)null,
+            error = new
+            {
+                code = "missing_input",
+                message = $"Required query string parameter '{parameterName}' is missing."
+            }
+        };
     }
 }
