@@ -13,7 +13,7 @@
 @inject IJSRuntime JSRuntime
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("1.18")]
+@attribute [FileVersion("1.19")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -378,11 +378,6 @@
                 !string.Equals(relationship.ReferencedTableName, SelectedTableName, StringComparison.OrdinalIgnoreCase));
         }
 
-        if (IgnoreRelationshipsWithoutDisplay)
-        {
-            filteredRelationships = filteredRelationships.Where(HasDisplayColumn);
-        }
-
         Relationships = filteredRelationships.ToList();
         RelationshipTelemetryMessage = BuildRelationshipTelemetryMessage();
         RegenerateSql();
@@ -430,7 +425,8 @@
 
     private string BuildLoadedStatusMessage()
     {
-        var message = $"Loaded {Columns.Count} columns and {Relationships.Count} active M-to-1 relationships from [{SelectedDatabaseName}].[{SelectedSchemaName}].[{SelectedTableName}].";
+        var generatedJoinCount = Relationships.Count(ShouldGenerateJoin);
+        var message = $"Loaded {Columns.Count} columns and {Relationships.Count} visible M-to-1 relationships from [{SelectedDatabaseName}].[{SelectedSchemaName}].[{SelectedTableName}]. SQL will generate {generatedJoinCount} join(s).";
         return string.IsNullOrWhiteSpace(RelationshipTelemetryMessage)
             ? message
             : $"{message} {RelationshipTelemetryMessage}";
@@ -455,13 +451,17 @@
         var suffix = relationshipsWithoutDisplay.Count > examples.Count
             ? $", +{relationshipsWithoutDisplay.Count - examples.Count} more"
             : "";
-        var action = IgnoreRelationshipsWithoutDisplay ? "Ignored" : "Detected";
+        var action = IgnoreRelationshipsWithoutDisplay ? "Suppressed SQL joins for" : "Detected";
 
         return $"{action} {relationshipsWithoutDisplay.Count} FK relationship(s) without display columns: {string.Join(", ", examples)}{suffix}.";
     }
 
     private static bool HasDisplayColumn(TableSchemaRelationshipInfo relationship) =>
         !string.IsNullOrWhiteSpace(relationship.DisplayColumnName);
+
+    private bool ShouldGenerateJoin(TableSchemaRelationshipInfo relationship) =>
+        relationship.Include &&
+        (!IgnoreRelationshipsWithoutDisplay || HasDisplayColumn(relationship));
 
     private void RegenerateSql()
     {
@@ -497,7 +497,7 @@
         lines.Add("");
         lines.Add($"FROM {QualifiedName(SelectedDatabaseName, SelectedSchemaName, SelectedTableName)} AS {QuoteIdentifier(BaseAlias)}");
 
-        foreach (var relationship in Relationships.Where(relationship => relationship.Include))
+        foreach (var relationship in Relationships.Where(ShouldGenerateJoin))
         {
             lines.AddRange(BuildJoinLines(relationship));
         }
@@ -543,7 +543,7 @@
             }
 
             var hasLookupDisplayColumn = IncludeLookupDisplayColumns &&
-                relationship.Include &&
+                ShouldGenerateJoin(relationship) &&
                 relationship.IncludeDisplayColumn &&
                 !string.IsNullOrWhiteSpace(relationship.DisplayColumnName);
 
@@ -587,6 +587,7 @@
     {
         var referencedTable = relationship.ReferencedTableName;
         var duplicateCount = Relationships
+            .Where(ShouldGenerateJoin)
             .Where(candidate => string.Equals(candidate.ReferencedSchemaName, relationship.ReferencedSchemaName, StringComparison.OrdinalIgnoreCase))
             .Where(candidate => string.Equals(candidate.ReferencedTableName, relationship.ReferencedTableName, StringComparison.OrdinalIgnoreCase))
             .TakeWhile(candidate => !ReferenceEquals(candidate, relationship))
