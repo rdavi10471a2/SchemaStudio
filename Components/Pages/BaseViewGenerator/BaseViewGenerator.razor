@@ -12,7 +12,7 @@
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject IJSRuntime JSRuntime
 
-@attribute [FileVersion("1.11")]
+@attribute [FileVersion("1.12")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -448,6 +448,8 @@
 
         foreach (var relationship in Relationships)
         {
+            var groupedLines = new List<string>();
+
             foreach (var pair in relationship.Columns)
             {
                 if (!emittedRelationshipColumns.Add(pair.LocalColumnName))
@@ -461,27 +463,30 @@
                     continue;
                 }
 
-                relationshipLines.Add($"{ProjectionPrefix(first)}{QuoteIdentifier(BaseAlias)}.{QuoteIdentifier(pair.LocalColumnName)}{BuildMetadataPlaceholder(pair.LocalColumnName)}");
+                groupedLines.Add($"{ProjectionPrefix(first)}{QuoteIdentifier(BaseAlias)}.{QuoteIdentifier(pair.LocalColumnName)}{BuildMetadataPlaceholder(pair.LocalColumnName)}");
                 first = false;
             }
 
-            if (!IncludeLookupDisplayColumns ||
-                !relationship.Include ||
-                !relationship.IncludeDisplayColumn ||
-                string.IsNullOrWhiteSpace(relationship.DisplayColumnName))
+            if (IncludeLookupDisplayColumns &&
+                relationship.Include &&
+                relationship.IncludeDisplayColumn &&
+                !string.IsNullOrWhiteSpace(relationship.DisplayColumnName))
             {
-                continue;
+                var alias = BuildLookupAlias(relationship);
+                var columnAlias = BuildLookupProjectionAlias(relationship);
+                groupedLines.Add($"{ProjectionPrefix(first)}{QuoteIdentifier(alias)}.{QuoteIdentifier(relationship.DisplayColumnName!)} AS {QuoteIdentifier(columnAlias)}{BuildMetadataPlaceholder(columnAlias)}");
+                first = false;
             }
 
-            var alias = BuildLookupAlias(relationship);
-            var columnAlias = BuildLookupProjectionAlias(relationship);
-            relationshipLines.Add($"{ProjectionPrefix(first)}{QuoteIdentifier(alias)}.{QuoteIdentifier(relationship.DisplayColumnName!)} AS {QuoteIdentifier(columnAlias)}{BuildMetadataPlaceholder(columnAlias)}");
-            first = false;
+            if (groupedLines.Count > 0)
+            {
+                relationshipLines.Add("");
+                relationshipLines.AddRange(groupedLines);
+            }
         }
 
         if (relationshipLines.Count > 0)
         {
-            yield return "";
             foreach (var line in relationshipLines)
             {
                 yield return line;
