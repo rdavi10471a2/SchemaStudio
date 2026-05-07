@@ -13,7 +13,7 @@
 @inject IJSRuntime JSRuntime
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("1.19")]
+@attribute [FileVersion("1.20")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -514,7 +514,7 @@
 
         foreach (var column in Columns.Where(column => column.Include && !relationshipColumnNames.Contains(column.ColumnName)))
         {
-            yield return $"{ProjectionPrefix(first)}{QuoteIdentifier(BaseAlias)}.{QuoteIdentifier(column.ColumnName)}{BuildMetadataPlaceholder(column.ColumnName)}";
+            yield return $"{ProjectionPrefix(first)}{QuoteIdentifier(BaseAlias)}.{QuoteIdentifier(column.ColumnName)}{BuildMetadataPlaceholder()}";
             first = false;
         }
 
@@ -538,7 +538,7 @@
                     continue;
                 }
 
-                groupedLines.Add($"{ProjectionPrefix(first)}{QuoteIdentifier(BaseAlias)}.{QuoteIdentifier(pair.LocalColumnName)}{BuildMetadataPlaceholder(pair.LocalColumnName)}");
+                groupedLines.Add($"{ProjectionPrefix(first)}{QuoteIdentifier(BaseAlias)}.{QuoteIdentifier(pair.LocalColumnName)}{BuildMetadataPlaceholder(disableInheritance: true)}");
                 first = false;
             }
 
@@ -551,7 +551,7 @@
             {
                 var alias = BuildLookupAlias(relationship);
                 var columnAlias = BuildLookupProjectionAlias(relationship);
-                groupedLines.Add($"{ProjectionPrefix(first)}{QuoteIdentifier(alias)}.{QuoteIdentifier(relationship.DisplayColumnName!)} AS {QuoteIdentifier(columnAlias)}{BuildMetadataPlaceholder(columnAlias)}");
+                groupedLines.Add($"{ProjectionPrefix(first)}{QuoteIdentifier(alias)}.{QuoteIdentifier(relationship.DisplayColumnName!)} AS {QuoteIdentifier(columnAlias)}{BuildMetadataPlaceholder(disableInheritance: true)}");
                 first = false;
             }
 
@@ -608,10 +608,17 @@
         return $"{cleaned}Description";
     }
 
-    private string BuildMetadataPlaceholder(string columnName) =>
-        IncludeMetadataPlaceholders
-            ? " /*@BusinessName:  @BusinessDescription:  */"
-            : string.Empty;
+    private string BuildMetadataPlaceholder(bool disableInheritance = false)
+    {
+        if (!IncludeMetadataPlaceholders)
+        {
+            return string.Empty;
+        }
+
+        return disableInheritance
+            ? " /*@BusinessName:  @BusinessDescription:  @DisableInheritance: True */"
+            : " /*@BusinessName:  @BusinessDescription:  */";
+    }
 
     private static string ProjectionPrefix(bool first) =>
         first ? "      " : "    , ";
