@@ -7,7 +7,7 @@ using SchemaStudioWebViewer.Repositories;
 namespace SchemaStudioWebViewer.McpTools;
 
 [McpServerToolType]
-[FileVersion("1.0")]
+[FileVersion("1.1")]
 [AIFileContext("McpTools/SchemaCatalogMcpTools.cs", "MCP tool surface for read-only Schema Studio catalog discovery. Wraps SchemaMCPRepository calls in structured success/error objects for AI callers.", Responsibilities = "Exposes chainable MCP tools for listing databases, domains, schema objects, object fields, and focused object/field descriptions.", Nuances = "Keep repository exceptions contained here so MCP callers receive recoverable JSON instead of transport-level failures for normal lookup mistakes.", LastReviewed = "2026-05-07")]
 public sealed class SchemaCatalogMcpTools
 {
@@ -54,7 +54,19 @@ public sealed class SchemaCatalogMcpTools
                 {
                     x.DatabaseDomainId,
                     x.DatabaseId,
-                    x.Domain
+                    x.Domain,
+                    next = new
+                    {
+                        listObjects = new
+                        {
+                            tool = "schema_list_objects",
+                            arguments = new
+                            {
+                                databaseId = x.DatabaseId,
+                                domain = x.Domain
+                            }
+                        }
+                    }
                 }).ToList()
             });
         }
@@ -201,7 +213,26 @@ public sealed class SchemaCatalogMcpTools
         database.DefaultSchema,
         database.BusinessName,
         database.BusinessDescription,
-        database.ViewNameFilter
+        database.ViewNameFilter,
+        next = new
+        {
+            listDomains = new
+            {
+                tool = "schema_list_domains",
+                arguments = new
+                {
+                    databaseId = database.DatabaseId
+                }
+            },
+            listObjects = new
+            {
+                tool = "schema_list_objects",
+                arguments = new
+                {
+                    databaseId = database.DatabaseId
+                }
+            }
+        }
     };
 
     private static object ProjectSchemaObject(SchemaObjectModel schemaObject) => new
@@ -217,7 +248,26 @@ public sealed class SchemaCatalogMcpTools
         schemaObject.DeveloperNotes,
         schemaObject.IsBaseObject,
         schemaObject.Domain,
-        schemaObject.LastSynced
+        schemaObject.LastSynced,
+        next = new
+        {
+            describeObject = new
+            {
+                tool = "schema_describe_object",
+                arguments = new
+                {
+                    schemaObjectId = schemaObject.SchemaObjectId
+                }
+            },
+            listFields = new
+            {
+                tool = "schema_list_fields",
+                arguments = new
+                {
+                    schemaObjectId = schemaObject.SchemaObjectId
+                }
+            }
+        }
     };
 
     private static object ProjectField(SchemaObjectColumnModel field) => new
@@ -236,6 +286,17 @@ public sealed class SchemaCatalogMcpTools
         field.BusinessName,
         field.BusinessDescription,
         field.DeveloperNotes,
-        field.LastSynced
+        field.LastSynced,
+        next = new
+        {
+            describeField = new
+            {
+                tool = "schema_describe_field",
+                arguments = new
+                {
+                    schemaObjectColumnId = field.SchemaObjectColumnId
+                }
+            }
+        }
     };
 }
