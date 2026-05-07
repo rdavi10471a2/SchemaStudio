@@ -12,7 +12,7 @@
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject IJSRuntime JSRuntime
 
-@attribute [FileVersion("1.13")]
+@attribute [FileVersion("1.14")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -58,9 +58,6 @@
                                     ValueProperty="DatabaseName"
                                     @bind-Value="@SelectedDatabaseName"
                                     Change="@OnDatabaseChangedAsync"
-                                    AllowClear="true"
-                                    AllowFiltering="true"
-                                    FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
                                     Disabled="@IsBusy"
                                     Placeholder="Select database"
                                     Style="width: 100%;" />
@@ -261,15 +258,25 @@
         await RunPageOperationAsync(async () =>
         {
             Databases = (await DatabaseRepository.GetAllAsync()).ToList();
-            StatusMessage = Databases.Count == 0
-                ? "No SchemaStudio database definitions are available."
-                : $"Loaded {Databases.Count} SchemaStudio database definitions.";
+            if (Databases.Count == 0)
+            {
+                StatusMessage = "No SchemaStudio database definitions are available.";
+                return;
+            }
+
+            SelectDatabase(Databases[0].DatabaseName);
         }, "Failed to load databases.");
     }
 
     private async Task OnDatabaseChangedAsync(object value)
     {
-        SelectedDatabaseName = value?.ToString() ?? "";
+        SelectDatabase(value?.ToString() ?? "");
+        await Task.CompletedTask;
+    }
+
+    private void SelectDatabase(string databaseName)
+    {
+        SelectedDatabaseName = databaseName;
         SelectedTableName = "";
         Columns.Clear();
         Relationships.Clear();
@@ -281,7 +288,9 @@
             ? DefaultTargetSchemaName
             : selectedDatabase.DefaultSchema;
 
-        StatusMessage = $"Schema [{SelectedSchemaName}] selected from database definition. Type a table name and click Load.";
+        StatusMessage = string.IsNullOrWhiteSpace(SelectedDatabaseName)
+            ? "Select a source database."
+            : $"Selected [{SelectedDatabaseName}].[{SelectedSchemaName}]. Type a table name and click Load.";
     }
 
     private void OnSchemaNameChanged(ChangeEventArgs args)
