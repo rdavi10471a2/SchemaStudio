@@ -1,5 +1,7 @@
 @page "/base-view-generator"
 
+@using Radzen
+@using Radzen.Blazor
 @using SchemaStudio.AIHelpers
 @using SchemaStudioWebViewer.Data
 @using SchemaStudioWebViewer.Models
@@ -8,7 +10,7 @@
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject IJSRuntime JSRuntime
 
-@attribute [FileVersion("1.0")]
+@attribute [FileVersion("1.1")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SMO table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -36,35 +38,49 @@
             <div class="bvg-form-grid">
                 <label>
                     <span>Source Database</span>
-                    <select value="@SelectedDatabaseName" @onchange="OnDatabaseChangedAsync" disabled="@IsBusy">
-                        <option value="">Select database</option>
-                        @foreach (var database in Databases)
-                        {
-                            <option value="@database.DatabaseName">@database.DatabaseName</option>
-                        }
-                    </select>
+                    <RadzenDropDown TValue="string"
+                                    Data="@Databases"
+                                    TextProperty="DatabaseName"
+                                    ValueProperty="DatabaseName"
+                                    @bind-Value="@SelectedDatabaseName"
+                                    Change="@OnDatabaseChangedAsync"
+                                    AllowClear="true"
+                                    AllowFiltering="true"
+                                    FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                                    Disabled="@IsBusy"
+                                    Placeholder="Select database"
+                                    Style="width: 100%;" />
                 </label>
 
                 <label>
                     <span>Source Schema</span>
-                    <select value="@SelectedSchemaName" @onchange="OnSchemaChangedAsync" disabled="@IsBusy || !Schemas.Any()">
-                        <option value="">Select schema</option>
-                        @foreach (var schema in Schemas)
-                        {
-                            <option value="@schema">@schema</option>
-                        }
-                    </select>
+                    <RadzenDropDown TValue="string"
+                                    Data="@Schemas"
+                                    @bind-Value="@SelectedSchemaName"
+                                    Change="@OnSchemaChangedAsync"
+                                    AllowClear="true"
+                                    AllowFiltering="true"
+                                    FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                                    Disabled="@(IsBusy || !Schemas.Any())"
+                                    Placeholder="Select schema"
+                                    Style="width: 100%;" />
                 </label>
 
                 <label>
                     <span>Source Table</span>
-                    <select value="@SelectedTableName" @onchange="OnTableChangedAsync" disabled="@IsBusy || !Tables.Any()">
-                        <option value="">Select table</option>
-                        @foreach (var table in Tables)
-                        {
-                            <option value="@table.TableName">@table.TableName</option>
-                        }
-                    </select>
+                    <RadzenDropDown TValue="string"
+                                    Data="@Tables"
+                                    TextProperty="TableName"
+                                    ValueProperty="TableName"
+                                    @bind-Value="@SelectedTableName"
+                                    Change="@OnTableChangedAsync"
+                                    AllowClear="true"
+                                    AllowFiltering="true"
+                                    AllowVirtualization="true"
+                                    FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                                    Disabled="@(IsBusy || !Tables.Any())"
+                                    Placeholder="Select table"
+                                    Style="width: 100%;" />
                 </label>
 
                 <label>
@@ -227,9 +243,9 @@
         }, "Failed to load databases.");
     }
 
-    private async Task OnDatabaseChangedAsync(ChangeEventArgs args)
+    private async Task OnDatabaseChangedAsync(object value)
     {
-        SelectedDatabaseName = args.Value?.ToString() ?? "";
+        SelectedDatabaseName = value?.ToString() ?? "";
         SelectedTableName = "";
         Tables.Clear();
         Columns.Clear();
@@ -246,9 +262,9 @@
         }
     }
 
-    private async Task OnSchemaChangedAsync(ChangeEventArgs args)
+    private async Task OnSchemaChangedAsync(object value)
     {
-        SelectedSchemaName = args.Value?.ToString() ?? "";
+        SelectedSchemaName = value?.ToString() ?? "";
         SelectedTableName = "";
         Columns.Clear();
         Relationships.Clear();
@@ -256,9 +272,9 @@
         await LoadTablesAsync();
     }
 
-    private async Task OnTableChangedAsync(ChangeEventArgs args)
+    private async Task OnTableChangedAsync(object value)
     {
-        SelectedTableName = args.Value?.ToString() ?? "";
+        SelectedTableName = value?.ToString() ?? "";
         BaseAlias = SelectedTableName;
         TargetViewName = string.IsNullOrWhiteSpace(SelectedDatabaseName) || string.IsNullOrWhiteSpace(SelectedTableName)
             ? ""
@@ -291,7 +307,7 @@
             if (!string.IsNullOrWhiteSpace(SelectedSchemaName) &&
                 !Schemas.Contains(SelectedSchemaName, StringComparer.OrdinalIgnoreCase))
             {
-                SelectedSchemaName = Schemas.FirstOrDefault() ?? "";
+                SelectedSchemaName = "";
             }
         }, "Failed to load schemas.");
     }
