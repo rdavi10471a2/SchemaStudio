@@ -13,7 +13,7 @@
 @inject IJSRuntime JSRuntime
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("1.27")]
+@attribute [FileVersion("1.28")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -152,8 +152,18 @@
                             <tbody>
                                 @foreach (var column in FilteredColumns)
                                 {
-                                    <tr>
-                                        <td><input type="checkbox" checked="@column.Include" @onchange="args => OnColumnIncludeChanged(column, args)" /></td>
+                                    var columnSuppressed = IsSuppressedRelationshipColumn(column);
+                                    <tr class="@(columnSuppressed ? "bvg-muted-row" : null)">
+                                        <td>
+                                            @if (columnSuppressed)
+                                            {
+                                                <span class="bvg-muted-cell">Suppressed</span>
+                                            }
+                                            else
+                                            {
+                                                <input type="checkbox" checked="@column.Include" @onchange="args => OnColumnIncludeChanged(column, args)" />
+                                            }
+                                        </td>
                                         <td>@column.ColumnName</td>
                                         <td>@column.DataType</td>
                                         <td>@(column.IsNullable ? "Yes" : "No")</td>
@@ -549,6 +559,12 @@
     private bool IsJoinSuppressed(TableSchemaRelationshipInfo relationship) =>
         IgnoreRelationshipsWithoutDisplay && !HasDisplayColumn(relationship);
 
+    private bool IsSuppressedRelationshipColumn(TableSchemaColumnInfo column) =>
+        Relationships
+            .Where(IsJoinSuppressed)
+            .SelectMany(relationship => relationship.Columns)
+            .Any(pair => string.Equals(pair.LocalColumnName, column.ColumnName, StringComparison.OrdinalIgnoreCase));
+
     private bool ShouldGenerateJoin(TableSchemaRelationshipInfo relationship) =>
         relationship.Include &&
         !IsJoinSuppressed(relationship);
@@ -619,7 +635,6 @@
     {
         var first = true;
         var relationshipColumnNames = Relationships
-            .Where(relationship => !IsJoinSuppressed(relationship))
             .SelectMany(relationship => relationship.Columns.Select(column => column.LocalColumnName))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
