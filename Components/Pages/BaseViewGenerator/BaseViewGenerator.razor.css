@@ -167,6 +167,18 @@
     padding: 0.35rem 0.5rem;
 }
 
+.bvg-table-entry {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.4rem;
+    align-items: center;
+}
+
+.bvg-table-entry .bvg-button {
+    min-height: 34px;
+    padding-inline: 0.75rem;
+}
+
 .bvg-target {
     margin-top: 0.9rem;
     padding-top: 0.75rem;
