@@ -16,7 +16,7 @@
 @inject SchemaMCPRepository Repository
 @inject SchemaCatalogMcpTools Tools
 
-@attribute [FileVersion("1.9")]
+@attribute [FileVersion("1.10")]
 @attribute [AIFileContext("Components/Pages/ToolLab/ToolLab.razor", "Debug page for manually exercising Schema Studio MCP schema tools from inside the authenticated web UI.", Responsibilities = "Provides real database-backed dropdowns for tool parameters, invokes the same MCP tool wrapper methods used by the MCP endpoint, and displays request/response JSON for chain testing.", Nuances = "This page is a human test harness only; the /mcp endpoint remains independently mapped and is not gated by this page's simple-auth check.", RelatedFiles = "McpTools/SchemaCatalogMcpTools.cs; Repositories/SchemaMCPRepository.cs; Program.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Tool Lab</PageTitle>
@@ -70,6 +70,27 @@ else
                                   ButtonStyle="ButtonStyle.Primary"
                                   Click="@RunSelectedToolAsync"
                                   Disabled="@IsBusy" />
+                </div>
+
+                <div class="tool-options">
+                    <div>
+                        <RadzenLabel Text="Search" />
+                        <RadzenTextBox @bind-Value="@SearchText"
+                                       Change="@(_ => BuildRequestPreview())"
+                                       Disabled="@(!SupportsSearch)"
+                                       Placeholder="Optional text search"
+                                       Style="width: 100%;" />
+                    </div>
+                    <div>
+                        <RadzenLabel Text="Top" />
+                        <RadzenNumeric TValue="int?"
+                                       @bind-Value="@ResultLimit"
+                                       Change="@(_ => BuildRequestPreview())"
+                                       Disabled="@(!SupportsTop)"
+                                       Min="1"
+                                       Max="250"
+                                       Style="width: 100%;" />
+                    </div>
                 </div>
 
                 <div class="tool-lab-grid">
@@ -202,12 +223,16 @@ else
 @code {
     private const string AuthStorageKey = "simpleAuth";
     private const string AuthenticatedValue = "true";
+    private const int DefaultResultLimit = 100;
+    private const int DropdownLoadLimit = 250;
 
     private bool IsAuthenticated;
     private bool IsAuthStateLoaded;
     private bool IsBusy;
     private int ResultsTabIndex;
     private string SelectedTool = "schema_list_databases";
+    private string? SearchText;
+    private int? ResultLimit = DefaultResultLimit;
     private int? SelectedDatabaseId;
     private string? SelectedDomain;
     private int? SelectedSchemaObjectId;
@@ -230,12 +255,12 @@ else
 
     private IReadOnlyList<ToolOption> ToolOptions { get; } = new[]
     {
-        new ToolOption("schema_list_databases", "List Databases", "List active Schema Studio databases. Use this before asking for domains or schema objects.", "none"),
-        new ToolOption("schema_list_domains", "List Domains", "List business domains for an active Schema Studio database.", "databaseId"),
-        new ToolOption("schema_list_objects", "List Objects", "List active schema objects for a database, optionally filtered to one domain.", "databaseId, domain?"),
+        new ToolOption("schema_list_databases", "List Databases", "List active Schema Studio databases. Use this before asking for domains or schema objects.", "top?, search?"),
+        new ToolOption("schema_list_domains", "List Domains", "List business domains for an active Schema Studio database.", "databaseId, top?, search?"),
+        new ToolOption("schema_list_objects", "List Objects", "List active schema objects for a database, optionally filtered to one domain.", "databaseId, domain?, top?, search?"),
         new ToolOption("schema_describe_object", "Describe Object", "Describe one Schema Studio object by schemaObjectId.", "schemaObjectId"),
         new ToolOption("schema_get_view_sql", "Get View SQL", "Get SQL definition text for one Schema Studio view/object so an AI has an example query shape.", "schemaObjectId, cleanMetadataComments?"),
-        new ToolOption("schema_list_fields", "List Fields", "List fields/columns for one Schema Studio object.", "schemaObjectId"),
+        new ToolOption("schema_list_fields", "List Fields", "List fields/columns for one Schema Studio object.", "schemaObjectId, top?, search?"),
         new ToolOption("schema_describe_field", "Describe Field", "Describe one Schema Studio field by schemaObjectColumnId.", "schemaObjectColumnId")
     };
 
@@ -278,6 +303,15 @@ else
     private bool NeedsField =>
         SelectedTool is "schema_describe_field";
 
+    private bool SupportsSearch =>
+        SelectedTool is "schema_list_databases" or
+                        "schema_list_domains" or
+                        "schema_list_objects" or
+                        "schema_list_fields";
+
+    private bool SupportsTop =>
+        SupportsSearch;
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender)
@@ -313,7 +347,7 @@ else
     {
         await RunPageOperationAsync(async () =>
         {
-            Databases = (await Repository.GetDatabasesAsync()).ToList();
+            Databases = (await Repository.GetDatabasesAsync(DropdownLoadLimit)).ToList();
             if (SelectedDatabaseId is null && Databases.Count > 0)
             {
                 SelectedDatabaseId = Databases[0].DatabaseId;
@@ -400,7 +434,7 @@ else
     private async Task LoadDomainsAsync()
     {
         Domains = SelectedDatabaseId is int databaseId
-            ? (await Repository.GetDomainsAsync(databaseId)).ToList()
+            ? (await Repository.GetDomainsAsync(databaseId, DropdownLoadLimit)).ToList()
             : new List<DatabaseDomainModel>();
     }
 
@@ -412,7 +446,7 @@ else
             return;
         }
 
-        var objects = await Repository.GetSchemaObjectsAsync(databaseId, SelectedDomain);
+        var objects = await Repository.GetSchemaObjectsAsync(databaseId, SelectedDomain, DropdownLoadLimit);
         SchemaObjects = objects
             .Select(x => new ToolLabObjectOption(
                 x.SchemaObjectId,
@@ -429,7 +463,7 @@ else
             return;
         }
 
-        var fields = await Repository.GetFieldsAsync(schemaObjectId);
+        var fields = await Repository.GetFieldsAsync(schemaObjectId, DropdownLoadLimit);
         Fields = fields
             .Select(x => new ToolLabFieldOption(
                 x.SchemaObjectColumnId,
@@ -444,12 +478,12 @@ else
         {
             object response = SelectedTool switch
             {
-                "schema_list_databases" => await Tools.ListDatabasesAsync(),
+                "schema_list_databases" => await Tools.ListDatabasesAsync(top: ResultLimit, search: NormalizedSearch),
                 "schema_list_domains" => SelectedDatabaseId is int databaseId
-                    ? await Tools.ListDomainsAsync(databaseId)
+                    ? await Tools.ListDomainsAsync(databaseId, top: ResultLimit, search: NormalizedSearch)
                     : MissingInput("databaseId"),
                 "schema_list_objects" => SelectedDatabaseId is int databaseId
-                    ? await Tools.ListSchemaObjectsAsync(databaseId, SelectedDomain)
+                    ? await Tools.ListSchemaObjectsAsync(databaseId, SelectedDomain, top: ResultLimit, search: NormalizedSearch)
                     : MissingInput("databaseId"),
                 "schema_describe_object" => SelectedSchemaObjectId is int schemaObjectId
                     ? await Tools.DescribeSchemaObjectAsync(schemaObjectId)
@@ -458,7 +492,7 @@ else
                     ? await Tools.GetViewSqlAsync(schemaObjectId)
                     : MissingInput("schemaObjectId"),
                 "schema_list_fields" => SelectedSchemaObjectId is int schemaObjectId
-                    ? await Tools.ListFieldsAsync(schemaObjectId)
+                    ? await Tools.ListFieldsAsync(schemaObjectId, top: ResultLimit, search: NormalizedSearch)
                     : MissingInput("schemaObjectId"),
                 "schema_describe_field" => SelectedFieldId is int schemaObjectColumnId
                     ? await Tools.DescribeFieldAsync(schemaObjectColumnId)
@@ -476,13 +510,13 @@ else
     {
         object request = SelectedTool switch
         {
-            "schema_list_domains" => new { tool = SelectedTool, arguments = new { databaseId = SelectedDatabaseId } },
-            "schema_list_objects" => new { tool = SelectedTool, arguments = new { databaseId = SelectedDatabaseId, domain = SelectedDomain } },
+            "schema_list_domains" => new { tool = SelectedTool, arguments = new { databaseId = SelectedDatabaseId, top = ResultLimit, search = NormalizedSearch } },
+            "schema_list_objects" => new { tool = SelectedTool, arguments = new { databaseId = SelectedDatabaseId, domain = SelectedDomain, top = ResultLimit, search = NormalizedSearch } },
             "schema_describe_object" => new { tool = SelectedTool, arguments = new { schemaObjectId = SelectedSchemaObjectId } },
             "schema_get_view_sql" => new { tool = SelectedTool, arguments = new { schemaObjectId = SelectedSchemaObjectId, cleanMetadataComments = false } },
-            "schema_list_fields" => new { tool = SelectedTool, arguments = new { schemaObjectId = SelectedSchemaObjectId } },
+            "schema_list_fields" => new { tool = SelectedTool, arguments = new { schemaObjectId = SelectedSchemaObjectId, top = ResultLimit, search = NormalizedSearch } },
             "schema_describe_field" => new { tool = SelectedTool, arguments = new { schemaObjectColumnId = SelectedFieldId } },
-            _ => new { tool = SelectedTool, arguments = new { } }
+            _ => new { tool = SelectedTool, arguments = new { top = ResultLimit, search = NormalizedSearch } }
         };
 
         RequestJson = JsonSerializer.Serialize(new
@@ -582,6 +616,16 @@ else
             queryParts.Add($"schemaObjectColumnId={fieldId}");
         }
 
+        if (SupportsTop && ResultLimit is int top)
+        {
+            queryParts.Add($"top={top}");
+        }
+
+        if (SupportsSearch && !string.IsNullOrWhiteSpace(NormalizedSearch))
+        {
+            queryParts.Add($"search={Uri.EscapeDataString(NormalizedSearch)}");
+        }
+
         var route = $"/tool-lab/api/run/{Uri.EscapeDataString(SelectedTool)}";
         return queryParts.Count == 0
             ? route
@@ -629,6 +673,9 @@ else
             message = $"Required input '{parameterName}' is missing."
         }
     };
+
+    private string? NormalizedSearch =>
+        string.IsNullOrWhiteSpace(SearchText) ? null : SearchText.Trim();
 
     private sealed record ToolOption(string Value, string Text, string Description, string Parameters);
     private sealed record ToolLabObjectOption(int SchemaObjectId, string DisplayName, SchemaObjectModel Source);

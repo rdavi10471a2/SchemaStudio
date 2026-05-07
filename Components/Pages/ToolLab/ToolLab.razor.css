@@ -41,6 +41,13 @@
     width: min(420px, 100%);
 }
 
+.tool-options {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) minmax(90px, 140px);
+    gap: 0.75rem;
+    align-items: end;
+}
+
 .tool-runner .rz-button {
     min-width: 150px;
 }
@@ -146,6 +153,10 @@
     .tool-runner {
         align-items: stretch;
         flex-direction: column;
+    }
+
+    .tool-options {
+        grid-template-columns: minmax(0, 1fr);
     }
 
     .tool-picker {
