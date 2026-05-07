@@ -480,7 +480,7 @@
         first ? "      " : "    , ";
 
     private static string QualifiedName(params string?[] parts) =>
-        string.Join(".", parts.Where(part => !string.IsNullOrWhiteSpace(part)).Select(QuoteIdentifier));
+        string.Join(".", parts.Where(part => !string.IsNullOrWhiteSpace(part)).Select(part => QuoteIdentifier(part!)));
 
     private static string QuoteIdentifier(string identifier) =>
         $"[{identifier.Replace("]", "]]", StringComparison.Ordinal)}]";
