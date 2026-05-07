@@ -31,11 +31,25 @@
     gap: 0.75rem;
 }
 
+.tool-runner {
+    display: flex;
+    align-items: end;
+    gap: 0.75rem;
+}
+
+.tool-picker {
+    width: min(420px, 100%);
+}
+
+.tool-runner .rz-button {
+    min-width: 150px;
+}
+
 .tool-identity {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.45rem 1rem;
-    padding: 0.75rem;
+    padding: 0.5rem;
     border: 1px solid #d8dde6;
     border-radius: 6px;
     background: #f7f9fc;
@@ -127,5 +141,14 @@
     .tool-lab-results,
     .tool-identity {
         grid-template-columns: minmax(0, 1fr);
+    }
+
+    .tool-runner {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .tool-picker {
+        width: 100%;
     }
 }

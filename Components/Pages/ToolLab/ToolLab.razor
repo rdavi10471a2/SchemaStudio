@@ -16,7 +16,7 @@
 @inject SchemaMCPRepository Repository
 @inject SchemaCatalogMcpTools Tools
 
-@attribute [FileVersion("1.8")]
+@attribute [FileVersion("1.9")]
 @attribute [AIFileContext("Components/Pages/ToolLab/ToolLab.razor", "Debug page for manually exercising Schema Studio MCP schema tools from inside the authenticated web UI.", Responsibilities = "Provides real database-backed dropdowns for tool parameters, invokes the same MCP tool wrapper methods used by the MCP endpoint, and displays request/response JSON for chain testing.", Nuances = "This page is a human test harness only; the /mcp endpoint remains independently mapped and is not gated by this page's simple-auth check.", RelatedFiles = "McpTools/SchemaCatalogMcpTools.cs; Repositories/SchemaMCPRepository.cs; Program.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Tool Lab</PageTitle>
@@ -54,71 +54,88 @@ else
 
         <RadzenCard class="tool-lab-card">
             <RadzenStack Gap="0.75rem">
-                <RadzenLabel Text="Tool" />
-                <RadzenDropDown TValue="string"
-                                Data="@ToolOptions"
-                                TextProperty="Text"
-                                ValueProperty="Value"
-                                @bind-Value="@SelectedTool"
-                                Change="@OnToolChanged"
-                                Style="width: 320px;" />
+                <div class="tool-runner">
+                    <div class="tool-picker">
+                        <RadzenLabel Text="Tool" />
+                        <RadzenDropDown TValue="string"
+                                        Data="@ToolOptions"
+                                        TextProperty="Text"
+                                        ValueProperty="Value"
+                                        @bind-Value="@SelectedTool"
+                                        Change="@OnToolChanged"
+                                        Style="width: 100%;" />
+                    </div>
+                    <RadzenButton Text="Run Tool"
+                                  Icon="play_arrow"
+                                  ButtonStyle="ButtonStyle.Primary"
+                                  Click="@RunSelectedToolAsync"
+                                  Disabled="@IsBusy" />
+                </div>
 
-                <RadzenTabs>
+                <div class="tool-lab-grid">
+                    <div>
+                        <RadzenLabel Text="Database" />
+                        <RadzenDropDown TValue="int?"
+                                        Data="@Databases"
+                                        TextProperty="DatabaseName"
+                                        ValueProperty="DatabaseId"
+                                        @bind-Value="@SelectedDatabaseId"
+                                        Change="@OnDatabaseChanged"
+                                        AllowClear="true"
+                                        Disabled="@(!NeedsDatabase)"
+                                        Style="width: 100%;" />
+                    </div>
+
+                    <div>
+                        <RadzenLabel Text="Domain" />
+                        <RadzenDropDown TValue="string"
+                                        Data="@Domains"
+                                        TextProperty="Domain"
+                                        ValueProperty="Domain"
+                                        @bind-Value="@SelectedDomain"
+                                        Change="@OnDomainChanged"
+                                        AllowClear="true"
+                                        Disabled="@(!NeedsDomain)"
+                                        Style="width: 100%;" />
+                    </div>
+
+                    <div>
+                        <RadzenLabel Text="Schema Object" />
+                        <RadzenDropDown TValue="int?"
+                                        Data="@SchemaObjects"
+                                        TextProperty="DisplayName"
+                                        ValueProperty="SchemaObjectId"
+                                        @bind-Value="@SelectedSchemaObjectId"
+                                        Change="@OnSchemaObjectChanged"
+                                        AllowClear="true"
+                                        Disabled="@(!NeedsSchemaObject)"
+                                        Style="width: 100%;" />
+                    </div>
+
+                    <div>
+                        <RadzenLabel Text="Field" />
+                        <RadzenDropDown TValue="int?"
+                                        Data="@Fields"
+                                        TextProperty="DisplayName"
+                                        ValueProperty="SchemaObjectColumnId"
+                                        @bind-Value="@SelectedFieldId"
+                                        AllowClear="true"
+                                        Disabled="@(!NeedsField)"
+                                        Style="width: 100%;" />
+                    </div>
+                </div>
+            </RadzenStack>
+        </RadzenCard>
+
+        @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+        {
+            <RadzenAlert AlertStyle="AlertStyle.Warning" Summary="Tool Lab" Detail="@ErrorMessage" />
+        }
+
+        <div class="tool-lab-results">
+            <RadzenCard class="tool-lab-card">
+                <RadzenTabs @bind-SelectedIndex="@ResultsTabIndex">
                     <Tabs>
-                        <RadzenTabsItem Text="Parameters">
-                            <div class="tool-lab-grid">
-                                <div>
-                                    <RadzenLabel Text="Database" />
-                                    <RadzenDropDown TValue="int?"
-                                                    Data="@Databases"
-                                                    TextProperty="DatabaseName"
-                                                    ValueProperty="DatabaseId"
-                                                    @bind-Value="@SelectedDatabaseId"
-                                                    Change="@OnDatabaseChanged"
-                                                    AllowClear="true"
-                                                    Disabled="@(!NeedsDatabase)"
-                                                    Style="width: 100%;" />
-                                </div>
-
-                                <div>
-                                    <RadzenLabel Text="Domain" />
-                                    <RadzenDropDown TValue="string"
-                                                    Data="@Domains"
-                                                    TextProperty="Domain"
-                                                    ValueProperty="Domain"
-                                                    @bind-Value="@SelectedDomain"
-                                                    Change="@OnDomainChanged"
-                                                    AllowClear="true"
-                                                    Disabled="@(!NeedsDomain)"
-                                                    Style="width: 100%;" />
-                                </div>
-
-                                <div>
-                                    <RadzenLabel Text="Schema Object" />
-                                    <RadzenDropDown TValue="int?"
-                                                    Data="@SchemaObjects"
-                                                    TextProperty="DisplayName"
-                                                    ValueProperty="SchemaObjectId"
-                                                    @bind-Value="@SelectedSchemaObjectId"
-                                                    Change="@OnSchemaObjectChanged"
-                                                    AllowClear="true"
-                                                    Disabled="@(!NeedsSchemaObject)"
-                                                    Style="width: 100%;" />
-                                </div>
-
-                                <div>
-                                    <RadzenLabel Text="Field" />
-                                    <RadzenDropDown TValue="int?"
-                                                    Data="@Fields"
-                                                    TextProperty="DisplayName"
-                                                    ValueProperty="SchemaObjectColumnId"
-                                                    @bind-Value="@SelectedFieldId"
-                                                    AllowClear="true"
-                                                    Disabled="@(!NeedsField)"
-                                                    Style="width: 100%;" />
-                                </div>
-                            </div>
-                        </RadzenTabsItem>
                         <RadzenTabsItem Text="Info">
                             <div class="tool-identity">
                                 <div>
@@ -157,26 +174,6 @@ else
                                 </div>
                             </div>
                         </RadzenTabsItem>
-                    </Tabs>
-                </RadzenTabs>
-
-                <RadzenButton Text="Run Tool"
-                              Icon="play_arrow"
-                              ButtonStyle="ButtonStyle.Primary"
-                              Click="@RunSelectedToolAsync"
-                              Disabled="@IsBusy" />
-            </RadzenStack>
-        </RadzenCard>
-
-        @if (!string.IsNullOrWhiteSpace(ErrorMessage))
-        {
-            <RadzenAlert AlertStyle="AlertStyle.Warning" Summary="Tool Lab" Detail="@ErrorMessage" />
-        }
-
-        <div class="tool-lab-results">
-            <RadzenCard class="tool-lab-card">
-                <RadzenTabs>
-                    <Tabs>
                         <RadzenTabsItem Text="Tool Call">
                             <pre>@RequestJson</pre>
                         </RadzenTabsItem>
@@ -209,6 +206,7 @@ else
     private bool IsAuthenticated;
     private bool IsAuthStateLoaded;
     private bool IsBusy;
+    private int ResultsTabIndex;
     private string SelectedTool = "schema_list_databases";
     private int? SelectedDatabaseId;
     private string? SelectedDomain;
@@ -470,6 +468,7 @@ else
 
             BuildRequestPreview();
             SetResponseOutput(response);
+            ResultsTabIndex = 2;
         }, "Tool execution failed.");
     }
 
