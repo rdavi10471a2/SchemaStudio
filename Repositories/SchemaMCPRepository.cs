@@ -6,7 +6,7 @@ using System.Text.RegularExpressions;
 
 namespace SchemaStudioWebViewer.Repositories;
 
-[FileVersion("1.1")]
+[FileVersion("1.3")]
 [AIFileContext("Repositories/SchemaMCPRepository.cs", "Read-only Dapper repository for MCP schema discovery tools. Provides the database/domain/object/field lookup chain used by MCP tool wrappers and the Tool Lab debug page.", Responsibilities = "Owns read-only Schema Studio metadata queries for AI-facing schema discovery without exposing write operations.", Nuances = "Keep this repository query-focused and async; tool wrappers own exception-to-tool-response conversion so failures stay structured for AI callers.", LastReviewed = "2026-05-07")]
 public sealed class SchemaMCPRepository
 {
@@ -218,16 +218,15 @@ WHERE SchemaObjectColumnId = @schemaObjectColumnId";
             throw new ArgumentException("Schema object does not have a source object name.");
         }
 
-        var databaseName = BracketSqlIdentifier(schemaObject.SourceDatabaseName);
-
+        var quotedDatabase = QuoteSqlIdentifier(schemaObject.SourceDatabaseName);
         var sql = $@"
 SELECT
     sm.definition AS Definition,
     v.modify_date AS ModifyDate
-FROM {databaseName}.sys.views v
-INNER JOIN {databaseName}.sys.schemas s
+FROM {quotedDatabase}.sys.views v
+INNER JOIN {quotedDatabase}.sys.schemas s
     ON v.schema_id = s.schema_id
-INNER JOIN {databaseName}.sys.sql_modules sm
+INNER JOIN {quotedDatabase}.sys.sql_modules sm
     ON v.object_id = sm.object_id
 WHERE s.name = @schemaName
 AND v.name = @objectName";
@@ -258,13 +257,6 @@ AND v.name = @objectName";
             RegexOptions.Singleline | RegexOptions.IgnoreCase).Trim();
     }
 
-    private static string BracketSqlIdentifier(string identifier)
-    {
-        if (string.IsNullOrWhiteSpace(identifier))
-        {
-            throw new ArgumentException("SQL identifier is required.", nameof(identifier));
-        }
-
-        return $"[{identifier.Replace("]", "]]")}]";
-    }
+    private static string QuoteSqlIdentifier(string identifier) =>
+        $"[{identifier.Replace("]", "]]", StringComparison.Ordinal)}]";
 }
