@@ -535,7 +535,6 @@ else
         }
 
         SqlOutput = sqlNode.GetValue<string>() ?? "";
-        data.Remove("sql");
 
         if (data["schemaObject"] is JsonObject schemaObject)
         {
