@@ -2,15 +2,17 @@
 
 @using Radzen
 @using Radzen.Blazor
+@using SchemaStudio.Data.Models
+@using SchemaStudio.Data.Repositories
 @using SchemaStudio.AIHelpers
 @using SchemaStudioWebViewer.Data
 @using SchemaStudioWebViewer.Models
 
-@inject SchemaMCPRepository DatabaseRepository
+@inject DatabaseRepository DatabaseRepository
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject IJSRuntime JSRuntime
 
-@attribute [FileVersion("1.2")]
+@attribute [FileVersion("1.3")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SMO table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -221,7 +223,7 @@
     private string ColumnFilter = "";
     private string GeneratedSql = "";
 
-    private List<DatabaseModel> Databases = new();
+    private List<DatabaseDefinition> Databases = new();
     private List<string> Schemas = new();
     private List<TableSchemaTableInfo> Tables = new();
     private List<TableSchemaColumnInfo> Columns = new();
@@ -243,7 +245,7 @@
     {
         await RunPageOperationAsync(async () =>
         {
-            Databases = (await DatabaseRepository.GetDatabasesAsync(250)).ToList();
+            Databases = (await DatabaseRepository.GetAllAsync()).ToList();
             StatusMessage = Databases.Count == 0
                 ? "No SchemaStudio database definitions are available."
                 : $"Loaded {Databases.Count} SchemaStudio database definitions.";
