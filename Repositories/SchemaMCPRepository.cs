@@ -4,9 +4,9 @@ using SchemaStudio.AIHelpers;
 using SchemaStudioWebViewer.Models;
 using System.Text.RegularExpressions;
 
-namespace SchemaStudioWebViewer.Repositories;
+namespace SchemaStudioWebViewer.Data;
 
-[FileVersion("1.3")]
+[FileVersion("1.4")]
 [AIFileContext("Repositories/SchemaMCPRepository.cs", "Read-only Dapper repository for MCP schema discovery tools. Provides the database/domain/object/field lookup chain used by MCP tool wrappers and the Tool Lab debug page.", Responsibilities = "Owns read-only Schema Studio metadata queries for AI-facing schema discovery without exposing write operations.", Nuances = "Keep this repository query-focused and async; tool wrappers own exception-to-tool-response conversion so failures stay structured for AI callers.", LastReviewed = "2026-05-07")]
 public sealed class SchemaMCPRepository
 {

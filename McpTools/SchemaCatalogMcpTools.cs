@@ -1,8 +1,8 @@
 using System.ComponentModel;
 using ModelContextProtocol.Server;
 using SchemaStudio.AIHelpers;
+using SchemaStudioWebViewer.Data;
 using SchemaStudioWebViewer.Models;
-using SchemaStudioWebViewer.Repositories;
 
 namespace SchemaStudioWebViewer.McpTools;
 
