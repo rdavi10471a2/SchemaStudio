@@ -102,7 +102,7 @@ namespace SchemaStudioWebViewer
                 string? domain,
                 int? schemaObjectId,
                 int? schemaObjectColumnId,
-                bool cleanMetadataComments,
+                bool? cleanMetadataComments,
                 SchemaCatalogMcpTools tools) =>
             {
                 object response = toolName switch
@@ -118,7 +118,7 @@ namespace SchemaStudioWebViewer
                         ? await tools.DescribeSchemaObjectAsync(selectedSchemaObjectId)
                         : MissingToolLabParameter("schemaObjectId"),
                     "schema_get_view_sql" => schemaObjectId is int selectedSchemaObjectId
-                        ? await tools.GetViewSqlAsync(selectedSchemaObjectId, cleanMetadataComments)
+                        ? await tools.GetViewSqlAsync(selectedSchemaObjectId, cleanMetadataComments ?? false)
                         : MissingToolLabParameter("schemaObjectId"),
                     "schema_list_fields" => schemaObjectId is int selectedSchemaObjectId
                         ? await tools.ListFieldsAsync(selectedSchemaObjectId)
