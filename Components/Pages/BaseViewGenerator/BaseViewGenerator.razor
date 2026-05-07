@@ -13,7 +13,7 @@
 @inject IJSRuntime JSRuntime
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("1.23")]
+@attribute [FileVersion("1.24")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -146,7 +146,7 @@
                                 @foreach (var column in FilteredColumns)
                                 {
                                     <tr>
-                                        <td><input type="checkbox" @bind="column.Include" @bind:after="RegenerateSql" /></td>
+                                        <td><input type="checkbox" checked="@column.Include" @onchange="args => OnColumnIncludeChanged(column, args)" /></td>
                                         <td>@column.ColumnName</td>
                                         <td>@column.DataType</td>
                                         <td>@(column.IsNullable ? "Yes" : "No")</td>
@@ -180,19 +180,19 @@
                                     @foreach (var relationship in Relationships)
                                     {
                                         <tr>
-                                            <td><input type="checkbox" @bind="relationship.Include" @bind:after="RegenerateSql" /></td>
+                                            <td><input type="checkbox" checked="@relationship.Include" @onchange="args => OnRelationshipIncludeChanged(relationship, args)" /></td>
                                             <td>@relationship.LocalColumns</td>
                                             <td>@QualifiedName(SelectedDatabaseName, relationship.ReferencedSchemaName, relationship.ReferencedTableName)</td>
                                             <td>@(relationship.IsRequired ? "Yes" : "No")</td>
                                             <td>
-                                                <select @bind="relationship.SelectedJoinType" @bind:after="RegenerateSql">
-                                                    <option>INNER JOIN</option>
-                                                    <option>LEFT JOIN</option>
+                                                <select value="@relationship.SelectedJoinType" @onchange="args => OnRelationshipJoinTypeChanged(relationship, args)">
+                                                    <option value="INNER JOIN">INNER JOIN</option>
+                                                    <option value="LEFT JOIN">LEFT JOIN</option>
                                                 </select>
                                             </td>
                                             <td>
                                                 <div class="bvg-display-cell">
-                                                    <input type="checkbox" @bind="relationship.IncludeDisplayColumn" @bind:after="RegenerateSql" disabled="@string.IsNullOrWhiteSpace(relationship.DisplayColumnName)" />
+                                                    <input type="checkbox" checked="@relationship.IncludeDisplayColumn" @onchange="args => OnRelationshipDisplayIncludeChanged(relationship, args)" disabled="@string.IsNullOrWhiteSpace(relationship.DisplayColumnName)" />
                                                     <input value="@relationship.DisplayColumnName" @oninput="args => OnRelationshipDisplayColumnChanged(relationship, args)" disabled="@(!relationship.IncludeDisplayColumn)" />
                                                 </div>
                                             </td>
@@ -433,6 +433,32 @@
     private void OnRelationshipDisplayColumnChanged(TableSchemaRelationshipInfo relationship, ChangeEventArgs args)
     {
         relationship.DisplayColumnName = args.Value?.ToString();
+        RegenerateSql();
+    }
+
+    private void OnColumnIncludeChanged(TableSchemaColumnInfo column, ChangeEventArgs args)
+    {
+        column.Include = ToBool(args.Value);
+        RegenerateSql();
+    }
+
+    private void OnRelationshipIncludeChanged(TableSchemaRelationshipInfo relationship, ChangeEventArgs args)
+    {
+        relationship.Include = ToBool(args.Value);
+        RegenerateSql();
+    }
+
+    private void OnRelationshipDisplayIncludeChanged(TableSchemaRelationshipInfo relationship, ChangeEventArgs args)
+    {
+        relationship.IncludeDisplayColumn = ToBool(args.Value);
+        RegenerateSql();
+    }
+
+    private void OnRelationshipJoinTypeChanged(TableSchemaRelationshipInfo relationship, ChangeEventArgs args)
+    {
+        relationship.SelectedJoinType = args.Value?.ToString() == "LEFT JOIN"
+            ? "LEFT JOIN"
+            : "INNER JOIN";
         RegenerateSql();
     }
 
@@ -691,6 +717,14 @@
 
     private static string QuoteIdentifier(string identifier) =>
         $"[{identifier.Replace("]", "]]", StringComparison.Ordinal)}]";
+
+    private static bool ToBool(object? value) =>
+        value switch
+        {
+            bool boolValue => boolValue,
+            string textValue => bool.TryParse(textValue, out var parsed) && parsed,
+            _ => false
+        };
 
     private async Task CopySqlAsync()
     {
