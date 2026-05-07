@@ -72,6 +72,7 @@ else
                                         @bind-Value="@SelectedDatabaseId"
                                         Change="@OnDatabaseChanged"
                                         AllowClear="true"
+                                        Disabled="@(!NeedsDatabase)"
                                         Style="width: 100%;" />
                     </div>
 
@@ -84,6 +85,7 @@ else
                                         @bind-Value="@SelectedDomain"
                                         Change="@OnDomainChanged"
                                         AllowClear="true"
+                                        Disabled="@(!NeedsDomain)"
                                         Style="width: 100%;" />
                     </div>
 
@@ -96,6 +98,7 @@ else
                                         @bind-Value="@SelectedSchemaObjectId"
                                         Change="@OnSchemaObjectChanged"
                                         AllowClear="true"
+                                        Disabled="@(!NeedsSchemaObject)"
                                         Style="width: 100%;" />
                     </div>
 
@@ -107,6 +110,7 @@ else
                                         ValueProperty="SchemaObjectColumnId"
                                         @bind-Value="@SelectedFieldId"
                                         AllowClear="true"
+                                        Disabled="@(!NeedsField)"
                                         Style="width: 100%;" />
                     </div>
                 </div>
@@ -172,6 +176,18 @@ else
         new ToolOption("schema_list_fields", "List Fields"),
         new ToolOption("schema_describe_field", "Describe Field")
     };
+
+    private bool NeedsDatabase =>
+        SelectedTool is "schema_list_domains" or "schema_list_objects";
+
+    private bool NeedsDomain =>
+        SelectedTool is "schema_list_objects";
+
+    private bool NeedsSchemaObject =>
+        SelectedTool is "schema_describe_object" or "schema_list_fields";
+
+    private bool NeedsField =>
+        SelectedTool is "schema_describe_field";
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -248,9 +264,48 @@ else
         BuildRequestPreview();
     }
 
-    private void OnToolChanged(object value)
+    private async Task OnToolChanged(object value)
     {
+        await EnsureInputsForSelectedToolAsync();
         BuildRequestPreview();
+    }
+
+    private async Task EnsureInputsForSelectedToolAsync()
+    {
+        if ((NeedsDatabase || NeedsDomain || NeedsSchemaObject || NeedsField) &&
+            SelectedDatabaseId is null &&
+            Databases.Count > 0)
+        {
+            SelectedDatabaseId = Databases[0].DatabaseId;
+        }
+
+        if ((NeedsDomain || NeedsSchemaObject || NeedsField) && !Domains.Any())
+        {
+            await LoadDomainsAsync();
+        }
+
+        if (NeedsDomain && string.IsNullOrWhiteSpace(SelectedDomain) && Domains.Count > 0)
+        {
+            SelectedDomain = Domains[0].Domain;
+        }
+
+        if ((NeedsSchemaObject || NeedsField) && !SchemaObjects.Any())
+        {
+            await LoadObjectsAsync();
+        }
+
+        if ((NeedsSchemaObject || NeedsField) &&
+            SelectedSchemaObjectId is null &&
+            SchemaObjects.Count > 0)
+        {
+            SelectedSchemaObjectId = SchemaObjects[0].SchemaObjectId;
+            await LoadFieldsAsync();
+        }
+
+        if (NeedsField && SelectedFieldId is null && Fields.Count > 0)
+        {
+            SelectedFieldId = Fields[0].SchemaObjectColumnId;
+        }
     }
 
     private async Task LoadDomainsAsync()
