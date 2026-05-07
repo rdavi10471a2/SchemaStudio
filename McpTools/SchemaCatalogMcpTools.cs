@@ -1,0 +1,241 @@
+using System.ComponentModel;
+using ModelContextProtocol.Server;
+using SchemaStudio.AIHelpers;
+using SchemaStudioWebViewer.Models;
+using SchemaStudioWebViewer.Repositories;
+
+namespace SchemaStudioWebViewer.McpTools;
+
+[McpServerToolType]
+[FileVersion("1.0")]
+[AIFileContext("McpTools/SchemaCatalogMcpTools.cs", "MCP tool surface for read-only Schema Studio catalog discovery. Wraps SchemaMCPRepository calls in structured success/error objects for AI callers.", Responsibilities = "Exposes chainable MCP tools for listing databases, domains, schema objects, object fields, and focused object/field descriptions.", Nuances = "Keep repository exceptions contained here so MCP callers receive recoverable JSON instead of transport-level failures for normal lookup mistakes.", LastReviewed = "2026-05-07")]
+public sealed class SchemaCatalogMcpTools
+{
+    private readonly SchemaMCPRepository repository;
+
+    public SchemaCatalogMcpTools(SchemaMCPRepository repository)
+    {
+        this.repository = repository;
+    }
+
+    [McpServerTool(Name = "schema_list_databases")]
+    [Description("List active Schema Studio databases. Use this before asking for domains or schema objects.")]
+    public async Task<object> ListDatabasesAsync()
+    {
+        try
+        {
+            var databases = await repository.GetDatabasesAsync();
+            return Ok(databases.Select(ProjectDatabase).ToList());
+        }
+        catch (Exception ex)
+        {
+            return Fail("database_list_failed", "Failed to list Schema Studio databases.", ex);
+        }
+    }
+
+    [McpServerTool(Name = "schema_list_domains")]
+    [Description("List business domains for an active Schema Studio database.")]
+    public async Task<object> ListDomainsAsync(
+        [Description("Schema Studio database id returned by schema_list_databases.")] int databaseId)
+    {
+        try
+        {
+            var database = await repository.GetDatabaseAsync(databaseId);
+            if (database is null)
+            {
+                return Fail("database_not_found", $"Database id {databaseId} was not found or is inactive.");
+            }
+
+            var domains = await repository.GetDomainsAsync(databaseId);
+            return Ok(new
+            {
+                database = ProjectDatabase(database),
+                domains = domains.Select(x => new
+                {
+                    x.DatabaseDomainId,
+                    x.DatabaseId,
+                    x.Domain
+                }).ToList()
+            });
+        }
+        catch (Exception ex)
+        {
+            return Fail("domain_list_failed", $"Failed to list domains for database id {databaseId}.", ex);
+        }
+    }
+
+    [McpServerTool(Name = "schema_list_objects")]
+    [Description("List active schema objects for a database, optionally filtered to one domain.")]
+    public async Task<object> ListSchemaObjectsAsync(
+        [Description("Schema Studio database id returned by schema_list_databases.")] int databaseId,
+        [Description("Optional domain returned by schema_list_domains. Leave null to list all domains.")] string? domain = null)
+    {
+        try
+        {
+            var database = await repository.GetDatabaseAsync(databaseId);
+            if (database is null)
+            {
+                return Fail("database_not_found", $"Database id {databaseId} was not found or is inactive.");
+            }
+
+            var domains = await repository.GetDomainsAsync(databaseId);
+            if (!string.IsNullOrWhiteSpace(domain) &&
+                !domains.Any(x => string.Equals(x.Domain, domain, StringComparison.OrdinalIgnoreCase)))
+            {
+                return Fail(
+                    "domain_not_found",
+                    $"Domain '{domain}' was not found for database id {databaseId}.",
+                    details: new
+                    {
+                        availableDomains = domains.Select(x => x.Domain).ToList()
+                    });
+            }
+
+            var objects = await repository.GetSchemaObjectsAsync(databaseId, domain);
+            return Ok(new
+            {
+                database = ProjectDatabase(database),
+                domain = string.IsNullOrWhiteSpace(domain) ? null : domain.Trim(),
+                objects = objects.Select(ProjectSchemaObject).ToList()
+            });
+        }
+        catch (Exception ex)
+        {
+            return Fail("object_list_failed", $"Failed to list schema objects for database id {databaseId}.", ex);
+        }
+    }
+
+    [McpServerTool(Name = "schema_describe_object")]
+    [Description("Describe one Schema Studio object by schemaObjectId.")]
+    public async Task<object> DescribeSchemaObjectAsync(
+        [Description("Schema object id returned by schema_list_objects.")] int schemaObjectId)
+    {
+        try
+        {
+            var schemaObject = await repository.GetSchemaObjectAsync(schemaObjectId);
+            if (schemaObject is null)
+            {
+                return Fail("object_not_found", $"Schema object id {schemaObjectId} was not found or is inactive.");
+            }
+
+            return Ok(ProjectSchemaObject(schemaObject));
+        }
+        catch (Exception ex)
+        {
+            return Fail("object_describe_failed", $"Failed to describe schema object id {schemaObjectId}.", ex);
+        }
+    }
+
+    [McpServerTool(Name = "schema_list_fields")]
+    [Description("List fields/columns for one Schema Studio object.")]
+    public async Task<object> ListFieldsAsync(
+        [Description("Schema object id returned by schema_list_objects.")] int schemaObjectId)
+    {
+        try
+        {
+            var schemaObject = await repository.GetSchemaObjectAsync(schemaObjectId);
+            if (schemaObject is null)
+            {
+                return Fail("object_not_found", $"Schema object id {schemaObjectId} was not found or is inactive.");
+            }
+
+            var fields = await repository.GetFieldsAsync(schemaObjectId);
+            return Ok(new
+            {
+                schemaObject = ProjectSchemaObject(schemaObject),
+                fields = fields.Select(ProjectField).ToList()
+            });
+        }
+        catch (Exception ex)
+        {
+            return Fail("field_list_failed", $"Failed to list fields for schema object id {schemaObjectId}.", ex);
+        }
+    }
+
+    [McpServerTool(Name = "schema_describe_field")]
+    [Description("Describe one Schema Studio field by schemaObjectColumnId.")]
+    public async Task<object> DescribeFieldAsync(
+        [Description("Schema object column id returned by schema_list_fields.")] int schemaObjectColumnId)
+    {
+        try
+        {
+            var field = await repository.GetFieldAsync(schemaObjectColumnId);
+            if (field is null)
+            {
+                return Fail("field_not_found", $"Schema object column id {schemaObjectColumnId} was not found.");
+            }
+
+            return Ok(ProjectField(field));
+        }
+        catch (Exception ex)
+        {
+            return Fail("field_describe_failed", $"Failed to describe schema object column id {schemaObjectColumnId}.", ex);
+        }
+    }
+
+    private static object Ok(object data) => new
+    {
+        ok = true,
+        data,
+        error = (object?)null
+    };
+
+    private static object Fail(string code, string message, Exception? exception = null, object? details = null) => new
+    {
+        ok = false,
+        data = (object?)null,
+        error = new
+        {
+            code,
+            message,
+            exceptionType = exception?.GetType().Name,
+            exceptionMessage = exception?.Message,
+            details
+        }
+    };
+
+    private static object ProjectDatabase(DatabaseModel database) => new
+    {
+        database.DatabaseId,
+        database.DatabaseName,
+        database.DefaultSchema,
+        database.BusinessName,
+        database.BusinessDescription,
+        database.ViewNameFilter
+    };
+
+    private static object ProjectSchemaObject(SchemaObjectModel schemaObject) => new
+    {
+        schemaObject.SchemaObjectId,
+        schemaObject.DatabaseId,
+        schemaObject.SourceDatabaseName,
+        schemaObject.SourceSchemaName,
+        schemaObject.SourceObjectName,
+        sourceName = schemaObject.SourceName,
+        schemaObject.BusinessName,
+        schemaObject.BusinessDescription,
+        schemaObject.DeveloperNotes,
+        schemaObject.IsBaseObject,
+        schemaObject.Domain,
+        schemaObject.LastSynced
+    };
+
+    private static object ProjectField(SchemaObjectColumnModel field) => new
+    {
+        field.SchemaObjectColumnId,
+        field.SchemaObjectId,
+        field.OrdinalPosition,
+        field.SourceColumnName,
+        field.BaseDatabaseName,
+        field.BaseSchemaName,
+        field.BaseObjectName,
+        field.BaseColumnName,
+        field.FullyQualifiedSourceColumnName,
+        field.IsBaseDefinition,
+        field.DisableInheritance,
+        field.BusinessName,
+        field.BusinessDescription,
+        field.DeveloperNotes,
+        field.LastSynced
+    };
+}

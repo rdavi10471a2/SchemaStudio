@@ -1,0 +1,387 @@
+@page "/tool-lab"
+
+@using System.Text.Json
+@using Radzen
+@using Radzen.Blazor
+@using SchemaStudio.AIHelpers
+@using SchemaStudioWebViewer.Components.Layout
+@using SchemaStudioWebViewer.Configuration
+@using SchemaStudioWebViewer.McpTools
+@using SchemaStudioWebViewer.Models
+@using SchemaStudioWebViewer.Repositories
+
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+@inject SchemaMCPRepository Repository
+@inject SchemaCatalogMcpTools Tools
+
+@attribute [FileVersion("1.0")]
+@attribute [AIFileContext("Components/Pages/ToolLab/ToolLab.razor", "Debug page for manually exercising Schema Studio MCP schema tools from inside the authenticated web UI.", Responsibilities = "Provides real database-backed dropdowns for tool parameters, invokes the same MCP tool wrapper methods used by the MCP endpoint, and displays request/response JSON for chain testing.", Nuances = "This page is a human test harness only; the /mcp endpoint remains independently mapped and is not gated by this page's simple-auth check.", RelatedFiles = "McpTools/SchemaCatalogMcpTools.cs; Repositories/SchemaMCPRepository.cs; Program.cs", LastReviewed = "2026-05-07")]
+
+<PageTitle>Tool Lab</PageTitle>
+
+@if (!IsAuthStateLoaded)
+{
+    <RadzenCard>
+        <RadzenText Text="Checking login state..." />
+    </RadzenCard>
+}
+else if (!IsAuthenticated)
+{
+    <RadzenCard class="tool-lab-card">
+        <RadzenText TextStyle="TextStyle.H5" Text="Tool Lab requires login" />
+        <RadzenText Text="Log in through Schema Explorer before using MCP tool diagnostics." />
+        <RadzenButton Text="Go to Login"
+                      Icon="login"
+                      Click="@(() => NavigationManager.NavigateTo("/explore"))" />
+    </RadzenCard>
+}
+else
+{
+    <div class="tool-lab">
+        <section class="tool-lab-header">
+            <div>
+                <h1>Tool Lab</h1>
+                <p>Exercise Schema Studio MCP tools with real catalog-backed parameters.</p>
+            </div>
+            <RadzenButton Text="Refresh Inputs"
+                          Icon="refresh"
+                          ButtonStyle="ButtonStyle.Secondary"
+                          Click="@LoadInitialInputsAsync"
+                          Disabled="@IsBusy" />
+        </section>
+
+        <RadzenCard class="tool-lab-card">
+            <RadzenStack Gap="0.75rem">
+                <RadzenLabel Text="Tool" />
+                <RadzenDropDown TValue="string"
+                                Data="@ToolOptions"
+                                TextProperty="Text"
+                                ValueProperty="Value"
+                                @bind-Value="@SelectedTool"
+                                Change="@OnToolChanged"
+                                Style="width: 320px;" />
+
+                <div class="tool-lab-grid">
+                    <div>
+                        <RadzenLabel Text="Database" />
+                        <RadzenDropDown TValue="int?"
+                                        Data="@Databases"
+                                        TextProperty="DatabaseName"
+                                        ValueProperty="DatabaseId"
+                                        @bind-Value="@SelectedDatabaseId"
+                                        Change="@OnDatabaseChanged"
+                                        AllowClear="true"
+                                        Style="width: 100%;" />
+                    </div>
+
+                    <div>
+                        <RadzenLabel Text="Domain" />
+                        <RadzenDropDown TValue="string"
+                                        Data="@Domains"
+                                        TextProperty="Domain"
+                                        ValueProperty="Domain"
+                                        @bind-Value="@SelectedDomain"
+                                        Change="@OnDomainChanged"
+                                        AllowClear="true"
+                                        Style="width: 100%;" />
+                    </div>
+
+                    <div>
+                        <RadzenLabel Text="Schema Object" />
+                        <RadzenDropDown TValue="int?"
+                                        Data="@SchemaObjects"
+                                        TextProperty="DisplayName"
+                                        ValueProperty="SchemaObjectId"
+                                        @bind-Value="@SelectedSchemaObjectId"
+                                        Change="@OnSchemaObjectChanged"
+                                        AllowClear="true"
+                                        Style="width: 100%;" />
+                    </div>
+
+                    <div>
+                        <RadzenLabel Text="Field" />
+                        <RadzenDropDown TValue="int?"
+                                        Data="@Fields"
+                                        TextProperty="DisplayName"
+                                        ValueProperty="SchemaObjectColumnId"
+                                        @bind-Value="@SelectedFieldId"
+                                        AllowClear="true"
+                                        Style="width: 100%;" />
+                    </div>
+                </div>
+
+                <RadzenButton Text="Run Tool"
+                              Icon="play_arrow"
+                              ButtonStyle="ButtonStyle.Primary"
+                              Click="@RunSelectedToolAsync"
+                              Disabled="@IsBusy" />
+            </RadzenStack>
+        </RadzenCard>
+
+        @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+        {
+            <RadzenAlert AlertStyle="AlertStyle.Warning" Summary="Tool Lab" Detail="@ErrorMessage" />
+        }
+
+        <div class="tool-lab-results">
+            <RadzenCard class="tool-lab-card">
+                <h2>Request JSON</h2>
+                <pre>@RequestJson</pre>
+            </RadzenCard>
+            <RadzenCard class="tool-lab-card">
+                <h2>Response JSON</h2>
+                <pre>@ResponseJson</pre>
+            </RadzenCard>
+        </div>
+    </div>
+}
+
+@code {
+    private const string AuthStorageKey = "simpleAuth";
+    private const string AuthenticatedValue = "true";
+
+    private bool IsAuthenticated;
+    private bool IsAuthStateLoaded;
+    private bool IsBusy;
+    private string SelectedTool = "schema_list_databases";
+    private int? SelectedDatabaseId;
+    private string? SelectedDomain;
+    private int? SelectedSchemaObjectId;
+    private int? SelectedFieldId;
+    private string RequestJson = "{}";
+    private string ResponseJson = "{}";
+    private string ErrorMessage = "";
+
+    private List<DatabaseModel> Databases = new();
+    private List<DatabaseDomainModel> Domains = new();
+    private List<ToolLabObjectOption> SchemaObjects = new();
+    private List<ToolLabFieldOption> Fields = new();
+
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        WriteIndented = true
+    };
+
+    private IReadOnlyList<ToolOption> ToolOptions { get; } = new[]
+    {
+        new ToolOption("schema_list_databases", "List Databases"),
+        new ToolOption("schema_list_domains", "List Domains"),
+        new ToolOption("schema_list_objects", "List Objects"),
+        new ToolOption("schema_describe_object", "Describe Object"),
+        new ToolOption("schema_list_fields", "List Fields"),
+        new ToolOption("schema_describe_field", "Describe Field")
+    };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        await LoadAuthStateAsync();
+
+        if (IsAuthenticated)
+        {
+            await LoadInitialInputsAsync();
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LoadAuthStateAsync()
+    {
+        if (!AppConfig.Current.Auth.Enabled || !AppConfig.Current.Auth.RequireLoginForAdmin)
+        {
+            IsAuthenticated = true;
+            IsAuthStateLoaded = true;
+            return;
+        }
+
+        var authValue = await JSRuntime.InvokeAsync<string>("authStateManager.load", AuthStorageKey);
+        IsAuthenticated = string.Equals(authValue, AuthenticatedValue, StringComparison.OrdinalIgnoreCase);
+        IsAuthStateLoaded = true;
+    }
+
+    private async Task LoadInitialInputsAsync()
+    {
+        await RunPageOperationAsync(async () =>
+        {
+            Databases = (await Repository.GetDatabasesAsync()).ToList();
+            if (SelectedDatabaseId is null && Databases.Count > 0)
+            {
+                SelectedDatabaseId = Databases[0].DatabaseId;
+            }
+
+            await LoadDomainsAsync();
+            await LoadObjectsAsync();
+            await LoadFieldsAsync();
+            BuildRequestPreview();
+        }, "Failed to load Tool Lab inputs.");
+    }
+
+    private async Task OnDatabaseChanged(object value)
+    {
+        SelectedDomain = null;
+        SelectedSchemaObjectId = null;
+        SelectedFieldId = null;
+        await LoadDomainsAsync();
+        await LoadObjectsAsync();
+        await LoadFieldsAsync();
+        BuildRequestPreview();
+    }
+
+    private async Task OnDomainChanged(object value)
+    {
+        SelectedSchemaObjectId = null;
+        SelectedFieldId = null;
+        await LoadObjectsAsync();
+        await LoadFieldsAsync();
+        BuildRequestPreview();
+    }
+
+    private async Task OnSchemaObjectChanged(object value)
+    {
+        SelectedFieldId = null;
+        await LoadFieldsAsync();
+        BuildRequestPreview();
+    }
+
+    private void OnToolChanged(object value)
+    {
+        BuildRequestPreview();
+    }
+
+    private async Task LoadDomainsAsync()
+    {
+        Domains = SelectedDatabaseId is int databaseId
+            ? (await Repository.GetDomainsAsync(databaseId)).ToList()
+            : new List<DatabaseDomainModel>();
+    }
+
+    private async Task LoadObjectsAsync()
+    {
+        if (SelectedDatabaseId is not int databaseId)
+        {
+            SchemaObjects = new List<ToolLabObjectOption>();
+            return;
+        }
+
+        var objects = await Repository.GetSchemaObjectsAsync(databaseId, SelectedDomain);
+        SchemaObjects = objects
+            .Select(x => new ToolLabObjectOption(
+                x.SchemaObjectId,
+                $"{x.Domain ?? "Unknown"} | {(x.IsBaseObject ? "Base" : "Composed")} | {x.BusinessName ?? x.SourceObjectName}",
+                x))
+            .ToList();
+    }
+
+    private async Task LoadFieldsAsync()
+    {
+        if (SelectedSchemaObjectId is not int schemaObjectId)
+        {
+            Fields = new List<ToolLabFieldOption>();
+            return;
+        }
+
+        var fields = await Repository.GetFieldsAsync(schemaObjectId);
+        Fields = fields
+            .Select(x => new ToolLabFieldOption(
+                x.SchemaObjectColumnId,
+                $"{x.OrdinalPosition}. {x.SourceColumnName} - {x.BusinessName}",
+                x))
+            .ToList();
+    }
+
+    private async Task RunSelectedToolAsync()
+    {
+        await RunPageOperationAsync(async () =>
+        {
+            object response = SelectedTool switch
+            {
+                "schema_list_databases" => await Tools.ListDatabasesAsync(),
+                "schema_list_domains" => SelectedDatabaseId is int databaseId
+                    ? await Tools.ListDomainsAsync(databaseId)
+                    : MissingInput("databaseId"),
+                "schema_list_objects" => SelectedDatabaseId is int databaseId
+                    ? await Tools.ListSchemaObjectsAsync(databaseId, SelectedDomain)
+                    : MissingInput("databaseId"),
+                "schema_describe_object" => SelectedSchemaObjectId is int schemaObjectId
+                    ? await Tools.DescribeSchemaObjectAsync(schemaObjectId)
+                    : MissingInput("schemaObjectId"),
+                "schema_list_fields" => SelectedSchemaObjectId is int schemaObjectId
+                    ? await Tools.ListFieldsAsync(schemaObjectId)
+                    : MissingInput("schemaObjectId"),
+                "schema_describe_field" => SelectedFieldId is int schemaObjectColumnId
+                    ? await Tools.DescribeFieldAsync(schemaObjectColumnId)
+                    : MissingInput("schemaObjectColumnId"),
+                _ => MissingInput("tool")
+            };
+
+            BuildRequestPreview();
+            ResponseJson = JsonSerializer.Serialize(response, JsonOptions);
+        }, "Tool execution failed.");
+    }
+
+    private void BuildRequestPreview()
+    {
+        object request = SelectedTool switch
+        {
+            "schema_list_domains" => new { tool = SelectedTool, arguments = new { databaseId = SelectedDatabaseId } },
+            "schema_list_objects" => new { tool = SelectedTool, arguments = new { databaseId = SelectedDatabaseId, domain = SelectedDomain } },
+            "schema_describe_object" => new { tool = SelectedTool, arguments = new { schemaObjectId = SelectedSchemaObjectId } },
+            "schema_list_fields" => new { tool = SelectedTool, arguments = new { schemaObjectId = SelectedSchemaObjectId } },
+            "schema_describe_field" => new { tool = SelectedTool, arguments = new { schemaObjectColumnId = SelectedFieldId } },
+            _ => new { tool = SelectedTool, arguments = new { } }
+        };
+
+        RequestJson = JsonSerializer.Serialize(request, JsonOptions);
+    }
+
+    private async Task RunPageOperationAsync(Func<Task> operation, string failureMessage)
+    {
+        IsBusy = true;
+        ErrorMessage = "";
+
+        try
+        {
+            await operation();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"{failureMessage} {ex.Message}";
+            ResponseJson = JsonSerializer.Serialize(new
+            {
+                ok = false,
+                data = (object?)null,
+                error = new
+                {
+                    code = "tool_lab_operation_failed",
+                    message = failureMessage,
+                    exceptionType = ex.GetType().Name,
+                    exceptionMessage = ex.Message
+                }
+            }, JsonOptions);
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private static object MissingInput(string parameterName) => new
+    {
+        ok = false,
+        data = (object?)null,
+        error = new
+        {
+            code = "missing_input",
+            message = $"Required input '{parameterName}' is missing."
+        }
+    };
+
+    private sealed record ToolOption(string Value, string Text);
+    private sealed record ToolLabObjectOption(int SchemaObjectId, string DisplayName, SchemaObjectModel Source);
+    private sealed record ToolLabFieldOption(int SchemaObjectColumnId, string DisplayName, SchemaObjectColumnModel Source);
+}

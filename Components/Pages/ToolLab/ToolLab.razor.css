@@ -1,0 +1,63 @@
+.tool-lab {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.tool-lab-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.tool-lab-header h1 {
+    margin: 0;
+    font-size: 1.55rem;
+}
+
+.tool-lab-header p {
+    margin: 0.15rem 0 0;
+    color: #526071;
+}
+
+.tool-lab-card {
+    border: 1px solid #d8dde6;
+}
+
+.tool-lab-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(180px, 1fr));
+    gap: 0.75rem;
+}
+
+.tool-lab-results {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0.75rem;
+}
+
+.tool-lab-results h2 {
+    margin: 0 0 0.5rem;
+    font-size: 1rem;
+}
+
+.tool-lab pre {
+    min-height: 220px;
+    max-height: 48vh;
+    overflow: auto;
+    margin: 0;
+    padding: 0.75rem;
+    border: 1px solid #d8dde6;
+    background: #101827;
+    color: #edf2ff;
+    font-size: 0.85rem;
+    line-height: 1.35;
+}
+
+@media (max-width: 1200px) {
+    .tool-lab-grid,
+    .tool-lab-results {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

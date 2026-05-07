@@ -3,12 +3,14 @@ using SchemaStudio.Data.Repositories;
 using SchemaStudioWebViewer.Components;
 using SchemaStudio.AIHelpers;
 using SchemaStudioWebViewer.Configuration;
+using SchemaStudioWebViewer.McpTools;
+using SchemaStudioWebViewer.Repositories;
 using SchemaStudioWebViewer.Utils;
 using SchemaStudioWebViewer.WEBSemanticModel.Services;
 
 namespace SchemaStudioWebViewer
 {
-    [FileVersion("1.6")]
+    [FileVersion("1.7")]
     [AIChange("1.6", "2026-04-23 01:29 PM CDT registered the source-view repository for the new manage-views workspace so available import candidates can be queried by database and ViewNameFilter.", AICommandStatus.Pending)]
     [AIFileContext("Program.cs", "Bootstraps the SchemaStudioWebViewer web app, initializes configuration, registers services, and maps the Razor and MCP endpoints.")]
     [AIChange("1.5", "2026-04-22 06:20 PM CDT registered SQL Server dependency metadata repository for ParserLab where-used lookups.", AICommandStatus.Pending)]
@@ -36,10 +38,13 @@ namespace SchemaStudioWebViewer
 
             if (AppConfig.Current.Mcp.Enabled)
             {
-                builder.Services.AddMcpServer().WithHttpTransport(options =>
-                {
-                    options.Stateless = true;
-                });
+                builder.Services
+                    .AddMcpServer()
+                    .WithHttpTransport(options =>
+                    {
+                        options.Stateless = true;
+                    })
+                    .WithTools<SchemaCatalogMcpTools>();
             }
 
             // 2. IMPORTANT: Remove the manual AddScoped<DialogService> lines.
@@ -47,6 +52,9 @@ namespace SchemaStudioWebViewer
             // registrations internally. Having both causes the UI to stop responding.
             builder.Services.AddRadzenComponents();
             builder.Services.AddScoped<AttributeService>();
+            builder.Services.AddScoped(_ =>
+                new SchemaMCPRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
+            builder.Services.AddScoped<SchemaCatalogMcpTools>();
             builder.Services.AddScoped<ViewParsingService>(_ =>
                 new ViewParsingService(AppConfig.Current.ConnectionStrings.DefaultConnection));
             builder.Services.AddScoped(_ =>
