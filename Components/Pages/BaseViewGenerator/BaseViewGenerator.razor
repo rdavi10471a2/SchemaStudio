@@ -13,7 +13,7 @@
 @inject IJSRuntime JSRuntime
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("1.24")]
+@attribute [FileVersion("1.25")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -34,13 +34,20 @@
         </div>
         <div class="bvg-header-actions">
             <button type="button" class="bvg-button secondary" @onclick="RefreshMetadataAsync" disabled="@IsBusy">Refresh Metadata</button>
-            <button type="button" class="bvg-button primary" @onclick="CopySqlAsync" disabled="@string.IsNullOrWhiteSpace(GeneratedSql)">Copy SQL</button>
+            <button type="button" class="bvg-button secondary" @onclick="RegenerateSql" disabled="@(!CanRegenerateSql)">Regenerate SQL</button>
+            <button type="button" class="bvg-button primary" @onclick="CopySqlAsync" disabled="@(!CanCopySql)">Copy SQL</button>
         </div>
     </section>
 
     @if (!string.IsNullOrWhiteSpace(StatusMessage))
     {
-        <div class="bvg-status">@StatusMessage</div>
+        <div class="bvg-status">
+            @StatusMessage
+            @if (SqlDirty)
+            {
+                <span class="bvg-dirty-note">SQL has pending changes. Click Regenerate SQL.</span>
+            }
+        </div>
     }
 
     <div class="bvg-layout">
@@ -104,10 +111,10 @@
             </div>
 
             <div class="bvg-options">
-                <label><input type="checkbox" @bind="IncludeLookupDisplayColumns" @bind:after="RegenerateSql" /> Include lookup display columns</label>
-                <label><input type="checkbox" @bind="IgnoreSelfJoins" @bind:after="ApplyRelationshipFiltersAndRegenerate" /> Ignore self joins</label>
-                <label><input type="checkbox" @bind="IgnoreRelationshipsWithoutDisplay" @bind:after="ApplyRelationshipFiltersAndRegenerate" /> Ignore FK relationships without display columns</label>
-                <label><input type="checkbox" @bind="IncludeMetadataPlaceholders" @bind:after="RegenerateSql" /> Include metadata placeholders</label>
+                <label><input type="checkbox" @bind="IncludeLookupDisplayColumns" @bind:after="MarkSqlDirty" /> Include lookup display columns</label>
+                <label><input type="checkbox" @bind="IgnoreSelfJoins" @bind:after="ApplyRelationshipFiltersAndMarkDirty" /> Ignore self joins</label>
+                <label><input type="checkbox" @bind="IgnoreRelationshipsWithoutDisplay" @bind:after="ApplyRelationshipFiltersAndMarkDirty" /> Ignore FK relationships without display columns</label>
+                <label><input type="checkbox" @bind="IncludeMetadataPlaceholders" @bind:after="MarkSqlDirty" /> Include metadata placeholders</label>
             </div>
 
         </section>
@@ -230,11 +237,25 @@
     private string GeneratedSql = "";
     private string ActiveWorkspaceTab = "sql";
     private bool HighlightSqlPending;
+    private bool SqlDirty;
 
     private List<DatabaseDefinition> Databases = new();
     private List<TableSchemaColumnInfo> Columns = new();
     private List<TableSchemaRelationshipInfo> AllRelationships = new();
     private List<TableSchemaRelationshipInfo> Relationships = new();
+
+    private bool CanRegenerateSql =>
+        !IsBusy &&
+        Columns.Count > 0 &&
+        !string.IsNullOrWhiteSpace(SelectedDatabaseName) &&
+        !string.IsNullOrWhiteSpace(SelectedSchemaName) &&
+        !string.IsNullOrWhiteSpace(SelectedTableName) &&
+        !string.IsNullOrWhiteSpace(BaseAlias) &&
+        !string.IsNullOrWhiteSpace(TargetSchemaName) &&
+        !string.IsNullOrWhiteSpace(TargetViewName);
+
+    private bool CanCopySql =>
+        !SqlDirty && !string.IsNullOrWhiteSpace(GeneratedSql);
 
     private string TargetViewPreview =>
         string.IsNullOrWhiteSpace(TargetViewName)
@@ -300,6 +321,7 @@
         AllRelationships.Clear();
         Relationships.Clear();
         GeneratedSql = "";
+        SqlDirty = false;
         RelationshipTelemetryMessage = "";
         StatusMessage = "";
 
@@ -321,6 +343,7 @@
         AllRelationships.Clear();
         Relationships.Clear();
         GeneratedSql = "";
+        SqlDirty = false;
         RelationshipTelemetryMessage = "";
         StatusMessage = string.IsNullOrWhiteSpace(SelectedSchemaName)
             ? "Select a source schema before loading a table."
@@ -335,6 +358,7 @@
         AllRelationships.Clear();
         Relationships.Clear();
         GeneratedSql = "";
+        SqlDirty = false;
         RelationshipTelemetryMessage = "";
         TargetViewName = string.IsNullOrWhiteSpace(SelectedDatabaseName) || string.IsNullOrWhiteSpace(SelectedTableName)
             ? ""
@@ -380,12 +404,13 @@
             var details = await TableSchemaRepository.GetTableDetailsAsync(SelectedDatabaseName, SelectedSchemaName, SelectedTableName);
             Columns = details.Columns.ToList();
             AllRelationships = details.Relationships.ToList();
-            ApplyRelationshipFiltersAndRegenerate();
+            ApplyRelationshipFilters();
+            RegenerateSql();
             StatusMessage = BuildLoadedStatusMessage();
         }, $"Failed to load table details from [{SelectedDatabaseName}].[{SelectedSchemaName}].[{SelectedTableName}].");
     }
 
-    private void ApplyRelationshipFiltersAndRegenerate()
+    private void ApplyRelationshipFilters()
     {
         var filteredRelationships = AllRelationships.AsEnumerable();
 
@@ -398,7 +423,12 @@
 
         Relationships = filteredRelationships.ToList();
         RelationshipTelemetryMessage = BuildRelationshipTelemetryMessage();
-        RegenerateSql();
+    }
+
+    private void ApplyRelationshipFiltersAndMarkDirty()
+    {
+        ApplyRelationshipFilters();
+        MarkSqlDirty();
 
         if (Columns.Count > 0)
         {
@@ -409,49 +439,49 @@
     private void OnBaseAliasChanged(ChangeEventArgs args)
     {
         BaseAlias = args.Value?.ToString() ?? "";
-        RegenerateSql();
+        MarkSqlDirty();
     }
 
     private void OnTargetDatabaseChanged(ChangeEventArgs args)
     {
         TargetDatabaseName = args.Value?.ToString() ?? "";
-        RegenerateSql();
+        MarkSqlDirty();
     }
 
     private void OnTargetSchemaChanged(ChangeEventArgs args)
     {
         TargetSchemaName = args.Value?.ToString() ?? "";
-        RegenerateSql();
+        MarkSqlDirty();
     }
 
     private void OnTargetViewNameChanged(ChangeEventArgs args)
     {
         TargetViewName = args.Value?.ToString() ?? "";
-        RegenerateSql();
+        MarkSqlDirty();
     }
 
     private void OnRelationshipDisplayColumnChanged(TableSchemaRelationshipInfo relationship, ChangeEventArgs args)
     {
         relationship.DisplayColumnName = args.Value?.ToString();
-        RegenerateSql();
+        MarkSqlDirty();
     }
 
     private void OnColumnIncludeChanged(TableSchemaColumnInfo column, ChangeEventArgs args)
     {
         column.Include = ToBool(args.Value);
-        RegenerateSql();
+        MarkSqlDirty();
     }
 
     private void OnRelationshipIncludeChanged(TableSchemaRelationshipInfo relationship, ChangeEventArgs args)
     {
         relationship.Include = ToBool(args.Value);
-        RegenerateSql();
+        MarkSqlDirty();
     }
 
     private void OnRelationshipDisplayIncludeChanged(TableSchemaRelationshipInfo relationship, ChangeEventArgs args)
     {
         relationship.IncludeDisplayColumn = ToBool(args.Value);
-        RegenerateSql();
+        MarkSqlDirty();
     }
 
     private void OnRelationshipJoinTypeChanged(TableSchemaRelationshipInfo relationship, ChangeEventArgs args)
@@ -459,7 +489,7 @@
         relationship.SelectedJoinType = args.Value?.ToString() == "LEFT JOIN"
             ? "LEFT JOIN"
             : "INNER JOIN";
-        RegenerateSql();
+        MarkSqlDirty();
     }
 
     private void OnColumnFilterChanged(ChangeEventArgs args)
@@ -518,6 +548,7 @@
             string.IsNullOrWhiteSpace(TargetViewName))
         {
             GeneratedSql = "";
+            SqlDirty = false;
             return;
         }
 
@@ -547,7 +578,20 @@
         }
 
         GeneratedSql = string.Join(Environment.NewLine, lines);
+        SqlDirty = false;
         QueueSqlHighlight();
+    }
+
+    private void MarkSqlDirty()
+    {
+        if (!CanRegenerateSql)
+        {
+            GeneratedSql = "";
+            SqlDirty = false;
+            return;
+        }
+
+        SqlDirty = true;
     }
 
     private void QueueSqlHighlight()
