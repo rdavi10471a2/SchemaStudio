@@ -12,7 +12,7 @@
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject IJSRuntime JSRuntime
 
-@attribute [FileVersion("1.9")]
+@attribute [FileVersion("1.10")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -424,7 +424,6 @@
 
         foreach (var relationship in Relationships.Where(relationship => relationship.Include))
         {
-            lines.Add("");
             lines.AddRange(BuildJoinLines(relationship));
         }
 
