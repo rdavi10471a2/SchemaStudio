@@ -168,26 +168,30 @@ else
 
         <div class="tool-lab-results">
             <RadzenCard class="tool-lab-card">
-                <h2>Tool Call</h2>
-                <pre>@RequestJson</pre>
+                <RadzenTabs>
+                    <Tabs>
+                        <RadzenTabsItem Text="Tool Call">
+                            <pre>@RequestJson</pre>
+                        </RadzenTabsItem>
+                        <RadzenTabsItem Text="Response">
+                            @if (!string.IsNullOrWhiteSpace(ResponseSummary))
+                            {
+                                <div class="response-summary">@ResponseSummary</div>
+                            }
+                            <pre>@ResponseJson</pre>
+                        </RadzenTabsItem>
+                    </Tabs>
+                </RadzenTabs>
             </RadzenCard>
-            <RadzenCard class="tool-lab-card">
-                <h2>Response</h2>
-                @if (!string.IsNullOrWhiteSpace(ResponseSummary))
-                {
-                    <div class="response-summary">@ResponseSummary</div>
-                }
-                <pre>@ResponseJson</pre>
-            </RadzenCard>
-        </div>
 
-        @if (!string.IsNullOrWhiteSpace(SqlOutput))
-        {
-            <RadzenCard class="tool-lab-card">
-                <h2>SQL</h2>
-                <pre class="sql-output">@SqlOutput</pre>
-            </RadzenCard>
-        }
+            @if (!string.IsNullOrWhiteSpace(SqlOutput))
+            {
+                <RadzenCard class="tool-lab-card">
+                    <h2>SQL</h2>
+                    <pre class="sql-output">@SqlOutput</pre>
+                </RadzenCard>
+            }
+        </div>
     </div>
 }
 

@@ -74,6 +74,7 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 0.75rem;
+    align-items: stretch;
 }
 
 .tool-lab-results h2 {
@@ -105,10 +106,20 @@
 }
 
 .tool-lab .sql-output {
-    min-height: 360px;
-    max-height: 64vh;
+    min-height: 480px;
+    max-height: 68vh;
     background: #ffffff;
     color: #0f172a;
+}
+
+.tool-lab-results > .tool-lab-card {
+    min-width: 0;
+}
+
+.tool-lab-results .rz-tabview,
+.tool-lab-results .rz-tabview-panels,
+.tool-lab-results .rz-tabview-panel {
+    min-width: 0;
 }
 
 @media (max-width: 1200px) {
