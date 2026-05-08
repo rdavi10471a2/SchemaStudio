@@ -13,7 +13,7 @@
 @inject IJSRuntime JSRuntime
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("1.38")]
+@attribute [FileVersion("1.39")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -225,6 +225,7 @@
                             <table>
                                 <thead>
                                     <tr>
+                                        <th>Status / Error</th>
                                         <th>Include</th>
                                         <th>FK Column</th>
                                         <th>Referenced Table</th>
@@ -239,9 +240,12 @@
                                         var joinSuppressed = IsJoinSuppressed(relationship);
                                         <tr class="@(joinSuppressed ? "bvg-muted-row" : null)">
                                             <td>
+                                                <span class="@RelationshipStatusClass(relationship)">@RelationshipStatusText(relationship)</span>
+                                            </td>
+                                            <td>
                                                 @if (joinSuppressed)
                                                 {
-                                        <span class="bvg-muted-cell">Lookup suppressed</span>
+                                                    <span class="bvg-muted-cell">Suppressed</span>
                                                 }
                                                 else
                                                 {
@@ -634,6 +638,41 @@
     private bool ShouldGenerateJoin(TableSchemaRelationshipInfo relationship) =>
         relationship.Include &&
         !IsJoinSuppressed(relationship);
+
+    private string RelationshipStatusText(TableSchemaRelationshipInfo relationship)
+    {
+        if (IsJoinSuppressed(relationship))
+        {
+            return "No display column";
+        }
+
+        if (!relationship.Include)
+        {
+            return "Join disabled";
+        }
+
+        if (!relationship.IncludeDisplayColumn)
+        {
+            return "Lookup display off";
+        }
+
+        return "Ready";
+    }
+
+    private string RelationshipStatusClass(TableSchemaRelationshipInfo relationship)
+    {
+        if (IsJoinSuppressed(relationship))
+        {
+            return "bvg-status-error";
+        }
+
+        if (!relationship.Include || !relationship.IncludeDisplayColumn)
+        {
+            return "bvg-status-warning";
+        }
+
+        return "bvg-status-ok";
+    }
 
     private void RegenerateSql()
     {
