@@ -13,7 +13,7 @@
 @inject IJSRuntime JSRuntime
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("1.35")]
+@attribute [FileVersion("1.36")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -116,6 +116,41 @@
                 <label><input type="checkbox" @bind="IgnoreRelationshipsWithoutDisplay" @bind:after="ApplyRelationshipFiltersAndMarkDirty" /> Ignore FK relationships without display columns</label>
                 <label><input type="checkbox" @bind="IncludeMetadataPlaceholders" @bind:after="RegenerateSql" /> Include metadata placeholders</label>
             </div>
+
+            <section class="bvg-child-relationships">
+                <h2>Known Child Tables (@ChildRelationships.Count)</h2>
+                <div class="bvg-note">
+                    These tables reference @SelectedTableDisplayName. This is informational only and does not affect generated SQL.
+                </div>
+                <div class="bvg-table-wrap bvg-child-table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Table</th>
+                                <th>Join Clause</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (ChildRelationships.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="2" class="bvg-empty-cell">No child tables loaded.</td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var childRelationship in ChildRelationships)
+                                {
+                                    <tr>
+                                        <td>@QualifiedName(SelectedDatabaseName, childRelationship.ChildSchemaName, childRelationship.ChildTableName)</td>
+                                        <td class="bvg-join-clause">@BuildChildJoinClause(childRelationship)</td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
 
         </section>
 
@@ -258,6 +293,7 @@
     private List<TableSchemaColumnInfo> Columns = new();
     private List<TableSchemaRelationshipInfo> AllRelationships = new();
     private List<TableSchemaRelationshipInfo> Relationships = new();
+    private List<TableSchemaChildRelationshipInfo> ChildRelationships = new();
 
     private bool CanRegenerateSql =>
         !IsBusy &&
@@ -279,6 +315,11 @@
 
     private string TargetViewNameSql =>
         QualifiedName(TargetSchemaName, TargetViewName);
+
+    private string SelectedTableDisplayName =>
+        string.IsNullOrWhiteSpace(SelectedTableName)
+            ? "the selected table"
+            : QualifiedName(SelectedDatabaseName, SelectedSchemaName, SelectedTableName);
 
     private IEnumerable<TableSchemaColumnInfo> FilteredColumns =>
         string.IsNullOrWhiteSpace(ColumnFilter)
@@ -335,6 +376,7 @@
         Columns.Clear();
         AllRelationships.Clear();
         Relationships.Clear();
+        ChildRelationships.Clear();
         GeneratedSql = "";
         SqlDirty = false;
         RelationshipTelemetryMessage = "";
@@ -357,6 +399,7 @@
         Columns.Clear();
         AllRelationships.Clear();
         Relationships.Clear();
+        ChildRelationships.Clear();
         GeneratedSql = "";
         SqlDirty = false;
         RelationshipTelemetryMessage = "";
@@ -372,6 +415,7 @@
         Columns.Clear();
         AllRelationships.Clear();
         Relationships.Clear();
+        ChildRelationships.Clear();
         GeneratedSql = "";
         SqlDirty = false;
         RelationshipTelemetryMessage = "";
@@ -419,6 +463,7 @@
             var details = await TableSchemaRepository.GetTableDetailsAsync(SelectedDatabaseName, SelectedSchemaName, SelectedTableName);
             Columns = details.Columns.ToList();
             AllRelationships = details.Relationships.ToList();
+            ChildRelationships = details.ChildRelationships.ToList();
             ApplyRelationshipFilters();
             RegenerateSql();
             StatusMessage = BuildLoadedStatusMessage();
@@ -716,6 +761,15 @@
         var predicates = relationship.Columns
             .Select(pair => $"{QuoteIdentifier(alias)}.{QuoteIdentifier(pair.ReferencedColumnName)} = {QuoteIdentifier(BaseAlias)}.{QuoteIdentifier(pair.LocalColumnName)}");
         yield return $"{relationship.SelectedJoinType} {QualifiedName(SelectedDatabaseName, relationship.ReferencedSchemaName, relationship.ReferencedTableName)} AS {QuoteIdentifier(alias)} ON {string.Join(" AND ", predicates)}";
+    }
+
+    private string BuildChildJoinClause(TableSchemaChildRelationshipInfo relationship)
+    {
+        var childAlias = SanitizeAliasToken(relationship.ChildTableName);
+        var predicates = relationship.Columns
+            .Select(pair => $"{QuoteIdentifier(childAlias)}.{QuoteIdentifier(pair.ChildColumnName)} = {QuoteIdentifier(BaseAlias)}.{QuoteIdentifier(pair.ParentColumnName)}");
+
+        return $"JOIN {QualifiedName(SelectedDatabaseName, relationship.ChildSchemaName, relationship.ChildTableName)} AS {QuoteIdentifier(childAlias)} ON {string.Join(" AND ", predicates)}";
     }
 
     private string BuildLookupAlias(TableSchemaRelationshipInfo relationship)

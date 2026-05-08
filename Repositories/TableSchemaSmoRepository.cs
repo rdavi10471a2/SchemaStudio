@@ -4,7 +4,7 @@ using SchemaStudio.AIHelpers;
 
 namespace SchemaStudioWebViewer.Data;
 
-[FileVersion("1.3")]
+[FileVersion("1.4")]
 [AIFileContext("Repositories/TableSchemaSmoRepository.cs", "Reads SQL Server table metadata for the Base View Generator page.", Responsibilities = "Provides schema, table, column, and many-to-one foreign-key metadata from a selected source database without changing the configured connection string.", Nuances = "The class name is retained from the first SMO implementation, but the metadata reads use targeted sys catalog queries because SMO object hydration was too slow for interactive use.", LastReviewed = "2026-05-07")]
 public sealed class TableSchemaSmoRepository
 {
@@ -118,7 +118,25 @@ ORDER BY t.name;
                 pairs));
         }
 
-        return new TableSchemaDetails(databaseName, schemaName, tableName, columns, relationships);
+        var childRelationshipRows = (await connection.QueryAsync<TableSchemaChildRelationshipRow>(BuildChildRelationshipsSql(database), new { tableObjectId })).ToList();
+        var childRelationships = childRelationshipRows
+            .GroupBy(row => new
+            {
+                row.ForeignKeyName,
+                row.ChildSchemaName,
+                row.ChildTableName
+            })
+            .Select(group => new TableSchemaChildRelationshipInfo(
+                group.Key.ForeignKeyName,
+                group.Key.ChildSchemaName,
+                group.Key.ChildTableName,
+                group
+                    .OrderBy(row => row.ConstraintColumnId)
+                    .Select(row => new TableSchemaChildForeignKeyColumnInfo(row.ChildColumnName, row.ParentColumnName))
+                    .ToList()))
+            .ToList();
+
+        return new TableSchemaDetails(databaseName, schemaName, tableName, columns, relationships, childRelationships);
     }
 
     private static async Task EnsureDatabaseExistsAsync(SqlConnection connection, string databaseName)
@@ -270,6 +288,34 @@ ORDER BY fk.name, fkc.constraint_column_id;
 """;
     }
 
+    private static string BuildChildRelationshipsSql(string database)
+    {
+        return $"""
+SELECT
+    fk.name AS ForeignKeyName,
+    ps.name AS ChildSchemaName,
+    pt.name AS ChildTableName,
+    fkc.constraint_column_id AS ConstraintColumnId,
+    pc.name AS ChildColumnName,
+    rc.name AS ParentColumnName
+FROM {database}.sys.foreign_keys AS fk
+JOIN {database}.sys.foreign_key_columns AS fkc
+    ON fkc.constraint_object_id = fk.object_id
+JOIN {database}.sys.tables AS pt
+    ON pt.object_id = fk.parent_object_id
+JOIN {database}.sys.schemas AS ps
+    ON ps.schema_id = pt.schema_id
+JOIN {database}.sys.columns AS pc
+    ON pc.object_id = fkc.parent_object_id
+    AND pc.column_id = fkc.parent_column_id
+JOIN {database}.sys.columns AS rc
+    ON rc.object_id = fkc.referenced_object_id
+    AND rc.column_id = fkc.referenced_column_id
+WHERE fk.referenced_object_id = @tableObjectId
+ORDER BY ps.name, pt.name, fk.name, fkc.constraint_column_id;
+""";
+    }
+
     private static void ValidateDatabaseName(string databaseName)
     {
         if (string.IsNullOrWhiteSpace(databaseName))
@@ -307,6 +353,16 @@ ORDER BY fk.name, fkc.constraint_column_id;
         public string ReferencedTableName { get; set; } = "";
         public string ColumnName { get; set; } = "";
     }
+
+    private sealed class TableSchemaChildRelationshipRow
+    {
+        public string ForeignKeyName { get; set; } = "";
+        public string ChildSchemaName { get; set; } = "";
+        public string ChildTableName { get; set; } = "";
+        public int ConstraintColumnId { get; set; }
+        public string ChildColumnName { get; set; } = "";
+        public string ParentColumnName { get; set; } = "";
+    }
 }
 
 public sealed record TableSchemaTableInfo(string SchemaName, string TableName)
@@ -319,7 +375,8 @@ public sealed record TableSchemaDetails(
     string SchemaName,
     string TableName,
     IReadOnlyList<TableSchemaColumnInfo> Columns,
-    IReadOnlyList<TableSchemaRelationshipInfo> Relationships);
+    IReadOnlyList<TableSchemaRelationshipInfo> Relationships,
+    IReadOnlyList<TableSchemaChildRelationshipInfo> ChildRelationships);
 
 public sealed class TableSchemaColumnInfo
 {
@@ -383,3 +440,25 @@ public sealed class TableSchemaRelationshipInfo
 }
 
 public sealed record TableSchemaForeignKeyColumnInfo(string LocalColumnName, string ReferencedColumnName);
+
+public sealed class TableSchemaChildRelationshipInfo
+{
+    public TableSchemaChildRelationshipInfo(
+        string foreignKeyName,
+        string childSchemaName,
+        string childTableName,
+        IReadOnlyList<TableSchemaChildForeignKeyColumnInfo> columns)
+    {
+        ForeignKeyName = foreignKeyName;
+        ChildSchemaName = childSchemaName;
+        ChildTableName = childTableName;
+        Columns = columns;
+    }
+
+    public string ForeignKeyName { get; }
+    public string ChildSchemaName { get; }
+    public string ChildTableName { get; }
+    public IReadOnlyList<TableSchemaChildForeignKeyColumnInfo> Columns { get; }
+}
+
+public sealed record TableSchemaChildForeignKeyColumnInfo(string ChildColumnName, string ParentColumnName);
