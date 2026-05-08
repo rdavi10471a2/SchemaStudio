@@ -15,7 +15,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.46")]
+@attribute [FileVersion("1.47")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -791,38 +791,56 @@
     private IEnumerable<string> BuildProjectionLines()
     {
         var first = true;
-        var emittedLookupRelationships = new HashSet<TableSchemaRelationshipInfo>();
+        var emittedRelationshipColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var column in Columns.Where(column => column.Include))
+        foreach (var column in Columns.Where(column => column.Include && !IsRelationshipColumn(column)))
         {
             var prefix = ProjectionPrefix(first);
             var projection = $"{QuoteIdentifier(BaseAlias)}.{QuoteIdentifier(column.ColumnName)}";
-            yield return BuildProjectionLine(prefix, projection, disableInheritance: IsRelationshipColumn(column));
+            yield return BuildProjectionLine(prefix, projection);
             first = false;
+        }
 
-            var lookupRelationships = Relationships
-                .Where(relationship =>
-                    ShouldGenerateJoin(relationship) &&
-                    relationship.IncludeDisplayColumn &&
-                    !string.IsNullOrWhiteSpace(relationship.DisplayColumnName) &&
-                    relationship.Columns.Any(pair => string.Equals(pair.LocalColumnName, column.ColumnName, StringComparison.OrdinalIgnoreCase)));
-
-            foreach (var relationship in lookupRelationships)
+        foreach (var relationship in Relationships.Where(relationship => relationship.Columns.Any(pair => IsColumnIncluded(pair.LocalColumnName))))
+        {
+            var emittedAnyRelationshipColumn = false;
+            foreach (var pair in relationship.Columns)
             {
-                if (!emittedLookupRelationships.Add(relationship))
+                if (!IsColumnIncluded(pair.LocalColumnName) || !emittedRelationshipColumns.Add(pair.LocalColumnName))
                 {
                     continue;
                 }
 
-                var alias = BuildLookupAlias(relationship);
-                var columnAlias = BuildLookupProjectionAlias(relationship);
-                prefix = ProjectionPrefix(first);
-                projection = $"{QuoteIdentifier(alias)}.{QuoteIdentifier(relationship.DisplayColumnName!)} AS {QuoteIdentifier(columnAlias)}";
+                if (!first && !emittedAnyRelationshipColumn)
+                {
+                    yield return "";
+                }
+
+                var prefix = ProjectionPrefix(first);
+                var projection = $"{QuoteIdentifier(BaseAlias)}.{QuoteIdentifier(pair.LocalColumnName)}";
                 yield return BuildProjectionLine(prefix, projection, disableInheritance: true);
                 first = false;
+                emittedAnyRelationshipColumn = true;
             }
+
+            if (!emittedAnyRelationshipColumn ||
+                !ShouldGenerateJoin(relationship) ||
+                !relationship.IncludeDisplayColumn ||
+                string.IsNullOrWhiteSpace(relationship.DisplayColumnName))
+            {
+                continue;
+            }
+
+            var alias = BuildLookupAlias(relationship);
+            var columnAlias = BuildLookupProjectionAlias(relationship);
+            var lookupProjection = $"{QuoteIdentifier(alias)}.{QuoteIdentifier(relationship.DisplayColumnName!)} AS {QuoteIdentifier(columnAlias)}";
+            yield return BuildProjectionLine(ProjectionPrefix(first), lookupProjection, disableInheritance: true);
+            first = false;
         }
     }
+
+    private bool IsColumnIncluded(string columnName) =>
+        Columns.Any(column => column.Include && string.Equals(column.ColumnName, columnName, StringComparison.OrdinalIgnoreCase));
 
     private bool IsRelationshipColumn(TableSchemaColumnInfo column) =>
         Relationships
