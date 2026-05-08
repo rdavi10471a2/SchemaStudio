@@ -13,7 +13,7 @@
 @inject IJSRuntime JSRuntime
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("1.40")]
+@attribute [FileVersion("1.41")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -118,10 +118,10 @@
                     @if (ActiveSourceInfoTab == "options")
                     {
                         <div class="bvg-options">
-                            <label><input type="checkbox" @bind="IncludeLookupDisplayColumns" @bind:after="MarkSqlDirty" /> Include lookup display columns</label>
-                            <label><input type="checkbox" @bind="IgnoreSelfJoins" @bind:after="ApplyRelationshipFiltersAndMarkDirty" /> Ignore self joins</label>
-                            <label><input type="checkbox" @bind="IgnoreRelationshipsWithoutDisplay" @bind:after="ApplyRelationshipFiltersAndMarkDirty" /> Ignore FK relationships without display columns</label>
-                            <label><input type="checkbox" @bind="IncludeMetadataPlaceholders" @bind:after="MarkSqlDirty" /> Include metadata placeholders</label>
+                            <label><input type="checkbox" checked="@IncludeLookupDisplayColumns" @onchange="OnIncludeLookupDisplayColumnsChanged" /> Include lookup display columns</label>
+                            <label><input type="checkbox" checked="@IgnoreSelfJoins" @onchange="OnIgnoreSelfJoinsChanged" /> Ignore self joins</label>
+                            <label><input type="checkbox" checked="@IgnoreRelationshipsWithoutDisplay" @onchange="OnIgnoreRelationshipsWithoutDisplayChanged" /> Ignore FK relationships without display columns</label>
+                            <label><input type="checkbox" checked="@IncludeMetadataPlaceholders" @onchange="OnIncludeMetadataPlaceholdersChanged" /> Include metadata placeholders</label>
                         </div>
                     }
                     else
@@ -524,6 +524,30 @@
         {
             StatusMessage = BuildLoadedStatusMessage();
         }
+    }
+
+    private void OnIncludeLookupDisplayColumnsChanged(ChangeEventArgs args)
+    {
+        IncludeLookupDisplayColumns = ToBool(args.Value);
+        MarkSqlDirty();
+    }
+
+    private void OnIgnoreSelfJoinsChanged(ChangeEventArgs args)
+    {
+        IgnoreSelfJoins = ToBool(args.Value);
+        ApplyRelationshipFiltersAndMarkDirty();
+    }
+
+    private void OnIgnoreRelationshipsWithoutDisplayChanged(ChangeEventArgs args)
+    {
+        IgnoreRelationshipsWithoutDisplay = ToBool(args.Value);
+        ApplyRelationshipFiltersAndMarkDirty();
+    }
+
+    private void OnIncludeMetadataPlaceholdersChanged(ChangeEventArgs args)
+    {
+        IncludeMetadataPlaceholders = ToBool(args.Value);
+        MarkSqlDirty();
     }
 
     private void OnBaseAliasChanged(ChangeEventArgs args)
