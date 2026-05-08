@@ -369,6 +369,70 @@
     font-size: 0.82rem;
 }
 
+.bvg-projection-tree {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 0.75rem;
+}
+
+.bvg-projection-tree details {
+    margin-bottom: 0.55rem;
+}
+
+.bvg-projection-tree summary {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-height: 32px;
+    padding: 0.42rem 0.55rem;
+    border: 1px solid #d9dee8;
+    border-radius: 6px;
+    background: #f8f9fb;
+    color: #1f2937;
+    cursor: pointer;
+    font-weight: 800;
+}
+
+.bvg-tree-node summary {
+    background: #ffffff;
+}
+
+.bvg-tree-children {
+    padding: 0.35rem 0 0.25rem 1.4rem;
+}
+
+.bvg-tree-row {
+    display: grid;
+    grid-template-columns: minmax(190px, 1fr) minmax(100px, 0.55fr) minmax(90px, 0.45fr) minmax(130px, 0.65fr);
+    gap: 0.65rem;
+    align-items: center;
+    min-height: 34px;
+    padding: 0.32rem 0.5rem;
+    border-bottom: 1px solid #edf0f5;
+    font-size: 0.82rem;
+}
+
+.bvg-tree-row label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin: 0;
+    font-weight: 700;
+}
+
+.bvg-relationship-row {
+    grid-template-columns: auto minmax(130px, 180px) auto minmax(220px, 1fr);
+    max-width: 760px;
+}
+
+.bvg-tree-note {
+    padding: 0.45rem 0.55rem;
+    color: #7f1d1d;
+    font-size: 0.8rem;
+    font-style: italic;
+}
+
 .bvg-relationships .bvg-table-wrap table {
     min-width: 760px;
 }

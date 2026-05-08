@@ -15,7 +15,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.49")]
+@attribute [FileVersion("1.50")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -124,6 +124,13 @@
                             <label><input type="checkbox" checked="@IgnoreSelfJoins" @onchange="OnIgnoreSelfJoinsChanged" /> Ignore self joins @HelpIcon("Hides relationships where the source table references itself. The source table FK columns are still available in the Columns tab.")</label>
                             <label><input type="checkbox" checked="@IgnoreRelationshipsWithoutDisplay" @onchange="OnIgnoreRelationshipsWithoutDisplayChanged" /> Ignore FK relationships without display columns @HelpIcon("Keeps the FK columns but suppresses lookup joins when no configured display column is available on the referenced table.")</label>
                             <label><input type="checkbox" checked="@IncludeMetadataPlaceholders" @onchange="OnIncludeMetadataPlaceholdersChanged" /> Include metadata placeholders @HelpIcon("Adds Schema Studio metadata comment placeholders to generated projection lines. FK and lookup display columns include DisableInheritance by default.")</label>
+                            <label>
+                                Output shape @HelpIcon("CTE wraps the generated table SQL in a TableName_Source unit and projects the final view from that named source. Standard emits one flat SELECT.")
+                                <select value="@OutputShape" @onchange="OnOutputShapeChanged">
+                                    <option value="@OutputShapeCte">CTE</option>
+                                    <option value="@OutputShapeStandard">Standard</option>
+                                </select>
+                            </label>
                         </div>
                     }
                     else
@@ -278,12 +285,15 @@
 @code {
     private const string DefaultTargetDatabaseName = "VVGBI_Integrations";
     private const string DefaultTargetSchemaName = "dbo";
+    private const string OutputShapeCte = "CTE";
+    private const string OutputShapeStandard = "Standard";
 
     private bool IsBusy;
     private bool IncludeLookupDisplayColumns = true;
     private bool IgnoreSelfJoins = true;
     private bool IgnoreRelationshipsWithoutDisplay = true;
     private bool IncludeMetadataPlaceholders;
+    private string OutputShape = OutputShapeCte;
     private string StatusMessage = "";
     private string RelationshipTelemetryMessage = "";
     private string SelectedDatabaseName = "";
@@ -559,6 +569,21 @@
         MarkSqlDirty();
     }
 
+    private void OnOutputShapeChanged(ChangeEventArgs args)
+    {
+        OutputShape = args.Value?.ToString() == OutputShapeStandard
+            ? OutputShapeStandard
+            : OutputShapeCte;
+
+        if (CanRegenerateSql)
+        {
+            RegenerateSql();
+            return;
+        }
+
+        MarkSqlDirty();
+    }
+
     private void OnBaseAliasChanged(ChangeEventArgs args)
     {
         BaseAlias = args.Value?.ToString() ?? "";
@@ -744,6 +769,19 @@
             return;
         }
 
+        var projectionLines = BuildProjectionLines().ToList();
+        var lines = OutputShape == OutputShapeStandard
+            ? BuildStandardSql(projectionLines)
+            : BuildCteSql(projectionLines, BuildOutputColumnNames().ToList());
+
+        GeneratedSql = string.Join(Environment.NewLine, lines);
+        SqlRenderVersion++;
+        SqlDirty = false;
+        QueueSqlHighlight();
+    }
+
+    private List<string> BuildStandardSql(IReadOnlyList<string> projectionLines)
+    {
         var lines = new List<string>
         {
             $"CREATE OR ALTER VIEW {TargetViewNameSql}",
@@ -751,28 +789,76 @@
             "SELECT"
         };
 
-        var projectionLines = BuildProjectionLines().ToList();
-        if (projectionLines.Count == 0)
+        AddProjectionLines(lines, projectionLines, "      -- Select at least one column.");
+        AddFromAndJoinLines(lines, "");
+        return lines;
+    }
+
+    private List<string> BuildCteSql(IReadOnlyList<string> projectionLines, IReadOnlyList<string> outputColumnNames)
+    {
+        var sourceCteName = BuildSourceCteName();
+        var lines = new List<string>
+        {
+            $"CREATE OR ALTER VIEW {TargetViewNameSql}",
+            "AS",
+            "",
+            $"WITH {QuoteIdentifier(sourceCteName)} AS",
+            "(",
+            "    SELECT"
+        };
+
+        AddProjectionLines(lines, projectionLines, "          -- Select at least one column.", "    ");
+        AddFromAndJoinLines(lines, "    ");
+        lines.Add(")");
+        lines.Add("");
+        lines.Add("SELECT");
+
+        if (outputColumnNames.Count == 0)
         {
             lines.Add("      -- Select at least one column.");
         }
         else
         {
-            lines.AddRange(projectionLines);
+            var first = true;
+            foreach (var columnName in outputColumnNames)
+            {
+                lines.Add($"{ProjectionPrefix(first)}{QuoteIdentifier(sourceCteName)}.{QuoteIdentifier(columnName)}");
+                first = false;
+            }
         }
 
+        lines.Add($"FROM {QuoteIdentifier(sourceCteName)};");
+        return lines;
+    }
+
+    private void AddProjectionLines(ICollection<string> lines, IReadOnlyList<string> projectionLines, string emptyProjectionLine, string linePrefix = "")
+    {
+        if (projectionLines.Count == 0)
+        {
+            lines.Add($"{linePrefix}{emptyProjectionLine}");
+            return;
+        }
+
+        foreach (var projectionLine in projectionLines)
+        {
+            lines.Add(string.IsNullOrWhiteSpace(projectionLine)
+                ? ""
+                : $"{linePrefix}{projectionLine}");
+        }
+    }
+
+    private void AddFromAndJoinLines(ICollection<string> lines, string linePrefix)
+    {
         lines.Add("");
-        lines.Add($"FROM {QualifiedName(SelectedDatabaseName, SelectedSchemaName, SelectedTableName)} AS {QuoteIdentifier(BaseAlias)}");
+        lines.Add($"{linePrefix}FROM {QualifiedName(SelectedDatabaseName, SelectedSchemaName, SelectedTableName)} AS {QuoteIdentifier(BaseAlias)}");
 
         foreach (var relationship in Relationships.Where(ShouldGenerateJoin))
         {
-            lines.AddRange(BuildJoinLines(relationship));
+            foreach (var joinLine in BuildJoinLines(relationship))
+            {
+                lines.Add($"{linePrefix}{joinLine}");
+            }
         }
-
-        GeneratedSql = string.Join(Environment.NewLine, lines);
-        SqlRenderVersion++;
-        SqlDirty = false;
-        QueueSqlHighlight();
     }
 
     private void MarkSqlDirty()
@@ -841,6 +927,39 @@
             var lookupProjection = $"{QuoteIdentifier(alias)}.{QuoteIdentifier(relationship.DisplayColumnName!)} AS {QuoteIdentifier(columnAlias)}";
             yield return BuildProjectionLine(ProjectionPrefix(first), lookupProjection, disableInheritance: true);
             first = false;
+        }
+    }
+
+    private IEnumerable<string> BuildOutputColumnNames()
+    {
+        var emittedRelationshipColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var column in Columns.Where(column => column.Include && !ColumnHasLookupDisplayProjection(column.ColumnName)))
+        {
+            yield return column.ColumnName;
+        }
+
+        foreach (var relationship in Relationships.Where(RelationshipHasLookupDisplayProjection))
+        {
+            var emittedAnyRelationshipColumn = false;
+            foreach (var pair in relationship.Columns)
+            {
+                if (!IsColumnIncluded(pair.LocalColumnName) || !emittedRelationshipColumns.Add(pair.LocalColumnName))
+                {
+                    continue;
+                }
+
+                yield return pair.LocalColumnName;
+                emittedAnyRelationshipColumn = true;
+            }
+
+            if (emittedAnyRelationshipColumn &&
+                ShouldGenerateJoin(relationship) &&
+                relationship.IncludeDisplayColumn &&
+                !string.IsNullOrWhiteSpace(relationship.DisplayColumnName))
+            {
+                yield return BuildLookupProjectionAlias(relationship);
+            }
         }
     }
 
@@ -997,6 +1116,14 @@
             : localColumn;
 
         return $"{cleaned}Description";
+    }
+
+    private string BuildSourceCteName()
+    {
+        var token = SanitizeAliasToken(SelectedTableName);
+        return string.IsNullOrWhiteSpace(token)
+            ? "Source"
+            : $"{token}_Source";
     }
 
     private string BuildProjectionLine(string prefix, string projection, bool disableInheritance = false) =>
