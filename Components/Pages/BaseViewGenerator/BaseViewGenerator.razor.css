@@ -449,7 +449,7 @@
 
 .bvg-output-grid {
     display: grid;
-    grid-template-columns: 78px minmax(230px, 1.25fr) minmax(160px, 0.75fr) minmax(260px, 1fr) minmax(140px, 0.5fr);
+    grid-template-columns: 78px minmax(260px, 1.15fr) minmax(280px, 1fr) minmax(140px, 0.45fr);
     align-items: stretch;
     overflow-x: auto;
 }
@@ -472,20 +472,45 @@
     font-size: 0.82rem;
 }
 
-.bvg-output-cell input[type="text"],
-.bvg-output-cell input:not([type]) {
-    width: 100%;
-    min-height: 30px;
-    padding: 0.35rem 0.45rem;
-    border: 1px solid #d6dce8;
-    border-radius: 4px;
-}
-
 .bvg-output-expression {
     display: block;
     font-family: Consolas, "Courier New", monospace;
     color: #0f172a;
     white-space: nowrap;
+}
+
+.bvg-metadata-summary {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 0.08rem;
+    max-width: calc(100% - 54px);
+    vertical-align: middle;
+}
+
+.bvg-metadata-summary strong,
+.bvg-metadata-summary span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bvg-metadata-summary.empty {
+    color: #94a3b8;
+    font-style: italic;
+}
+
+.bvg-link-button {
+    margin-left: 0.5rem;
+    border: 0;
+    background: transparent;
+    color: #2947f2;
+    cursor: pointer;
+    font-weight: 800;
+}
+
+.bvg-link-button:disabled {
+    color: #94a3b8;
+    cursor: not-allowed;
 }
 
 .bvg-system-check {
@@ -499,6 +524,82 @@
 
 .bvg-disabled-group {
     opacity: 0.72;
+}
+
+.bvg-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    background: rgb(15 23 42 / 0.38);
+}
+
+.bvg-modal {
+    width: min(620px, 100%);
+    border: 1px solid #d9dee8;
+    border-radius: 8px;
+    background: #ffffff;
+    box-shadow: 0 20px 45px rgb(15 23 42 / 0.22);
+}
+
+.bvg-modal-header,
+.bvg-modal-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.8rem 1rem;
+    border-bottom: 1px solid #edf0f5;
+}
+
+.bvg-modal-header h2 {
+    margin: 0;
+    font-size: 1.05rem;
+}
+
+.bvg-icon-button {
+    border: 0;
+    background: transparent;
+    color: #64748b;
+    cursor: pointer;
+    font-size: 1.35rem;
+    font-weight: 800;
+}
+
+.bvg-modal-body {
+    display: grid;
+    gap: 0.9rem;
+    padding: 1rem;
+}
+
+.bvg-modal-body label {
+    display: grid;
+    gap: 0.35rem;
+    margin: 0;
+    font-weight: 700;
+}
+
+.bvg-modal-body input,
+.bvg-modal-body textarea {
+    width: 100%;
+    padding: 0.45rem 0.55rem;
+    border: 1px solid #d6dce8;
+    border-radius: 4px;
+    font: inherit;
+}
+
+.bvg-modal-body textarea {
+    min-height: 112px;
+    resize: vertical;
+}
+
+.bvg-modal-actions {
+    justify-content: flex-end;
+    border-top: 1px solid #edf0f5;
+    border-bottom: 0;
 }
 
 .bvg-tree-note {

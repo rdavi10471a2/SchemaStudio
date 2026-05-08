@@ -1,5 +1,7 @@
 @page "/base-view-generator"
 
+@using System.ComponentModel.DataAnnotations
+@using System.Reflection
 @using Radzen
 @using Radzen.Blazor
 @using SchemaStudio.Data.Models
@@ -15,7 +17,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.52")]
+@attribute [FileVersion("1.53")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -209,8 +211,7 @@
                                 <div class="bvg-output-grid">
                                     <div class="bvg-output-grid-header">Include</div>
                                     <div class="bvg-output-grid-header">Output Column</div>
-                                    <div class="bvg-output-grid-header">Business Name</div>
-                                    <div class="bvg-output-grid-header">Business Description</div>
+                                    <div class="bvg-output-grid-header">Metadata</div>
                                     <div class="bvg-output-grid-header">Disable Inheritance</div>
                                     @foreach (var column in FilteredStandaloneColumns)
                                     {
@@ -222,10 +223,8 @@
                                             <span class="bvg-muted-cell">@ColumnKeyRoleLabel(column)</span>
                                         </div>
                                         <div class="@ProjectionColumnRowClass(column)">
-                                            <input value="@column.BusinessName" @oninput="args => OnColumnBusinessNameChanged(column, args)" />
-                                        </div>
-                                        <div class="@ProjectionColumnRowClass(column)">
-                                            <input value="@column.BusinessDescription" @oninput="args => OnColumnBusinessDescriptionChanged(column, args)" />
+                                            @MetadataSummary(column.BusinessName, column.BusinessDescription)
+                                            <button type="button" class="bvg-link-button" @onclick="() => OpenColumnMetadataDialog(column)">Edit</button>
                                         </div>
                                         <div class="@ProjectionColumnRowClass(column)">
                                             <label class="bvg-system-check">
@@ -268,8 +267,7 @@
                                             <div class="bvg-output-grid bvg-relationship-output-grid">
                                                 <div class="bvg-output-grid-header">Include</div>
                                                 <div class="bvg-output-grid-header">Output Column</div>
-                                                <div class="bvg-output-grid-header">Business Name</div>
-                                                <div class="bvg-output-grid-header">Business Description</div>
+                                                <div class="bvg-output-grid-header">Metadata</div>
                                                 <div class="bvg-output-grid-header">Disable Inheritance</div>
                                                 @foreach (var column in GetRelationshipColumns(relationship))
                                                 {
@@ -281,10 +279,8 @@
                                                         <span class="bvg-muted-cell">FK key carried from source table</span>
                                                     </div>
                                                     <div class="@ProjectionColumnRowClass(column)">
-                                                        <input value="@column.BusinessName" @oninput="args => OnColumnBusinessNameChanged(column, args)" disabled="@(!relationship.Include)" />
-                                                    </div>
-                                                    <div class="@ProjectionColumnRowClass(column)">
-                                                        <input value="@column.BusinessDescription" @oninput="args => OnColumnBusinessDescriptionChanged(column, args)" disabled="@(!relationship.Include)" />
+                                                        @MetadataSummary(column.BusinessName, column.BusinessDescription)
+                                                        <button type="button" class="bvg-link-button" @onclick="() => OpenColumnMetadataDialog(column)" disabled="@(!relationship.Include)">Edit</button>
                                                     </div>
                                                     <div class="@ProjectionColumnRowClass(column)">
                                                         <label class="bvg-system-check">
@@ -302,10 +298,8 @@
                                                     <span class="bvg-muted-cell">Lookup display column</span>
                                                 </div>
                                                 <div class="@ProjectionDisplayRowClass(relationship)">
-                                                    <input value="@relationship.DisplayBusinessName" @oninput="args => OnRelationshipDisplayBusinessNameChanged(relationship, args)" disabled="@(!relationship.Include || !relationship.IncludeDisplayColumn)" />
-                                                </div>
-                                                <div class="@ProjectionDisplayRowClass(relationship)">
-                                                    <input value="@relationship.DisplayBusinessDescription" @oninput="args => OnRelationshipDisplayBusinessDescriptionChanged(relationship, args)" disabled="@(!relationship.Include || !relationship.IncludeDisplayColumn)" />
+                                                    @MetadataSummary(relationship.DisplayBusinessName, relationship.DisplayBusinessDescription)
+                                                    <button type="button" class="bvg-link-button" @onclick="() => OpenRelationshipDisplayMetadataDialog(relationship)" disabled="@(!relationship.Include || !relationship.IncludeDisplayColumn)">Edit</button>
                                                 </div>
                                                 <div class="@ProjectionDisplayRowClass(relationship)">
                                                     <label class="bvg-system-check">
@@ -334,6 +328,32 @@
     </div>
 </div>
 
+@if (MetadataDialogOpen)
+{
+    <div class="bvg-modal-backdrop">
+        <section class="bvg-modal" role="dialog" aria-modal="true" aria-labelledby="bvg-metadata-dialog-title">
+            <header class="bvg-modal-header">
+                <h2 id="bvg-metadata-dialog-title">@MetadataDialogTitle</h2>
+                <button type="button" class="bvg-icon-button" @onclick="CloseMetadataDialog" aria-label="Close metadata editor">×</button>
+            </header>
+            <div class="bvg-modal-body">
+                <label>
+                    @HelpLabel("Business Name", ReflectionUtils.GetDescription(typeof(SchemaObjectColumnDefinition), nameof(SchemaObjectColumnDefinition.BusinessName)))
+                    <input value="@MetadataEditBusinessName" maxlength="@MetadataBusinessNameMaxLength" @oninput="args => MetadataEditBusinessName = args.Value?.ToString() ?? string.Empty" />
+                </label>
+                <label>
+                    @HelpLabel("Business Description", ReflectionUtils.GetDescription(typeof(SchemaObjectColumnDefinition), nameof(SchemaObjectColumnDefinition.BusinessDescription)))
+                    <textarea value="@MetadataEditBusinessDescription" maxlength="@MetadataBusinessDescriptionMaxLength" @oninput="args => MetadataEditBusinessDescription = args.Value?.ToString() ?? string.Empty"></textarea>
+                </label>
+            </div>
+            <footer class="bvg-modal-actions">
+                <button type="button" class="bvg-button secondary" @onclick="CloseMetadataDialog">Cancel</button>
+                <button type="button" class="bvg-button primary" @onclick="ApplyMetadataDialog">Apply</button>
+            </footer>
+        </section>
+    </div>
+}
+
 @code {
     private const string DefaultTargetDatabaseName = "VVGBI_Integrations";
     private const string DefaultTargetSchemaName = "dbo";
@@ -361,9 +381,18 @@
     private string ActiveSourceInfoTab = "options";
     private bool HighlightSqlPending;
     private bool SourceGroupExpanded = true;
+    private bool MetadataDialogOpen;
     private int SqlRenderVersion;
     private bool SqlDirty;
     private HashSet<string> CollapsedRelationshipGroups = new(StringComparer.OrdinalIgnoreCase);
+    private TableSchemaColumnInfo? MetadataEditColumn;
+    private TableSchemaRelationshipInfo? MetadataEditRelationship;
+    private string MetadataDialogTitle = "";
+    private string MetadataEditBusinessName = "";
+    private string MetadataEditBusinessDescription = "";
+
+    private static readonly int MetadataBusinessNameMaxLength = GetMaxLength(nameof(SchemaObjectColumnDefinition.BusinessName)) ?? 128;
+    private static readonly int MetadataBusinessDescriptionMaxLength = GetMaxLength(nameof(SchemaObjectColumnDefinition.BusinessDescription)) ?? 500;
 
     private List<DatabaseDefinition> Databases = new();
     private List<TableSchemaColumnInfo> Columns = new();
@@ -704,37 +733,76 @@
         MarkSqlDirty();
     }
 
-    private void OnColumnBusinessNameChanged(TableSchemaColumnInfo column, ChangeEventArgs args)
+    private void OpenColumnMetadataDialog(TableSchemaColumnInfo column)
     {
-        column.BusinessName = args.Value?.ToString() ?? "";
-        EnableMetadataPlaceholdersForBusinessEdit();
-        MarkSqlDirty();
+        MetadataEditColumn = column;
+        MetadataEditRelationship = null;
+        MetadataDialogTitle = $"Metadata for {column.ColumnName}";
+        MetadataEditBusinessName = column.BusinessName;
+        MetadataEditBusinessDescription = column.BusinessDescription;
+        MetadataDialogOpen = true;
     }
 
-    private void OnColumnBusinessDescriptionChanged(TableSchemaColumnInfo column, ChangeEventArgs args)
+    private void OpenRelationshipDisplayMetadataDialog(TableSchemaRelationshipInfo relationship)
     {
-        column.BusinessDescription = args.Value?.ToString() ?? "";
-        EnableMetadataPlaceholdersForBusinessEdit();
-        MarkSqlDirty();
+        MetadataEditColumn = null;
+        MetadataEditRelationship = relationship;
+        MetadataDialogTitle = $"Metadata for {BuildLookupProjectionAlias(relationship)}";
+        MetadataEditBusinessName = relationship.DisplayBusinessName;
+        MetadataEditBusinessDescription = relationship.DisplayBusinessDescription;
+        MetadataDialogOpen = true;
     }
 
-    private void OnRelationshipDisplayBusinessNameChanged(TableSchemaRelationshipInfo relationship, ChangeEventArgs args)
+    private void CloseMetadataDialog()
     {
-        relationship.DisplayBusinessName = args.Value?.ToString() ?? "";
-        EnableMetadataPlaceholdersForBusinessEdit();
-        MarkSqlDirty();
+        MetadataDialogOpen = false;
+        MetadataEditColumn = null;
+        MetadataEditRelationship = null;
     }
 
-    private void OnRelationshipDisplayBusinessDescriptionChanged(TableSchemaRelationshipInfo relationship, ChangeEventArgs args)
+    private void ApplyMetadataDialog()
     {
-        relationship.DisplayBusinessDescription = args.Value?.ToString() ?? "";
+        if (!ValidateMetadataDialog())
+        {
+            return;
+        }
+
+        if (MetadataEditColumn is not null)
+        {
+            MetadataEditColumn.BusinessName = MetadataEditBusinessName;
+            MetadataEditColumn.BusinessDescription = MetadataEditBusinessDescription;
+        }
+        else if (MetadataEditRelationship is not null)
+        {
+            MetadataEditRelationship.DisplayBusinessName = MetadataEditBusinessName;
+            MetadataEditRelationship.DisplayBusinessDescription = MetadataEditBusinessDescription;
+        }
+
         EnableMetadataPlaceholdersForBusinessEdit();
         MarkSqlDirty();
+        CloseMetadataDialog();
     }
 
     private void EnableMetadataPlaceholdersForBusinessEdit()
     {
         IncludeMetadataPlaceholders = true;
+    }
+
+    private bool ValidateMetadataDialog()
+    {
+        if (MetadataEditBusinessName.Length > MetadataBusinessNameMaxLength)
+        {
+            NotifyError($"Business Name is {MetadataEditBusinessName.Length} characters; max is {MetadataBusinessNameMaxLength}.");
+            return false;
+        }
+
+        if (MetadataEditBusinessDescription.Length > MetadataBusinessDescriptionMaxLength)
+        {
+            NotifyError($"Business Description is {MetadataEditBusinessDescription.Length} characters; max is {MetadataBusinessDescriptionMaxLength}.");
+            return false;
+        }
+
+        return true;
     }
 
     private void OnColumnIncludeChanged(TableSchemaColumnInfo column, ChangeEventArgs args)
@@ -1344,6 +1412,21 @@
     private static string QuoteIdentifier(string identifier) =>
         $"[{identifier.Replace("]", "]]", StringComparison.Ordinal)}]";
 
+    private static int? GetMaxLength(string propertyName)
+    {
+        var property = typeof(SchemaObjectColumnDefinition)
+            .GetProperty(propertyName, BindingFlags.Public | BindingFlags.Instance);
+
+        var stringLength = property?.GetCustomAttribute<StringLengthAttribute>();
+        if (stringLength is not null)
+        {
+            return stringLength.MaximumLength;
+        }
+
+        var maxLength = property?.GetCustomAttribute<MaxLengthAttribute>();
+        return maxLength?.Length;
+    }
+
     private RenderFragment HelpLabel(string label, string description) => builder =>
     {
         builder.OpenElement(0, "span");
@@ -1368,6 +1451,36 @@
         builder.CloseComponent();
     };
 
+    private RenderFragment MetadataSummary(string? businessName, string? businessDescription) => builder =>
+    {
+        var hasName = !string.IsNullOrWhiteSpace(businessName);
+        var hasDescription = !string.IsNullOrWhiteSpace(businessDescription);
+
+        builder.OpenElement(0, "span");
+        builder.AddAttribute(1, "class", hasName || hasDescription ? "bvg-metadata-summary" : "bvg-metadata-summary empty");
+
+        if (hasName)
+        {
+            builder.OpenElement(2, "strong");
+            builder.AddContent(3, businessName);
+            builder.CloseElement();
+        }
+
+        if (hasDescription)
+        {
+            builder.OpenElement(4, "span");
+            builder.AddContent(5, businessDescription);
+            builder.CloseElement();
+        }
+
+        if (!hasName && !hasDescription)
+        {
+            builder.AddContent(6, "No metadata");
+        }
+
+        builder.CloseElement();
+    };
+
     private RenderFragment HelpIcon(string description) => builder =>
     {
         if (string.IsNullOrWhiteSpace(description))
@@ -1389,6 +1502,11 @@
             string textValue => bool.TryParse(textValue, out var parsed) && parsed,
             _ => false
         };
+
+    private void NotifyError(string summary)
+    {
+        NotificationService.Notify(NotificationSeverity.Error, summary, "", 5000);
+    }
 
     private async Task CopySqlAsync()
     {
