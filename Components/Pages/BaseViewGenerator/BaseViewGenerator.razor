@@ -17,7 +17,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.53")]
+@attribute [FileVersion("1.54")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -960,10 +960,10 @@
             return;
         }
 
-        var projectionLines = BuildProjectionLines().ToList();
+        var projectionSpecs = BuildProjectionSpecs().ToList();
         var lines = OutputShape == OutputShapeStandard
-            ? BuildStandardSql(projectionLines)
-            : BuildCteSql(projectionLines, BuildOutputColumnNames().ToList());
+            ? BuildStandardSql(BuildProjectionLines(projectionSpecs).ToList())
+            : BuildCteSql(projectionSpecs);
 
         GeneratedSql = string.Join(Environment.NewLine, lines);
         SqlRenderVersion++;
@@ -985,7 +985,7 @@
         return lines;
     }
 
-    private List<string> BuildCteSql(IReadOnlyList<string> projectionLines, IReadOnlyList<string> outputColumnNames)
+    private List<string> BuildCteSql(IReadOnlyList<ProjectionSpec> projectionSpecs)
     {
         var sourceCteName = BuildSourceCteName();
         var lines = new List<string>
@@ -998,23 +998,21 @@
             "    SELECT"
         };
 
-        AddProjectionLines(lines, projectionLines, "          -- Select at least one column.", "    ");
+        AddProjectionLines(lines, BuildCteSourceProjectionLines(projectionSpecs).ToList(), "          -- Select at least one column.", "    ");
         AddFromAndJoinLines(lines, "    ");
         lines.Add(")");
         lines.Add("");
         lines.Add("SELECT");
 
-        if (outputColumnNames.Count == 0)
+        if (projectionSpecs.Count == 0)
         {
             lines.Add("      -- Select at least one column.");
         }
         else
         {
-            var first = true;
-            foreach (var columnName in outputColumnNames)
+            foreach (var line in BuildCteSurfaceProjectionLines(sourceCteName, projectionSpecs))
             {
-                lines.Add($"{ProjectionPrefix(first)}{QuoteIdentifier(sourceCteName)}.{QuoteIdentifier(columnName)}");
-                first = false;
+                lines.Add(line);
             }
         }
 
@@ -1110,22 +1108,79 @@
             ? BuildJoinLines(relationship).First()
             : "(join will not be generated)";
 
-    private IEnumerable<string> BuildProjectionLines()
+    private IEnumerable<string> BuildProjectionLines(IReadOnlyList<ProjectionSpec> projectionSpecs)
     {
         var first = true;
+
+        foreach (var projection in projectionSpecs)
+        {
+            if (!first && projection.StartsRelationshipGroup)
+            {
+                yield return "";
+            }
+
+            yield return BuildProjectionLine(
+                ProjectionPrefix(first),
+                projection.SourceProjection,
+                projection.BusinessName,
+                projection.BusinessDescription,
+                projection.DisableInheritance);
+            first = false;
+        }
+    }
+
+    private IEnumerable<string> BuildCteSourceProjectionLines(IReadOnlyList<ProjectionSpec> projectionSpecs)
+    {
+        var first = true;
+
+        foreach (var projection in projectionSpecs)
+        {
+            if (!first && projection.StartsRelationshipGroup)
+            {
+                yield return "";
+            }
+
+            yield return $"{ProjectionPrefix(first)}{projection.SourceProjection}";
+            first = false;
+        }
+    }
+
+    private IEnumerable<string> BuildCteSurfaceProjectionLines(string sourceCteName, IReadOnlyList<ProjectionSpec> projectionSpecs)
+    {
+        var first = true;
+
+        foreach (var projection in projectionSpecs)
+        {
+            if (!first && projection.StartsRelationshipGroup)
+            {
+                yield return "";
+            }
+
+            var surfaceProjection = $"{QuoteIdentifier(sourceCteName)}.{QuoteIdentifier(projection.OutputColumnName)}";
+            yield return BuildProjectionLine(
+                ProjectionPrefix(first),
+                surfaceProjection,
+                projection.BusinessName,
+                projection.BusinessDescription,
+                projection.DisableInheritance);
+            first = false;
+        }
+    }
+
+    private IEnumerable<ProjectionSpec> BuildProjectionSpecs()
+    {
         var emittedRelationshipColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var column in Columns.Where(column => column.Include && !ColumnHasLookupDisplayProjection(column.ColumnName)))
         {
-            var prefix = ProjectionPrefix(first);
             var projection = $"{QuoteIdentifier(BaseAlias)}.{QuoteIdentifier(column.ColumnName)}";
-            yield return BuildProjectionLine(prefix, projection, column.BusinessName, column.BusinessDescription, disableInheritance: IsRelationshipColumn(column));
-            first = false;
+            yield return new ProjectionSpec(projection, column.ColumnName, column.BusinessName, column.BusinessDescription, IsRelationshipColumn(column), false);
         }
 
         foreach (var relationship in Relationships.Where(RelationshipHasLookupDisplayProjection))
         {
             var emittedAnyRelationshipColumn = false;
+            var startsRelationshipGroup = true;
             foreach (var pair in relationship.Columns)
             {
                 if (!IsColumnIncluded(pair.LocalColumnName) || !emittedRelationshipColumns.Add(pair.LocalColumnName))
@@ -1133,17 +1188,11 @@
                     continue;
                 }
 
-                if (!first && !emittedAnyRelationshipColumn)
-                {
-                    yield return "";
-                }
-
-                var prefix = ProjectionPrefix(first);
                 var projection = $"{QuoteIdentifier(BaseAlias)}.{QuoteIdentifier(pair.LocalColumnName)}";
                 var column = Columns.FirstOrDefault(column => string.Equals(column.ColumnName, pair.LocalColumnName, StringComparison.OrdinalIgnoreCase));
-                yield return BuildProjectionLine(prefix, projection, column?.BusinessName ?? "", column?.BusinessDescription ?? "", disableInheritance: true);
-                first = false;
+                yield return new ProjectionSpec(projection, pair.LocalColumnName, column?.BusinessName ?? "", column?.BusinessDescription ?? "", true, startsRelationshipGroup);
                 emittedAnyRelationshipColumn = true;
+                startsRelationshipGroup = false;
             }
 
             if (!emittedAnyRelationshipColumn ||
@@ -1157,8 +1206,7 @@
             var alias = BuildLookupAlias(relationship);
             var columnAlias = BuildLookupProjectionAlias(relationship);
             var lookupProjection = $"{QuoteIdentifier(alias)}.{QuoteIdentifier(relationship.DisplayColumnName!)} AS {QuoteIdentifier(columnAlias)}";
-            yield return BuildProjectionLine(ProjectionPrefix(first), lookupProjection, relationship.DisplayBusinessName, relationship.DisplayBusinessDescription, disableInheritance: true);
-            first = false;
+            yield return new ProjectionSpec(lookupProjection, columnAlias, relationship.DisplayBusinessName, relationship.DisplayBusinessDescription, true, false);
         }
     }
 
@@ -1536,4 +1584,13 @@
             IsBusy = false;
         }
     }
+
+    private sealed record ProjectionSpec(
+        string SourceProjection,
+        string OutputColumnName,
+        string BusinessName,
+        string BusinessDescription,
+        bool DisableInheritance,
+        bool StartsRelationshipGroup);
 }
+
