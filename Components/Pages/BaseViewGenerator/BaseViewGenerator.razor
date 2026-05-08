@@ -15,7 +15,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.47")]
+@attribute [FileVersion("1.48")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -793,15 +793,15 @@
         var first = true;
         var emittedRelationshipColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var column in Columns.Where(column => column.Include && !IsRelationshipColumn(column)))
+        foreach (var column in Columns.Where(column => column.Include && !ColumnHasLookupDisplayProjection(column.ColumnName)))
         {
             var prefix = ProjectionPrefix(first);
             var projection = $"{QuoteIdentifier(BaseAlias)}.{QuoteIdentifier(column.ColumnName)}";
-            yield return BuildProjectionLine(prefix, projection);
+            yield return BuildProjectionLine(prefix, projection, disableInheritance: IsRelationshipColumn(column));
             first = false;
         }
 
-        foreach (var relationship in Relationships.Where(relationship => relationship.Columns.Any(pair => IsColumnIncluded(pair.LocalColumnName))))
+        foreach (var relationship in Relationships.Where(RelationshipHasLookupDisplayProjection))
         {
             var emittedAnyRelationshipColumn = false;
             foreach (var pair in relationship.Columns)
@@ -841,6 +841,17 @@
 
     private bool IsColumnIncluded(string columnName) =>
         Columns.Any(column => column.Include && string.Equals(column.ColumnName, columnName, StringComparison.OrdinalIgnoreCase));
+
+    private bool RelationshipHasLookupDisplayProjection(TableSchemaRelationshipInfo relationship) =>
+        ShouldGenerateJoin(relationship) &&
+        relationship.IncludeDisplayColumn &&
+        !string.IsNullOrWhiteSpace(relationship.DisplayColumnName) &&
+        relationship.Columns.Any(pair => IsColumnIncluded(pair.LocalColumnName));
+
+    private bool ColumnHasLookupDisplayProjection(string columnName) =>
+        Relationships.Any(relationship =>
+            RelationshipHasLookupDisplayProjection(relationship) &&
+            relationship.Columns.Any(pair => string.Equals(pair.LocalColumnName, columnName, StringComparison.OrdinalIgnoreCase)));
 
     private bool IsRelationshipColumn(TableSchemaColumnInfo column) =>
         Relationships
