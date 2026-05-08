@@ -1,10 +1,11 @@
 using Dapper;
 using Microsoft.Data.SqlClient;
 using SchemaStudio.AIHelpers;
+using System.ComponentModel;
 
 namespace SchemaStudioWebViewer.Data;
 
-[FileVersion("1.4")]
+[FileVersion("1.5")]
 [AIFileContext("Repositories/TableSchemaSmoRepository.cs", "Reads SQL Server table metadata for the Base View Generator page.", Responsibilities = "Provides schema, table, column, and many-to-one foreign-key metadata from a selected source database without changing the configured connection string.", Nuances = "The class name is retained from the first SMO implementation, but the metadata reads use targeted sys catalog queries because SMO object hydration was too slow for interactive use.", LastReviewed = "2026-05-07")]
 public sealed class TableSchemaSmoRepository
 {
@@ -371,11 +372,17 @@ public sealed record TableSchemaTableInfo(string SchemaName, string TableName)
 }
 
 public sealed record TableSchemaDetails(
+    [property: Description("Source database that owns the table being used to generate the base view.")]
     string DatabaseName,
+    [property: Description("Source schema that owns the table being used to generate the base view.")]
     string SchemaName,
+    [property: Description("Source table used as the many-side table for the generated base view.")]
     string TableName,
+    [property: Description("Columns found on the source table.")]
     IReadOnlyList<TableSchemaColumnInfo> Columns,
+    [property: Description("Foreign-key relationships where the source table is the many-side table and the referenced table can provide lookup display values.")]
     IReadOnlyList<TableSchemaRelationshipInfo> Relationships,
+    [property: Description("Foreign-key relationships where other tables reference the selected source table. These are informational and do not affect generated SQL.")]
     IReadOnlyList<TableSchemaChildRelationshipInfo> ChildRelationships);
 
 public sealed class TableSchemaColumnInfo
@@ -390,13 +397,25 @@ public sealed class TableSchemaColumnInfo
         Include = true;
     }
 
+    [Description("Physical source-table column name.")]
     public string ColumnName { get; }
+
+    [Description("SQL Server data type as reported from the selected source database.")]
     public string DataType { get; }
+
+    [Description("Whether the source column allows NULL values.")]
     public bool IsNullable { get; }
+
+    [Description("Whether the source column participates in the table primary key.")]
     public bool IsPrimaryKey { get; }
+
+    [Description("Whether the source column participates in a many-to-one foreign-key relationship.")]
     public bool IsForeignKey { get; set; }
+
+    [Description("Whether the source column should be included in the generated SELECT projection.")]
     public bool Include { get; set; }
 
+    [Description("Generated role label used by the page to identify primary-key and many-to-one foreign-key columns.")]
     public string KeyRole =>
         IsPrimaryKey ? "PK" :
         IsForeignKey ? "FK M-to-1" :
@@ -425,21 +444,45 @@ public sealed class TableSchemaRelationshipInfo
         IncludeDisplayColumn = !string.IsNullOrWhiteSpace(displayColumnName);
     }
 
+    [Description("SQL Server foreign-key constraint name.")]
     public string ForeignKeyName { get; }
+
+    [Description("Schema of the one-side referenced lookup table.")]
     public string ReferencedSchemaName { get; }
+
+    [Description("Name of the one-side referenced lookup table.")]
     public string ReferencedTableName { get; }
+
+    [Description("Display column chosen from the referenced lookup table, such as Name or Des. Blank means no lookup display column was identified.")]
     public string? DisplayColumnName { get; set; }
+
+    [Description("Whether every local FK column is non-nullable, making an INNER JOIN a reasonable default.")]
     public bool IsRequired { get; }
+
+    [Description("Join type used when this lookup relationship is included in generated SQL.")]
     public string SelectedJoinType { get; set; }
+
+    [Description("Local-to-referenced column pairs that form the foreign-key relationship.")]
     public IReadOnlyList<TableSchemaForeignKeyColumnInfo> Columns { get; }
+
+    [Description("Whether this relationship should generate a lookup join when lookup generation is enabled.")]
     public bool Include { get; set; }
+
+    [Description("Whether this relationship should project its selected lookup display column when lookup generation is enabled.")]
     public bool IncludeDisplayColumn { get; set; }
 
+    [Description("Comma-separated local many-side foreign-key columns.")]
     public string LocalColumns => string.Join(", ", Columns.Select(column => column.LocalColumnName));
+
+    [Description("Comma-separated referenced one-side key columns.")]
     public string ReferencedColumns => string.Join(", ", Columns.Select(column => column.ReferencedColumnName));
 }
 
-public sealed record TableSchemaForeignKeyColumnInfo(string LocalColumnName, string ReferencedColumnName);
+public sealed record TableSchemaForeignKeyColumnInfo(
+    [property: Description("Column on the selected many-side source table.")]
+    string LocalColumnName,
+    [property: Description("Column on the referenced one-side lookup table.")]
+    string ReferencedColumnName);
 
 public sealed class TableSchemaChildRelationshipInfo
 {
@@ -455,10 +498,21 @@ public sealed class TableSchemaChildRelationshipInfo
         Columns = columns;
     }
 
+    [Description("SQL Server foreign-key constraint name.")]
     public string ForeignKeyName { get; }
+
+    [Description("Schema of the child table that references the selected source table.")]
     public string ChildSchemaName { get; }
+
+    [Description("Name of the child table that references the selected source table.")]
     public string ChildTableName { get; }
+
+    [Description("Child-to-parent column pairs that form the reverse relationship.")]
     public IReadOnlyList<TableSchemaChildForeignKeyColumnInfo> Columns { get; }
 }
 
-public sealed record TableSchemaChildForeignKeyColumnInfo(string ChildColumnName, string ParentColumnName);
+public sealed record TableSchemaChildForeignKeyColumnInfo(
+    [property: Description("Column on the child table.")]
+    string ChildColumnName,
+    [property: Description("Column on the selected parent source table.")]
+    string ParentColumnName);

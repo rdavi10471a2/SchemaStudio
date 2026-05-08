@@ -7,13 +7,15 @@
 @using SchemaStudio.AIHelpers
 @using SchemaStudioWebViewer.Data
 @using SchemaStudioWebViewer.Models
+@using SchemaStudioWebViewer.Utils
 
 @inject DatabaseRepository DatabaseRepository
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject IJSRuntime JSRuntime
 @inject NotificationService NotificationService
+@inject TooltipService TooltipService
 
-@attribute [FileVersion("1.44")]
+@attribute [FileVersion("1.46")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -118,10 +120,10 @@
                     @if (ActiveSourceInfoTab == "options")
                     {
                         <div class="bvg-options">
-                            <label><input type="checkbox" checked="@IncludeLookupDisplayColumns" @onchange="OnIncludeLookupDisplayColumnsChanged" /> Include lookup display columns</label>
-                            <label><input type="checkbox" checked="@IgnoreSelfJoins" @onchange="OnIgnoreSelfJoinsChanged" /> Ignore self joins</label>
-                            <label><input type="checkbox" checked="@IgnoreRelationshipsWithoutDisplay" @onchange="OnIgnoreRelationshipsWithoutDisplayChanged" /> Ignore FK relationships without display columns</label>
-                            <label><input type="checkbox" checked="@IncludeMetadataPlaceholders" @onchange="OnIncludeMetadataPlaceholdersChanged" /> Include metadata placeholders</label>
+                            <label><input type="checkbox" checked="@IncludeLookupDisplayColumns" @onchange="OnIncludeLookupDisplayColumnsChanged" /> Include lookup display columns @HelpIcon("When checked, generated SQL joins to one-side lookup tables and projects their selected display columns. When unchecked, FK columns remain in the SELECT but lookup joins and lookup display columns are omitted.")</label>
+                            <label><input type="checkbox" checked="@IgnoreSelfJoins" @onchange="OnIgnoreSelfJoinsChanged" /> Ignore self joins @HelpIcon("Hides relationships where the source table references itself. The source table FK columns are still available in the Columns tab.")</label>
+                            <label><input type="checkbox" checked="@IgnoreRelationshipsWithoutDisplay" @onchange="OnIgnoreRelationshipsWithoutDisplayChanged" /> Ignore FK relationships without display columns @HelpIcon("Keeps the FK columns but suppresses lookup joins when no configured display column is available on the referenced table.")</label>
+                            <label><input type="checkbox" checked="@IncludeMetadataPlaceholders" @onchange="OnIncludeMetadataPlaceholdersChanged" /> Include metadata placeholders @HelpIcon("Adds Schema Studio metadata comment placeholders to generated projection lines. FK and lookup display columns include DisableInheritance by default.")</label>
                         </div>
                     }
                     else
@@ -247,14 +249,14 @@
                                                 }
                                                 else
                                                 {
-                                                    <input type="checkbox" checked="@relationship.Include" @onchange="args => OnRelationshipIncludeChanged(relationship, args)" />
+                                                    <input type="checkbox" checked="@relationship.Include" @onchange="args => OnRelationshipIncludeChanged(relationship, args)" disabled="@(!IncludeLookupDisplayColumns)" />
                                                 }
                                             </td>
                                             <td>@relationship.LocalColumns</td>
                                             <td>@QualifiedName(SelectedDatabaseName, relationship.ReferencedSchemaName, relationship.ReferencedTableName)</td>
                                             <td>@(relationship.IsRequired ? "Yes" : "No")</td>
                                             <td>
-                                                <select value="@relationship.SelectedJoinType" @onchange="args => OnRelationshipJoinTypeChanged(relationship, args)" disabled="@joinSuppressed">
+                                                <select value="@relationship.SelectedJoinType" @onchange="args => OnRelationshipJoinTypeChanged(relationship, args)" disabled="@(!IncludeLookupDisplayColumns || joinSuppressed)">
                                                     <option value="INNER JOIN">INNER JOIN</option>
                                                     <option value="LEFT JOIN">LEFT JOIN</option>
                                                 </select>
@@ -263,9 +265,9 @@
                                                 <div class="bvg-display-cell">
                                                     @if (!joinSuppressed)
                                                     {
-                                                        <input type="checkbox" checked="@relationship.IncludeDisplayColumn" @onchange="args => OnRelationshipDisplayIncludeChanged(relationship, args)" disabled="@string.IsNullOrWhiteSpace(relationship.DisplayColumnName)" />
+                                                        <input type="checkbox" checked="@relationship.IncludeDisplayColumn" @onchange="args => OnRelationshipDisplayIncludeChanged(relationship, args)" disabled="@(!IncludeLookupDisplayColumns || string.IsNullOrWhiteSpace(relationship.DisplayColumnName))" />
                                                     }
-                                                    <input value="@relationship.DisplayColumnName" @oninput="args => OnRelationshipDisplayColumnChanged(relationship, args)" disabled="@(joinSuppressed || !relationship.IncludeDisplayColumn)" />
+                                                    <input value="@relationship.DisplayColumnName" @oninput="args => OnRelationshipDisplayColumnChanged(relationship, args)" disabled="@(!IncludeLookupDisplayColumns || joinSuppressed || !relationship.IncludeDisplayColumn)" />
                                                 </div>
                                             </td>
                                         </tr>
@@ -672,11 +674,17 @@
             : column.KeyRole;
 
     private bool ShouldGenerateJoin(TableSchemaRelationshipInfo relationship) =>
+        IncludeLookupDisplayColumns &&
         relationship.Include &&
         !IsJoinSuppressed(relationship);
 
     private string RelationshipStatusText(TableSchemaRelationshipInfo relationship)
     {
+        if (!IncludeLookupDisplayColumns)
+        {
+            return "Lookups off";
+        }
+
         if (IsJoinSuppressed(relationship))
         {
             return "No display column";
@@ -697,6 +705,11 @@
 
     private string RelationshipStatusClass(TableSchemaRelationshipInfo relationship)
     {
+        if (!IncludeLookupDisplayColumns)
+        {
+            return "bvg-status-warning";
+        }
+
         if (IsJoinSuppressed(relationship))
         {
             return "bvg-status-error";
@@ -973,6 +986,44 @@
 
     private static string QuoteIdentifier(string identifier) =>
         $"[{identifier.Replace("]", "]]", StringComparison.Ordinal)}]";
+
+    private RenderFragment HelpLabel(string label, string description) => builder =>
+    {
+        builder.OpenElement(0, "span");
+        builder.AddAttribute(1, "class", "bvg-field-label");
+        builder.AddContent(2, label);
+        builder.AddContent(3, HelpIcon(description));
+        builder.CloseElement();
+    };
+
+    private RenderFragment MetadataHelp(Type modelType, string propertyName) => builder =>
+    {
+        var description = ReflectionUtils.GetDescription(modelType, propertyName);
+        if (string.IsNullOrWhiteSpace(description))
+        {
+            return;
+        }
+
+        builder.OpenComponent<RadzenIcon>(0);
+        builder.AddAttribute(1, "Icon", "help_outline");
+        builder.AddAttribute(2, "class", "bvg-help-icon");
+        builder.AddAttribute(3, "MouseEnter", EventCallback.Factory.Create<ElementReference>(this, args => TooltipService.Open(args, description)));
+        builder.CloseComponent();
+    };
+
+    private RenderFragment HelpIcon(string description) => builder =>
+    {
+        if (string.IsNullOrWhiteSpace(description))
+        {
+            return;
+        }
+
+        builder.OpenComponent<RadzenIcon>(0);
+        builder.AddAttribute(1, "Icon", "help_outline");
+        builder.AddAttribute(2, "class", "bvg-help-icon");
+        builder.AddAttribute(3, "MouseEnter", EventCallback.Factory.Create<ElementReference>(this, args => TooltipService.Open(args, description)));
+        builder.CloseComponent();
+    };
 
     private static bool ToBool(object? value) =>
         value switch
