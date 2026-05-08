@@ -1,33 +1,16 @@
 @page "/about"
 @using SchemaStudio.AIHelpers
 
-@attribute [FileVersion("1.1")]
+@attribute [FileVersion("1.2")]
 @attribute [AIFileContext("Components/Pages/About.razor", "Provides a compact About page for SUSStudio with the app logo, product identity, and positioning statement used by the top Help menu About action.")]
 
 <PageTitle>About SUSStudio</PageTitle>
 
 <section class="about-page">
-    <div class="about-shell">
-        <div class="about-logo-card">
-            <img src="images/susstudio-about-logo.png"
-                 alt="SUSStudio -- Schema Understanding Service"
-                 class="about-logo" />
-        </div>
-
-        <div class="about-details">
-            <h1>SUSStudio</h1>
-            <p class="about-subtitle">Schema Understanding Service</p>
-            <p class="about-tagline">Code is data. Data is code.</p>
-            <p class="about-copy">
-                Internal tooling for schema discovery, semantic metadata, parser validation,
-                and deterministic SQL generation.
-            </p>
-            <div class="about-value-row" aria-label="SUSStudio value statement">
-                <span>Speed</span>
-                <span>Value</span>
-                <span>Trust</span>
-            </div>
-        </div>
+    <div class="about-logo-card">
+        <img src="images/susstudio-about-logo.png"
+             alt="SUSStudio -- Schema Understanding Service"
+             class="about-logo" />
     </div>
 </section>
 
@@ -37,91 +20,26 @@
         padding: 1.25rem;
         background: #f4f6f9;
         box-sizing: border-box;
-    }
-
-    .about-shell {
-        display: grid;
-        grid-template-columns: minmax(280px, 440px) minmax(280px, 1fr);
-        gap: 1.25rem;
-        align-items: stretch;
-        max-width: 1080px;
-    }
-
-    .about-logo-card,
-    .about-details {
-        border: 1px solid #d6dce7;
-        border-radius: 6px;
-        background: #ffffff;
-        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .about-logo-card {
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 1rem;
-        min-height: 250px;
+        width: min(92vw, 540px);
+        padding: 1.25rem;
+        border: 1px solid #d6dce7;
+        border-radius: 6px;
+        background: #ffffff;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
     }
 
     .about-logo {
         display: block;
-        width: min(100%, 380px);
+        width: min(100%, 480px);
         height: auto;
-    }
-
-    .about-details {
-        padding: 1.25rem 1.4rem;
-    }
-
-    .about-details h1 {
-        margin: 0;
-        font-size: 2rem;
-        line-height: 1.1;
-        color: #0b1f4d;
-    }
-
-    .about-subtitle {
-        margin: 0.25rem 0 0;
-        font-size: 1rem;
-        color: #475569;
-    }
-
-    .about-tagline {
-        margin: 1.3rem 0 0;
-        font-size: 1.35rem;
-        font-weight: 700;
-        color: #0f766e;
-    }
-
-    .about-copy {
-        max-width: 620px;
-        margin: 0.85rem 0 0;
-        color: #334155;
-        line-height: 1.5;
-    }
-
-    .about-value-row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        margin-top: 1.25rem;
-    }
-
-    .about-value-row span {
-        display: inline-flex;
-        align-items: center;
-        min-height: 30px;
-        padding: 0.25rem 0.75rem;
-        border: 1px solid #cbd5e1;
-        border-radius: 4px;
-        background: #f8fafc;
-        color: #0f172a;
-        font-weight: 700;
-    }
-
-    @@media (max-width: 820px) {
-        .about-shell {
-            grid-template-columns: 1fr;
-        }
     }
 </style>
