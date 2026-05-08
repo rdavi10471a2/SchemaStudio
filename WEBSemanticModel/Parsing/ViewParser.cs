@@ -62,26 +62,36 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Parsing
                 }
 
                 //-----------------------------------------
-                // FIND OUTERMOST QUERY ONLY
+                // FIND OUTERMOST SELECT
                 //-----------------------------------------
                 Log.Info("Finding outermost SELECT");
 
-                QuerySpecification spec = null;
+                SelectStatement selectStatement = null;
 
-                fragment.Accept(new OutermostQuerySpecificationFinder(s => spec = s));
+                fragment.Accept(new OutermostSelectStatementFinder(s => selectStatement = s));
 
-                if (spec == null)
+                if (selectStatement == null)
                 {
                     Log.Error("No valid SELECT found");
                     throw new Exception("No valid SELECT statement found.");
                 }
+
+                var spec = BasicSelectVisitor.TryGetQuerySpecification(selectStatement.QueryExpression);
+
+                if (spec == null)
+                {
+                    Log.Error("No valid SELECT query specification found");
+                    throw new Exception("No valid SELECT query specification found.");
+                }
+
+                var cteMap = ParseCommonTableExpressions(selectStatement, fragment.ScriptTokenStream);
 
                 //-----------------------------------------
                 // VISITOR
                 //-----------------------------------------
                 Log.Info("Running BasicSelectVisitor");
 
-                var visitor = new BasicSelectVisitor(fragment.ScriptTokenStream);
+                var visitor = new BasicSelectVisitor(fragment.ScriptTokenStream, cteMap);
                 visitor.Parse(spec);
 
                 var result = visitor.Result;
@@ -93,17 +103,49 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Parsing
             }
         }
 
-        private class OutermostQuerySpecificationFinder : TSqlFragmentVisitor
+        private Dictionary<string, ParsedQuery> ParseCommonTableExpressions(
+            SelectStatement selectStatement,
+            IList<TSqlParserToken> tokens)
         {
-            private readonly Action<QuerySpecification> _found;
+            var cteMap = new Dictionary<string, ParsedQuery>(StringComparer.OrdinalIgnoreCase);
+            var ctes = selectStatement.WithCtesAndXmlNamespaces?.CommonTableExpressions;
+
+            if (ctes == null || ctes.Count == 0)
+            {
+                return cteMap;
+            }
+
+            foreach (var cte in ctes)
+            {
+                var name = cte.ExpressionName?.Value;
+                var spec = BasicSelectVisitor.TryGetQuerySpecification(cte.QueryExpression);
+
+                if (string.IsNullOrWhiteSpace(name) || spec == null)
+                {
+                    continue;
+                }
+
+                Log.Info($"Parsing CTE {name}");
+
+                var visitor = new BasicSelectVisitor(tokens, cteMap);
+                visitor.Parse(spec);
+                cteMap[name] = visitor.Result;
+            }
+
+            return cteMap;
+        }
+
+        private class OutermostSelectStatementFinder : TSqlFragmentVisitor
+        {
+            private readonly Action<SelectStatement> _found;
             private bool _captured;
 
-            public OutermostQuerySpecificationFinder(Action<QuerySpecification> found)
+            public OutermostSelectStatementFinder(Action<SelectStatement> found)
             {
                 _found = found;
             }
 
-            public override void Visit(QuerySpecification node)
+            public override void Visit(SelectStatement node)
             {
                 if (_captured)
                     return;

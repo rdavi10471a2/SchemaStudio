@@ -3,6 +3,7 @@
     public enum SourceKind
     {
         NamedObject,
+        Cte,
         DerivedQuery,
         Function
     }

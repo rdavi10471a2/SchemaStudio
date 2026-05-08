@@ -14,11 +14,19 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Parsing
         private readonly HashSet<string> _registeredAliases =
             new(StringComparer.OrdinalIgnoreCase);
 
+        private readonly IReadOnlyDictionary<string, ParsedQuery> _cteMap;
+
         public ParsedQuery Result { get; } = new ParsedQuery();
 
         public BasicSelectVisitor(IList<TSqlParserToken> tokens)
+            : this(tokens, new Dictionary<string, ParsedQuery>(StringComparer.OrdinalIgnoreCase))
+        {
+        }
+
+        public BasicSelectVisitor(IList<TSqlParserToken> tokens, IReadOnlyDictionary<string, ParsedQuery> cteMap)
         {
             _tokens = tokens;
+            _cteMap = cteMap;
         }
 
         public void Parse(QuerySpecification spec)
@@ -209,6 +217,23 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Parsing
             var alias = node.Alias?.Value ?? tbl;
             if (!_registeredAliases.Add(alias)) return null;
 
+            if (ids.Count == 1 && _cteMap.TryGetValue(tbl, out var cteQuery))
+            {
+                var cteSource = new SourceTable
+                {
+                    Kind = SourceKind.Cte,
+                    Table = tbl,
+                    Alias = alias,
+                    JoinType = joinType,
+                    JoinExpression = joinExpr,
+                    NestedQuery = cteQuery
+                };
+
+                Result.SourceTables.Add(cteSource);
+                _aliasMap[alias] = (null, null, tbl);
+                return cteSource;
+            }
+
             var st = new SourceTable { Kind = SourceKind.NamedObject, Database = db, Schema = sc, Table = tbl, Alias = alias, JoinType = joinType, JoinExpression = joinExpr };
             Result.SourceTables.Add(st);
             _aliasMap[alias] = (db, sc, tbl);
@@ -224,7 +249,7 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Parsing
             var spec = TryGetQuerySpecification(node.QueryExpression);
             if (spec != null)
             {
-                var v = new BasicSelectVisitor(_tokens);
+                var v = new BasicSelectVisitor(_tokens, _cteMap);
                 v.Parse(spec);
                 nested = v.Result;
             }
@@ -278,7 +303,7 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Parsing
             return null;
         }
 
-        private static QuerySpecification TryGetQuerySpecification(QueryExpression expr)
+        public static QuerySpecification TryGetQuerySpecification(QueryExpression expr)
         {
             while (expr != null)
             {
