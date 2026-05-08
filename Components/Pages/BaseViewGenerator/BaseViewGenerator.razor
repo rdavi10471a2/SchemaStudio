@@ -15,7 +15,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.51")]
+@attribute [FileVersion("1.52")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -197,11 +197,12 @@
                         <button type="button" class="bvg-button secondary" @onclick="CollapseAllProjectionGroups">Collapse All</button>
                     </div>
                     <div class="bvg-projection-tree">
-                        <section class="bvg-projection-group">
+                        <section class="bvg-projection-group bvg-source-group">
                             <div class="bvg-group-header">
-                                <button type="button" class="bvg-group-toggle" @onclick="ToggleSourceGroup">@(SourceGroupExpanded ? "▾" : "▸")</button>
-                                <strong>FROM @QualifiedName(SelectedDatabaseName, SelectedSchemaName, SelectedTableName) AS @QuoteIdentifier(BaseAlias)</strong>
-                                <span>@FilteredStandaloneColumns.Count() base column(s)</span>
+                                <button type="button" class="bvg-group-toggle" @onclick="ToggleSourceGroup">@(SourceGroupExpanded ? "-" : "+")</button>
+                                <span class="bvg-group-label">Source</span>
+                                <code>FROM @QualifiedName(SelectedDatabaseName, SelectedSchemaName, SelectedTableName) AS @QuoteIdentifier(BaseAlias)</code>
+                                <span class="bvg-count-chip">@FilteredStandaloneColumns.Count() base column(s)</span>
                             </div>
                             @if (SourceGroupExpanded)
                             {
@@ -237,15 +238,18 @@
                             }
                         </section>
 
-                        <section class="bvg-projection-group">
-                            <div class="bvg-group-heading">M-to-1 Lookup Relationships (@FilteredRelationships.Count())</div>
+                        <section class="bvg-projection-group bvg-lookup-group">
+                            <div class="bvg-group-heading">
+                                <span class="bvg-group-label">Lookups</span>
+                                <span class="bvg-count-chip">@FilteredRelationships.Count() M-to-1 relationship(s)</span>
+                            </div>
                             @foreach (var relationship in FilteredRelationships)
                             {
                                 var joinSuppressed = IsJoinSuppressed(relationship);
                                 var groupExpanded = IsRelationshipGroupExpanded(relationship);
                                 <div class="@ProjectionRelationshipGroupClass(relationship)">
                                     <div class="bvg-group-header">
-                                        <button type="button" class="bvg-group-toggle" @onclick="() => ToggleRelationshipGroup(relationship)">@(groupExpanded ? "▾" : "▸")</button>
+                                        <button type="button" class="bvg-group-toggle" @onclick="() => ToggleRelationshipGroup(relationship)">@(groupExpanded ? "-" : "+")</button>
                                         <span class="@RelationshipStatusClass(relationship)">@RelationshipStatusText(relationship)</span>
                                         @if (!joinSuppressed)
                                         {
@@ -255,16 +259,10 @@
                                         {
                                             <span class="bvg-muted-cell">Suppressed</span>
                                         }
-                                        <strong>@relationship.LocalColumns</strong>
-                                        <span>@QualifiedName(SelectedDatabaseName, relationship.ReferencedSchemaName, relationship.ReferencedTableName)</span>
+                                        <code>@BuildJoinText(relationship)</code>
                                     </div>
                                     @if (groupExpanded)
                                     {
-                                        <div class="bvg-join-preview">
-                                            <span>Generated Join</span>
-                                            <code>@BuildJoinText(relationship)</code>
-                                        </div>
-
                                         @if (RelationshipOwnsProjectionColumns(relationship))
                                         {
                                             <div class="bvg-output-grid bvg-relationship-output-grid">
@@ -709,25 +707,34 @@
     private void OnColumnBusinessNameChanged(TableSchemaColumnInfo column, ChangeEventArgs args)
     {
         column.BusinessName = args.Value?.ToString() ?? "";
+        EnableMetadataPlaceholdersForBusinessEdit();
         MarkSqlDirty();
     }
 
     private void OnColumnBusinessDescriptionChanged(TableSchemaColumnInfo column, ChangeEventArgs args)
     {
         column.BusinessDescription = args.Value?.ToString() ?? "";
+        EnableMetadataPlaceholdersForBusinessEdit();
         MarkSqlDirty();
     }
 
     private void OnRelationshipDisplayBusinessNameChanged(TableSchemaRelationshipInfo relationship, ChangeEventArgs args)
     {
         relationship.DisplayBusinessName = args.Value?.ToString() ?? "";
+        EnableMetadataPlaceholdersForBusinessEdit();
         MarkSqlDirty();
     }
 
     private void OnRelationshipDisplayBusinessDescriptionChanged(TableSchemaRelationshipInfo relationship, ChangeEventArgs args)
     {
         relationship.DisplayBusinessDescription = args.Value?.ToString() ?? "";
+        EnableMetadataPlaceholdersForBusinessEdit();
         MarkSqlDirty();
+    }
+
+    private void EnableMetadataPlaceholdersForBusinessEdit()
+    {
+        IncludeMetadataPlaceholders = true;
     }
 
     private void OnColumnIncludeChanged(TableSchemaColumnInfo column, ChangeEventArgs args)

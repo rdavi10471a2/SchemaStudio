@@ -383,7 +383,7 @@
 }
 
 .bvg-projection-group {
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.55rem;
     border: 1px solid #d9dee8;
     border-radius: 6px;
     background: #ffffff;
@@ -396,14 +396,41 @@
     align-items: center;
     gap: 0.55rem;
     width: 100%;
-    min-height: 36px;
-    padding: 0.48rem 0.65rem;
+    min-height: 32px;
+    padding: 0.36rem 0.55rem;
     border: 0;
     border-bottom: 1px solid #e7ebf0;
     background: #f8f9fb;
     color: #1f2937;
     text-align: left;
     font-weight: 800;
+}
+
+.bvg-group-header code {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    color: #0f172a;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bvg-group-label {
+    color: #64748b;
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.bvg-count-chip {
+    flex: 0 0 auto;
+    color: #64748b;
+    font-size: 0.76rem;
+    font-weight: 700;
 }
 
 .bvg-group-header input {
@@ -440,7 +467,7 @@
 
 .bvg-output-cell {
     min-height: 38px;
-    padding: 0.38rem 0.55rem;
+    padding: 0.32rem 0.55rem;
     border-bottom: 1px solid #edf0f5;
     font-size: 0.82rem;
 }
@@ -468,30 +495,6 @@
     margin: 0;
     color: #475569;
     font-size: 0.78rem;
-}
-
-.bvg-join-preview {
-    display: grid;
-    grid-template-columns: 130px minmax(360px, 1fr);
-    gap: 0.75rem;
-    align-items: start;
-    padding: 0.6rem 0.75rem;
-    border-bottom: 1px solid #edf0f5;
-    background: #fbfcff;
-    font-size: 0.82rem;
-}
-
-.bvg-join-preview span {
-    color: #64748b;
-    font-size: 0.72rem;
-    font-weight: 900;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-}
-
-.bvg-join-preview code {
-    font-family: Consolas, "Courier New", monospace;
-    white-space: normal;
 }
 
 .bvg-disabled-group {
