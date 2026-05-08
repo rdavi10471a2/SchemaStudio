@@ -13,7 +13,7 @@
 @inject IJSRuntime JSRuntime
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("1.36")]
+@attribute [FileVersion("1.37")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -110,45 +110,58 @@
                 <div class="bvg-preview-line">@TargetViewPreview</div>
             </div>
 
-            <div class="bvg-options">
-                <label><input type="checkbox" @bind="IncludeLookupDisplayColumns" @bind:after="MarkSqlDirty" /> Include lookup display columns</label>
-                <label><input type="checkbox" @bind="IgnoreSelfJoins" @bind:after="ApplyRelationshipFiltersAndMarkDirty" /> Ignore self joins</label>
-                <label><input type="checkbox" @bind="IgnoreRelationshipsWithoutDisplay" @bind:after="ApplyRelationshipFiltersAndMarkDirty" /> Ignore FK relationships without display columns</label>
-                <label><input type="checkbox" @bind="IncludeMetadataPlaceholders" @bind:after="RegenerateSql" /> Include metadata placeholders</label>
-            </div>
+            <section class="bvg-source-info">
+                <header class="bvg-mini-tabs" role="tablist" aria-label="Base view generator source options">
+                    <button type="button" class="@SourceInfoTabClass("options")" @onclick='() => SetSourceInfoTab("options")'>Include Options</button>
+                    <button type="button" class="@SourceInfoTabClass("children")" @onclick='() => SetSourceInfoTab("children")'>Known Child Tables (@ChildRelationships.Count)</button>
+                </header>
 
-            <section class="bvg-child-relationships">
-                <h2>Known Child Tables (@ChildRelationships.Count)</h2>
-                <div class="bvg-note">
-                    These tables reference @SelectedTableDisplayName. This is informational only and does not affect generated SQL.
-                </div>
-                <div class="bvg-table-wrap bvg-child-table-wrap">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Table</th>
-                                <th>Join Clause</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @if (ChildRelationships.Count == 0)
-                            {
-                                <tr>
-                                    <td colspan="2" class="bvg-empty-cell">No child tables loaded.</td>
-                                </tr>
-                            }
-                            else
-                            {
-                                @foreach (var childRelationship in ChildRelationships)
-                                {
-                                    <tr>
-                                        <td>@QualifiedName(SelectedDatabaseName, childRelationship.ChildSchemaName, childRelationship.ChildTableName)</td>
-                                        <td class="bvg-join-clause">@BuildChildJoinClause(childRelationship)</td>
-                                    </tr>
-                                }
-                            }
-                        </tbody>
-                    </table>
+                <div class="bvg-source-info-body">
+                    @if (ActiveSourceInfoTab == "options")
+                    {
+                        <div class="bvg-options">
+                            <label><input type="checkbox" @bind="IncludeLookupDisplayColumns" @bind:after="MarkSqlDirty" /> Include lookup display columns</label>
+                            <label><input type="checkbox" @bind="IgnoreSelfJoins" @bind:after="ApplyRelationshipFiltersAndMarkDirty" /> Ignore self joins</label>
+                            <label><input type="checkbox" @bind="IgnoreRelationshipsWithoutDisplay" @bind:after="ApplyRelationshipFiltersAndMarkDirty" /> Ignore FK relationships without display columns</label>
+                            <label><input type="checkbox" @bind="IncludeMetadataPlaceholders" @bind:after="RegenerateSql" /> Include metadata placeholders</label>
+                        </div>
+                    }
+                    else
+                    {
+                        <section class="bvg-child-relationships">
+                            <div class="bvg-note">
+                                These tables reference @SelectedTableDisplayName. This is informational only and does not affect generated SQL.
+                            </div>
+                            <div class="bvg-table-wrap bvg-child-table-wrap">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Table</th>
+                                            <th>Join Clause</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @if (ChildRelationships.Count == 0)
+                                        {
+                                            <tr>
+                                                <td colspan="2" class="bvg-empty-cell">No child tables loaded.</td>
+                                            </tr>
+                                        }
+                                        else
+                                        {
+                                            @foreach (var childRelationship in ChildRelationships)
+                                            {
+                                                <tr>
+                                                    <td>@QualifiedName(SelectedDatabaseName, childRelationship.ChildSchemaName, childRelationship.ChildTableName)</td>
+                                                    <td class="bvg-join-clause">@BuildChildJoinClause(childRelationship)</td>
+                                                </tr>
+                                            }
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+                    }
                 </div>
             </section>
 
@@ -286,6 +299,7 @@
     private string ColumnFilter = "";
     private string GeneratedSql = "";
     private string ActiveWorkspaceTab = "sql";
+    private string ActiveSourceInfoTab = "options";
     private bool HighlightSqlPending;
     private bool SqlDirty;
 
@@ -333,6 +347,11 @@
             ? "bvg-tab active"
             : "bvg-tab";
 
+    private string SourceInfoTabClass(string tabName) =>
+        ActiveSourceInfoTab == tabName
+            ? "bvg-mini-tab active"
+            : "bvg-mini-tab";
+
     protected override async Task OnInitializedAsync()
     {
         await RunPageOperationAsync(async () =>
@@ -361,6 +380,11 @@
     {
         ActiveWorkspaceTab = tabName;
         QueueSqlHighlight();
+    }
+
+    private void SetSourceInfoTab(string tabName)
+    {
+        ActiveSourceInfoTab = tabName;
     }
 
     private async Task OnDatabaseChangedAsync(object value)
