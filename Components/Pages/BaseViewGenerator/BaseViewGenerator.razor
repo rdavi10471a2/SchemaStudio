@@ -227,10 +227,7 @@
                                             <button type="button" class="bvg-link-button" @onclick="() => OpenColumnMetadataDialog(column)">Edit</button>
                                         </div>
                                         <div class="@ProjectionColumnRowClass(column)">
-                                            <label class="bvg-system-check">
-                                                <input type="checkbox" checked="@IsRelationshipColumn(column)" disabled />
-                                                <span>System</span>
-                                            </label>
+                                            <span class="bvg-system-check">@YesNo(IsRelationshipColumn(column))</span>
                                         </div>
                                     }
                                 </div>
@@ -283,10 +280,7 @@
                                                         <button type="button" class="bvg-link-button" @onclick="() => OpenColumnMetadataDialog(column)" disabled="@(!relationship.Include)">Edit</button>
                                                     </div>
                                                     <div class="@ProjectionColumnRowClass(column)">
-                                                        <label class="bvg-system-check">
-                                                            <input type="checkbox" checked disabled />
-                                                            <span>System</span>
-                                                        </label>
+                                                        <span class="bvg-system-check">Yes</span>
                                                     </div>
                                                 }
 
@@ -302,10 +296,7 @@
                                                     <button type="button" class="bvg-link-button" @onclick="() => OpenRelationshipDisplayMetadataDialog(relationship)" disabled="@(!relationship.Include || !relationship.IncludeDisplayColumn)">Edit</button>
                                                 </div>
                                                 <div class="@ProjectionDisplayRowClass(relationship)">
-                                                    <label class="bvg-system-check">
-                                                        <input type="checkbox" checked disabled />
-                                                        <span>System</span>
-                                                    </label>
+                                                    <span class="bvg-system-check">Yes</span>
                                                 </div>
                                             </div>
                                         }
@@ -1122,6 +1113,7 @@
             yield return BuildProjectionLine(
                 ProjectionPrefix(first),
                 projection.SourceProjection,
+                projection.OutputColumnName,
                 projection.BusinessName,
                 projection.BusinessDescription,
                 projection.DisableInheritance);
@@ -1160,6 +1152,7 @@
             yield return BuildProjectionLine(
                 ProjectionPrefix(first),
                 surfaceProjection,
+                projection.OutputColumnName,
                 projection.BusinessName,
                 projection.BusinessDescription,
                 projection.DisableInheritance);
@@ -1406,25 +1399,42 @@
             : $"{token}_Source";
     }
 
-    private string BuildProjectionLine(string prefix, string projection, string businessName = "", string businessDescription = "", bool disableInheritance = false) =>
-        $"{prefix}{projection}{BuildMetadataPlaceholder(prefix, projection, businessName, businessDescription, disableInheritance)}";
+    private string BuildProjectionLine(string prefix, string projection, string outputColumnName, string businessName = "", string businessDescription = "", bool disableInheritance = false) =>
+        $"{prefix}{projection}{BuildMetadataPlaceholder(prefix, projection, outputColumnName, businessName, businessDescription, disableInheritance)}";
 
-    private string BuildMetadataPlaceholder(string prefix, string projection, string businessName = "", string businessDescription = "", bool disableInheritance = false)
+    private string BuildMetadataPlaceholder(string prefix, string projection, string outputColumnName, string businessName = "", string businessDescription = "", bool disableInheritance = false)
     {
         if (!IncludeMetadataPlaceholders)
         {
             return string.Empty;
         }
 
-        var parts = new List<string>
+        if (disableInheritance)
         {
-            $"@BusinessName: {businessName}",
-            $"@BusinessDescription: {businessDescription}"
-        };
+            businessName = string.IsNullOrWhiteSpace(businessName) ? outputColumnName : businessName;
+            businessDescription = string.IsNullOrWhiteSpace(businessDescription) ? outputColumnName : businessDescription;
+        }
+
+        var parts = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(businessName))
+        {
+            parts.Add($"@BusinessName: {businessName}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(businessDescription))
+        {
+            parts.Add($"@BusinessDescription: {businessDescription}");
+        }
 
         if (disableInheritance)
         {
             parts.Add("@DisableInheritance: True");
+        }
+
+        if (parts.Count == 0)
+        {
+            return string.Empty;
         }
 
         return BuildMultilineMetadataPlaceholder(prefix, projection, parts);
@@ -1453,6 +1463,9 @@
 
     private static string ProjectionPrefix(bool first) =>
         first ? "      " : "    , ";
+
+    private static string YesNo(bool value) =>
+        value ? "Yes" : "No";
 
     private static string QualifiedName(params string?[] parts) =>
         string.Join(".", parts.Where(part => !string.IsNullOrWhiteSpace(part)).Select(part => QuoteIdentifier(part!)));
