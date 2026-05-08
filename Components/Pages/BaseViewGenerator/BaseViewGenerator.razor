@@ -13,7 +13,7 @@
 @inject IJSRuntime JSRuntime
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("1.31")]
+@attribute [FileVersion("1.32")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -720,17 +720,80 @@
 
     private string BuildLookupAlias(TableSchemaRelationshipInfo relationship)
     {
-        var referencedTable = relationship.ReferencedTableName;
-        var duplicateCount = Relationships
-            .Where(ShouldGenerateJoin)
-            .Where(candidate => string.Equals(candidate.ReferencedSchemaName, relationship.ReferencedSchemaName, StringComparison.OrdinalIgnoreCase))
-            .Where(candidate => string.Equals(candidate.ReferencedTableName, relationship.ReferencedTableName, StringComparison.OrdinalIgnoreCase))
-            .TakeWhile(candidate => !ReferenceEquals(candidate, relationship))
-            .Count();
+        var aliasesInUse = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        return duplicateCount == 0
-            ? referencedTable
-            : $"{referencedTable}_{relationship.LocalColumns.Replace(",", "_", StringComparison.Ordinal).Replace(" ", "", StringComparison.Ordinal)}";
+        if (!string.IsNullOrWhiteSpace(BaseAlias))
+        {
+            aliasesInUse.Add(SanitizeAliasToken(BaseAlias));
+        }
+
+        foreach (var candidate in Relationships.Where(ShouldGenerateJoin))
+        {
+            var alias = MakeUniqueAlias(BuildLookupAliasCandidate(candidate), aliasesInUse);
+
+            if (ReferenceEquals(candidate, relationship))
+            {
+                return alias;
+            }
+
+            aliasesInUse.Add(alias);
+        }
+
+        return MakeUniqueAlias(BuildLookupAliasCandidate(relationship), aliasesInUse);
+    }
+
+    private static string BuildLookupAliasCandidate(TableSchemaRelationshipInfo relationship)
+    {
+        var tableToken = SanitizeAliasToken(relationship.ReferencedTableName);
+        var localColumnToken = SanitizeAliasToken(string.Join("_", relationship.Columns.Select(column => column.LocalColumnName)));
+
+        if (string.IsNullOrWhiteSpace(tableToken))
+        {
+            tableToken = "Lookup";
+        }
+
+        return string.IsNullOrWhiteSpace(localColumnToken)
+            ? tableToken
+            : $"{tableToken}_{localColumnToken}";
+    }
+
+    private static string MakeUniqueAlias(string preferredAlias, ISet<string> aliasesInUse)
+    {
+        var baseAlias = string.IsNullOrWhiteSpace(preferredAlias)
+            ? "Lookup"
+            : preferredAlias;
+        var alias = baseAlias;
+        var suffix = 2;
+
+        while (aliasesInUse.Contains(alias))
+        {
+            alias = $"{baseAlias}_{suffix}";
+            suffix++;
+        }
+
+        return alias;
+    }
+
+    private static string SanitizeAliasToken(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var builder = new System.Text.StringBuilder(value.Length);
+
+        foreach (var character in value)
+        {
+            builder.Append(char.IsLetterOrDigit(character) || character == '_'
+                ? character
+                : '_');
+        }
+
+        var alias = builder.ToString().Trim('_');
+        return string.IsNullOrWhiteSpace(alias)
+            ? string.Empty
+            : alias;
     }
 
     private static string BuildLookupProjectionAlias(TableSchemaRelationshipInfo relationship)
