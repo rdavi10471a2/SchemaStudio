@@ -5,7 +5,7 @@ using System.ComponentModel;
 
 namespace SchemaStudioWebViewer.Data;
 
-[FileVersion("1.5")]
+[FileVersion("1.6")]
 [AIFileContext("Repositories/TableSchemaSmoRepository.cs", "Reads SQL Server table metadata for the Base View Generator page.", Responsibilities = "Provides schema, table, column, and many-to-one foreign-key metadata from a selected source database without changing the configured connection string.", Nuances = "The class name is retained from the first SMO implementation, but the metadata reads use targeted sys catalog queries because SMO object hydration was too slow for interactive use.", LastReviewed = "2026-05-07")]
 public sealed class TableSchemaSmoRepository
 {
@@ -415,6 +415,12 @@ public sealed class TableSchemaColumnInfo
     [Description("Whether the source column should be included in the generated SELECT projection.")]
     public bool Include { get; set; }
 
+    [Description("User-facing business name metadata to emit for this generated output column when metadata comments are included.")]
+    public string BusinessName { get; set; } = "";
+
+    [Description("User-facing business description metadata to emit for this generated output column when metadata comments are included.")]
+    public string BusinessDescription { get; set; } = "";
+
     [Description("Generated role label used by the page to identify primary-key and many-to-one foreign-key columns.")]
     public string KeyRole =>
         IsPrimaryKey ? "PK" :
@@ -470,6 +476,12 @@ public sealed class TableSchemaRelationshipInfo
 
     [Description("Whether this relationship should project its selected lookup display column when lookup generation is enabled.")]
     public bool IncludeDisplayColumn { get; set; }
+
+    [Description("User-facing business name metadata to emit for this generated lookup display column when metadata comments are included.")]
+    public string DisplayBusinessName { get; set; } = "";
+
+    [Description("User-facing business description metadata to emit for this generated lookup display column when metadata comments are included.")]
+    public string DisplayBusinessDescription { get; set; } = "";
 
     [Description("Comma-separated local many-side foreign-key columns.")]
     public string LocalColumns => string.Join(", ", Columns.Select(column => column.LocalColumnName));

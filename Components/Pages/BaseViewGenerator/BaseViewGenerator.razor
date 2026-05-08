@@ -15,7 +15,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.50")]
+@attribute [FileVersion("1.51")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -192,85 +192,139 @@
                     <div class="bvg-column-filter">
                         <input placeholder="Filter columns or relationships" value="@ColumnFilter" @oninput="OnColumnFilterChanged" />
                     </div>
+                    <div class="bvg-projection-toolbar">
+                        <button type="button" class="bvg-button secondary" @onclick="ExpandAllProjectionGroups">Expand All</button>
+                        <button type="button" class="bvg-button secondary" @onclick="CollapseAllProjectionGroups">Collapse All</button>
+                    </div>
                     <div class="bvg-projection-tree">
-                        <details open>
-                            <summary>Base Columns (@FilteredStandaloneColumns.Count())</summary>
-                            <div class="bvg-tree-children">
-                                @foreach (var column in FilteredStandaloneColumns)
-                                {
-                                    <div class="bvg-tree-row bvg-column-row">
-                                        <label>
-                                            <input type="checkbox" checked="@column.Include" @onchange="args => OnColumnIncludeChanged(column, args)" />
-                                            <span>@column.ColumnName</span>
-                                        </label>
-                                        <span>@column.DataType</span>
-                                        <span>@(column.IsNullable ? "Nullable" : "Required")</span>
-                                        <span>@ColumnKeyRoleLabel(column)</span>
-                                    </div>
-                                }
+                        <section class="bvg-projection-group">
+                            <div class="bvg-group-header">
+                                <button type="button" class="bvg-group-toggle" @onclick="ToggleSourceGroup">@(SourceGroupExpanded ? "▾" : "▸")</button>
+                                <strong>FROM @QualifiedName(SelectedDatabaseName, SelectedSchemaName, SelectedTableName) AS @QuoteIdentifier(BaseAlias)</strong>
+                                <span>@FilteredStandaloneColumns.Count() base column(s)</span>
                             </div>
-                        </details>
+                            @if (SourceGroupExpanded)
+                            {
+                                <div class="bvg-output-grid">
+                                    <div class="bvg-output-grid-header">Include</div>
+                                    <div class="bvg-output-grid-header">Output Column</div>
+                                    <div class="bvg-output-grid-header">Business Name</div>
+                                    <div class="bvg-output-grid-header">Business Description</div>
+                                    <div class="bvg-output-grid-header">Disable Inheritance</div>
+                                    @foreach (var column in FilteredStandaloneColumns)
+                                    {
+                                        <div class="@ProjectionColumnRowClass(column)">
+                                            <input type="checkbox" checked="@column.Include" @onchange="args => OnColumnIncludeChanged(column, args)" />
+                                        </div>
+                                        <div class="@ProjectionColumnRowClass(column)">
+                                            <span class="bvg-output-expression">@BuildBaseProjectionText(column)</span>
+                                            <span class="bvg-muted-cell">@ColumnKeyRoleLabel(column)</span>
+                                        </div>
+                                        <div class="@ProjectionColumnRowClass(column)">
+                                            <input value="@column.BusinessName" @oninput="args => OnColumnBusinessNameChanged(column, args)" />
+                                        </div>
+                                        <div class="@ProjectionColumnRowClass(column)">
+                                            <input value="@column.BusinessDescription" @oninput="args => OnColumnBusinessDescriptionChanged(column, args)" />
+                                        </div>
+                                        <div class="@ProjectionColumnRowClass(column)">
+                                            <label class="bvg-system-check">
+                                                <input type="checkbox" checked="@IsRelationshipColumn(column)" disabled />
+                                                <span>System</span>
+                                            </label>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </section>
 
-                        <details open>
-                            <summary>M-to-1 Lookup Relationships (@FilteredRelationships.Count())</summary>
-                            <div class="bvg-tree-children">
-                                @foreach (var relationship in FilteredRelationships)
-                                {
-                                    var joinSuppressed = IsJoinSuppressed(relationship);
-                                    var relationshipDisabled = !IncludeLookupDisplayColumns || joinSuppressed || !relationship.Include;
-                                    <details class="@(joinSuppressed ? "bvg-tree-node bvg-muted-row" : "bvg-tree-node")" open>
-                                        <summary>
-                                            <span class="@RelationshipStatusClass(relationship)">@RelationshipStatusText(relationship)</span>
-                                            @if (joinSuppressed)
-                                            {
-                                                <span class="bvg-muted-cell">Suppressed</span>
-                                            }
-                                            else
-                                            {
-                                                <input type="checkbox" checked="@relationship.Include" @onchange="args => OnRelationshipIncludeChanged(relationship, args)" disabled="@(!IncludeLookupDisplayColumns)" />
-                                            }
-                                            <strong>@relationship.LocalColumns</strong>
-                                            <span>@QualifiedName(SelectedDatabaseName, relationship.ReferencedSchemaName, relationship.ReferencedTableName)</span>
-                                        </summary>
+                        <section class="bvg-projection-group">
+                            <div class="bvg-group-heading">M-to-1 Lookup Relationships (@FilteredRelationships.Count())</div>
+                            @foreach (var relationship in FilteredRelationships)
+                            {
+                                var joinSuppressed = IsJoinSuppressed(relationship);
+                                var groupExpanded = IsRelationshipGroupExpanded(relationship);
+                                <div class="@ProjectionRelationshipGroupClass(relationship)">
+                                    <div class="bvg-group-header">
+                                        <button type="button" class="bvg-group-toggle" @onclick="() => ToggleRelationshipGroup(relationship)">@(groupExpanded ? "▾" : "▸")</button>
+                                        <span class="@RelationshipStatusClass(relationship)">@RelationshipStatusText(relationship)</span>
+                                        @if (!joinSuppressed)
+                                        {
+                                            <input type="checkbox" checked="@relationship.Include" @onchange="args => OnRelationshipIncludeChanged(relationship, args)" disabled="@(!IncludeLookupDisplayColumns)" />
+                                        }
+                                        else
+                                        {
+                                            <span class="bvg-muted-cell">Suppressed</span>
+                                        }
+                                        <strong>@relationship.LocalColumns</strong>
+                                        <span>@QualifiedName(SelectedDatabaseName, relationship.ReferencedSchemaName, relationship.ReferencedTableName)</span>
+                                    </div>
+                                    @if (groupExpanded)
+                                    {
+                                        <div class="bvg-join-preview">
+                                            <span>Generated Join</span>
+                                            <code>@BuildJoinText(relationship)</code>
+                                        </div>
 
-                                        <div class="bvg-tree-children">
-                                            @if (RelationshipOwnsProjectionColumns(relationship))
-                                            {
+                                        @if (RelationshipOwnsProjectionColumns(relationship))
+                                        {
+                                            <div class="bvg-output-grid bvg-relationship-output-grid">
+                                                <div class="bvg-output-grid-header">Include</div>
+                                                <div class="bvg-output-grid-header">Output Column</div>
+                                                <div class="bvg-output-grid-header">Business Name</div>
+                                                <div class="bvg-output-grid-header">Business Description</div>
+                                                <div class="bvg-output-grid-header">Disable Inheritance</div>
                                                 @foreach (var column in GetRelationshipColumns(relationship))
                                                 {
-                                                    <div class="bvg-tree-row bvg-column-row">
-                                                        <label>
-                                                            <input type="checkbox" checked="@column.Include" @onchange="args => OnColumnIncludeChanged(column, args)" disabled="@relationshipDisabled" />
-                                                            <span>@column.ColumnName</span>
+                                                    <div class="@ProjectionColumnRowClass(column)">
+                                                        <input type="checkbox" checked="@column.Include" @onchange="args => OnColumnIncludeChanged(column, args)" disabled="@(!relationship.Include)" />
+                                                    </div>
+                                                    <div class="@ProjectionColumnRowClass(column)">
+                                                        <span class="bvg-output-expression">@BuildBaseProjectionText(column)</span>
+                                                        <span class="bvg-muted-cell">FK key carried from source table</span>
+                                                    </div>
+                                                    <div class="@ProjectionColumnRowClass(column)">
+                                                        <input value="@column.BusinessName" @oninput="args => OnColumnBusinessNameChanged(column, args)" disabled="@(!relationship.Include)" />
+                                                    </div>
+                                                    <div class="@ProjectionColumnRowClass(column)">
+                                                        <input value="@column.BusinessDescription" @oninput="args => OnColumnBusinessDescriptionChanged(column, args)" disabled="@(!relationship.Include)" />
+                                                    </div>
+                                                    <div class="@ProjectionColumnRowClass(column)">
+                                                        <label class="bvg-system-check">
+                                                            <input type="checkbox" checked disabled />
+                                                            <span>System</span>
                                                         </label>
-                                                        <span>@column.DataType</span>
-                                                        <span>@(column.IsNullable ? "Nullable" : "Required")</span>
-                                                        <span>@ColumnKeyRoleLabel(column)</span>
                                                     </div>
                                                 }
-                                            }
-                                            else
-                                            {
-                                                <div class="bvg-tree-note">No display lookup is available; FK columns remain in Base Columns.</div>
-                                            }
 
-                                            <div class="bvg-tree-row bvg-relationship-row">
-                                                <span>Join</span>
-                                                <select value="@relationship.SelectedJoinType" @onchange="args => OnRelationshipJoinTypeChanged(relationship, args)" disabled="@relationshipDisabled">
-                                                    <option value="INNER JOIN">INNER JOIN</option>
-                                                    <option value="LEFT JOIN">LEFT JOIN</option>
-                                                </select>
-                                                <span>Display</span>
-                                                <div class="bvg-display-cell">
-                                                    <input type="checkbox" checked="@relationship.IncludeDisplayColumn" @onchange="args => OnRelationshipDisplayIncludeChanged(relationship, args)" disabled="@(!IncludeLookupDisplayColumns || joinSuppressed || string.IsNullOrWhiteSpace(relationship.DisplayColumnName))" />
-                                                    <input value="@relationship.DisplayColumnName" @oninput="args => OnRelationshipDisplayColumnChanged(relationship, args)" disabled="@(!IncludeLookupDisplayColumns || joinSuppressed || !relationship.Include || !relationship.IncludeDisplayColumn)" />
+                                                <div class="@ProjectionDisplayRowClass(relationship)">
+                                                    <input type="checkbox" checked="@relationship.IncludeDisplayColumn" @onchange="args => OnRelationshipDisplayIncludeChanged(relationship, args)" disabled="@(!relationship.Include || string.IsNullOrWhiteSpace(relationship.DisplayColumnName))" />
+                                                </div>
+                                                <div class="@ProjectionDisplayRowClass(relationship)">
+                                                    <span class="bvg-output-expression">@BuildDisplayProjectionText(relationship)</span>
+                                                    <span class="bvg-muted-cell">Lookup display column</span>
+                                                </div>
+                                                <div class="@ProjectionDisplayRowClass(relationship)">
+                                                    <input value="@relationship.DisplayBusinessName" @oninput="args => OnRelationshipDisplayBusinessNameChanged(relationship, args)" disabled="@(!relationship.Include || !relationship.IncludeDisplayColumn)" />
+                                                </div>
+                                                <div class="@ProjectionDisplayRowClass(relationship)">
+                                                    <input value="@relationship.DisplayBusinessDescription" @oninput="args => OnRelationshipDisplayBusinessDescriptionChanged(relationship, args)" disabled="@(!relationship.Include || !relationship.IncludeDisplayColumn)" />
+                                                </div>
+                                                <div class="@ProjectionDisplayRowClass(relationship)">
+                                                    <label class="bvg-system-check">
+                                                        <input type="checkbox" checked disabled />
+                                                        <span>System</span>
+                                                    </label>
                                                 </div>
                                             </div>
-                                        </div>
-                                    </details>
-                                }
-                            </div>
-                        </details>
+                                        }
+                                        else
+                                        {
+                                            <div class="bvg-tree-note">No display lookup is available; FK columns remain in the source table output and no join will be generated.</div>
+                                        }
+                                    }
+                                </div>
+                            }
+                        </section>
                     </div>
                 }
             </div>
@@ -308,8 +362,10 @@
     private string ActiveWorkspaceTab = "sql";
     private string ActiveSourceInfoTab = "options";
     private bool HighlightSqlPending;
+    private bool SourceGroupExpanded = true;
     private int SqlRenderVersion;
     private bool SqlDirty;
+    private HashSet<string> CollapsedRelationshipGroups = new(StringComparer.OrdinalIgnoreCase);
 
     private List<DatabaseDefinition> Databases = new();
     private List<TableSchemaColumnInfo> Columns = new();
@@ -405,6 +461,42 @@
     {
         ActiveSourceInfoTab = tabName;
     }
+
+    private void ToggleSourceGroup()
+    {
+        SourceGroupExpanded = !SourceGroupExpanded;
+    }
+
+    private void ToggleRelationshipGroup(TableSchemaRelationshipInfo relationship)
+    {
+        var key = RelationshipGroupKey(relationship);
+        if (!CollapsedRelationshipGroups.Add(key))
+        {
+            CollapsedRelationshipGroups.Remove(key);
+        }
+    }
+
+    private void ExpandAllProjectionGroups()
+    {
+        SourceGroupExpanded = true;
+        CollapsedRelationshipGroups.Clear();
+    }
+
+    private void CollapseAllProjectionGroups()
+    {
+        SourceGroupExpanded = false;
+        CollapsedRelationshipGroups = Relationships
+            .Select(RelationshipGroupKey)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private bool IsRelationshipGroupExpanded(TableSchemaRelationshipInfo relationship) =>
+        !CollapsedRelationshipGroups.Contains(RelationshipGroupKey(relationship));
+
+    private static string RelationshipGroupKey(TableSchemaRelationshipInfo relationship) =>
+        string.IsNullOrWhiteSpace(relationship.ForeignKeyName)
+            ? $"{relationship.ReferencedSchemaName}.{relationship.ReferencedTableName}.{relationship.LocalColumns}"
+            : relationship.ForeignKeyName;
 
     private async Task OnDatabaseChangedAsync(object value)
     {
@@ -611,6 +703,30 @@
     private void OnRelationshipDisplayColumnChanged(TableSchemaRelationshipInfo relationship, ChangeEventArgs args)
     {
         relationship.DisplayColumnName = args.Value?.ToString();
+        MarkSqlDirty();
+    }
+
+    private void OnColumnBusinessNameChanged(TableSchemaColumnInfo column, ChangeEventArgs args)
+    {
+        column.BusinessName = args.Value?.ToString() ?? "";
+        MarkSqlDirty();
+    }
+
+    private void OnColumnBusinessDescriptionChanged(TableSchemaColumnInfo column, ChangeEventArgs args)
+    {
+        column.BusinessDescription = args.Value?.ToString() ?? "";
+        MarkSqlDirty();
+    }
+
+    private void OnRelationshipDisplayBusinessNameChanged(TableSchemaRelationshipInfo relationship, ChangeEventArgs args)
+    {
+        relationship.DisplayBusinessName = args.Value?.ToString() ?? "";
+        MarkSqlDirty();
+    }
+
+    private void OnRelationshipDisplayBusinessDescriptionChanged(TableSchemaRelationshipInfo relationship, ChangeEventArgs args)
+    {
+        relationship.DisplayBusinessDescription = args.Value?.ToString() ?? "";
         MarkSqlDirty();
     }
 
@@ -879,6 +995,46 @@
         HighlightSqlPending = ActiveWorkspaceTab == "sql" && !string.IsNullOrWhiteSpace(GeneratedSql);
     }
 
+    private string ProjectionColumnRowClass(TableSchemaColumnInfo column) =>
+        IsSuppressedRelationshipColumn(column)
+            ? "bvg-output-cell bvg-muted-row"
+            : "bvg-output-cell";
+
+    private string ProjectionDisplayRowClass(TableSchemaRelationshipInfo relationship) =>
+        relationship.Include && relationship.IncludeDisplayColumn
+            ? "bvg-output-cell"
+            : "bvg-output-cell bvg-muted-row";
+
+    private string ProjectionRelationshipGroupClass(TableSchemaRelationshipInfo relationship)
+    {
+        if (IsJoinSuppressed(relationship))
+        {
+            return "bvg-projection-group bvg-muted-row";
+        }
+
+        return relationship.Include
+            ? "bvg-projection-group"
+            : "bvg-projection-group bvg-disabled-group";
+    }
+
+    private string BuildBaseProjectionText(TableSchemaColumnInfo column) =>
+        $"{QuoteIdentifier(BaseAlias)}.{QuoteIdentifier(column.ColumnName)}";
+
+    private string BuildDisplayProjectionText(TableSchemaRelationshipInfo relationship)
+    {
+        if (string.IsNullOrWhiteSpace(relationship.DisplayColumnName))
+        {
+            return "(no display column selected)";
+        }
+
+        return $"{QuoteIdentifier(BuildLookupAlias(relationship))}.{QuoteIdentifier(relationship.DisplayColumnName)} AS {QuoteIdentifier(BuildLookupProjectionAlias(relationship))}";
+    }
+
+    private string BuildJoinText(TableSchemaRelationshipInfo relationship) =>
+        ShouldGenerateJoin(relationship)
+            ? BuildJoinLines(relationship).First()
+            : "(join will not be generated)";
+
     private IEnumerable<string> BuildProjectionLines()
     {
         var first = true;
@@ -888,7 +1044,7 @@
         {
             var prefix = ProjectionPrefix(first);
             var projection = $"{QuoteIdentifier(BaseAlias)}.{QuoteIdentifier(column.ColumnName)}";
-            yield return BuildProjectionLine(prefix, projection, disableInheritance: IsRelationshipColumn(column));
+            yield return BuildProjectionLine(prefix, projection, column.BusinessName, column.BusinessDescription, disableInheritance: IsRelationshipColumn(column));
             first = false;
         }
 
@@ -909,7 +1065,8 @@
 
                 var prefix = ProjectionPrefix(first);
                 var projection = $"{QuoteIdentifier(BaseAlias)}.{QuoteIdentifier(pair.LocalColumnName)}";
-                yield return BuildProjectionLine(prefix, projection, disableInheritance: true);
+                var column = Columns.FirstOrDefault(column => string.Equals(column.ColumnName, pair.LocalColumnName, StringComparison.OrdinalIgnoreCase));
+                yield return BuildProjectionLine(prefix, projection, column?.BusinessName ?? "", column?.BusinessDescription ?? "", disableInheritance: true);
                 first = false;
                 emittedAnyRelationshipColumn = true;
             }
@@ -925,7 +1082,7 @@
             var alias = BuildLookupAlias(relationship);
             var columnAlias = BuildLookupProjectionAlias(relationship);
             var lookupProjection = $"{QuoteIdentifier(alias)}.{QuoteIdentifier(relationship.DisplayColumnName!)} AS {QuoteIdentifier(columnAlias)}";
-            yield return BuildProjectionLine(ProjectionPrefix(first), lookupProjection, disableInheritance: true);
+            yield return BuildProjectionLine(ProjectionPrefix(first), lookupProjection, relationship.DisplayBusinessName, relationship.DisplayBusinessDescription, disableInheritance: true);
             first = false;
         }
     }
@@ -1126,10 +1283,10 @@
             : $"{token}_Source";
     }
 
-    private string BuildProjectionLine(string prefix, string projection, bool disableInheritance = false) =>
-        $"{prefix}{projection}{BuildMetadataPlaceholder(prefix, projection, disableInheritance)}";
+    private string BuildProjectionLine(string prefix, string projection, string businessName = "", string businessDescription = "", bool disableInheritance = false) =>
+        $"{prefix}{projection}{BuildMetadataPlaceholder(prefix, projection, businessName, businessDescription, disableInheritance)}";
 
-    private string BuildMetadataPlaceholder(string prefix, string projection, bool disableInheritance = false)
+    private string BuildMetadataPlaceholder(string prefix, string projection, string businessName = "", string businessDescription = "", bool disableInheritance = false)
     {
         if (!IncludeMetadataPlaceholders)
         {
@@ -1138,8 +1295,8 @@
 
         var parts = new List<string>
         {
-            "@BusinessName: ",
-            "@BusinessDescription: "
+            $"@BusinessName: {businessName}",
+            $"@BusinessDescription: {businessDescription}"
         };
 
         if (disableInheritance)
