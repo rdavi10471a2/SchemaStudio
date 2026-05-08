@@ -5,7 +5,7 @@ using SchemaStudio.Data.Models;
 
 namespace SchemaStudio.Data.Repositories;
 
-[FileVersion("1.0")]
+[FileVersion("1.1")]
 [AIFileContext("SchemaStudio.Data/Repositories/SourceViewRepository.cs", "Reads source SQL view definitions from a selected database so the manage-views workspace can show available import candidates filtered by database-maintained rules.", LastReviewed = "2026-04-23")]
 [AIChange("1.0", "2026-04-23 01:29 PM CDT added source-view discovery queries with optional ViewNameFilter support for the new manage-views workspace.", AICommandStatus.Pending)]
 // 2026-04-23 01:29 PM CDT AI v1.0 source-view-repo marker: available source views can now be queried from the selected database with optional name filtering.
@@ -64,7 +64,8 @@ ORDER BY s.name, v.name;
             return "%";
         }
 
-        return EscapeLike(value.Trim()) + "%";
+        var prefix = value.Trim().TrimEnd('%');
+        return EscapeLike(prefix) + "%";
     }
 
     private static string EscapeLike(string value)
