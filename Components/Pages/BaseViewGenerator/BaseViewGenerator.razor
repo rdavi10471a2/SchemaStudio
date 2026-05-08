@@ -1,4 +1,4 @@
-@page "/base-view-generator"
+h@page "/base-view-generator"
 
 @using Radzen
 @using Radzen.Blazor
@@ -34,8 +34,6 @@
         </div>
         <div class="bvg-header-actions">
             <button type="button" class="bvg-button secondary" @onclick="RefreshMetadataAsync" disabled="@IsBusy">Refresh Metadata</button>
-            <button type="button" class="bvg-button secondary" @onclick="RegenerateSql" disabled="@(!CanRegenerateSql)">Regenerate SQL</button>
-            <button type="button" class="bvg-button primary" @onclick="CopySqlAsync" disabled="@(!CanCopySql)">Copy SQL</button>
         </div>
     </section>
 
@@ -180,6 +178,10 @@
                     <div class="sql-code-container bvg-sql-output" style="--sql-keyword-color: #0000ff; --sql-comment-color: #008000; --sql-string-color: #a31515;">
                         <pre class="language-sql"><code class="language-sql">@GeneratedSql</code></pre>
                     </div>
+                    <footer class="bvg-workspace-actions">
+                        <button type="button" class="bvg-button secondary" @onclick="RegenerateSql" disabled="@(!CanRegenerateSql)">Regenerate SQL</button>
+                        <button type="button" class="bvg-button primary" @onclick="CopySqlAsync" disabled="@(!CanCopySql)">Copy SQL</button>
+                    </footer>
                 }
                 else if (ActiveWorkspaceTab == "columns")
                 {
