@@ -466,28 +466,33 @@
 }
 
 .bvg-output-cell {
+    min-width: 0;
     min-height: 38px;
     padding: 0.32rem 0.55rem;
     border-bottom: 1px solid #edf0f5;
     font-size: 0.82rem;
+    overflow: hidden;
 }
 
 .bvg-output-expression {
     display: block;
+    max-width: 100%;
+    overflow-x: auto;
     font-family: Consolas, "Courier New", monospace;
     color: #0f172a;
     white-space: nowrap;
 }
 
 .bvg-display-picker {
-    display: grid;
-    grid-template-columns: minmax(130px, 180px) minmax(240px, 1fr);
-    gap: 0.45rem;
-    align-items: center;
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 0.22rem;
+    align-items: flex-start;
 }
 
 .bvg-display-picker select {
-    width: 100%;
+    width: min(100%, 220px);
 }
 
 .bvg-metadata-summary {
