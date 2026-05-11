@@ -5,7 +5,7 @@ using SchemaStudio.Data.Models;
 
 namespace SchemaStudio.Data.Repositories;
 
-[FileVersion("1.0")]
+[FileVersion("1.1")]
 [AIFileContext("SchemaStudio.Data/Repositories/DatabaseRepository.cs", "Read/write repository for Schema Studio database metadata records.", Responsibilities = "Loads and maintains dbo.Databases rows for maintenance screens and downstream schema tools.", Nuances = "Applies small additive metadata table upgrades before database reads and writes so UI fields can roll out without a separate migration step.", LastReviewed = "2026-05-11")]
 public sealed class DatabaseRepository
 {
@@ -149,6 +149,175 @@ IF COL_LENGTH('dbo.Databases', 'SQLLookupString') IS NULL
 BEGIN
     ALTER TABLE dbo.Databases
         ADD SQLLookupString nvarchar(500) NULL;
+END;
+""";
+
+        await connection.ExecuteAsync(sql);
+    }
+}
+
+public sealed class DatabaseLookupRelationshipRepository
+{
+    private readonly string _connectionString;
+
+    public DatabaseLookupRelationshipRepository(string connectionString)
+    {
+        _connectionString = connectionString;
+    }
+
+    public async Task<IReadOnlyList<DatabaseLookupRelationshipDefinition>> GetBySourceAsync(int databaseId, string sourceSchemaName, string sourceTableName)
+    {
+        await using var connection = new SqlConnection(_connectionString);
+        await EnsureLookupRelationshipColumnsAsync(connection);
+
+        const string sql = """
+SELECT
+    DatabaseLookupRelationshipId,
+    DatabaseId,
+    SourceSchemaName,
+    SourceTableName,
+    SourceColumnName,
+    LookupSchemaName,
+    LookupTableName,
+    LookupKeyColumnName,
+    LookupDisplayColumnName,
+    LookupFilterColumnName,
+    LookupFilterValue,
+    LookupValues,
+    JoinType,
+    RelationshipName,
+    DeveloperNotes,
+    Active
+FROM dbo.DatabaseLookupRelationships
+WHERE DatabaseId = @databaseId
+    AND SourceSchemaName = @sourceSchemaName
+    AND SourceTableName = @sourceTableName
+ORDER BY SourceColumnName, LookupSchemaName, LookupTableName, LookupFilterValue;
+""";
+
+        var rows = await connection.QueryAsync<DatabaseLookupRelationshipDefinition>(
+            sql,
+            new { databaseId, sourceSchemaName, sourceTableName });
+        return rows.ToList();
+    }
+
+    public async Task<int> CreateIfMissingAsync(DatabaseLookupRelationshipDefinition relationship)
+    {
+        Normalize(relationship);
+
+        await using var connection = new SqlConnection(_connectionString);
+        await EnsureLookupRelationshipColumnsAsync(connection);
+
+        const string sql = """
+DECLARE @ExistingId int;
+
+SELECT TOP (1)
+    @ExistingId = DatabaseLookupRelationshipId
+FROM dbo.DatabaseLookupRelationships
+WHERE DatabaseId = @DatabaseId
+    AND SourceSchemaName = @SourceSchemaName
+    AND SourceTableName = @SourceTableName
+    AND SourceColumnName = @SourceColumnName
+    AND LookupSchemaName = @LookupSchemaName
+    AND LookupTableName = @LookupTableName
+    AND LookupKeyColumnName = @LookupKeyColumnName
+    AND ISNULL(LookupFilterColumnName, N'') = ISNULL(@LookupFilterColumnName, N'')
+    AND ISNULL(LookupFilterValue, N'') = ISNULL(@LookupFilterValue, N'');
+
+IF @ExistingId IS NOT NULL
+BEGIN
+    SELECT @ExistingId;
+    RETURN;
+END;
+
+INSERT INTO dbo.DatabaseLookupRelationships
+(
+    DatabaseId,
+    SourceSchemaName,
+    SourceTableName,
+    SourceColumnName,
+    LookupSchemaName,
+    LookupTableName,
+    LookupKeyColumnName,
+    LookupDisplayColumnName,
+    LookupFilterColumnName,
+    LookupFilterValue,
+    LookupValues,
+    JoinType,
+    RelationshipName,
+    DeveloperNotes,
+    Active
+)
+OUTPUT INSERTED.DatabaseLookupRelationshipId
+VALUES
+(
+    @DatabaseId,
+    @SourceSchemaName,
+    @SourceTableName,
+    @SourceColumnName,
+    @LookupSchemaName,
+    @LookupTableName,
+    @LookupKeyColumnName,
+    @LookupDisplayColumnName,
+    @LookupFilterColumnName,
+    @LookupFilterValue,
+    @LookupValues,
+    @JoinType,
+    @RelationshipName,
+    @DeveloperNotes,
+    @Active
+);
+""";
+
+        var id = await connection.ExecuteScalarAsync<int>(sql, relationship);
+        relationship.DatabaseLookupRelationshipId = id;
+        return id;
+    }
+
+    private static void Normalize(DatabaseLookupRelationshipDefinition relationship)
+    {
+        relationship.SourceSchemaName = NormalizeRequired(relationship.SourceSchemaName, "Source schema");
+        relationship.SourceTableName = NormalizeRequired(relationship.SourceTableName, "Source table");
+        relationship.SourceColumnName = NormalizeRequired(relationship.SourceColumnName, "Source column");
+        relationship.LookupSchemaName = NormalizeRequired(relationship.LookupSchemaName, "Lookup schema");
+        relationship.LookupTableName = NormalizeRequired(relationship.LookupTableName, "Lookup table");
+        relationship.LookupKeyColumnName = NormalizeRequired(relationship.LookupKeyColumnName, "Lookup key column");
+        relationship.LookupDisplayColumnName = NormalizeOptional(relationship.LookupDisplayColumnName);
+        relationship.LookupFilterColumnName = NormalizeOptional(relationship.LookupFilterColumnName);
+        relationship.LookupFilterValue = NormalizeOptional(relationship.LookupFilterValue);
+        relationship.LookupValues = NormalizeOptional(relationship.LookupValues);
+        relationship.RelationshipName = NormalizeOptional(relationship.RelationshipName);
+        relationship.DeveloperNotes = NormalizeOptional(relationship.DeveloperNotes);
+        relationship.JoinType = string.Equals(relationship.JoinType?.Trim(), "INNER JOIN", StringComparison.OrdinalIgnoreCase)
+            ? "INNER JOIN"
+            : "LEFT JOIN";
+    }
+
+    private static string NormalizeRequired(string? value, string label)
+    {
+        var trimmed = value?.Trim();
+        if (string.IsNullOrWhiteSpace(trimmed))
+        {
+            throw new InvalidOperationException($"{label} is required.");
+        }
+
+        return trimmed;
+    }
+
+    private static string? NormalizeOptional(string? value)
+    {
+        var trimmed = value?.Trim();
+        return string.IsNullOrWhiteSpace(trimmed) ? null : trimmed;
+    }
+
+    private static async Task EnsureLookupRelationshipColumnsAsync(SqlConnection connection)
+    {
+        const string sql = """
+IF OBJECT_ID('dbo.DatabaseLookupRelationships', 'U') IS NOT NULL
+    AND COL_LENGTH('dbo.DatabaseLookupRelationships', 'LookupValues') IS NULL
+BEGIN
+    ALTER TABLE dbo.DatabaseLookupRelationships
+        ADD LookupValues nvarchar(1500) NULL;
 END;
 """;
 

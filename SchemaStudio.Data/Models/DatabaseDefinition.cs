@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace SchemaStudio.Data.Models;
 
-[FileVersion("1.1")]
+[FileVersion("1.2")]
 [AIFileContext("SchemaStudio.Data/Models/DatabaseDefinition.cs", "Defines the editable database metadata model used by the web data layer and maintenance forms.", LastReviewed = "2026-04-23")]
 [AIChange("1.0", "2026-04-23 12:56 PM CDT added ViewNameFilter metadata so databases can define a view-name include pattern for integration view selection.", AICommandStatus.Pending)]
 // 2026-04-23 12:56 PM CDT AI v1.0 database-filter marker: database metadata now includes a view-name filter value for integration view list trimming.
@@ -53,5 +53,77 @@ public sealed class DatabaseDefinition
     public string? SQLLookupString { get; set; }
 
     [Display(Name = "Active", Order = 70)]
+    public bool Active { get; set; } = true;
+}
+
+public sealed class DatabaseLookupRelationshipDefinition
+{
+    [Display(AutoGenerateField = false)]
+    public int DatabaseLookupRelationshipId { get; set; }
+
+    [Display(AutoGenerateField = false)]
+    public int DatabaseId { get; set; }
+
+    [Required]
+    [StringLength(128)]
+    [Display(Name = "Source Schema", Order = 10)]
+    public string SourceSchemaName { get; set; } = "dbo";
+
+    [Required]
+    [StringLength(128)]
+    [Display(Name = "Source Table", Order = 20)]
+    public string SourceTableName { get; set; } = "";
+
+    [Required]
+    [StringLength(128)]
+    [Display(Name = "Source Column", Order = 30)]
+    public string SourceColumnName { get; set; } = "";
+
+    [Required]
+    [StringLength(128)]
+    [Display(Name = "Lookup Schema", Order = 40)]
+    public string LookupSchemaName { get; set; } = "dbo";
+
+    [Required]
+    [StringLength(128)]
+    [Display(Name = "Lookup Table", Order = 50)]
+    public string LookupTableName { get; set; } = "";
+
+    [Required]
+    [StringLength(128)]
+    [Display(Name = "Lookup Key Column", Order = 60)]
+    public string LookupKeyColumnName { get; set; } = "";
+
+    [StringLength(128)]
+    [Display(Name = "Lookup Display Column", Order = 70)]
+    public string? LookupDisplayColumnName { get; set; }
+
+    [StringLength(128)]
+    [Display(Name = "Lookup Filter Column", Order = 80)]
+    public string? LookupFilterColumnName { get; set; }
+
+    [StringLength(128)]
+    [Display(Name = "Lookup Filter Value", Order = 90)]
+    public string? LookupFilterValue { get; set; }
+
+    [StringLength(1500)]
+    [Display(Name = "Lookup Values", Order = 95)]
+    [Description("Optional newline-delimited legal lookup values in [Lookup Column] = value format.")]
+    public string? LookupValues { get; set; }
+
+    [Required]
+    [StringLength(32)]
+    [Display(Name = "Join Type", Order = 100)]
+    public string JoinType { get; set; } = "LEFT JOIN";
+
+    [StringLength(128)]
+    [Display(Name = "Relationship Name", Order = 110)]
+    public string? RelationshipName { get; set; }
+
+    [StringLength(1000)]
+    [Display(Name = "Developer Notes", Order = 120)]
+    public string? DeveloperNotes { get; set; }
+
+    [Display(Name = "Active", Order = 130)]
     public bool Active { get; set; } = true;
 }

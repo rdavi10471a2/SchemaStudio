@@ -5,7 +5,7 @@ using System.ComponentModel;
 
 namespace SchemaStudioWebViewer.Data;
 
-[FileVersion("1.7")]
+[FileVersion("1.8")]
 [AIFileContext("Repositories/TableSchemaSmoRepository.cs", "Reads SQL Server table metadata for the Base View Generator page.", Responsibilities = "Provides schema, table, column, and many-to-one foreign-key metadata from a selected source database without changing the configured connection string.", Nuances = "The class name is retained from the first SMO implementation, but the metadata reads use targeted sys catalog queries because SMO object hydration was too slow for interactive use.", LastReviewed = "2026-05-07")]
 public sealed class TableSchemaSmoRepository
 {
@@ -148,6 +148,55 @@ ORDER BY t.name;
             .ToList();
 
         return new TableSchemaDetails(databaseName, schemaName, tableName, columns, relationships, childRelationships);
+    }
+
+    public async Task<string?> GetLookupValuesTextAsync(
+        string databaseName,
+        string lookupSchemaName,
+        string lookupTableName,
+        string lookupColumnName,
+        string? lookupFilterColumnName,
+        string? lookupFilterValue,
+        int maxRows = 500)
+    {
+        ValidateDatabaseName(databaseName);
+        ValidateIdentifier(lookupSchemaName, nameof(lookupSchemaName));
+        ValidateIdentifier(lookupTableName, nameof(lookupTableName));
+        ValidateIdentifier(lookupColumnName, nameof(lookupColumnName));
+
+        if (!string.IsNullOrWhiteSpace(lookupFilterColumnName))
+        {
+            ValidateIdentifier(lookupFilterColumnName, nameof(lookupFilterColumnName));
+        }
+
+        var database = QuoteSqlIdentifier(databaseName);
+        var schema = QuoteSqlIdentifier(lookupSchemaName);
+        var table = QuoteSqlIdentifier(lookupTableName);
+        var lookupColumn = QuoteSqlIdentifier(lookupColumnName);
+        var topCount = Math.Clamp(maxRows, 1, 5000);
+
+        await using var connection = new SqlConnection(connectionString);
+        await EnsureDatabaseExistsAsync(connection, databaseName);
+
+        var whereClause = string.IsNullOrWhiteSpace(lookupFilterColumnName)
+            ? ""
+            : $"WHERE {QuoteSqlIdentifier(lookupFilterColumnName)} = @lookupFilterValue";
+        var sql = $"""
+SELECT DISTINCT TOP ({topCount})
+    CONVERT(nvarchar(4000), {lookupColumn}) AS LookupValue
+FROM {database}.{schema}.{table}
+{whereClause}
+ORDER BY CONVERT(nvarchar(4000), {lookupColumn});
+""";
+
+        var values = (await connection.QueryAsync<string>(sql, new { lookupFilterValue }))
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => $"[{lookupColumnName}] = {value.Trim()}")
+            .ToList();
+
+        return values.Count == 0
+            ? null
+            : string.Join(Environment.NewLine, values);
     }
 
     private static async Task EnsureDatabaseExistsAsync(SqlConnection connection, string databaseName)
@@ -461,6 +510,19 @@ WHERE s.name = @schemaName
         if (string.IsNullOrWhiteSpace(databaseName))
         {
             throw new ArgumentException("Database name is required.", nameof(databaseName));
+        }
+    }
+
+    private static void ValidateIdentifier(string identifier, string parameterName)
+    {
+        if (string.IsNullOrWhiteSpace(identifier))
+        {
+            throw new ArgumentException("Identifier is required.", parameterName);
+        }
+
+        if (identifier.Contains(']') || identifier.Contains('.') || identifier.Contains(';'))
+        {
+            throw new ArgumentException("Identifier contains unsupported characters.", parameterName);
         }
     }
 
