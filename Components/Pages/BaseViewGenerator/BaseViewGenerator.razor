@@ -18,7 +18,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.62")]
+@attribute [FileVersion("1.63")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -281,6 +281,8 @@
                                             <div class="@ProjectionDisplayRowClass(relationship)">
                                                 <div class="bvg-display-picker">
                                                     <select value="@(relationship.DisplayColumnName ?? string.Empty)"
+                                                            @onfocus="() => EnsureLookupDisplayColumnOptionsAsync(relationship)"
+                                                            @onclick="() => EnsureLookupDisplayColumnOptionsAsync(relationship)"
                                                             @onchange="args => OnLookupRelationshipDisplayColumnChanged(relationship, args)">
                                                         <option value="">(none selected)</option>
                                                         @foreach (var columnName in GetLookupDisplayColumnOptions(relationship))
@@ -635,7 +637,6 @@
             ChildRelationships = details.ChildRelationships.ToList();
             await LoadSavedLookupRelationshipsAsync(selectedDatabase);
             ApplySavedLookupRelationships();
-            await LoadLookupDisplayColumnOptionsAsync();
             ApplyRelationshipFilters();
             RegenerateSql();
             StatusMessage = BuildLoadedStatusMessage();
@@ -725,33 +726,30 @@
         LookupDisplayColumnOptions.Clear();
     }
 
-    private async Task LoadLookupDisplayColumnOptionsAsync()
+    private async Task EnsureLookupDisplayColumnOptionsAsync(TableSchemaRelationshipInfo relationship)
     {
-        foreach (var relationship in LookupRelationshipCandidates)
+        var targetKey = BuildLookupTargetKey(relationship);
+        if (LookupDisplayColumnOptions.ContainsKey(targetKey))
         {
-            var targetKey = BuildLookupTargetKey(relationship);
-            if (LookupDisplayColumnOptions.ContainsKey(targetKey))
-            {
-                continue;
-            }
+            return;
+        }
 
-            try
-            {
-                var lookupDetails = await TableSchemaRepository.GetTableDetailsAsync(
-                    SelectedDatabaseName,
-                    relationship.ReferencedSchemaName,
-                    relationship.ReferencedTableName,
-                    null);
+        try
+        {
+            var lookupDetails = await TableSchemaRepository.GetTableDetailsAsync(
+                SelectedDatabaseName,
+                relationship.ReferencedSchemaName,
+                relationship.ReferencedTableName,
+                null);
 
-                LookupDisplayColumnOptions[targetKey] = lookupDetails.Columns
-                    .Select(column => column.ColumnName)
-                    .OrderBy(columnName => columnName, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-            }
-            catch
-            {
-                LookupDisplayColumnOptions[targetKey] = Array.Empty<string>();
-            }
+            LookupDisplayColumnOptions[targetKey] = lookupDetails.Columns
+                .Select(column => column.ColumnName)
+                .OrderBy(columnName => columnName, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+        catch
+        {
+            LookupDisplayColumnOptions[targetKey] = Array.Empty<string>();
         }
     }
 
