@@ -479,6 +479,17 @@
     white-space: nowrap;
 }
 
+.bvg-display-picker {
+    display: grid;
+    grid-template-columns: minmax(130px, 180px) minmax(240px, 1fr);
+    gap: 0.45rem;
+    align-items: center;
+}
+
+.bvg-display-picker select {
+    width: 100%;
+}
+
 .bvg-metadata-summary {
     display: inline-flex;
     flex-direction: column;
