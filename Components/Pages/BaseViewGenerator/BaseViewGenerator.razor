@@ -18,7 +18,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.60")]
+@attribute [FileVersion("1.61")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -198,7 +198,7 @@
                     <div class="bvg-projection-toolbar">
                         <button type="button" class="bvg-button secondary" @onclick="ExpandAllProjectionGroups">Expand All</button>
                         <button type="button" class="bvg-button secondary" @onclick="CollapseAllProjectionGroups">Collapse All</button>
-                        <button type="button" class="bvg-button secondary" @onclick="OpenLookupRelationshipDialog" disabled="@(AllRelationships.Count == 0)">Review Lookups (@UnsavedLookupRelationshipCount)</button>
+                        <button type="button" class="bvg-button secondary" @onclick="OpenLookupRelationshipDialogAsync" disabled="@(AllRelationships.Count == 0)">Review Lookups (@LookupRelationshipActionCount)</button>
                     </div>
                     <div class="bvg-projection-tree">
                         <section class="bvg-projection-group bvg-source-group">
@@ -363,7 +363,7 @@
                 else
                 {
                     <div class="bvg-note">
-                        Review lookup relationships for @QualifiedName(SelectedDatabaseName, SelectedSchemaName, SelectedTableName). Unsaved rows can be registered for future generator loads.
+                        Review lookup relationships for @QualifiedName(SelectedDatabaseName, SelectedSchemaName, SelectedTableName). FK metadata stays in the source database; save only missing lookup relationships or user display-column overrides.
                     </div>
                     <div class="bvg-table-wrap">
                         <table>
@@ -372,7 +372,7 @@
                                     <th>Save</th>
                                     <th>Source Column</th>
                                     <th>Lookup</th>
-                                    <th>Display</th>
+                                    <th>Display Override</th>
                                     <th>Filter</th>
                                     <th>Status</th>
                                 </tr>
@@ -383,18 +383,28 @@
                                     var key = BuildRelationshipRegistryKey(relationship);
                                     var saved = SavedLookupRelationshipKeys.Contains(key);
                                     var canSave = CanSaveLookupRelationship(relationship);
-                                    <tr class="@(saved ? "bvg-muted-row" : "")">
+                                    var shouldSave = ShouldSaveLookupRelationship(relationship);
+                                    <tr class="@(saved && !shouldSave ? "bvg-muted-row" : "")">
                                         <td>
                                             <input type="checkbox"
                                                    checked="@SelectedLookupRelationshipKeys.Contains(key)"
                                                    @onchange="args => OnLookupRelationshipSelectedChanged(key, args)"
-                                                   disabled="@(saved || !canSave)" />
+                                                   disabled="@(!canSave)" />
                                         </td>
                                         <td>@relationship.LocalColumns</td>
                                         <td>@BuildLookupTargetText(relationship)</td>
-                                        <td>@(string.IsNullOrWhiteSpace(relationship.DisplayColumnName) ? "(none selected)" : relationship.DisplayColumnName)</td>
+                                        <td>
+                                            <select value="@(relationship.DisplayColumnName ?? string.Empty)"
+                                                    @onchange="args => OnLookupRelationshipDisplayColumnChanged(relationship, args)">
+                                                <option value="">(none selected)</option>
+                                                @foreach (var columnName in GetLookupDisplayColumnOptions(relationship))
+                                                {
+                                                    <option value="@columnName">@columnName</option>
+                                                }
+                                            </select>
+                                        </td>
                                         <td>@BuildLookupFilterText(relationship)</td>
-                                        <td>@LookupRelationshipStatusText(relationship, saved, canSave)</td>
+                                        <td>@LookupRelationshipStatusText(relationship, saved, canSave, shouldSave)</td>
                                     </tr>
                                 }
                             </tbody>
@@ -459,6 +469,8 @@
     private List<DatabaseLookupRelationshipDefinition> SavedLookupRelationships = new();
     private HashSet<string> SavedLookupRelationshipKeys = new(StringComparer.OrdinalIgnoreCase);
     private HashSet<string> SelectedLookupRelationshipKeys = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, string> BootstrapLookupDisplayColumns = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, IReadOnlyList<string>> LookupDisplayColumnOptions = new(StringComparer.OrdinalIgnoreCase);
 
     private bool CanRegenerateSql =>
         !IsBusy &&
@@ -511,8 +523,8 @@
             .ThenBy(relationship => relationship.ReferencedTableName, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-    private int UnsavedLookupRelationshipCount =>
-        LookupRelationshipCandidates.Count(relationship => !SavedLookupRelationshipKeys.Contains(BuildRelationshipRegistryKey(relationship)));
+    private int LookupRelationshipActionCount =>
+        LookupRelationshipCandidates.Count(ShouldSaveLookupRelationship);
 
     private string TabClass(string tabName) =>
         ActiveWorkspaceTab == tabName
@@ -607,6 +619,7 @@
         SelectedTableName = "";
         Columns.Clear();
         AllRelationships.Clear();
+        BootstrapLookupDisplayColumns.Clear();
         Relationships.Clear();
         ChildRelationships.Clear();
         ClearLookupRelationshipState();
@@ -631,6 +644,7 @@
         SelectedTableName = "";
         Columns.Clear();
         AllRelationships.Clear();
+        BootstrapLookupDisplayColumns.Clear();
         Relationships.Clear();
         ChildRelationships.Clear();
         ClearLookupRelationshipState();
@@ -648,6 +662,7 @@
         BaseAlias = SelectedTableName;
         Columns.Clear();
         AllRelationships.Clear();
+        BootstrapLookupDisplayColumns.Clear();
         Relationships.Clear();
         ChildRelationships.Clear();
         ClearLookupRelationshipState();
@@ -697,6 +712,9 @@
                 selectedDatabase?.SQLLookupString);
             Columns = details.Columns.ToList();
             AllRelationships = details.Relationships.ToList();
+            BootstrapLookupDisplayColumns = AllRelationships
+                .Where(CanReviewLookupRelationship)
+                .ToDictionary(BuildRelationshipRegistryKey, relationship => relationship.DisplayColumnName ?? string.Empty, StringComparer.OrdinalIgnoreCase);
             ChildRelationships = details.ChildRelationships.ToList();
             await LoadSavedLookupRelationshipsAsync(selectedDatabase);
             ApplySavedLookupRelationships();
@@ -786,16 +804,48 @@
         SavedLookupRelationships.Clear();
         SavedLookupRelationshipKeys.Clear();
         SelectedLookupRelationshipKeys.Clear();
+        LookupDisplayColumnOptions.Clear();
         LookupRelationshipDialogOpen = false;
     }
 
-    private void OpenLookupRelationshipDialog()
+    private async Task OpenLookupRelationshipDialogAsync()
     {
+        await LoadLookupDisplayColumnOptionsAsync();
         SelectedLookupRelationshipKeys = LookupRelationshipCandidates
-            .Where(relationship => CanSaveLookupRelationship(relationship) && !SavedLookupRelationshipKeys.Contains(BuildRelationshipRegistryKey(relationship)))
+            .Where(relationship => CanSaveLookupRelationship(relationship) && ShouldSaveLookupRelationship(relationship))
             .Select(BuildRelationshipRegistryKey)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         LookupRelationshipDialogOpen = true;
+    }
+
+    private async Task LoadLookupDisplayColumnOptionsAsync()
+    {
+        foreach (var relationship in LookupRelationshipCandidates)
+        {
+            var targetKey = BuildLookupTargetKey(relationship);
+            if (LookupDisplayColumnOptions.ContainsKey(targetKey))
+            {
+                continue;
+            }
+
+            try
+            {
+                var lookupDetails = await TableSchemaRepository.GetTableDetailsAsync(
+                    SelectedDatabaseName,
+                    relationship.ReferencedSchemaName,
+                    relationship.ReferencedTableName,
+                    null);
+
+                LookupDisplayColumnOptions[targetKey] = lookupDetails.Columns
+                    .Select(column => column.ColumnName)
+                    .OrderBy(columnName => columnName, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+            catch
+            {
+                LookupDisplayColumnOptions[targetKey] = Array.Empty<string>();
+            }
+        }
     }
 
     private void CloseLookupRelationshipDialog()
@@ -815,6 +865,24 @@
         }
     }
 
+    private void OnLookupRelationshipDisplayColumnChanged(TableSchemaRelationshipInfo relationship, ChangeEventArgs args)
+    {
+        relationship.DisplayColumnName = NormalizeOptionalString(args.Value?.ToString());
+        relationship.IncludeDisplayColumn = !string.IsNullOrWhiteSpace(relationship.DisplayColumnName);
+
+        var key = BuildRelationshipRegistryKey(relationship);
+        if (CanSaveLookupRelationship(relationship) && ShouldSaveLookupRelationship(relationship))
+        {
+            SelectedLookupRelationshipKeys.Add(key);
+        }
+        else
+        {
+            SelectedLookupRelationshipKeys.Remove(key);
+        }
+
+        ApplyRelationshipFiltersAndMarkDirty();
+    }
+
     private async Task SaveSelectedLookupRelationshipsAsync()
     {
         var selectedDatabase = Databases.FirstOrDefault(database => string.Equals(database.DatabaseName, SelectedDatabaseName, StringComparison.OrdinalIgnoreCase));
@@ -827,12 +895,13 @@
         var relationshipsToSave = LookupRelationshipCandidates
             .Where(relationship => SelectedLookupRelationshipKeys.Contains(BuildRelationshipRegistryKey(relationship)))
             .Where(CanSaveLookupRelationship)
+            .Where(ShouldSaveLookupRelationship)
             .ToList();
 
         var savedCount = 0;
         foreach (var relationship in relationshipsToSave)
         {
-            await LookupRelationshipRepository.CreateIfMissingAsync(await BuildLookupRelationshipDefinitionAsync(selectedDatabase.DatabaseId, relationship));
+            await LookupRelationshipRepository.UpsertAsync(await BuildLookupRelationshipDefinitionAsync(selectedDatabase.DatabaseId, relationship));
             savedCount++;
         }
 
@@ -1615,6 +1684,54 @@
         !string.IsNullOrWhiteSpace(relationship.ReferencedSchemaName) &&
         !string.IsNullOrWhiteSpace(relationship.ReferencedTableName);
 
+    private bool ShouldSaveLookupRelationship(TableSchemaRelationshipInfo relationship)
+    {
+        if (!CanSaveLookupRelationship(relationship))
+        {
+            return false;
+        }
+
+        return IsTemplateDiscoveredLookupRelationship(relationship) ||
+            IsRegisteredLookupRelationship(relationship) ||
+            HasDisplayColumnOverride(relationship);
+    }
+
+    private bool IsRegisteredLookupRelationship(TableSchemaRelationshipInfo relationship) =>
+        SavedLookupRelationshipKeys.Contains(BuildRelationshipRegistryKey(relationship));
+
+    private static bool IsTemplateDiscoveredLookupRelationship(TableSchemaRelationshipInfo relationship) =>
+        !string.IsNullOrWhiteSpace(relationship.LookupFilterColumnName) ||
+        relationship.ForeignKeyName.StartsWith("LOOKUP_", StringComparison.OrdinalIgnoreCase);
+
+    private bool HasDisplayColumnOverride(TableSchemaRelationshipInfo relationship)
+    {
+        var key = BuildRelationshipRegistryKey(relationship);
+        BootstrapLookupDisplayColumns.TryGetValue(key, out var bootstrapDisplayColumn);
+        return !string.Equals(
+            bootstrapDisplayColumn ?? string.Empty,
+            relationship.DisplayColumnName ?? string.Empty,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    private IReadOnlyList<string> GetLookupDisplayColumnOptions(TableSchemaRelationshipInfo relationship)
+    {
+        var targetKey = BuildLookupTargetKey(relationship);
+        var columnNames = LookupDisplayColumnOptions.TryGetValue(targetKey, out var loadedColumnNames)
+            ? loadedColumnNames
+            : Array.Empty<string>();
+
+        if (string.IsNullOrWhiteSpace(relationship.DisplayColumnName) ||
+            columnNames.Contains(relationship.DisplayColumnName, StringComparer.OrdinalIgnoreCase))
+        {
+            return columnNames;
+        }
+
+        return columnNames
+            .Append(relationship.DisplayColumnName)
+            .OrderBy(columnName => columnName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
     private async Task<DatabaseLookupRelationshipDefinition> BuildLookupRelationshipDefinitionAsync(int databaseId, TableSchemaRelationshipInfo relationship)
     {
         var column = relationship.Columns[0];
@@ -1712,19 +1829,22 @@
     private static string BuildLookupTargetText(TableSchemaRelationshipInfo relationship) =>
         $"{QualifiedName(relationship.ReferencedSchemaName, relationship.ReferencedTableName)}.{relationship.ReferencedColumns}";
 
-    private static string LookupRelationshipStatusText(TableSchemaRelationshipInfo relationship, bool saved, bool canSave)
-    {
-        if (saved)
-        {
-            return "Saved";
-        }
+    private static string BuildLookupTargetKey(TableSchemaRelationshipInfo relationship) =>
+        $"{relationship.ReferencedSchemaName.Trim()}|{relationship.ReferencedTableName.Trim()}";
 
+    private static string LookupRelationshipStatusText(TableSchemaRelationshipInfo relationship, bool saved, bool canSave, bool shouldSave)
+    {
         if (!canSave)
         {
             return "Composite or incomplete";
         }
 
-        return "Unsaved";
+        if (!shouldSave)
+        {
+            return saved ? "Saved metadata default" : "FK metadata default";
+        }
+
+        return saved ? "Update override" : "Save override";
     }
 
     private string BuildSourceCteName()
@@ -1905,6 +2025,12 @@
             string textValue => bool.TryParse(textValue, out var parsed) && parsed,
             _ => false
         };
+
+    private static string? NormalizeOptionalString(string? value)
+    {
+        var trimmed = value?.Trim();
+        return string.IsNullOrWhiteSpace(trimmed) ? null : trimmed;
+    }
 
     private void NotifyError(string summary)
     {

@@ -5,7 +5,7 @@ using SchemaStudio.Data.Models;
 
 namespace SchemaStudio.Data.Repositories;
 
-[FileVersion("1.2")]
+[FileVersion("1.3")]
 [AIFileContext("SchemaStudio.Data/Repositories/DatabaseRepository.cs", "Read/write repository for Schema Studio database metadata records.", Responsibilities = "Loads and maintains dbo.Databases rows for maintenance screens and downstream schema tools.", Nuances = "Applies small additive metadata table upgrades before database reads and writes so UI fields can roll out without a separate migration step.", LastReviewed = "2026-05-11")]
 public sealed class DatabaseRepository
 {
@@ -226,6 +226,88 @@ WHERE DatabaseId = @DatabaseId
 
 IF @ExistingId IS NOT NULL
 BEGIN
+    SELECT @ExistingId;
+    RETURN;
+END;
+
+INSERT INTO dbo.DatabaseLookupRelationships
+(
+    DatabaseId,
+    SourceSchemaName,
+    SourceTableName,
+    SourceColumnName,
+    LookupSchemaName,
+    LookupTableName,
+    LookupKeyColumnName,
+    LookupDisplayColumnName,
+    LookupFilterColumnName,
+    LookupFilterValue,
+    LookupValues,
+    JoinType,
+    RelationshipRole,
+    RelationshipName,
+    Active
+)
+OUTPUT INSERTED.DatabaseLookupRelationshipId
+VALUES
+(
+    @DatabaseId,
+    @SourceSchemaName,
+    @SourceTableName,
+    @SourceColumnName,
+    @LookupSchemaName,
+    @LookupTableName,
+    @LookupKeyColumnName,
+    @LookupDisplayColumnName,
+    @LookupFilterColumnName,
+    @LookupFilterValue,
+    @LookupValues,
+    @JoinType,
+    @RelationshipRole,
+    @RelationshipName,
+    @Active
+);
+""";
+
+        var id = await connection.ExecuteScalarAsync<int>(sql, relationship);
+        relationship.DatabaseLookupRelationshipId = id;
+        return id;
+    }
+
+    public async Task<int> UpsertAsync(DatabaseLookupRelationshipDefinition relationship)
+    {
+        Normalize(relationship);
+
+        await using var connection = new SqlConnection(_connectionString);
+        await EnsureLookupRelationshipColumnsAsync(connection);
+
+        const string sql = """
+DECLARE @ExistingId int;
+
+SELECT TOP (1)
+    @ExistingId = DatabaseLookupRelationshipId
+FROM dbo.DatabaseLookupRelationships
+WHERE DatabaseId = @DatabaseId
+    AND SourceSchemaName = @SourceSchemaName
+    AND SourceTableName = @SourceTableName
+    AND SourceColumnName = @SourceColumnName
+    AND LookupSchemaName = @LookupSchemaName
+    AND LookupTableName = @LookupTableName
+    AND LookupKeyColumnName = @LookupKeyColumnName
+    AND ISNULL(LookupFilterColumnName, N'') = ISNULL(@LookupFilterColumnName, N'')
+    AND ISNULL(LookupFilterValue, N'') = ISNULL(@LookupFilterValue, N'');
+
+IF @ExistingId IS NOT NULL
+BEGIN
+    UPDATE dbo.DatabaseLookupRelationships
+    SET LookupDisplayColumnName = @LookupDisplayColumnName,
+        LookupValues = @LookupValues,
+        JoinType = @JoinType,
+        RelationshipRole = @RelationshipRole,
+        RelationshipName = @RelationshipName,
+        Active = @Active
+    WHERE DatabaseLookupRelationshipId = @ExistingId;
+
     SELECT @ExistingId;
     RETURN;
 END;
