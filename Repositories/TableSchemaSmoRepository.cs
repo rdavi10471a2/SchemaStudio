@@ -5,7 +5,7 @@ using System.ComponentModel;
 
 namespace SchemaStudioWebViewer.Data;
 
-[FileVersion("1.6")]
+[FileVersion("1.7")]
 [AIFileContext("Repositories/TableSchemaSmoRepository.cs", "Reads SQL Server table metadata for the Base View Generator page.", Responsibilities = "Provides schema, table, column, and many-to-one foreign-key metadata from a selected source database without changing the configured connection string.", Nuances = "The class name is retained from the first SMO implementation, but the metadata reads use targeted sys catalog queries because SMO object hydration was too slow for interactive use.", LastReviewed = "2026-05-07")]
 public sealed class TableSchemaSmoRepository
 {
@@ -62,7 +62,7 @@ ORDER BY t.name;
         return tables.ToList();
     }
 
-    public async Task<TableSchemaDetails> GetTableDetailsAsync(string databaseName, string schemaName, string tableName)
+    public async Task<TableSchemaDetails> GetTableDetailsAsync(string databaseName, string schemaName, string tableName, string? lookupDiscoverySqlTemplate = null)
     {
         ValidateDatabaseName(databaseName);
         var database = QuoteSqlIdentifier(databaseName);
@@ -118,6 +118,16 @@ ORDER BY t.name;
                 isRequired ? "INNER JOIN" : "LEFT JOIN",
                 pairs));
         }
+
+        relationships.AddRange(await GetTemplateLookupRelationshipsAsync(
+            connection,
+            database,
+            databaseName,
+            schemaName,
+            tableName,
+            columnByName,
+            relationships,
+            lookupDiscoverySqlTemplate));
 
         var childRelationshipRows = (await connection.QueryAsync<TableSchemaChildRelationshipRow>(BuildChildRelationshipsSql(database), new { tableObjectId })).ToList();
         var childRelationships = childRelationshipRows
@@ -317,6 +327,135 @@ ORDER BY ps.name, pt.name, fk.name, fkc.constraint_column_id;
 """;
     }
 
+    private async Task<IReadOnlyList<TableSchemaRelationshipInfo>> GetTemplateLookupRelationshipsAsync(
+        SqlConnection connection,
+        string database,
+        string databaseName,
+        string schemaName,
+        string tableName,
+        IReadOnlyDictionary<string, TableSchemaColumnInfo> columnByName,
+        IReadOnlyList<TableSchemaRelationshipInfo> existingRelationships,
+        string? lookupDiscoverySqlTemplate)
+    {
+        if (string.IsNullOrWhiteSpace(lookupDiscoverySqlTemplate))
+        {
+            return [];
+        }
+
+        var discoverySql = BuildLookupDiscoverySql(lookupDiscoverySqlTemplate, databaseName, schemaName, tableName, "");
+        if (string.IsNullOrWhiteSpace(discoverySql))
+        {
+            return [];
+        }
+
+        var lookupNames = (await connection.QueryAsync<string>(discoverySql))
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (lookupNames.Count == 0)
+        {
+            return [];
+        }
+
+        var displayColumnName = await GetPreferredColumnNameAsync(
+            connection,
+            database,
+            "dbo",
+            "COLOOKUP",
+            displayColumnPolicy.GetPreferredDisplayColumns(databaseName, "dbo", "COLOOKUP"));
+        var lookupKeyColumnName = await GetPreferredColumnNameAsync(connection, database, "dbo", "COLOOKUP", ["Id"]);
+
+        if (string.IsNullOrWhiteSpace(lookupKeyColumnName))
+        {
+            return [];
+        }
+
+        var tablePrefix = $"{tableName}_";
+        var relationships = new List<TableSchemaRelationshipInfo>();
+        var existingLocalColumns = existingRelationships
+            .SelectMany(relationship => relationship.Columns.Select(column => column.LocalColumnName))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var lookupName in lookupNames)
+        {
+            if (!lookupName.StartsWith(tablePrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var localColumnName = lookupName[tablePrefix.Length..];
+            if (!columnByName.TryGetValue(localColumnName, out var localColumn) ||
+                !existingLocalColumns.Add(localColumnName))
+            {
+                continue;
+            }
+
+            localColumn.IsForeignKey = true;
+
+            relationships.Add(new TableSchemaRelationshipInfo(
+                $"LOOKUP_COLOOKUP_{tableName}_{localColumnName}",
+                "dbo",
+                "COLOOKUP",
+                displayColumnName,
+                !localColumn.IsNullable,
+                localColumn.IsNullable ? "LEFT JOIN" : "INNER JOIN",
+                [new TableSchemaForeignKeyColumnInfo(localColumnName, lookupKeyColumnName)],
+                "Name",
+                lookupName));
+        }
+
+        return relationships;
+    }
+
+    private static string BuildLookupDiscoverySql(string template, string databaseName, string schemaName, string tableName, string columnName)
+    {
+        var sql = template
+            .Replace("[database]", databaseName, StringComparison.OrdinalIgnoreCase)
+            .Replace("[schema]", schemaName, StringComparison.OrdinalIgnoreCase)
+            .Replace("[table]", tableName, StringComparison.OrdinalIgnoreCase)
+            .Replace("[column]", columnName, StringComparison.OrdinalIgnoreCase)
+            .Trim();
+
+        if (!sql.StartsWith("SELECT ", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Lookup discovery SQL must start with SELECT.");
+        }
+
+        return sql;
+    }
+
+    private static async Task<string?> GetPreferredColumnNameAsync(
+        SqlConnection connection,
+        string database,
+        string schemaName,
+        string tableName,
+        IReadOnlyList<string> preferredColumnNames)
+    {
+        if (preferredColumnNames.Count == 0)
+        {
+            return null;
+        }
+
+        var sql = $"""
+SELECT
+    c.name
+FROM {database}.sys.tables AS t
+JOIN {database}.sys.schemas AS s
+    ON s.schema_id = t.schema_id
+JOIN {database}.sys.columns AS c
+    ON c.object_id = t.object_id
+WHERE s.name = @schemaName
+    AND t.name = @tableName
+    AND c.name IN @preferredColumnNames;
+""";
+
+        var availableColumns = (await connection.QueryAsync<string>(sql, new { schemaName, tableName, preferredColumnNames }))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        return preferredColumnNames.FirstOrDefault(availableColumns.Contains);
+    }
+
     private static void ValidateDatabaseName(string databaseName)
     {
         if (string.IsNullOrWhiteSpace(databaseName))
@@ -437,7 +576,9 @@ public sealed class TableSchemaRelationshipInfo
         string? displayColumnName,
         bool isRequired,
         string selectedJoinType,
-        IReadOnlyList<TableSchemaForeignKeyColumnInfo> columns)
+        IReadOnlyList<TableSchemaForeignKeyColumnInfo> columns,
+        string? lookupFilterColumnName = null,
+        string? lookupFilterValue = null)
     {
         ForeignKeyName = foreignKeyName;
         ReferencedSchemaName = referencedSchemaName;
@@ -446,6 +587,8 @@ public sealed class TableSchemaRelationshipInfo
         IsRequired = isRequired;
         SelectedJoinType = selectedJoinType;
         Columns = columns;
+        LookupFilterColumnName = lookupFilterColumnName;
+        LookupFilterValue = lookupFilterValue;
         Include = true;
         IncludeDisplayColumn = !string.IsNullOrWhiteSpace(displayColumnName);
     }
@@ -470,6 +613,12 @@ public sealed class TableSchemaRelationshipInfo
 
     [Description("Local-to-referenced column pairs that form the foreign-key relationship.")]
     public IReadOnlyList<TableSchemaForeignKeyColumnInfo> Columns { get; }
+
+    [Description("Optional referenced-table column used as a fixed lookup filter for template-discovered lookup relationships.")]
+    public string? LookupFilterColumnName { get; }
+
+    [Description("Optional fixed lookup value paired with LookupFilterColumnName for template-discovered lookup relationships.")]
+    public string? LookupFilterValue { get; }
 
     [Description("Whether this relationship should generate a lookup join when lookup generation is enabled.")]
     public bool Include { get; set; }

@@ -17,7 +17,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.57")]
+@attribute [FileVersion("1.58")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -607,7 +607,12 @@
 
         await RunPageOperationAsync(async () =>
         {
-            var details = await TableSchemaRepository.GetTableDetailsAsync(SelectedDatabaseName, SelectedSchemaName, SelectedTableName);
+            var selectedDatabase = Databases.FirstOrDefault(database => string.Equals(database.DatabaseName, SelectedDatabaseName, StringComparison.OrdinalIgnoreCase));
+            var details = await TableSchemaRepository.GetTableDetailsAsync(
+                SelectedDatabaseName,
+                SelectedSchemaName,
+                SelectedTableName,
+                selectedDatabase?.SQLLookupString);
             Columns = details.Columns.ToList();
             AllRelationships = details.Relationships.ToList();
             ChildRelationships = details.ChildRelationships.ToList();
@@ -1298,6 +1303,12 @@
         var alias = BuildLookupAlias(relationship);
         var predicates = relationship.Columns
             .Select(pair => $"{QuoteIdentifier(alias)}.{QuoteIdentifier(pair.ReferencedColumnName)} = {QuoteIdentifier(BaseAlias)}.{QuoteIdentifier(pair.LocalColumnName)}");
+        if (!string.IsNullOrWhiteSpace(relationship.LookupFilterColumnName) &&
+            !string.IsNullOrWhiteSpace(relationship.LookupFilterValue))
+        {
+            predicates = predicates.Append($"{QuoteIdentifier(alias)}.{QuoteIdentifier(relationship.LookupFilterColumnName)} = {QuoteSqlLiteral(relationship.LookupFilterValue)}");
+        }
+
         yield return $"{relationship.SelectedJoinType} {QualifiedName(SelectedDatabaseName, relationship.ReferencedSchemaName, relationship.ReferencedTableName)} AS {QuoteIdentifier(alias)} ON {string.Join(" AND ", predicates)}";
     }
 
@@ -1483,6 +1494,12 @@
     private static string QuoteIdentifier(string identifier) =>
         $"[{identifier.Replace("]", "]]", StringComparison.Ordinal)}]";
 
+    private static string QuoteSqlLiteral(string value)
+    {
+        var escapedValue = value.Replace("'", "''", StringComparison.Ordinal);
+        return $"'{escapedValue}'";
+    }
+
     private static int? GetMaxLength(string propertyName)
     {
         var property = typeof(SchemaObjectColumnDefinition)
@@ -1617,5 +1634,3 @@
         bool DisableInheritance,
         bool StartsRelationshipGroup);
 }
-
-
