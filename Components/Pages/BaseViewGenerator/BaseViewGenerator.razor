@@ -18,7 +18,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.68")]
+@attribute [FileVersion("1.69")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -200,7 +200,7 @@
                         <section class="bvg-tree-section">
                             <div class="bvg-tree-section-header">
                                 <button type="button" class="bvg-group-toggle" @onclick="ToggleSourceGroup">@(SourceGroupExpanded ? "-" : "+")</button>
-                                <span class="bvg-group-label">Source</span>
+                                <span class="bvg-group-label">Source With Lookups Expanded</span>
                                 <code>FROM @QualifiedName(SelectedDatabaseName, SelectedSchemaName, SelectedTableName) AS @QuoteIdentifier(BaseAlias)</code>
                                 <span class="bvg-count-chip">@FilteredStandaloneColumns.Count() base column(s)</span>
                                 <div class="bvg-tree-section-actions">
@@ -319,7 +319,7 @@
                         <section class="bvg-projection-group bvg-source-group">
                             <div class="bvg-group-header">
                                 <button type="button" class="bvg-group-toggle" @onclick="ToggleSourceGroup">@(SourceGroupExpanded ? "-" : "+")</button>
-                                <span class="bvg-group-label">Source</span>
+                                <span class="bvg-group-label">Source With Lookups Expanded</span>
                                 <code>FROM @QualifiedName(SelectedDatabaseName, SelectedSchemaName, SelectedTableName) AS @QuoteIdentifier(BaseAlias)</code>
                                 <span class="bvg-count-chip">@FilteredStandaloneColumns.Count() base column(s)</span>
                             </div>
@@ -1424,7 +1424,7 @@
     private string BuildJoinText(TableSchemaRelationshipInfo relationship) =>
         ShouldGenerateJoin(relationship)
             ? BuildJoinLines(relationship).First()
-            : $"{BuildJoinLines(relationship).First()} -- not generated";
+            : BuildJoinLines(relationship).First();
 
     private IEnumerable<string> BuildProjectionLines(IReadOnlyList<ProjectionSpec> projectionSpecs)
     {
