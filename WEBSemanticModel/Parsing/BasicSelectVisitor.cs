@@ -1,12 +1,9 @@
 ﻿using Microsoft.SqlServer.TransactSql.ScriptDom;
-using SchemaStudio.AIHelpers;
 using SchemaStudioWebViewer.WEBSemanticModel.Model;
 using System.Diagnostics;
 
 namespace SchemaStudioWebViewer.WEBSemanticModel.Parsing
 {
-    [FileVersion("1.0")]
-    [AIFileContext("WEBSemanticModel/Parsing/BasicSelectVisitor.cs", "Parses SELECT projections and source tables into the intermediate parser graph used by Manage Views Next.", Responsibilities = "Owns select-item expression text, aliases, adjacent SQL metadata comments, source table discovery, source alias registration, and basic column-kind classification before binding and metadata extraction run.", Nuances = "Metadata comments can appear as adjacent tokens or be included in ScriptDom's select-element token span; preserve both lookup paths so Manage Views Next add-new Save All receives parser BusinessName, BusinessDescription, and DisableInheritance values.", RelatedFiles = "ViewMetaDataBinder; ParsedQuery; ExportMappers; Components/Pages/ManageViewsNext/ManageViewsNext.Parser.cs", LastReviewed = "2026-05-11")]
     public class BasicSelectVisitor : TSqlFragmentVisitor
     {
         private readonly IList<TSqlParserToken> _tokens;
@@ -265,35 +262,16 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Parsing
 
         private string GetTrailingComment(SelectScalarExpression node)
         {
-            return GetCommentWithinSelectElement(node)
-                ?? GetAdjacentCommentAfterSelectElement(node);
-        }
+            int currentEnd = node.StartOffset + node.FragmentLength;
 
-        private string GetCommentWithinSelectElement(SelectScalarExpression node)
-        {
-            if (node.FirstTokenIndex < 0 || node.LastTokenIndex < node.FirstTokenIndex)
-            {
-                return null;
-            }
-
-            for (var index = node.FirstTokenIndex; index <= node.LastTokenIndex && index < _tokens.Count; index++)
-            {
-                var token = _tokens[index];
-                if (IsComment(token))
-                {
-                    return token.Text.Trim();
-                }
-            }
-
-            return null;
-        }
-
-        private string GetAdjacentCommentAfterSelectElement(SelectScalarExpression node)
-        {
-            for (var i = node.LastTokenIndex + 1; i < _tokens.Count; i++)
+            for (int i = 0; i < _tokens.Count; i++)
             {
                 var t = _tokens[i];
 
+                if (t.Offset < currentEnd)
+                    continue;
+
+                // Stop at clause boundaries (we've left the SELECT list)
                 if (t.TokenType == TSqlTokenType.From ||
                     t.TokenType == TSqlTokenType.Where ||
                     t.TokenType == TSqlTokenType.Group ||
@@ -303,26 +281,27 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Parsing
                     break;
                 }
 
+                // Ignore whitespace
                 if (t.TokenType == TSqlTokenType.WhiteSpace)
                     continue;
 
+                // Comma is allowed (comment may appear before OR after it)
                 if (t.TokenType == TSqlTokenType.Comma)
                     continue;
 
-                if (IsComment(t))
+                // First comment encountered in the window → this is the trailing comment
+                if (t.TokenType == TSqlTokenType.SingleLineComment ||
+                    t.TokenType == TSqlTokenType.MultilineComment)
                 {
                     return t.Text.Trim();
                 }
 
+                // Any other token means we've hit the next select item → stop
                 break;
             }
 
             return null;
         }
-
-        private static bool IsComment(TSqlParserToken token) =>
-            token.TokenType == TSqlTokenType.SingleLineComment ||
-            token.TokenType == TSqlTokenType.MultilineComment;
 
         public static QuerySpecification TryGetQuerySpecification(QueryExpression expr)
         {
