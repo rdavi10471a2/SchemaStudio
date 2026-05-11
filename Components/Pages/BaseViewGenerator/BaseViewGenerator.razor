@@ -18,7 +18,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.65")]
+@attribute [FileVersion("1.66")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -431,7 +431,7 @@
             : Columns.Where(ColumnMatchesFilter);
 
     private IEnumerable<TableSchemaColumnInfo> FilteredStandaloneColumns =>
-        FilteredColumns.Where(column => !RelationshipOwnsColumn(column.ColumnName));
+        FilteredColumns.Where(column => !RelationshipOwnsColumn(column.ColumnName) || IsFiltering);
 
     private IEnumerable<TableSchemaRelationshipInfo> FilteredRelationships =>
         string.IsNullOrWhiteSpace(FilterText)
@@ -440,6 +440,9 @@
 
     private string FilterText =>
         ColumnFilter.Trim();
+
+    private bool IsFiltering =>
+        !string.IsNullOrWhiteSpace(FilterText);
 
     private IReadOnlyList<TableSchemaRelationshipInfo> LookupRelationshipCandidates =>
         AllRelationships
