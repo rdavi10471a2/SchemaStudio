@@ -5,7 +5,7 @@ using SchemaStudio.Data.Models;
 
 namespace SchemaStudio.Data.Repositories;
 
-[FileVersion("1.1")]
+[FileVersion("1.2")]
 [AIFileContext("SchemaStudio.Data/Repositories/DatabaseRepository.cs", "Read/write repository for Schema Studio database metadata records.", Responsibilities = "Loads and maintains dbo.Databases rows for maintenance screens and downstream schema tools.", Nuances = "Applies small additive metadata table upgrades before database reads and writes so UI fields can roll out without a separate migration step.", LastReviewed = "2026-05-11")]
 public sealed class DatabaseRepository
 {
@@ -185,8 +185,8 @@ SELECT
     LookupFilterValue,
     LookupValues,
     JoinType,
+    RelationshipRole,
     RelationshipName,
-    DeveloperNotes,
     Active
 FROM dbo.DatabaseLookupRelationships
 WHERE DatabaseId = @databaseId
@@ -244,8 +244,8 @@ INSERT INTO dbo.DatabaseLookupRelationships
     LookupFilterValue,
     LookupValues,
     JoinType,
+    RelationshipRole,
     RelationshipName,
-    DeveloperNotes,
     Active
 )
 OUTPUT INSERTED.DatabaseLookupRelationshipId
@@ -263,8 +263,8 @@ VALUES
     @LookupFilterValue,
     @LookupValues,
     @JoinType,
+    @RelationshipRole,
     @RelationshipName,
-    @DeveloperNotes,
     @Active
 );
 """;
@@ -287,10 +287,10 @@ VALUES
         relationship.LookupFilterValue = NormalizeOptional(relationship.LookupFilterValue);
         relationship.LookupValues = NormalizeOptional(relationship.LookupValues);
         relationship.RelationshipName = NormalizeOptional(relationship.RelationshipName);
-        relationship.DeveloperNotes = NormalizeOptional(relationship.DeveloperNotes);
         relationship.JoinType = string.Equals(relationship.JoinType?.Trim(), "INNER JOIN", StringComparison.OrdinalIgnoreCase)
             ? "INNER JOIN"
             : "LEFT JOIN";
+        relationship.RelationshipRole = NormalizeRelationshipRole(relationship.RelationshipRole);
     }
 
     private static string NormalizeRequired(string? value, string label)
@@ -310,6 +310,18 @@ VALUES
         return string.IsNullOrWhiteSpace(trimmed) ? null : trimmed;
     }
 
+    private static string NormalizeRelationshipRole(string? value)
+    {
+        var role = value?.Trim();
+        return role?.ToUpperInvariant() switch
+        {
+            "PARENTREFERENCE" => "ParentReference",
+            "SYSTEMOFRECORD" => "SystemOfRecord",
+            "IGNORE" => "Ignore",
+            _ => "Lookup"
+        };
+    }
+
     private static async Task EnsureLookupRelationshipColumnsAsync(SqlConnection connection)
     {
         const string sql = """
@@ -318,6 +330,14 @@ IF OBJECT_ID('dbo.DatabaseLookupRelationships', 'U') IS NOT NULL
 BEGIN
     ALTER TABLE dbo.DatabaseLookupRelationships
         ADD LookupValues nvarchar(1500) NULL;
+END;
+
+IF OBJECT_ID('dbo.DatabaseLookupRelationships', 'U') IS NOT NULL
+    AND COL_LENGTH('dbo.DatabaseLookupRelationships', 'RelationshipRole') IS NULL
+BEGIN
+    ALTER TABLE dbo.DatabaseLookupRelationships
+        ADD RelationshipRole nvarchar(32) NOT NULL
+            CONSTRAINT DF_DatabaseLookupRelationships_RelationshipRole DEFAULT (N'Lookup');
 END;
 """;
 

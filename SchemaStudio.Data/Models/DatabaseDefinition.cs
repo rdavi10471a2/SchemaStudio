@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace SchemaStudio.Data.Models;
 
-[FileVersion("1.2")]
+[FileVersion("1.3")]
 [AIFileContext("SchemaStudio.Data/Models/DatabaseDefinition.cs", "Defines the editable database metadata model used by the web data layer and maintenance forms.", LastReviewed = "2026-04-23")]
 [AIChange("1.0", "2026-04-23 12:56 PM CDT added ViewNameFilter metadata so databases can define a view-name include pattern for integration view selection.", AICommandStatus.Pending)]
 // 2026-04-23 12:56 PM CDT AI v1.0 database-filter marker: database metadata now includes a view-name filter value for integration view list trimming.
@@ -116,13 +116,15 @@ public sealed class DatabaseLookupRelationshipDefinition
     [Display(Name = "Join Type", Order = 100)]
     public string JoinType { get; set; } = "LEFT JOIN";
 
-    [StringLength(128)]
-    [Display(Name = "Relationship Name", Order = 110)]
-    public string? RelationshipName { get; set; }
+    [Required]
+    [StringLength(32)]
+    [Display(Name = "Relationship Role", Order = 110)]
+    [Description("Semantic role for this relationship, such as Lookup, ParentReference, SystemOfRecord, or Ignore.")]
+    public string RelationshipRole { get; set; } = "Lookup";
 
-    [StringLength(1000)]
-    [Display(Name = "Developer Notes", Order = 120)]
-    public string? DeveloperNotes { get; set; }
+    [StringLength(128)]
+    [Display(Name = "Relationship Name", Order = 120)]
+    public string? RelationshipName { get; set; }
 
     [Display(Name = "Active", Order = 130)]
     public bool Active { get; set; } = true;
