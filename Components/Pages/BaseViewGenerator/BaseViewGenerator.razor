@@ -18,7 +18,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.63")]
+@attribute [FileVersion("1.64")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -354,7 +354,7 @@
     private bool IgnoreSelfJoins = true;
     private bool IgnoreRelationshipsWithoutDisplay = true;
     private bool IncludeMetadataPlaceholders;
-    private string OutputShape = OutputShapeCte;
+    private string OutputShape = OutputShapeStandard;
     private string StatusMessage = "";
     private string RelationshipTelemetryMessage = "";
     private string SelectedDatabaseName = "";
