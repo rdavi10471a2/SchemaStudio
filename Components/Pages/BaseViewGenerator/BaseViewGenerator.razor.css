@@ -495,6 +495,89 @@
     width: min(100%, 220px);
 }
 
+.bvg-tree-view {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    min-height: 0;
+    overflow: auto;
+}
+
+.bvg-tree-section,
+.bvg-tree-node {
+    border: 1px solid #d8dee8;
+    border-radius: 6px;
+    background: #ffffff;
+}
+
+.bvg-tree-section-header,
+.bvg-tree-relationship-header,
+.bvg-tree-row {
+    display: grid;
+    grid-template-columns: 24px 34px minmax(320px, 1.35fr) minmax(260px, 0.9fr) minmax(110px, 0.35fr);
+    gap: 0.45rem;
+    align-items: center;
+    min-width: 0;
+    padding: 0.42rem 0.55rem;
+    border-bottom: 1px solid #edf0f5;
+}
+
+.bvg-tree-section-header {
+    grid-template-columns: 24px auto minmax(280px, 1fr) auto minmax(180px, auto);
+    background: #f8f9fb;
+}
+
+.bvg-tree-relationship-header {
+    grid-template-columns: 24px auto 24px minmax(360px, 1fr);
+    background: #fbfcff;
+}
+
+.bvg-tree-section-actions {
+    display: flex;
+    gap: 0.35rem;
+    justify-content: flex-end;
+}
+
+.bvg-tree-section-actions .bvg-button {
+    padding: 0.34rem 0.62rem;
+}
+
+.bvg-tree-children {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.bvg-tree-node {
+    margin: 0.45rem;
+    overflow: hidden;
+}
+
+.bvg-tree-indent {
+    width: 16px;
+    height: 1px;
+    border-bottom: 1px solid #cbd5e1;
+}
+
+.bvg-tree-main,
+.bvg-tree-meta {
+    min-width: 0;
+}
+
+.bvg-tree-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.bvg-tree-relationship-header code,
+.bvg-tree-section-header code {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .bvg-metadata-summary {
     display: inline-flex;
     flex-direction: column;
