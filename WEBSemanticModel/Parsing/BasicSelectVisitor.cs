@@ -266,8 +266,7 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Parsing
         private string GetTrailingComment(SelectScalarExpression node)
         {
             return GetCommentWithinSelectElement(node)
-                ?? GetAdjacentCommentAfterSelectElement(node)
-                ?? GetAdjacentCommentBeforeSelectElement(node);
+                ?? GetAdjacentCommentAfterSelectElement(node);
         }
 
         private string GetCommentWithinSelectElement(SelectScalarExpression node)
@@ -309,29 +308,6 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Parsing
 
                 if (t.TokenType == TSqlTokenType.Comma)
                     continue;
-
-                if (IsComment(t))
-                {
-                    return t.Text.Trim();
-                }
-
-                break;
-            }
-
-            return null;
-        }
-
-        private string GetAdjacentCommentBeforeSelectElement(SelectScalarExpression node)
-        {
-            for (var i = node.FirstTokenIndex - 1; i >= 0; i--)
-            {
-                var t = _tokens[i];
-
-                if (t.TokenType == TSqlTokenType.WhiteSpace ||
-                    t.TokenType == TSqlTokenType.Comma)
-                {
-                    continue;
-                }
 
                 if (IsComment(t))
                 {
