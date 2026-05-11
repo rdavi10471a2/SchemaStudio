@@ -1,10 +1,7 @@
 using SchemaStudio.Data.Models;
-using SchemaStudio.AIHelpers;
 
 namespace SchemaStudioWebViewer.WEBSemanticModel.Model;
 
-[FileVersion("1.0")]
-[AIFileContext("WEBSemanticModel/Model/ExportMappers.cs", "Maps parser model objects into Schema Studio DTOs consumed by UI review and save workflows.", Responsibilities = "Preserves parser-owned column shape, lineage, semantic source, and metadata flags when converting ViewSourcedColumnDefinition to ViewColumnDto.", Nuances = "Keep DTO mapping in sync with parsed column fields used by Manage Views initial-save and review flows; missing fields can make Save All reason from stale or default metadata.", RelatedFiles = "ViewSourcedColumnDefinition; SchemaObjectDtos; Components/Pages/ManageViewsNext/ManageViewsNext.Parser.cs; Components/Pages/ManageViewsNext/ManageViewsNext.Columns.cs", LastReviewed = "2026-05-11")]
 public static class ExportMappers
 {
     public static List<SourceTableDto> ToSourceTableDtos(this IEnumerable<SourceTable>? sourceTables)
@@ -65,7 +62,6 @@ public static class ExportMappers
                 SemanticSchema = column.SemanticSchema,
                 SemanticObject = column.SemanticObject,
                 SemanticColumn = column.SemanticColumn,
-                DisableInheritance = column.DisableInheritance,
                 BusinessName = column.BusinessName,
                 BusinessDescription = column.BusinessDescription,
                 DeveloperNotes = column.DeveloperNotes,
