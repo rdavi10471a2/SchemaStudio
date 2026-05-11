@@ -377,6 +377,11 @@ public partial class ManageViewsNext
             changes.Add("Description");
         }
 
+        if (isBaseView && parsed != null && existing != null && parsed.DisableInheritance != existing.DisableInheritance)
+        {
+            changes.Add("Disable Inheritance");
+        }
+
         return changes.Count == 0
             ? "Parser and existing values differ."
             : $"{string.Join(", ", changes)} differ.";
@@ -384,7 +389,8 @@ public partial class ManageViewsNext
 
     private static bool BusinessMetadataMatches(ViewColumnDto parsed, SchemaObjectColumnDefinition existing) =>
         string.Equals(NormalizeNullableText(parsed.BusinessName), NormalizeNullableText(existing.BusinessName), StringComparison.Ordinal) &&
-        string.Equals(NormalizeNullableText(parsed.BusinessDescription), NormalizeNullableText(existing.BusinessDescription), StringComparison.Ordinal);
+        string.Equals(NormalizeNullableText(parsed.BusinessDescription), NormalizeNullableText(existing.BusinessDescription), StringComparison.Ordinal) &&
+        parsed.DisableInheritance == existing.DisableInheritance;
 
     private static bool ParserShapeMatches(ViewColumnDto? parsed, SchemaObjectColumnDefinition? existing)
     {
@@ -417,7 +423,8 @@ public partial class ManageViewsNext
         }
 
         return $"Business Name: {parsed.BusinessName ?? "(blank)"}{Environment.NewLine}" +
-               $"Description: {parsed.BusinessDescription ?? "(blank)"}";
+               $"Description: {parsed.BusinessDescription ?? "(blank)"}{Environment.NewLine}" +
+               $"Disable Inheritance: {parsed.DisableInheritance}";
     }
 
     private static string BuildExistingPreview(SchemaObjectColumnDefinition? existing)
