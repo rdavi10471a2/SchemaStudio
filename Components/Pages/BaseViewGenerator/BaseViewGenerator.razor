@@ -18,7 +18,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.64")]
+@attribute [FileVersion("1.65")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -179,8 +179,8 @@
 
         <section class="bvg-panel bvg-workspace-panel">
             <header class="bvg-tabs" role="tablist" aria-label="Base view generator workspace">
-                <button type="button" class="@TabClass("sql")" @onclick='() => SetWorkspaceTab("sql")'>Generated SQL</button>
                 <button type="button" class="@TabClass("projection")" @onclick='() => SetWorkspaceTab("projection")'>Projection (@Columns.Count / @Relationships.Count)</button>
+                <button type="button" class="@TabClass("sql")" @onclick='() => SetWorkspaceTab("sql")'>Generated SQL</button>
             </header>
 
             <div class="bvg-tab-body">
@@ -196,8 +196,10 @@
                         <input placeholder="Filter columns or relationships" value="@ColumnFilter" @oninput="OnColumnFilterChanged" />
                     </div>
                     <div class="bvg-projection-toolbar">
-                        <button type="button" class="bvg-button secondary" @onclick="ExpandAllProjectionGroups">Expand All</button>
-                        <button type="button" class="bvg-button secondary" @onclick="CollapseAllProjectionGroups">Collapse All</button>
+                        <button type="button" class="bvg-button secondary" @onclick="ExpandProjectionGroup">Expand Projection</button>
+                        <button type="button" class="bvg-button secondary" @onclick="CollapseProjectionGroup">Collapse Projection</button>
+                        <button type="button" class="bvg-button secondary" @onclick="ExpandJoinGroups">Expand Joins</button>
+                        <button type="button" class="bvg-button secondary" @onclick="CollapseJoinGroups">Collapse Joins</button>
                     </div>
                     <div class="bvg-projection-tree">
                         <section class="bvg-projection-group bvg-source-group">
@@ -366,7 +368,7 @@
     private string TargetViewName = "";
     private string ColumnFilter = "";
     private string GeneratedSql = "";
-    private string ActiveWorkspaceTab = "sql";
+    private string ActiveWorkspaceTab = "projection";
     private string ActiveSourceInfoTab = "options";
     private bool HighlightSqlPending;
     private bool SourceGroupExpanded = true;
@@ -424,19 +426,20 @@
             : QualifiedName(SelectedDatabaseName, SelectedSchemaName, SelectedTableName);
 
     private IEnumerable<TableSchemaColumnInfo> FilteredColumns =>
-        string.IsNullOrWhiteSpace(ColumnFilter)
+        string.IsNullOrWhiteSpace(FilterText)
             ? Columns
-            : Columns.Where(column => column.ColumnName.Contains(ColumnFilter, StringComparison.OrdinalIgnoreCase)
-                                   || column.DataType.Contains(ColumnFilter, StringComparison.OrdinalIgnoreCase)
-                                   || column.KeyRole.Contains(ColumnFilter, StringComparison.OrdinalIgnoreCase));
+            : Columns.Where(ColumnMatchesFilter);
 
     private IEnumerable<TableSchemaColumnInfo> FilteredStandaloneColumns =>
         FilteredColumns.Where(column => !RelationshipOwnsColumn(column.ColumnName));
 
     private IEnumerable<TableSchemaRelationshipInfo> FilteredRelationships =>
-        string.IsNullOrWhiteSpace(ColumnFilter)
+        string.IsNullOrWhiteSpace(FilterText)
             ? Relationships
             : Relationships.Where(RelationshipMatchesFilter);
+
+    private string FilterText =>
+        ColumnFilter.Trim();
 
     private IReadOnlyList<TableSchemaRelationshipInfo> LookupRelationshipCandidates =>
         AllRelationships
@@ -504,15 +507,23 @@
         }
     }
 
-    private void ExpandAllProjectionGroups()
+    private void ExpandProjectionGroup()
     {
         SourceGroupExpanded = true;
+    }
+
+    private void CollapseProjectionGroup()
+    {
+        SourceGroupExpanded = false;
+    }
+
+    private void ExpandJoinGroups()
+    {
         CollapsedRelationshipGroups.Clear();
     }
 
-    private void CollapseAllProjectionGroups()
+    private void CollapseJoinGroups()
     {
-        SourceGroupExpanded = false;
         CollapsedRelationshipGroups = Relationships
             .Select(RelationshipGroupKey)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -1424,19 +1435,45 @@
 
     private bool RelationshipMatchesFilter(TableSchemaRelationshipInfo relationship)
     {
-        if (relationship.LocalColumns.Contains(ColumnFilter, StringComparison.OrdinalIgnoreCase) ||
-            relationship.ReferencedTableName.Contains(ColumnFilter, StringComparison.OrdinalIgnoreCase) ||
-            relationship.ReferencedSchemaName.Contains(ColumnFilter, StringComparison.OrdinalIgnoreCase) ||
-            RelationshipStatusText(relationship).Contains(ColumnFilter, StringComparison.OrdinalIgnoreCase))
+        var filter = FilterText;
+        if (TextMatchesFilter(relationship.LocalColumns, filter) ||
+            TextMatchesFilter(relationship.ReferencedColumns, filter) ||
+            TextMatchesFilter(relationship.ReferencedTableName, filter) ||
+            TextMatchesFilter(relationship.ReferencedSchemaName, filter) ||
+            TextMatchesFilter(relationship.ForeignKeyName, filter) ||
+            TextMatchesFilter(relationship.DisplayColumnName, filter) ||
+            TextMatchesFilter(relationship.LookupFilterColumnName, filter) ||
+            TextMatchesFilter(relationship.LookupFilterValue, filter) ||
+            TextMatchesFilter(RelationshipStatusText(relationship), filter) ||
+            TextMatchesFilter(BuildLookupAlias(relationship), filter) ||
+            TextMatchesFilter(BuildLookupProjectionAlias(relationship), filter) ||
+            TextMatchesFilter(BuildDisplayProjectionText(relationship), filter) ||
+            TextMatchesFilter(BuildJoinText(relationship), filter) ||
+            TextMatchesFilter(relationship.DisplayBusinessName, filter) ||
+            TextMatchesFilter(relationship.DisplayBusinessDescription, filter))
         {
             return true;
         }
 
-        return GetRelationshipColumns(relationship).Any(column =>
-            column.ColumnName.Contains(ColumnFilter, StringComparison.OrdinalIgnoreCase) ||
-            column.DataType.Contains(ColumnFilter, StringComparison.OrdinalIgnoreCase) ||
-            column.KeyRole.Contains(ColumnFilter, StringComparison.OrdinalIgnoreCase));
+        return GetRelationshipColumns(relationship).Any(ColumnMatchesFilter);
     }
+
+    private bool ColumnMatchesFilter(TableSchemaColumnInfo column)
+    {
+        var filter = FilterText;
+        return TextMatchesFilter(column.ColumnName, filter) ||
+            TextMatchesFilter(column.DataType, filter) ||
+            TextMatchesFilter(column.KeyRole, filter) ||
+            TextMatchesFilter(column.BusinessName, filter) ||
+            TextMatchesFilter(column.BusinessDescription, filter) ||
+            TextMatchesFilter(BuildBaseProjectionText(column), filter) ||
+            TextMatchesFilter(ColumnKeyRoleLabel(column), filter);
+    }
+
+    private static bool TextMatchesFilter(string? value, string filter) =>
+        !string.IsNullOrWhiteSpace(filter) &&
+        !string.IsNullOrWhiteSpace(value) &&
+        value.Contains(filter, StringComparison.OrdinalIgnoreCase);
 
     private bool RelationshipOwnsProjectionColumns(TableSchemaRelationshipInfo relationship) =>
         IncludeLookupDisplayColumns &&
