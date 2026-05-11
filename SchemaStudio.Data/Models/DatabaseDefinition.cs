@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace SchemaStudio.Data.Models;
 
-[FileVersion("1.0")]
+[FileVersion("1.1")]
 [AIFileContext("SchemaStudio.Data/Models/DatabaseDefinition.cs", "Defines the editable database metadata model used by the web data layer and maintenance forms.", LastReviewed = "2026-04-23")]
 [AIChange("1.0", "2026-04-23 12:56 PM CDT added ViewNameFilter metadata so databases can define a view-name include pattern for integration view selection.", AICommandStatus.Pending)]
 // 2026-04-23 12:56 PM CDT AI v1.0 database-filter marker: database metadata now includes a view-name filter value for integration view list trimming.
@@ -46,6 +46,11 @@ public sealed class DatabaseDefinition
     [Display(Name = "View Name Filter", Order = 60)]
     [Description("Optional pattern or expression used to include only matching source view names for this database.")]
     public string? ViewNameFilter { get; set; }
+
+    [StringLength(500)]
+    [Display(Name = "SQL Query Lookup String Template", Order = 65)]
+    [Description("Optional SQL template run against the source database to discover lookup relationship candidates for a loaded source table. Supported tokens include [database], [schema], [table], and [column].")]
+    public string? SQLLookupString { get; set; }
 
     [Display(Name = "Active", Order = 70)]
     public bool Active { get; set; } = true;

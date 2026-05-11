@@ -10,7 +10,7 @@
 @inject TooltipService TooltipService
 @inject AttributeService Attr
 
-@attribute [FileVersion("1.6")]
+@attribute [FileVersion("1.7")]
 @attribute [AIChange(
     "1.6",
     "2026-05-01 09:59 AM CDT kept Business Name on its own row and paired Business Description with Developer Notes as equal-height metadata fields.",
@@ -766,6 +766,12 @@
         @FieldLabel(typeof(DatabaseDefinition), nameof(DatabaseDefinition.ViewNameFilter))
         <RadzenTextBox @bind-Value="@database.ViewNameFilter" Style="width:100%;" MaxLength="256" />
 
+        @FieldLabel(typeof(DatabaseDefinition), nameof(DatabaseDefinition.SQLLookupString))
+        <RadzenTextArea @bind-Value="@database.SQLLookupString"
+                        Style="width:100%;"
+                        Rows="5"
+                        MaxLength="500" />
+
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
             <RadzenCheckBox @bind-Value="@database.Active" TValue="bool" />
             @FieldLabel(typeof(DatabaseDefinition), nameof(DatabaseDefinition.Active))
@@ -827,6 +833,7 @@
             BusinessDescription = database.BusinessDescription,
             DeveloperNotes = database.DeveloperNotes,
             ViewNameFilter = database.ViewNameFilter,
+            SQLLookupString = database.SQLLookupString,
             Active = database.Active
         };
 

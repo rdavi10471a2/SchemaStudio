@@ -1,9 +1,12 @@
 using Dapper;
 using Microsoft.Data.SqlClient;
+using SchemaStudio.AIHelpers;
 using SchemaStudio.Data.Models;
 
 namespace SchemaStudio.Data.Repositories;
 
+[FileVersion("1.0")]
+[AIFileContext("SchemaStudio.Data/Repositories/DatabaseRepository.cs", "Read/write repository for Schema Studio database metadata records.", Responsibilities = "Loads and maintains dbo.Databases rows for maintenance screens and downstream schema tools.", Nuances = "Applies small additive metadata table upgrades before database reads and writes so UI fields can roll out without a separate migration step.", LastReviewed = "2026-05-11")]
 public sealed class DatabaseRepository
 {
     private readonly string _connectionString;
@@ -17,6 +20,8 @@ public sealed class DatabaseRepository
     {
         await using (var connection = new SqlConnection(_connectionString))
         {
+            await EnsureDatabaseMetadataColumnsAsync(connection);
+
             const string sql = """
 SELECT
     DatabaseId,
@@ -26,6 +31,7 @@ SELECT
     BusinessDescription,
     DeveloperNotes,
     ViewNameFilter,
+    SQLLookupString,
     Active
 FROM dbo.Databases
 ORDER BY DatabaseName;
@@ -40,6 +46,8 @@ ORDER BY DatabaseName;
     {
         await using (var connection = new SqlConnection(_connectionString))
         {
+            await EnsureDatabaseMetadataColumnsAsync(connection);
+
             const string sql = """
 SELECT
     DatabaseId,
@@ -49,6 +57,7 @@ SELECT
     BusinessDescription,
     DeveloperNotes,
     ViewNameFilter,
+    SQLLookupString,
     Active
 FROM dbo.Databases
 WHERE DatabaseId = @databaseId;
@@ -62,6 +71,8 @@ WHERE DatabaseId = @databaseId;
     {
         await using (var connection = new SqlConnection(_connectionString))
         {
+            await EnsureDatabaseMetadataColumnsAsync(connection);
+
             const string sql = """
 INSERT INTO dbo.Databases
 (
@@ -71,6 +82,7 @@ INSERT INTO dbo.Databases
     BusinessDescription,
     DeveloperNotes,
     ViewNameFilter,
+    SQLLookupString,
     Active
 )
 OUTPUT INSERTED.DatabaseId
@@ -82,6 +94,7 @@ VALUES
     @BusinessDescription,
     @DeveloperNotes,
     @ViewNameFilter,
+    @SQLLookupString,
     @Active
 );
 """;
@@ -96,6 +109,8 @@ VALUES
     {
         await using (var connection = new SqlConnection(_connectionString))
         {
+            await EnsureDatabaseMetadataColumnsAsync(connection);
+
             const string sql = """
 UPDATE dbo.Databases
 SET
@@ -105,6 +120,7 @@ SET
     BusinessDescription = @BusinessDescription,
     DeveloperNotes = @DeveloperNotes,
     ViewNameFilter = @ViewNameFilter,
+    SQLLookupString = @SQLLookupString,
     Active = @Active
 WHERE DatabaseId = @DatabaseId;
 """;
@@ -124,5 +140,18 @@ WHERE DatabaseId = @databaseId;
 
             await connection.ExecuteAsync(sql, new { databaseId });
         }
+    }
+
+    private static async Task EnsureDatabaseMetadataColumnsAsync(SqlConnection connection)
+    {
+        const string sql = """
+IF COL_LENGTH('dbo.Databases', 'SQLLookupString') IS NULL
+BEGIN
+    ALTER TABLE dbo.Databases
+        ADD SQLLookupString nvarchar(500) NULL;
+END;
+""";
+
+        await connection.ExecuteAsync(sql);
     }
 }
