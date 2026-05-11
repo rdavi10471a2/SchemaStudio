@@ -10,7 +10,7 @@
 @inject DialogService DialogService
 @inject IJSRuntime JSRuntime
 
-@attribute [FileVersion("1.24")]
+@attribute [FileVersion("1.25")]
 @attribute [AIChange(
     "1.14",
     "2026-05-01 09:20 AM CDT replaced native details menus with explicit Blazor menu state so commands close dropdowns and navigate without route flicker.",
@@ -121,7 +121,17 @@
     .app-title-row {
         display: flex;
         align-items: center;
+        gap: 0.45rem;
         min-height: 24px;
+    }
+
+    .app-logo-mark {
+        width: 42px;
+        height: 32px;
+        border: 1px solid #cdd6e4;
+        border-radius: 4px;
+        background: #0b1220;
+        object-fit: contain;
     }
 
     .app-title {
@@ -234,6 +244,9 @@
         <RadzenHeader>
             <div class="app-header">
                 <div class="app-title-row">
+                    <img src="images/susstudio-app-mark-title.png"
+                         alt=""
+                         class="app-logo-mark" />
                     <div class="app-title">SUSStudio -- Schema Understanding Service</div>
                 </div>
                 @if (CanShowNavigationMenu)
