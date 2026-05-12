@@ -18,7 +18,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.88")]
+@attribute [FileVersion("1.90")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -242,7 +242,7 @@
                                             <span class="bvg-business-name">@MetadataDisplayValue(column.BusinessName, "No business name")</span>
                                             <span class="bvg-business-description">@MetadataDisplayValue(column.BusinessDescription, "No business description")</span>
                                             <button type="button" class="bvg-link-button" @onclick="() => OpenColumnMetadataDialog(column)">Edit</button>
-                                            <span class="bvg-system-note">@YesNo(IsRelationshipColumn(column))</span>
+                                               <span class="bvg-system-note">@YesNo(ColumnHasLookupDisplayProjection(column.ColumnName))</span>
                                         </div>
                                     }
                                     @foreach (var relationship in FilteredRelationships)
@@ -262,10 +262,10 @@
                                                             <span class="bvg-role-glyph">No Display Selected</span>
                                                         }
                                                     </div>
-                                                    <span class="bvg-business-name">@MetadataDisplayValue(column.BusinessName, "No business name")</span>
-                                                    <span class="bvg-business-description">@MetadataDisplayValue(column.BusinessDescription, "No business description")</span>
+                                                    <span class="bvg-business-name">@EffectiveRelationshipColumnBusinessName(column, relationship)</span>
+                                                    <span class="bvg-business-description">@EffectiveRelationshipColumnBusinessDescription(column, relationship)</span>
                                                     <button type="button" class="bvg-link-button" @onclick="() => OpenColumnMetadataDialog(column)">Edit</button>
-                                                    <span class="bvg-system-note">Yes</span>
+                                                    <span class="bvg-system-note">@YesNo(RelationshipHasLookupDisplayProjection(relationship))</span>
                                                 </div>
                                             }
                                         }
@@ -279,10 +279,10 @@
                                                     <span class="bvg-output-expression">@BuildDisplayProjectionText(relationship)</span>
                                                     <span class="bvg-role-glyph">Lookup</span>
                                                 </div>
-                                                <span class="bvg-business-name">@MetadataDisplayValue(relationship.DisplayBusinessName, "No business name")</span>
-                                                <span class="bvg-business-description">@MetadataDisplayValue(relationship.DisplayBusinessDescription, "No business description")</span>
+                                                <span class="bvg-business-name">@EffectiveRelationshipDisplayBusinessName(relationship)</span>
+                                                <span class="bvg-business-description">@EffectiveRelationshipDisplayBusinessDescription(relationship)</span>
                                                 <button type="button" class="bvg-link-button" @onclick="() => OpenRelationshipDisplayMetadataDialog(relationship)">Edit</button>
-                                                <span class="bvg-system-note">Yes</span>
+                                                <span class="bvg-system-note">@YesNo(RelationshipHasLookupDisplayProjection(relationship))</span>
                                             </div>
                                         }
                                     }
@@ -1459,7 +1459,7 @@
         foreach (var column in Columns.Where(column => column.Include && !ColumnHasLookupDisplayProjection(column.ColumnName)))
         {
             var projection = $"{QuoteIdentifier(BaseAlias)}.{QuoteIdentifier(column.ColumnName)}";
-            yield return new ProjectionSpec(projection, column.ColumnName, column.BusinessName, column.BusinessDescription, IsRelationshipColumn(column), false, null);
+            yield return new ProjectionSpec(projection, column.ColumnName, column.BusinessName, column.BusinessDescription, false, false, null);
         }
 
         foreach (var relationship in Relationships.Where(RelationshipHasLookupDisplayProjection))
@@ -1592,6 +1592,26 @@
 
     private static string MetadataDisplayValue(string? value, string emptyText) =>
         string.IsNullOrWhiteSpace(value) ? emptyText : value;
+
+    private string EffectiveRelationshipColumnBusinessName(TableSchemaColumnInfo column, TableSchemaRelationshipInfo relationship) =>
+        RelationshipHasLookupDisplayProjection(relationship)
+            ? MetadataDisplayValue(column.BusinessName, column.ColumnName)
+            : MetadataDisplayValue(column.BusinessName, "No business name");
+
+    private string EffectiveRelationshipColumnBusinessDescription(TableSchemaColumnInfo column, TableSchemaRelationshipInfo relationship) =>
+        RelationshipHasLookupDisplayProjection(relationship)
+            ? MetadataDisplayValue(column.BusinessDescription, column.ColumnName)
+            : MetadataDisplayValue(column.BusinessDescription, "No business description");
+
+    private string EffectiveRelationshipDisplayBusinessName(TableSchemaRelationshipInfo relationship) =>
+        RelationshipHasLookupDisplayProjection(relationship)
+            ? MetadataDisplayValue(relationship.DisplayBusinessName, BuildLookupProjectionAlias(relationship))
+            : MetadataDisplayValue(relationship.DisplayBusinessName, "No business name");
+
+    private string EffectiveRelationshipDisplayBusinessDescription(TableSchemaRelationshipInfo relationship) =>
+        RelationshipHasLookupDisplayProjection(relationship)
+            ? MetadataDisplayValue(relationship.DisplayBusinessDescription, BuildLookupProjectionAlias(relationship))
+            : MetadataDisplayValue(relationship.DisplayBusinessDescription, "No business description");
 
     private bool RelationshipOwnsProjectionColumns(TableSchemaRelationshipInfo relationship) =>
         relationship.Include &&
