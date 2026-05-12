@@ -8,6 +8,7 @@
 @using SchemaStudio.Data.Repositories
 @using SchemaStudio.AIHelpers
 @using SchemaStudioWebViewer.Components.HelpSystem
+@using SchemaStudioWebViewer.Components.Pages.BaseViewCreator
 @using SchemaStudioWebViewer.Data
 @using SchemaStudioWebViewer.Models
 @using SchemaStudioWebViewer.Utils
@@ -20,7 +21,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.0")]
+@attribute [FileVersion("1.1")]
 @attribute [AIFileContext("Components/Pages/BaseViewCreator/BaseViewCreator.razor", "Forked base-view creator page that preserves the proven Base View Generator UI while allowing different internal plumbing to evolve safely.", Responsibilities = "Keep the base-view creation workflow visually familiar while isolating experimental model and engine changes from the production Base View Generator page.", Nuances = "This page intentionally starts as a UI-preserving fork. Lookup discovery and the proven base-view workflow remain available in BaseViewGenerator while new plumbing is validated here first.", RelatedFiles = "Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", LastReviewed = "2026-05-12")]
 
 <PageTitle>Base View Creator</PageTitle>
@@ -457,6 +458,7 @@
     private HashSet<string> SelectedLookupRelationshipKeys = new(StringComparer.OrdinalIgnoreCase);
     private Dictionary<string, string> BootstrapLookupDisplayColumns = new(StringComparer.OrdinalIgnoreCase);
     private Dictionary<string, IReadOnlyList<string>> LookupDisplayColumnOptions = new(StringComparer.OrdinalIgnoreCase);
+    private BaseViewCreatorSelectionEngine SelectionEngine { get; } = new();
 
     private bool CanRegenerateSql =>
         !IsBusy &&
@@ -516,7 +518,10 @@
         FilteredStandaloneColumns.Count() +
         FilteredRelationships.Sum(relationship =>
             (RelationshipOwnsProjectionColumns(relationship) ? GetRelationshipColumns(relationship).Count() : 0) +
-            (relationship.Include && !string.IsNullOrWhiteSpace(relationship.DisplayColumnName) ? 1 : 0));
+            (RelationshipHasLookupDisplayProjection(relationship) ? 1 : 0));
+
+    private BaseViewCreatorSelectionPlan CurrentSelectionPlan =>
+        SelectionEngine.Build(Columns, Relationships);
 
     private string FilterText =>
         ColumnFilter.Trim();
@@ -1126,7 +1131,7 @@
 
     private string BuildLoadedStatusMessage()
     {
-        var generatedJoinCount = Relationships.Count(RelationshipHasLookupDisplayProjection);
+        var generatedJoinCount = CurrentSelectionPlan.JoinDependencies.Count;
         var message = $"Loaded {Columns.Count} columns and {Relationships.Count} visible M-to-1 relationships from [{SelectedDatabaseName}].[{SelectedSchemaName}].[{SelectedTableName}]. SQL will generate {generatedJoinCount} join(s).";
         return string.IsNullOrWhiteSpace(RelationshipTelemetryMessage)
             ? message
@@ -1171,8 +1176,7 @@
         column.KeyRole;
 
     private bool ShouldGenerateJoin(TableSchemaRelationshipInfo relationship) =>
-        relationship.Include &&
-        !IsJoinSuppressed(relationship);
+        CurrentSelectionPlan.RelationshipHasLookupDisplayProjection(relationship);
 
     private bool CanUseRelationship(TableSchemaRelationshipInfo relationship) =>
         HasDisplayColumn(relationship);
@@ -1475,21 +1479,23 @@
 
     private IEnumerable<ProjectionSpec> BuildProjectionSpecs()
     {
+        var plan = CurrentSelectionPlan;
         var emittedRelationshipColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var column in Columns.Where(column => column.Include && !ColumnHasLookupDisplayProjection(column.ColumnName)))
+        foreach (var column in plan.BaseColumns)
         {
             var projection = $"{QuoteIdentifier(BaseAlias)}.{QuoteIdentifier(column.ColumnName)}";
             yield return new ProjectionSpec(projection, column.ColumnName, column.BusinessName, column.BusinessDescription, false, false, null);
         }
 
-        foreach (var relationship in Relationships.Where(RelationshipHasLookupDisplayProjection))
+        foreach (var state in plan.JoinDependencies)
         {
+            var relationship = state.Relationship;
             var emittedAnyRelationshipColumn = false;
             var startsRelationshipGroup = true;
             foreach (var pair in relationship.Columns)
             {
-                if (!IsColumnIncluded(pair.LocalColumnName) || !emittedRelationshipColumns.Add(pair.LocalColumnName))
+                if (!plan.IsColumnSelected(pair.LocalColumnName) || !emittedRelationshipColumns.Add(pair.LocalColumnName))
                 {
                     continue;
                 }
@@ -1502,7 +1508,6 @@
             }
 
             if (!emittedAnyRelationshipColumn ||
-                !ShouldGenerateJoin(relationship) ||
                 !relationship.IncludeDisplayColumn ||
                 string.IsNullOrWhiteSpace(relationship.DisplayColumnName))
             {
@@ -1518,7 +1523,7 @@
 
     private IEnumerable<TableSchemaRelationshipInfo> GetProjectionJoinDependencies(IReadOnlyList<ProjectionSpec> projectionSpecs)
     {
-        foreach (var relationship in Relationships)
+        foreach (var relationship in CurrentSelectionPlan.JoinDependencies.Select(state => state.Relationship))
         {
             if (projectionSpecs.Any(projection => ReferenceEquals(projection.LookupJoinRelationship, relationship)))
             {
@@ -1529,19 +1534,21 @@
 
     private IEnumerable<string> BuildOutputColumnNames()
     {
+        var plan = CurrentSelectionPlan;
         var emittedRelationshipColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var column in Columns.Where(column => column.Include && !ColumnHasLookupDisplayProjection(column.ColumnName)))
+        foreach (var column in plan.BaseColumns)
         {
             yield return column.ColumnName;
         }
 
-        foreach (var relationship in Relationships.Where(RelationshipHasLookupDisplayProjection))
+        foreach (var state in plan.JoinDependencies)
         {
+            var relationship = state.Relationship;
             var emittedAnyRelationshipColumn = false;
             foreach (var pair in relationship.Columns)
             {
-                if (!IsColumnIncluded(pair.LocalColumnName) || !emittedRelationshipColumns.Add(pair.LocalColumnName))
+                if (!plan.IsColumnSelected(pair.LocalColumnName) || !emittedRelationshipColumns.Add(pair.LocalColumnName))
                 {
                     continue;
                 }
@@ -1551,7 +1558,6 @@
             }
 
             if (emittedAnyRelationshipColumn &&
-                ShouldGenerateJoin(relationship) &&
                 relationship.IncludeDisplayColumn &&
                 !string.IsNullOrWhiteSpace(relationship.DisplayColumnName))
             {
@@ -1635,24 +1641,16 @@
             : MetadataDisplayValue(relationship.DisplayBusinessDescription, "No business description");
 
     private bool RelationshipOwnsProjectionColumns(TableSchemaRelationshipInfo relationship) =>
-        relationship.Include &&
-        relationship.Columns.Count > 0;
+        CurrentSelectionPlan.RelationshipOwnsProjectionColumns(relationship);
 
     private bool RelationshipOwnsColumn(string columnName) =>
-        Relationships.Any(relationship =>
-            RelationshipOwnsProjectionColumns(relationship) &&
-            relationship.Columns.Any(pair => string.Equals(pair.LocalColumnName, columnName, StringComparison.OrdinalIgnoreCase)));
+        CurrentSelectionPlan.ColumnHasLookupDisplayProjection(columnName);
 
     private bool RelationshipHasLookupDisplayProjection(TableSchemaRelationshipInfo relationship) =>
-        ShouldGenerateJoin(relationship) &&
-        relationship.IncludeDisplayColumn &&
-        !string.IsNullOrWhiteSpace(relationship.DisplayColumnName) &&
-        relationship.Columns.Any(pair => IsColumnIncluded(pair.LocalColumnName));
+        CurrentSelectionPlan.RelationshipHasLookupDisplayProjection(relationship);
 
     private bool ColumnHasLookupDisplayProjection(string columnName) =>
-        Relationships.Any(relationship =>
-            RelationshipHasLookupDisplayProjection(relationship) &&
-            relationship.Columns.Any(pair => string.Equals(pair.LocalColumnName, columnName, StringComparison.OrdinalIgnoreCase)));
+        CurrentSelectionPlan.ColumnHasLookupDisplayProjection(columnName);
 
     private bool IsRelationshipColumn(TableSchemaColumnInfo column) =>
         Relationships
