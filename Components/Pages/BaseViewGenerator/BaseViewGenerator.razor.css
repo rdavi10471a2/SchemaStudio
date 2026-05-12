@@ -586,7 +586,7 @@
 
 .bvg-tree-view {
     display: grid;
-    grid-template-rows: minmax(0, var(--projection-pane-height, 50%)) 10px minmax(0, 1fr);
+    grid-template-rows: minmax(180px, var(--projection-pane-height, 50%)) 10px minmax(180px, 1fr);
     gap: 0.45rem;
     min-height: 0;
     overflow: hidden;
@@ -757,10 +757,9 @@
 }
 
 .bvg-lookup-tree-section .bvg-tree-children {
-    display: grid;
-    align-content: start;
-    gap: 0.45rem;
+    display: block;
     padding: 0.45rem;
+    overflow-y: auto;
 }
 
 .bvg-tree-node {
@@ -769,7 +768,17 @@
 }
 
 .bvg-lookup-tree-section .bvg-tree-node {
-    margin: 0;
+    display: block;
+    min-height: 46px;
+    margin: 0 0 0.45rem;
+}
+
+.bvg-lookup-tree-section .bvg-tree-node:last-child {
+    margin-bottom: 0;
+}
+
+.bvg-lookup-tree-section .bvg-tree-relationship-header {
+    min-height: 50px;
 }
 
 .bvg-tree-indent {
