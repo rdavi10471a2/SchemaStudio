@@ -18,7 +18,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.85")]
+@attribute [FileVersion("1.87")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -191,7 +191,7 @@
             <header class="bvg-tabs" role="tablist" aria-label="Base view generator workspace">
                 <button type="button" class="@TabClass("tree")" @onclick='() => SetWorkspaceTab("tree")'>Select Projection</button>
                 <button type="button" class="@TabClass("sql")" @onclick='() => SetWorkspaceTab("sql")'>Generated SQL</button>
-                <button type="button" class="bvg-tab bvg-source-toggle-tab" @onclick="ToggleSourcePanel">@(SourcePanelCollapsed ? "Show Source" : "Hide Source")</button>
+                <button type="button" class="bvg-tab bvg-source-toggle-tab" @onclick="ToggleSourcePanel">@(SourcePanelCollapsed ? "Show Source View" : "Hide Source View")</button>
             </header>
 
             <div class="bvg-tab-body">
@@ -213,10 +213,6 @@
                                 <span class="bvg-group-label">Source With Lookups Expanded</span>
                                 <code>FROM @QualifiedName(SelectedDatabaseName, SelectedSchemaName, SelectedTableName) AS @QuoteIdentifier(BaseAlias)</code>
                                 <span class="bvg-count-chip">@FilteredSelectProjectionRowCount projection row(s)</span>
-                                <div class="bvg-tree-section-actions">
-                                    <button type="button" class="bvg-button secondary" @onclick="ExpandProjectionGroup">Expand</button>
-                                    <button type="button" class="bvg-button secondary" @onclick="CollapseProjectionGroup">Collapse</button>
-                                </div>
                             </div>
                             @if (SourceGroupExpanded)
                             {
