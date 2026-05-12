@@ -18,7 +18,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.74")]
+@attribute [FileVersion("1.75")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -224,7 +224,11 @@
                                     <div class="bvg-tree-column-header">
                                         <span></span>
                                         <span>Include</span>
-                                        <span>Output Column</span>
+                                        <span>Column Name</span>
+                                        <span>Business Name</span>
+                                        <span>Business Description</span>
+                                        <span>Edit</span>
+                                        <span>Disable Inheritance</span>
                                     </div>
                                     @foreach (var column in FilteredStandaloneColumns)
                                     {
@@ -234,17 +238,22 @@
                                             <div class="bvg-tree-main">
                                                 <span class="bvg-output-expression">@BuildBaseProjectionText(column)</span>
                                                 <span class="bvg-muted-cell">@ColumnKeyRoleLabel(column)</span>
-                                                <span class="bvg-system-note">Disable inheritance: @YesNo(IsRelationshipColumn(column))</span>
-                                                <span class="bvg-inline-metadata">
-                                                    @MetadataSummary(column.BusinessName, column.BusinessDescription)
-                                                    <button type="button" class="bvg-link-button" @onclick="() => OpenColumnMetadataDialog(column)">Edit</button>
-                                                </span>
                                             </div>
+                                            <span class="bvg-business-name">@MetadataDisplayValue(column.BusinessName, "No business name")</span>
+                                            <span class="bvg-business-description">@MetadataDisplayValue(column.BusinessDescription, "No business description")</span>
+                                            <button type="button" class="bvg-link-button" @onclick="() => OpenColumnMetadataDialog(column)">Edit</button>
+                                            <span class="bvg-system-note">@YesNo(IsRelationshipColumn(column))</span>
                                         </div>
                                     }
                                 </div>
                             }
                         </section>
+
+                        <button type="button"
+                                class="bvg-height-resize-handle"
+                                title="Resize Select and From panes"
+                                aria-label="Resize Select and From panes"
+                                @onpointerdown="BeginProjectionPaneResize"></button>
 
                         <section class="bvg-tree-section">
                             <div class="bvg-tree-section-header">
@@ -358,6 +367,9 @@
     private const int SourcePanelDefaultWidth = 400;
     private const int SourcePanelMinWidth = 300;
     private const int SourcePanelMaxWidth = 620;
+    private const int ProjectionPaneDefaultHeight = 50;
+    private const int ProjectionPaneMinHeight = 25;
+    private const int ProjectionPaneMaxHeight = 75;
 
     private bool IsBusy;
     private bool IncludeLookupDisplayColumns = true;
@@ -382,11 +394,15 @@
     private bool SourceGroupExpanded = true;
     private bool SourcePanelCollapsed;
     private bool IsResizingSourcePanel;
+    private bool IsResizingProjectionPane;
     private bool MetadataDialogOpen;
     private int SqlRenderVersion;
     private double ResizeStartX;
+    private double ResizeStartY;
     private int ResizeStartWidth;
+    private int ResizeStartHeight;
     private int SourcePanelWidth = SourcePanelDefaultWidth;
+    private int ProjectionPaneHeight = ProjectionPaneDefaultHeight;
     private bool SqlDirty;
     private HashSet<string> CollapsedRelationshipGroups = new(StringComparer.OrdinalIgnoreCase);
     private TableSchemaColumnInfo? MetadataEditColumn;
@@ -430,11 +446,12 @@
         {
             (true, _) => "bvg-layout source-collapsed",
             (_, true) => "bvg-layout bvg-resizing",
+            _ when IsResizingProjectionPane => "bvg-layout bvg-resizing-height",
             _ => "bvg-layout"
         };
 
     private string LayoutStyle =>
-        SourcePanelCollapsed ? "" : $"--source-pane-width: {SourcePanelWidth}px;";
+        $"{(SourcePanelCollapsed ? "" : $"--source-pane-width: {SourcePanelWidth}px;")} --projection-pane-height: {ProjectionPaneHeight}%;";
 
     private string TargetViewPreview =>
         string.IsNullOrWhiteSpace(TargetViewName)
@@ -528,24 +545,42 @@
     private void BeginSourcePaneResize(PointerEventArgs args)
     {
         IsResizingSourcePanel = true;
+        IsResizingProjectionPane = false;
         ResizeStartX = args.ClientX;
         ResizeStartWidth = SourcePanelWidth;
     }
 
+    private void BeginProjectionPaneResize(PointerEventArgs args)
+    {
+        IsResizingProjectionPane = true;
+        IsResizingSourcePanel = false;
+        ResizeStartY = args.ClientY;
+        ResizeStartHeight = ProjectionPaneHeight;
+    }
+
     private void ResizePane(PointerEventArgs args)
     {
-        if (!IsResizingSourcePanel)
+        if (!IsResizingSourcePanel && !IsResizingProjectionPane)
         {
             return;
         }
 
-        var delta = (int)Math.Round(args.ClientX - ResizeStartX);
-        SourcePanelWidth = Math.Clamp(ResizeStartWidth + delta, SourcePanelMinWidth, SourcePanelMaxWidth);
+        if (IsResizingSourcePanel)
+        {
+            var delta = (int)Math.Round(args.ClientX - ResizeStartX);
+            SourcePanelWidth = Math.Clamp(ResizeStartWidth + delta, SourcePanelMinWidth, SourcePanelMaxWidth);
+            return;
+        }
+
+        var verticalDelta = (int)Math.Round(args.ClientY - ResizeStartY);
+        var nextHeight = ResizeStartHeight + (verticalDelta / 8);
+        ProjectionPaneHeight = Math.Clamp(nextHeight, ProjectionPaneMinHeight, ProjectionPaneMaxHeight);
     }
 
     private void EndPaneResize()
     {
         IsResizingSourcePanel = false;
+        IsResizingProjectionPane = false;
     }
 
     private void ToggleSourceGroup()
@@ -1569,6 +1604,9 @@
         !string.IsNullOrWhiteSpace(filter) &&
         !string.IsNullOrWhiteSpace(value) &&
         value.Contains(filter, StringComparison.OrdinalIgnoreCase);
+
+    private static string MetadataDisplayValue(string? value, string emptyText) =>
+        string.IsNullOrWhiteSpace(value) ? emptyText : value;
 
     private bool RelationshipOwnsProjectionColumns(TableSchemaRelationshipInfo relationship) =>
         IncludeLookupDisplayColumns &&

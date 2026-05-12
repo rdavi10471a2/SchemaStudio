@@ -586,8 +586,8 @@
 
 .bvg-tree-view {
     display: grid;
-    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 0.65rem;
+    grid-template-rows: minmax(0, var(--projection-pane-height, 50%)) 10px minmax(0, 1fr);
+    gap: 0.45rem;
     min-height: 0;
     overflow: hidden;
 }
@@ -631,6 +631,51 @@
     font-weight: 900;
     letter-spacing: 0.04em;
     text-transform: uppercase;
+}
+
+.bvg-source-tree-section .bvg-tree-row,
+.bvg-source-tree-section .bvg-tree-column-header {
+    grid-template-columns:
+        24px
+        34px
+        minmax(210px, 0.8fr)
+        minmax(130px, 0.35fr)
+        minmax(260px, 0.75fr)
+        auto
+        minmax(96px, auto);
+}
+
+.bvg-height-resize-handle {
+    align-self: stretch;
+    min-height: 10px;
+    height: 10px;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    cursor: row-resize;
+    position: relative;
+}
+
+.bvg-height-resize-handle::before {
+    content: "";
+    position: absolute;
+    right: 0.75rem;
+    left: 0.75rem;
+    top: 4px;
+    height: 2px;
+    border-radius: 999px;
+    background: #c7cfda;
+}
+
+.bvg-height-resize-handle:hover::before,
+.bvg-resizing-height .bvg-height-resize-handle::before {
+    background: var(--rz-primary);
+}
+
+.bvg-resizing-height {
+    cursor: row-resize;
+    user-select: none;
 }
 
 .bvg-tree-section-header {
@@ -693,16 +738,8 @@
 
 .bvg-tree-main > .bvg-output-expression,
 .bvg-tree-main > .bvg-muted-cell,
-.bvg-tree-main > .bvg-system-note,
-.bvg-tree-main > .bvg-inline-metadata {
+.bvg-tree-main > .bvg-system-note {
     display: inline;
-}
-
-.bvg-inline-metadata {
-    display: inline-flex;
-    align-items: baseline;
-    gap: 0.4rem;
-    min-width: 0;
 }
 
 .bvg-tree-meta {
@@ -956,6 +993,20 @@
     font-size: 0.76rem;
     font-weight: 700;
     white-space: nowrap;
+}
+
+.bvg-business-name,
+.bvg-business-description {
+    min-width: 0;
+    overflow: hidden;
+    color: #334155;
+    font-size: 0.8rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bvg-business-description {
+    color: #475569;
 }
 
 .bvg-status-ok,
