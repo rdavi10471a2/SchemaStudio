@@ -3,7 +3,7 @@ using SchemaStudioWebViewer.Data;
 
 namespace SchemaStudioWebViewer.Components.Pages.BaseViewCreator;
 
-[FileVersion("1.0")]
+[FileVersion("1.1")]
 [AIFileContext(
     "Components/Pages/BaseViewCreator/BaseViewCreatorSelectionEngine.cs",
     "Builds the isolated Base View Creator selection graph from source columns and lookup relationships.",
@@ -87,6 +87,18 @@ public sealed record BaseViewCreatorSelectionPlan(
         RelationshipStates.Any(state =>
             ReferenceEquals(state.Relationship, relationship) &&
             state.HasLookupDisplayProjection);
+
+    public bool RelationshipOwnsEditorProjectionColumns(TableSchemaRelationshipInfo relationship) =>
+        RelationshipStates.Any(state =>
+            ReferenceEquals(state.Relationship, relationship) &&
+            state.HasDisplayColumn &&
+            state.Relationship.Columns.Count > 0);
+
+    public bool ColumnBelongsToEditorRelationship(string columnName) =>
+        RelationshipStates.Any(state =>
+            state.HasDisplayColumn &&
+            state.Relationship.Columns.Any(pair =>
+                string.Equals(pair.LocalColumnName, columnName, StringComparison.OrdinalIgnoreCase)));
 
     public BaseViewCreatorRelationshipState? FindRelationshipState(TableSchemaRelationshipInfo relationship) =>
         RelationshipStates.FirstOrDefault(state => ReferenceEquals(state.Relationship, relationship));
