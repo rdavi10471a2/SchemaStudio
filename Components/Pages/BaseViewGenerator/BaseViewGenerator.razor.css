@@ -113,15 +113,20 @@
 
 .bvg-layout {
     display: grid;
-    grid-template-columns: clamp(340px, 22vw, 430px) minmax(0, 1fr);
+    grid-template-columns: minmax(320px, var(--source-pane-width, 400px)) 10px minmax(0, 1fr);
     grid-template-areas:
-        "source workspace";
+        "source splitter workspace";
     gap: 0.75rem;
     flex: 1 1 auto;
     height: 100%;
     max-height: 100%;
     min-height: 0;
     overflow: hidden;
+}
+
+.bvg-layout.source-collapsed {
+    grid-template-columns: 0 minmax(0, 1fr);
+    grid-template-areas: "workspace workspace";
 }
 
 .bvg-panel {
@@ -140,6 +145,28 @@
     height: 100%;
     max-height: 100%;
     overflow: hidden;
+}
+
+.bvg-layout.source-collapsed .bvg-source-panel,
+.bvg-layout.source-collapsed .bvg-pane-splitter {
+    display: none;
+}
+
+.bvg-pane-splitter {
+    grid-area: splitter;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 10px;
+    cursor: col-resize;
+}
+
+.bvg-pane-splitter input[type="range"] {
+    width: 160px;
+    height: 10px;
+    transform: rotate(90deg);
+    accent-color: #3148f5;
+    cursor: ew-resize;
 }
 
 .bvg-workspace-panel {
@@ -427,7 +454,8 @@
     font-weight: 600;
     line-height: 1.3;
     overflow-wrap: anywhere;
-    white-space: normal;
+    padding-top: 0.05rem;
+    white-space: pre-wrap;
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
@@ -492,10 +520,11 @@
 .bvg-output-expression {
     display: block;
     max-width: 100%;
-    overflow-x: auto;
+    overflow: hidden;
     font-family: Consolas, "Courier New", monospace;
     color: #0f172a;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
+    white-space: normal;
 }
 
 .bvg-display-picker {
@@ -509,6 +538,15 @@
 .bvg-display-picker ::deep .bvg-display-dropdown {
     width: min(100%, 280px);
     max-width: 100%;
+    min-height: 30px;
+    line-height: 1.2;
+}
+
+.bvg-display-picker ::deep .bvg-display-dropdown .rz-dropdown-label,
+.bvg-display-picker ::deep .bvg-display-dropdown .rz-inputtext {
+    min-height: 28px;
+    padding-block: 0.24rem;
+    line-height: 1.2;
 }
 
 .bvg-relationship-summary {
@@ -541,14 +579,29 @@
 
 .bvg-tree-section-header,
 .bvg-tree-relationship-header,
-.bvg-tree-row {
+.bvg-tree-row,
+.bvg-tree-column-header {
     display: grid;
-    grid-template-columns: 24px 34px minmax(320px, 1.35fr) minmax(260px, 0.9fr) minmax(110px, 0.35fr);
+    grid-template-columns: 24px 34px minmax(460px, 1fr) minmax(140px, 0.22fr) minmax(72px, 0.12fr);
     gap: 0.45rem;
     align-items: center;
     min-width: 0;
     padding: 0.42rem 0.55rem;
     border-bottom: 1px solid #edf0f5;
+}
+
+.bvg-tree-column-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    min-height: 30px;
+    padding-block: 0.34rem;
+    background: #f8f9fb;
+    color: #111827;
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
 }
 
 .bvg-tree-section-header {
@@ -609,12 +662,13 @@
     min-width: 0;
     overflow: hidden;
     overflow-wrap: anywhere;
-    white-space: normal;
+    white-space: pre-wrap;
 }
 
 .bvg-tree-relationship-header code {
     display: -webkit-box;
     line-height: 1.3;
+    padding-top: 0.05rem;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
 }
@@ -973,6 +1027,10 @@
     color: #0f172a;
 }
 
+.bvg-source-toggle-tab {
+    margin-left: auto;
+}
+
 .bvg-tab-body {
     display: flex;
     flex: 1 1 auto;
@@ -1006,6 +1064,15 @@
             "source"
             "workspace";
         overflow: auto;
+    }
+
+    .bvg-pane-splitter {
+        display: none;
+    }
+
+    .bvg-layout.source-collapsed {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas: "workspace";
     }
 
     .bvg-header {
