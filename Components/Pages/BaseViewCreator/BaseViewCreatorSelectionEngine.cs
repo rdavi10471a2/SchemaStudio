@@ -3,7 +3,7 @@ using SchemaStudioWebViewer.Data;
 
 namespace SchemaStudioWebViewer.Components.Pages.BaseViewCreator;
 
-[FileVersion("1.1")]
+[FileVersion("1.2")]
 [AIFileContext(
     "Components/Pages/BaseViewCreator/BaseViewCreatorSelectionEngine.cs",
     "Builds the isolated Base View Creator selection graph from source columns and lookup relationships.",
@@ -56,7 +56,7 @@ public sealed class BaseViewCreatorSelectionEngine
             relationship.Include &&
             relationship.IncludeDisplayColumn &&
             hasDisplayColumn &&
-            selectedLocalColumns.Count > 0;
+            relationship.Columns.Count > 0;
 
         return new BaseViewCreatorRelationshipState(
             relationship,

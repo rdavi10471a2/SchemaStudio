@@ -1,6 +1,6 @@
 using SchemaStudioWebViewer.Data;
 
-[module: SchemaStudio.AIHelpers.FileVersion("1.0")]
+[module: SchemaStudio.AIHelpers.FileVersion("1.1")]
 [module: SchemaStudio.AIHelpers.AIFileContext(
     "Components/Pages/BaseViewCreator/BaseViewCreator.Sql.cs",
     "Partial class slice for Base View Creator SQL and projection generation.",
@@ -195,7 +195,6 @@ public partial class BaseViewCreator
         foreach (var state in plan.JoinDependencies)
         {
             var relationship = state.Relationship;
-            var emittedAnyRelationshipColumn = false;
             var startsRelationshipGroup = true;
             foreach (var pair in relationship.Columns)
             {
@@ -207,12 +206,10 @@ public partial class BaseViewCreator
                 var projection = $"{QuoteIdentifier(BaseAlias)}.{QuoteIdentifier(pair.LocalColumnName)}";
                 var column = Columns.FirstOrDefault(column => string.Equals(column.ColumnName, pair.LocalColumnName, StringComparison.OrdinalIgnoreCase));
                 yield return new ProjectionSpec(projection, pair.LocalColumnName, column?.BusinessName ?? "", column?.BusinessDescription ?? "", true, startsRelationshipGroup, null);
-                emittedAnyRelationshipColumn = true;
                 startsRelationshipGroup = false;
             }
 
-            if (!emittedAnyRelationshipColumn ||
-                !relationship.IncludeDisplayColumn ||
+            if (!relationship.IncludeDisplayColumn ||
                 string.IsNullOrWhiteSpace(relationship.DisplayColumnName))
             {
                 continue;
@@ -249,7 +246,6 @@ public partial class BaseViewCreator
         foreach (var state in plan.JoinDependencies)
         {
             var relationship = state.Relationship;
-            var emittedAnyRelationshipColumn = false;
             foreach (var pair in relationship.Columns)
             {
                 if (!plan.IsColumnSelected(pair.LocalColumnName) || !emittedRelationshipColumns.Add(pair.LocalColumnName))
@@ -258,11 +254,9 @@ public partial class BaseViewCreator
                 }
 
                 yield return pair.LocalColumnName;
-                emittedAnyRelationshipColumn = true;
             }
 
-            if (emittedAnyRelationshipColumn &&
-                relationship.IncludeDisplayColumn &&
+            if (relationship.IncludeDisplayColumn &&
                 !string.IsNullOrWhiteSpace(relationship.DisplayColumnName))
             {
                 yield return BuildLookupProjectionAlias(relationship);
