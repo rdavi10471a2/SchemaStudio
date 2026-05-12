@@ -1019,11 +1019,6 @@
         relationship.Include = include;
         relationship.IncludeDisplayColumn = include && HasDisplayColumn(relationship);
 
-        foreach (var column in GetRelationshipColumns(relationship))
-        {
-            column.Include = include;
-        }
-
         MarkSqlDirty();
     }
 
