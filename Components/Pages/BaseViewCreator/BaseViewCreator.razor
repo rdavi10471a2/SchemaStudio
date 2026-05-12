@@ -21,7 +21,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.5")]
+@attribute [FileVersion("1.6")]
 @attribute [AIFileContext("Components/Pages/BaseViewCreator/BaseViewCreator.razor", "Forked base-view creator page that preserves the proven Base View Generator UI while allowing different internal plumbing to evolve safely.", Responsibilities = "Keep the base-view creation workflow visually familiar while isolating experimental model and engine changes from the production Base View Generator page.", Nuances = "This page intentionally starts as a UI-preserving fork. Lookup discovery and the proven base-view workflow remain available in BaseViewGenerator while new plumbing is validated here first.", RelatedFiles = "Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", LastReviewed = "2026-05-12")]
 
 <PageTitle>Base View Creator</PageTitle>
@@ -265,6 +265,10 @@
                                                     <div class="bvg-tree-main">
                                                         <span class="bvg-output-expression">@BuildBaseProjectionText(column)</span>
                                                         <span class="bvg-role-glyph">FK Ref</span>
+                                                        @if (!relationship.Include)
+                                                        {
+                                                            <span class="bvg-role-glyph bvg-role-glyph-muted">Enable Join To Project</span>
+                                                        }
                                                         @if (IsJoinSuppressed(relationship))
                                                         {
                                                             <span class="bvg-role-glyph">No Display Selected</span>
@@ -286,6 +290,10 @@
                                                 <div class="bvg-tree-main">
                                                     <span class="bvg-output-expression">@BuildDisplayProjectionText(relationship)</span>
                                                     <span class="bvg-role-glyph">Lookup</span>
+                                                    @if (!relationship.Include)
+                                                    {
+                                                        <span class="bvg-role-glyph bvg-role-glyph-muted">Enable Join To Project</span>
+                                                    }
                                                 </div>
                                                 <span class="bvg-business-name">@EffectiveRelationshipDisplayBusinessName(relationship)</span>
                                                 <span class="bvg-business-description">@EffectiveRelationshipDisplayBusinessDescription(relationship)</span>
@@ -1190,7 +1198,7 @@
 
         if (!relationship.Include)
         {
-            return "Join disabled";
+            return "Join disabled -- projection locked until join is enabled";
         }
 
         if (!relationship.IncludeDisplayColumn)

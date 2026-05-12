@@ -1097,6 +1097,12 @@
     white-space: nowrap;
 }
 
+.bvg-role-glyph-muted {
+    color: #6b7280;
+    border-color: #cfd7e3;
+    background: #f3f5f8;
+}
+
 .bvg-system-note {
     color: #64748b;
     font-size: 0.76rem;
