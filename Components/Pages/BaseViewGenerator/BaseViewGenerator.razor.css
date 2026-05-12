@@ -1012,6 +1012,24 @@
     text-transform: uppercase;
 }
 
+.bvg-role-glyph {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    max-width: 100%;
+    padding: 0.06rem 0.34rem;
+    border: 1px solid #b8c4d6;
+    border-radius: 4px;
+    background: #f8fafc;
+    color: #475569;
+    font-size: 0.66rem;
+    font-weight: 900;
+    line-height: 1.2;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
 .bvg-system-note {
     color: #64748b;
     font-size: 0.76rem;

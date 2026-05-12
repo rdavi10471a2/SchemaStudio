@@ -18,7 +18,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.78")]
+@attribute [FileVersion("1.79")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -237,7 +237,10 @@
                                             <input type="checkbox" checked="@column.Include" @onchange="args => OnColumnIncludeChanged(column, args)" />
                                             <div class="bvg-tree-main">
                                                 <span class="bvg-output-expression">@BuildBaseProjectionText(column)</span>
-                                                <span class="bvg-muted-cell">@ColumnKeyRoleLabel(column)</span>
+                                                @if (!string.IsNullOrWhiteSpace(ColumnKeyRoleLabel(column)))
+                                                {
+                                                    <span class="bvg-role-glyph">@ColumnKeyRoleLabel(column)</span>
+                                                }
                                             </div>
                                             <span class="bvg-business-name">@MetadataDisplayValue(column.BusinessName, "No business name")</span>
                                             <span class="bvg-business-description">@MetadataDisplayValue(column.BusinessDescription, "No business description")</span>
@@ -254,7 +257,7 @@
                                                 <input type="checkbox" checked="@column.Include" @onchange="args => OnColumnIncludeChanged(column, args)" disabled="@(!relationship.Include)" />
                                                 <div class="bvg-tree-main">
                                                     <span class="bvg-output-expression">@BuildBaseProjectionText(column)</span>
-                                                    <span class="bvg-muted-cell">FK key carried from source table</span>
+                                                    <span class="bvg-role-glyph">FK Ref</span>
                                                 </div>
                                                 <span class="bvg-business-name">@MetadataDisplayValue(column.BusinessName, "No business name")</span>
                                                 <span class="bvg-business-description">@MetadataDisplayValue(column.BusinessDescription, "No business description")</span>
@@ -270,7 +273,7 @@
                                                 <input type="checkbox" checked="@relationship.IncludeDisplayColumn" @onchange="args => OnRelationshipDisplayIncludeChanged(relationship, args)" disabled="@(!relationship.Include || string.IsNullOrWhiteSpace(relationship.DisplayColumnName))" />
                                                 <div class="bvg-tree-main">
                                                     <span class="bvg-output-expression">@BuildDisplayProjectionText(relationship)</span>
-                                                    <span class="bvg-muted-cell">Lookup display column</span>
+                                                    <span class="bvg-role-glyph">Lookup</span>
                                                 </div>
                                                 <span class="bvg-business-name">@MetadataDisplayValue(relationship.DisplayBusinessName, "No business name")</span>
                                                 <span class="bvg-business-description">@MetadataDisplayValue(relationship.DisplayBusinessDescription, "No business description")</span>
