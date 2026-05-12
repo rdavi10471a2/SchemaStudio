@@ -20,7 +20,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.94")]
+@attribute [FileVersion("1.93")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -406,7 +406,6 @@
     private const int ProjectionPaneDefaultHeight = 50;
     private const int ProjectionPaneMinHeight = 25;
     private const int ProjectionPaneMaxHeight = 75;
-    private readonly BaseViewProjectionPlanner ProjectionPlanner = new();
 
     private bool IsBusy;
     private bool IgnoreSelfJoins = true;
@@ -514,20 +513,10 @@
             : Relationships.Where(RelationshipMatchesFilter);
 
     private int FilteredSelectProjectionRowCount =>
-        CurrentProjectionPlan.Rows.Count(row =>
-            row.SourceColumn is null
-                ? row.LookupJoinRelationship is not null && RelationshipMatchesFilter(row.LookupJoinRelationship)
-                : ColumnMatchesFilter(row.SourceColumn));
-
-    private BaseViewProjectionPlan CurrentProjectionPlan =>
-        ProjectionPlanner.Build(
-            Columns,
-            Relationships,
-            BaseAlias,
-            QuoteIdentifier,
-            BuildLookupAlias,
-            BuildLookupProjectionAlias,
-            ShouldGenerateJoin);
+        FilteredStandaloneColumns.Count() +
+        FilteredRelationships.Sum(relationship =>
+            (RelationshipOwnsProjectionColumns(relationship) ? GetRelationshipColumns(relationship).Count() : 0) +
+            (relationship.Include && !string.IsNullOrWhiteSpace(relationship.DisplayColumnName) ? 1 : 0));
 
     private string FilterText =>
         ColumnFilter.Trim();
@@ -1250,7 +1239,7 @@
         QueueSqlHighlight();
     }
 
-    private List<string> BuildStandardSql(IReadOnlyList<BaseViewProjectionRow> projectionSpecs)
+    private List<string> BuildStandardSql(IReadOnlyList<ProjectionSpec> projectionSpecs)
     {
         var lines = new List<string>
         {
@@ -1265,7 +1254,7 @@
         return lines;
     }
 
-    private List<string> BuildCteSql(IReadOnlyList<BaseViewProjectionRow> projectionSpecs)
+    private List<string> BuildCteSql(IReadOnlyList<ProjectionSpec> projectionSpecs)
     {
         var sourceCteName = BuildSourceCteName();
         var lines = new List<string>
@@ -1316,7 +1305,7 @@
         }
     }
 
-    private void AddFromAndJoinLines(ICollection<string> lines, string linePrefix, IReadOnlyList<BaseViewProjectionRow> projectionSpecs)
+    private void AddFromAndJoinLines(ICollection<string> lines, string linePrefix, IReadOnlyList<ProjectionSpec> projectionSpecs)
     {
         lines.Add("");
         lines.Add($"{linePrefix}FROM {QualifiedName(SelectedDatabaseName, SelectedSchemaName, SelectedTableName)} AS {QuoteIdentifier(BaseAlias)}");
@@ -1423,7 +1412,7 @@
             .Replace(" AND ", $"{Environment.NewLine}AND ", StringComparison.Ordinal);
     }
 
-    private IEnumerable<string> BuildProjectionLines(IReadOnlyList<BaseViewProjectionRow> projectionSpecs)
+    private IEnumerable<string> BuildProjectionLines(IReadOnlyList<ProjectionSpec> projectionSpecs)
     {
         var first = true;
 
@@ -1445,7 +1434,7 @@
         }
     }
 
-    private IEnumerable<string> BuildCteSourceProjectionLines(IReadOnlyList<BaseViewProjectionRow> projectionSpecs)
+    private IEnumerable<string> BuildCteSourceProjectionLines(IReadOnlyList<ProjectionSpec> projectionSpecs)
     {
         var first = true;
 
@@ -1461,7 +1450,7 @@
         }
     }
 
-    private IEnumerable<string> BuildCteSurfaceProjectionLines(string sourceCteName, IReadOnlyList<BaseViewProjectionRow> projectionSpecs)
+    private IEnumerable<string> BuildCteSurfaceProjectionLines(string sourceCteName, IReadOnlyList<ProjectionSpec> projectionSpecs)
     {
         var first = true;
 
@@ -1484,17 +1473,92 @@
         }
     }
 
-    private IEnumerable<BaseViewProjectionRow> BuildProjectionSpecs() =>
-        CurrentProjectionPlan.Rows;
+    private IEnumerable<ProjectionSpec> BuildProjectionSpecs()
+    {
+        var emittedRelationshipColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-    private IEnumerable<TableSchemaRelationshipInfo> GetProjectionJoinDependencies(IReadOnlyList<BaseViewProjectionRow> projectionSpecs) =>
-        projectionSpecs
-            .Where(projection => projection.LookupJoinRelationship is not null)
-            .Select(projection => projection.LookupJoinRelationship!)
-            .Distinct(ReferenceEqualityComparer<TableSchemaRelationshipInfo>.Instance);
+        foreach (var column in Columns.Where(column => column.Include && !ColumnHasLookupDisplayProjection(column.ColumnName)))
+        {
+            var projection = $"{QuoteIdentifier(BaseAlias)}.{QuoteIdentifier(column.ColumnName)}";
+            yield return new ProjectionSpec(projection, column.ColumnName, column.BusinessName, column.BusinessDescription, false, false, null);
+        }
 
-    private IEnumerable<string> BuildOutputColumnNames() =>
-        CurrentProjectionPlan.OutputColumnNames;
+        foreach (var relationship in Relationships.Where(RelationshipHasLookupDisplayProjection))
+        {
+            var emittedAnyRelationshipColumn = false;
+            var startsRelationshipGroup = true;
+            foreach (var pair in relationship.Columns)
+            {
+                if (!IsColumnIncluded(pair.LocalColumnName) || !emittedRelationshipColumns.Add(pair.LocalColumnName))
+                {
+                    continue;
+                }
+
+                var projection = $"{QuoteIdentifier(BaseAlias)}.{QuoteIdentifier(pair.LocalColumnName)}";
+                var column = Columns.FirstOrDefault(column => string.Equals(column.ColumnName, pair.LocalColumnName, StringComparison.OrdinalIgnoreCase));
+                yield return new ProjectionSpec(projection, pair.LocalColumnName, column?.BusinessName ?? "", column?.BusinessDescription ?? "", true, startsRelationshipGroup, null);
+                emittedAnyRelationshipColumn = true;
+                startsRelationshipGroup = false;
+            }
+
+            if (!emittedAnyRelationshipColumn ||
+                !ShouldGenerateJoin(relationship) ||
+                !relationship.IncludeDisplayColumn ||
+                string.IsNullOrWhiteSpace(relationship.DisplayColumnName))
+            {
+                continue;
+            }
+
+            var alias = BuildLookupAlias(relationship);
+            var columnAlias = BuildLookupProjectionAlias(relationship);
+            var lookupProjection = $"{QuoteIdentifier(alias)}.{QuoteIdentifier(relationship.DisplayColumnName!)} AS {QuoteIdentifier(columnAlias)}";
+            yield return new ProjectionSpec(lookupProjection, columnAlias, relationship.DisplayBusinessName, relationship.DisplayBusinessDescription, true, false, relationship);
+        }
+    }
+
+    private IEnumerable<TableSchemaRelationshipInfo> GetProjectionJoinDependencies(IReadOnlyList<ProjectionSpec> projectionSpecs)
+    {
+        foreach (var relationship in Relationships)
+        {
+            if (projectionSpecs.Any(projection => ReferenceEquals(projection.LookupJoinRelationship, relationship)))
+            {
+                yield return relationship;
+            }
+        }
+    }
+
+    private IEnumerable<string> BuildOutputColumnNames()
+    {
+        var emittedRelationshipColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var column in Columns.Where(column => column.Include && !ColumnHasLookupDisplayProjection(column.ColumnName)))
+        {
+            yield return column.ColumnName;
+        }
+
+        foreach (var relationship in Relationships.Where(RelationshipHasLookupDisplayProjection))
+        {
+            var emittedAnyRelationshipColumn = false;
+            foreach (var pair in relationship.Columns)
+            {
+                if (!IsColumnIncluded(pair.LocalColumnName) || !emittedRelationshipColumns.Add(pair.LocalColumnName))
+                {
+                    continue;
+                }
+
+                yield return pair.LocalColumnName;
+                emittedAnyRelationshipColumn = true;
+            }
+
+            if (emittedAnyRelationshipColumn &&
+                ShouldGenerateJoin(relationship) &&
+                relationship.IncludeDisplayColumn &&
+                !string.IsNullOrWhiteSpace(relationship.DisplayColumnName))
+            {
+                yield return BuildLookupProjectionAlias(relationship);
+            }
+        }
+    }
 
     private bool IsColumnIncluded(string columnName) =>
         Columns.Any(column => column.Include && string.Equals(column.ColumnName, columnName, StringComparison.OrdinalIgnoreCase));
@@ -1580,8 +1644,10 @@
             relationship.Columns.Any(pair => string.Equals(pair.LocalColumnName, columnName, StringComparison.OrdinalIgnoreCase)));
 
     private bool RelationshipHasLookupDisplayProjection(TableSchemaRelationshipInfo relationship) =>
-        CurrentProjectionPlan.RelationshipDisplayState.TryGetValue(relationship, out var hasDisplayProjection) &&
-        hasDisplayProjection;
+        ShouldGenerateJoin(relationship) &&
+        relationship.IncludeDisplayColumn &&
+        !string.IsNullOrWhiteSpace(relationship.DisplayColumnName) &&
+        relationship.Columns.Any(pair => IsColumnIncluded(pair.LocalColumnName));
 
     private bool ColumnHasLookupDisplayProjection(string columnName) =>
         Relationships.Any(relationship =>
@@ -2121,4 +2187,12 @@
         }
     }
 
+    private sealed record ProjectionSpec(
+        string SourceProjection,
+        string OutputColumnName,
+        string BusinessName,
+        string BusinessDescription,
+        bool DisableInheritance,
+        bool StartsRelationshipGroup,
+        TableSchemaRelationshipInfo? LookupJoinRelationship);
 }
