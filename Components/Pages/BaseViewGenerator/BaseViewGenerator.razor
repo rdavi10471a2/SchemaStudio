@@ -18,7 +18,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.81")]
+@attribute [FileVersion("1.82")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -1386,9 +1386,9 @@
             : "bvg-tree-row";
 
     private string TreeDisplayRowClass(TableSchemaRelationshipInfo relationship) =>
-        relationship.Include && relationship.IncludeDisplayColumn
+        relationship.Include
             ? "bvg-tree-row"
-            : "bvg-tree-row bvg-muted-row";
+            : "bvg-tree-row bvg-disabled-group";
 
     private string TreeRelationshipNodeClass(TableSchemaRelationshipInfo relationship)
     {
@@ -1625,8 +1625,7 @@
         string.IsNullOrWhiteSpace(value) ? emptyText : value;
 
     private bool RelationshipOwnsProjectionColumns(TableSchemaRelationshipInfo relationship) =>
-        IncludeLookupDisplayColumns &&
-        CanReviewLookupRelationship(relationship);
+        relationship.Columns.Count > 0;
 
     private bool RelationshipOwnsColumn(string columnName) =>
         Relationships.Any(relationship =>
