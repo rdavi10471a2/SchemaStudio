@@ -21,7 +21,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.8")]
+@attribute [FileVersion("1.9")]
 @attribute [AIFileContext("Components/Pages/BaseViewCreator/BaseViewCreator.razor", "Forked base-view creator page that preserves the proven Base View Generator UI while allowing different internal plumbing to evolve safely.", Responsibilities = "Keep the base-view creation workflow visually familiar while isolating experimental model and engine changes from the production Base View Generator page.", Nuances = "This page intentionally starts as a UI-preserving fork. Lookup discovery and the proven base-view workflow remain available in BaseViewGenerator while new plumbing is validated here first.", RelatedFiles = "Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", LastReviewed = "2026-05-12")]
 
 <PageTitle>Base View Creator</PageTitle>
@@ -1009,6 +1009,7 @@
     private void OnColumnIncludeChanged(TableSchemaColumnInfo column, ChangeEventArgs args)
     {
         column.Include = ToBool(args.Value);
+        SyncRelationshipIncludeFromProjectionRows(column);
         MarkSqlDirty();
     }
 
@@ -1029,7 +1030,30 @@
     private void OnRelationshipDisplayIncludeChanged(TableSchemaRelationshipInfo relationship, ChangeEventArgs args)
     {
         relationship.IncludeDisplayColumn = ToBool(args.Value);
+        SyncRelationshipIncludeFromProjectionRows(relationship);
         MarkSqlDirty();
+    }
+
+    private void SyncRelationshipIncludeFromProjectionRows(TableSchemaColumnInfo changedColumn)
+    {
+        foreach (var relationship in Relationships.Where(RelationshipOwnsEditorProjectionColumns))
+        {
+            if (relationship.Columns.Any(pair => string.Equals(pair.LocalColumnName, changedColumn.ColumnName, StringComparison.OrdinalIgnoreCase)))
+            {
+                SyncRelationshipIncludeFromProjectionRows(relationship);
+            }
+        }
+    }
+
+    private void SyncRelationshipIncludeFromProjectionRows(TableSchemaRelationshipInfo relationship)
+    {
+        if (!RelationshipOwnsEditorProjectionColumns(relationship))
+        {
+            return;
+        }
+
+        var hasSelectedKeyColumn = GetRelationshipColumns(relationship).Any(column => column.Include);
+        relationship.Include = hasSelectedKeyColumn && relationship.IncludeDisplayColumn;
     }
 
     private void OnRelationshipJoinTypeChanged(TableSchemaRelationshipInfo relationship, ChangeEventArgs args)
