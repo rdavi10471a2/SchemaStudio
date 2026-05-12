@@ -18,7 +18,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.79")]
+@attribute [FileVersion("1.80")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -266,7 +266,7 @@
                                             </div>
                                         }
 
-                                        @if (relationship.IncludeDisplayColumn && !string.IsNullOrWhiteSpace(relationship.DisplayColumnName))
+                                        @if (!string.IsNullOrWhiteSpace(relationship.DisplayColumnName))
                                         {
                                             <div class="@TreeDisplayRowClass(relationship)">
                                                 <div class="bvg-tree-indent"></div>
@@ -487,7 +487,7 @@
         FilteredStandaloneColumns.Count() +
         FilteredRelationships.Sum(relationship =>
             GetRelationshipColumns(relationship).Count() +
-            (relationship.IncludeDisplayColumn && !string.IsNullOrWhiteSpace(relationship.DisplayColumnName) ? 1 : 0));
+            (!string.IsNullOrWhiteSpace(relationship.DisplayColumnName) ? 1 : 0));
 
     private string FilterText =>
         ColumnFilter.Trim();
