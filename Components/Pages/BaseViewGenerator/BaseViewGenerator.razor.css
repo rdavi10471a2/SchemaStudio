@@ -691,6 +691,30 @@
     background: #fbfcff;
 }
 
+.bvg-lookup-control-row {
+    display: grid;
+    grid-template-columns: minmax(86px, auto) minmax(180px, 280px) minmax(260px, 1fr);
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.42rem 0.7rem 0.58rem 5.25rem;
+    border-top: 1px solid #e4e9f1;
+    background: #ffffff;
+}
+
+.bvg-lookup-control-row code {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+.bvg-lookup-control-label {
+    color: #516174;
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
 .bvg-tree-section-actions {
     display: flex;
     flex-wrap: wrap;
