@@ -18,7 +18,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.83")]
+@attribute [FileVersion("1.84")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -1137,7 +1137,7 @@
 
     private string BuildLoadedStatusMessage()
     {
-        var generatedJoinCount = Relationships.Count(ShouldGenerateJoin);
+        var generatedJoinCount = Relationships.Count(RelationshipHasLookupDisplayProjection);
         var message = $"Loaded {Columns.Count} columns and {Relationships.Count} visible M-to-1 relationships from [{SelectedDatabaseName}].[{SelectedSchemaName}].[{SelectedTableName}]. SQL will generate {generatedJoinCount} join(s).";
         return string.IsNullOrWhiteSpace(RelationshipTelemetryMessage)
             ? message
@@ -1255,7 +1255,7 @@
 
         var projectionSpecs = BuildProjectionSpecs().ToList();
         var lines = OutputShape == OutputShapeStandard
-            ? BuildStandardSql(BuildProjectionLines(projectionSpecs).ToList())
+            ? BuildStandardSql(projectionSpecs)
             : BuildCteSql(projectionSpecs);
 
         GeneratedSql = string.Join(Environment.NewLine, lines);
@@ -1264,7 +1264,7 @@
         QueueSqlHighlight();
     }
 
-    private List<string> BuildStandardSql(IReadOnlyList<string> projectionLines)
+    private List<string> BuildStandardSql(IReadOnlyList<ProjectionSpec> projectionSpecs)
     {
         var lines = new List<string>
         {
@@ -1273,8 +1273,9 @@
             "SELECT"
         };
 
+        var projectionLines = BuildProjectionLines(projectionSpecs).ToList();
         AddProjectionLines(lines, projectionLines, "      -- Select at least one column.");
-        AddFromAndJoinLines(lines, "");
+        AddFromAndJoinLines(lines, "", projectionSpecs);
         return lines;
     }
 
@@ -1292,7 +1293,7 @@
         };
 
         AddProjectionLines(lines, BuildCteSourceProjectionLines(projectionSpecs).ToList(), "          -- Select at least one column.", "    ");
-        AddFromAndJoinLines(lines, "    ");
+        AddFromAndJoinLines(lines, "    ", projectionSpecs);
         lines.Add(")");
         lines.Add("");
         lines.Add("SELECT");
@@ -1329,12 +1330,12 @@
         }
     }
 
-    private void AddFromAndJoinLines(ICollection<string> lines, string linePrefix)
+    private void AddFromAndJoinLines(ICollection<string> lines, string linePrefix, IReadOnlyList<ProjectionSpec> projectionSpecs)
     {
         lines.Add("");
         lines.Add($"{linePrefix}FROM {QualifiedName(SelectedDatabaseName, SelectedSchemaName, SelectedTableName)} AS {QuoteIdentifier(BaseAlias)}");
 
-        foreach (var relationship in Relationships.Where(ShouldGenerateJoin))
+        foreach (var relationship in GetProjectionJoinDependencies(projectionSpecs))
         {
             foreach (var joinLine in BuildJoinLines(relationship))
             {
@@ -1504,7 +1505,7 @@
         foreach (var column in Columns.Where(column => column.Include && !ColumnHasLookupDisplayProjection(column.ColumnName)))
         {
             var projection = $"{QuoteIdentifier(BaseAlias)}.{QuoteIdentifier(column.ColumnName)}";
-            yield return new ProjectionSpec(projection, column.ColumnName, column.BusinessName, column.BusinessDescription, IsRelationshipColumn(column), false);
+            yield return new ProjectionSpec(projection, column.ColumnName, column.BusinessName, column.BusinessDescription, IsRelationshipColumn(column), false, null);
         }
 
         foreach (var relationship in Relationships.Where(RelationshipHasLookupDisplayProjection))
@@ -1520,7 +1521,7 @@
 
                 var projection = $"{QuoteIdentifier(BaseAlias)}.{QuoteIdentifier(pair.LocalColumnName)}";
                 var column = Columns.FirstOrDefault(column => string.Equals(column.ColumnName, pair.LocalColumnName, StringComparison.OrdinalIgnoreCase));
-                yield return new ProjectionSpec(projection, pair.LocalColumnName, column?.BusinessName ?? "", column?.BusinessDescription ?? "", true, startsRelationshipGroup);
+                yield return new ProjectionSpec(projection, pair.LocalColumnName, column?.BusinessName ?? "", column?.BusinessDescription ?? "", true, startsRelationshipGroup, null);
                 emittedAnyRelationshipColumn = true;
                 startsRelationshipGroup = false;
             }
@@ -1536,7 +1537,18 @@
             var alias = BuildLookupAlias(relationship);
             var columnAlias = BuildLookupProjectionAlias(relationship);
             var lookupProjection = $"{QuoteIdentifier(alias)}.{QuoteIdentifier(relationship.DisplayColumnName!)} AS {QuoteIdentifier(columnAlias)}";
-            yield return new ProjectionSpec(lookupProjection, columnAlias, relationship.DisplayBusinessName, relationship.DisplayBusinessDescription, true, false);
+            yield return new ProjectionSpec(lookupProjection, columnAlias, relationship.DisplayBusinessName, relationship.DisplayBusinessDescription, true, false, relationship);
+        }
+    }
+
+    private IEnumerable<TableSchemaRelationshipInfo> GetProjectionJoinDependencies(IReadOnlyList<ProjectionSpec> projectionSpecs)
+    {
+        foreach (var relationship in Relationships)
+        {
+            if (projectionSpecs.Any(projection => ReferenceEquals(projection.LookupJoinRelationship, relationship)))
+            {
+                yield return relationship;
+            }
         }
     }
 
@@ -1684,9 +1696,9 @@
             aliasesInUse.Add(SanitizeAliasToken(BaseAlias));
         }
 
-        foreach (var candidate in Relationships.Where(ShouldGenerateJoin))
-        {
-            var alias = MakeUniqueAlias(BuildLookupAliasCandidate(candidate), aliasesInUse);
+      foreach (var candidate in Relationships.Where(RelationshipHasLookupDisplayProjection))
+      {
+          var alias = MakeUniqueAlias(BuildLookupAliasCandidate(candidate), aliasesInUse);
 
             if (ReferenceEquals(candidate, relationship))
             {
@@ -2165,5 +2177,6 @@
         string BusinessName,
         string BusinessDescription,
         bool DisableInheritance,
-        bool StartsRelationshipGroup);
+        bool StartsRelationshipGroup,
+        TableSchemaRelationshipInfo? LookupJoinRelationship);
 }
