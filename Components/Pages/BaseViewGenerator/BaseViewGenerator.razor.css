@@ -585,11 +585,11 @@
 }
 
 .bvg-tree-view {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
     gap: 0.65rem;
     min-height: 0;
-    overflow: auto;
+    overflow: hidden;
 }
 
 .bvg-tree-section,
@@ -599,12 +599,19 @@
     background: #ffffff;
 }
 
+.bvg-tree-section {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
 .bvg-tree-section-header,
 .bvg-tree-relationship-header,
 .bvg-tree-row,
 .bvg-tree-column-header {
     display: grid;
-    grid-template-columns: 24px 34px minmax(460px, 1fr) minmax(140px, 0.22fr) minmax(72px, 0.12fr);
+    grid-template-columns: 24px 34px minmax(0, 1fr);
     gap: 0.45rem;
     align-items: center;
     min-width: 0;
@@ -628,6 +635,7 @@
 
 .bvg-tree-section-header {
     grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+    flex: 0 0 auto;
     background: #f8f9fb;
 }
 
@@ -653,8 +661,11 @@
 
 .bvg-tree-children {
     display: flex;
+    flex: 1 1 auto;
     flex-direction: column;
     min-width: 0;
+    min-height: 0;
+    overflow: auto;
 }
 
 .bvg-tree-node {
@@ -681,8 +692,17 @@
 }
 
 .bvg-tree-main > .bvg-output-expression,
-.bvg-tree-main > .bvg-muted-cell {
+.bvg-tree-main > .bvg-muted-cell,
+.bvg-tree-main > .bvg-system-note,
+.bvg-tree-main > .bvg-inline-metadata {
     display: inline;
+}
+
+.bvg-inline-metadata {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.4rem;
+    min-width: 0;
 }
 
 .bvg-tree-meta {
@@ -721,7 +741,7 @@
     display: inline-flex;
     flex-direction: column;
     gap: 0.08rem;
-    max-width: calc(100% - 54px);
+    max-width: 26ch;
     vertical-align: middle;
 }
 
@@ -929,6 +949,13 @@
     font-weight: 800;
     line-height: 1.25;
     text-transform: uppercase;
+}
+
+.bvg-system-note {
+    color: #64748b;
+    font-size: 0.76rem;
+    font-weight: 700;
+    white-space: nowrap;
 }
 
 .bvg-status-ok,

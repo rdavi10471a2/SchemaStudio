@@ -18,7 +18,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.73")]
+@attribute [FileVersion("1.74")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -189,7 +189,7 @@
 
         <section class="bvg-panel bvg-workspace-panel">
             <header class="bvg-tabs" role="tablist" aria-label="Base view generator workspace">
-                <button type="button" class="@TabClass("tree")" @onclick='() => SetWorkspaceTab("tree")'>Tree Preview</button>
+                <button type="button" class="@TabClass("tree")" @onclick='() => SetWorkspaceTab("tree")'>Select Projection</button>
                 <button type="button" class="@TabClass("sql")" @onclick='() => SetWorkspaceTab("sql")'>Generated SQL</button>
                 <button type="button" class="bvg-tab bvg-source-toggle-tab" @onclick="ToggleSourcePanel">@(SourcePanelCollapsed ? "Show Source" : "Hide Source")</button>
             </header>
@@ -207,7 +207,7 @@
                         <input placeholder="Filter columns or relationships" value="@ColumnFilter" @oninput="OnColumnFilterChanged" />
                     </div>
                     <div class="bvg-tree-view">
-                        <section class="bvg-tree-section">
+                        <section class="bvg-tree-section bvg-source-tree-section">
                             <div class="bvg-tree-section-header">
                                 <button type="button" class="bvg-group-toggle" @onclick="ToggleSourceGroup">@(SourceGroupExpanded ? "-" : "+")</button>
                                 <span class="bvg-group-label">Source With Lookups Expanded</span>
@@ -225,8 +225,6 @@
                                         <span></span>
                                         <span>Include</span>
                                         <span>Output Column</span>
-                                        <span>Metadata</span>
-                                        <span>Disable Inheritance</span>
                                     </div>
                                     @foreach (var column in FilteredStandaloneColumns)
                                     {
@@ -236,12 +234,12 @@
                                             <div class="bvg-tree-main">
                                                 <span class="bvg-output-expression">@BuildBaseProjectionText(column)</span>
                                                 <span class="bvg-muted-cell">@ColumnKeyRoleLabel(column)</span>
+                                                <span class="bvg-system-note">Disable inheritance: @YesNo(IsRelationshipColumn(column))</span>
+                                                <span class="bvg-inline-metadata">
+                                                    @MetadataSummary(column.BusinessName, column.BusinessDescription)
+                                                    <button type="button" class="bvg-link-button" @onclick="() => OpenColumnMetadataDialog(column)">Edit</button>
+                                                </span>
                                             </div>
-                                            <div class="bvg-tree-meta">
-                                                @MetadataSummary(column.BusinessName, column.BusinessDescription)
-                                                <button type="button" class="bvg-link-button" @onclick="() => OpenColumnMetadataDialog(column)">Edit</button>
-                                            </div>
-                                            <span class="bvg-system-check">@YesNo(IsRelationshipColumn(column))</span>
                                         </div>
                                     }
                                 </div>
@@ -271,13 +269,11 @@
                                         </div>
                                         @if (groupExpanded)
                                         {
-                                            <div class="bvg-tree-children">
-                                                <div class="bvg-tree-column-header">
+                                            <div class="bvg-tree-children bvg-lookup-tree-children">
+                                                <div class="bvg-tree-column-header bvg-lookup-column-header">
                                                     <span></span>
                                                     <span>Include</span>
                                                     <span>Output Column</span>
-                                                    <span>Metadata</span>
-                                                    <span>Disable Inheritance</span>
                                                 </div>
                                                 @foreach (var column in GetRelationshipColumns(relationship))
                                                 {
@@ -286,13 +282,8 @@
                                                         <input type="checkbox" checked="@column.Include" @onchange="args => OnColumnIncludeChanged(column, args)" disabled="@(!relationship.Include)" />
                                                         <div class="bvg-tree-main">
                                                             <span class="bvg-output-expression">@BuildBaseProjectionText(column)</span>
-                                                            <span class="bvg-muted-cell">FK key carried from source table</span>
+                                                            <span class="bvg-muted-cell">FK</span>
                                                         </div>
-                                                        <div class="bvg-tree-meta">
-                                                            @MetadataSummary(column.BusinessName, column.BusinessDescription)
-                                                            <button type="button" class="bvg-link-button" @onclick="() => OpenColumnMetadataDialog(column)" disabled="@(!relationship.Include)">Edit</button>
-                                                        </div>
-                                                        <span class="bvg-system-check">Yes</span>
                                                     </div>
                                                 }
 
@@ -315,11 +306,6 @@
                                                         </div>
                                                         <span class="bvg-muted-cell">Lookup display column</span>
                                                     </div>
-                                                    <div class="bvg-tree-meta">
-                                                        @MetadataSummary(relationship.DisplayBusinessName, relationship.DisplayBusinessDescription)
-                                                        <button type="button" class="bvg-link-button" @onclick="() => OpenRelationshipDisplayMetadataDialog(relationship)" disabled="@(!relationship.Include || !relationship.IncludeDisplayColumn)">Edit</button>
-                                                    </div>
-                                                    <span class="bvg-system-check">Yes</span>
                                                 </div>
                                             </div>
                                         }
