@@ -18,7 +18,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.84")]
+@attribute [FileVersion("1.85")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -223,7 +223,7 @@
                                 <div class="bvg-tree-children">
                                     <div class="bvg-tree-column-header">
                                         <span></span>
-                                        <span>Include</span>
+                                        <span></span>
                                         <span>Column Name</span>
                                         <span>Business Name</span>
                                         <span>Business Description</span>
@@ -303,36 +303,44 @@
                                 aria-label="Resize Select and From panes"
                                 @onpointerdown="BeginProjectionPaneResize"></button>
 
-                        <section class="bvg-tree-section">
+                        <section class="bvg-tree-section bvg-lookup-tree-section">
                             <div class="bvg-tree-section-header">
                                 <span class="bvg-group-label">Lookups</span>
                                 <span class="bvg-count-chip">@FilteredRelationships.Count() M-to-1 relationship(s)</span>
+                                <span></span>
+                                <div class="bvg-tree-section-actions">
+                                    <button type="button" class="bvg-button secondary" @onclick="ExpandJoinGroups">Expand Joins</button>
+                                    <button type="button" class="bvg-button secondary" @onclick="CollapseJoinGroups">Collapse Joins</button>
+                                </div>
                             </div>
                             <div class="bvg-tree-children">
                                 @foreach (var relationship in FilteredRelationships)
                                 {
                                     <div class="@TreeRelationshipNodeClass(relationship)">
                                         <div class="bvg-tree-relationship-header">
-                                            <span class="bvg-join-indent"></span>
+                                            <button type="button" class="bvg-group-toggle" @onclick="() => ToggleRelationshipGroup(relationship)">@(IsRelationshipGroupExpanded(relationship) ? "-" : "+")</button>
                                             <span class="@RelationshipStatusClass(relationship)">@RelationshipStatusText(relationship)</span>
                                             <input type="checkbox" checked="@relationship.Include" @onchange="args => OnRelationshipIncludeChanged(relationship, args)" disabled="@(!CanUseRelationship(relationship))" />
                                             <code>@BuildJoinText(relationship)</code>
                                             <span class="bvg-relationship-summary">@BuildRelationshipSummaryText(relationship)</span>
                                         </div>
-                                        <div class="bvg-lookup-control-row">
-                                            <span class="bvg-lookup-control-label">Display field</span>
-                                            <RadzenDropDown TValue="string"
-                                                            Data="@GetLookupDisplayColumnOptions(relationship)"
-                                                            Value="@(relationship.DisplayColumnName ?? string.Empty)"
-                                                            Change="@(value => OnLookupRelationshipDisplayColumnChanged(relationship, value))"
-                                                            Open="@(() => EnsureLookupDisplayColumnOptionsAsync(relationship))"
-                                                            AllowClear="true"
-                                                            FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
-                                                            Filterable="true"
-                                                            Placeholder="Select display column"
-                                                            class="bvg-display-dropdown" />
-                                            <code>@BuildDisplayProjectionText(relationship)</code>
-                                        </div>
+                                        @if (IsRelationshipGroupExpanded(relationship))
+                                        {
+                                            <div class="bvg-lookup-control-row">
+                                                <span class="bvg-lookup-control-label">Display field</span>
+                                                <RadzenDropDown TValue="string"
+                                                                Data="@GetLookupDisplayColumnOptions(relationship)"
+                                                                Value="@(relationship.DisplayColumnName ?? string.Empty)"
+                                                                Change="@(value => OnLookupRelationshipDisplayColumnChanged(relationship, value))"
+                                                                Open="@(() => EnsureLookupDisplayColumnOptionsAsync(relationship))"
+                                                                AllowClear="true"
+                                                                FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                                                                Filterable="true"
+                                                                Placeholder="Select display column"
+                                                                class="bvg-display-dropdown" />
+                                                <code>@BuildDisplayProjectionText(relationship)</code>
+                                            </div>
+                                        }
                                     </div>
                                 }
                             </div>
