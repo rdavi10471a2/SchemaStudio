@@ -18,7 +18,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.87")]
+@attribute [FileVersion("1.88")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -109,7 +109,7 @@
 
             <section class="bvg-source-info">
                 <header class="bvg-mini-tabs" role="tablist" aria-label="Base view generator source options">
-                    <button type="button" class="@SourceInfoTabClass("options")" @onclick='() => SetSourceInfoTab("options")'>Include Options</button>
+                    <button type="button" class="@SourceInfoTabClass("options")" @onclick='() => SetSourceInfoTab("options")'>Options</button>
                     <button type="button" class="@SourceInfoTabClass("children")" @onclick='() => SetSourceInfoTab("children")'>Known Child Tables (@ChildRelationships.Count)</button>
                 </header>
 
@@ -117,10 +117,7 @@
                     @if (ActiveSourceInfoTab == "options")
                     {
                         <div class="bvg-options">
-                            <label><input type="checkbox" checked="@IncludeLookupDisplayColumns" @onchange="OnIncludeLookupDisplayColumnsChanged" /> Include lookup display columns @HelpIcon("When checked, generated SQL joins to one-side lookup tables and projects their selected display columns. When unchecked, FK columns remain in the SELECT but lookup joins and lookup display columns are omitted.")</label>
                             <label><input type="checkbox" checked="@IgnoreSelfJoins" @onchange="OnIgnoreSelfJoinsChanged" /> Ignore self joins @HelpIcon("Hides relationships where the source table references itself. The source table FK columns are still available in the Columns tab.")</label>
-                            <label><input type="checkbox" checked="@IgnoreRelationshipsWithoutDisplay" @onchange="OnIgnoreRelationshipsWithoutDisplayChanged" /> Ignore FK relationships without display columns @HelpIcon("Keeps the FK columns but suppresses lookup joins when no configured display column is available on the referenced table.")</label>
-                            <label><input type="checkbox" checked="@IncludeMetadataPlaceholders" @onchange="OnIncludeMetadataPlaceholdersChanged" /> Include metadata placeholders @HelpIcon("Adds Schema Studio metadata comment placeholders to generated projection lines. FK and lookup display columns include DisableInheritance by default.")</label>
                             <label>
                                 Output shape @HelpIcon("CTE wraps the generated table SQL in a TableName_Source unit and projects the final view from that named source. Standard emits one flat SELECT.")
                                 <select value="@OutputShape" @onchange="OnOutputShapeChanged">
@@ -391,10 +388,7 @@
     private const int ProjectionPaneMaxHeight = 75;
 
     private bool IsBusy;
-    private bool IncludeLookupDisplayColumns = true;
     private bool IgnoreSelfJoins = true;
-    private bool IgnoreRelationshipsWithoutDisplay = true;
-    private bool IncludeMetadataPlaceholders;
     private string OutputShape = OutputShapeStandard;
     private string StatusMessage = "";
     private string RelationshipTelemetryMessage = "";
@@ -941,34 +935,10 @@
         NotificationService.Notify(NotificationSeverity.Success, $"Saved {savedCount} lookup relationship(s).", "", 3500);
     }
 
-    private void OnIncludeLookupDisplayColumnsChanged(ChangeEventArgs args)
-    {
-        IncludeLookupDisplayColumns = ToBool(args.Value);
-        MarkSqlDirty();
-    }
-
     private void OnIgnoreSelfJoinsChanged(ChangeEventArgs args)
     {
         IgnoreSelfJoins = ToBool(args.Value);
         ApplyRelationshipFiltersAndMarkDirty();
-    }
-
-    private void OnIgnoreRelationshipsWithoutDisplayChanged(ChangeEventArgs args)
-    {
-        IgnoreRelationshipsWithoutDisplay = ToBool(args.Value);
-        ApplyRelationshipFiltersAndMarkDirty();
-    }
-
-    private void OnIncludeMetadataPlaceholdersChanged(ChangeEventArgs args)
-    {
-        IncludeMetadataPlaceholders = ToBool(args.Value);
-        if (CanRegenerateSql)
-        {
-            RegenerateSql();
-            return;
-        }
-
-        MarkSqlDirty();
     }
 
     private void OnOutputShapeChanged(ChangeEventArgs args)
@@ -1073,14 +1043,8 @@
             MetadataEditRelationship.DisplayBusinessDescription = MetadataEditBusinessDescription;
         }
 
-        EnableMetadataPlaceholdersForBusinessEdit();
         MarkSqlDirty();
         CloseMetadataDialog();
-    }
-
-    private void EnableMetadataPlaceholdersForBusinessEdit()
-    {
-        IncludeMetadataPlaceholders = true;
     }
 
     private bool ValidateMetadataDialog()
@@ -1167,16 +1131,14 @@
         var suffix = relationshipsWithoutDisplay.Count > examples.Count
             ? $", +{relationshipsWithoutDisplay.Count - examples.Count} more"
             : "";
-        var action = IgnoreRelationshipsWithoutDisplay ? "Suppressed SQL joins for" : "Detected";
-
-        return $"{action} {relationshipsWithoutDisplay.Count} FK relationship(s) without display columns: {string.Join(", ", examples)}{suffix}.";
+        return $"Detected {relationshipsWithoutDisplay.Count} FK relationship(s) without display columns: {string.Join(", ", examples)}{suffix}.";
     }
 
     private static bool HasDisplayColumn(TableSchemaRelationshipInfo relationship) =>
         !string.IsNullOrWhiteSpace(relationship.DisplayColumnName);
 
     private bool IsJoinSuppressed(TableSchemaRelationshipInfo relationship) =>
-        IgnoreRelationshipsWithoutDisplay && !HasDisplayColumn(relationship);
+        !HasDisplayColumn(relationship);
 
     private bool IsSuppressedRelationshipColumn(TableSchemaColumnInfo column) =>
         Relationships
@@ -1188,21 +1150,14 @@
         column.KeyRole;
 
     private bool ShouldGenerateJoin(TableSchemaRelationshipInfo relationship) =>
-        IncludeLookupDisplayColumns &&
         relationship.Include &&
         !IsJoinSuppressed(relationship);
 
     private bool CanUseRelationship(TableSchemaRelationshipInfo relationship) =>
-        IncludeLookupDisplayColumns &&
         HasDisplayColumn(relationship);
 
     private string RelationshipStatusText(TableSchemaRelationshipInfo relationship)
     {
-        if (!IncludeLookupDisplayColumns)
-        {
-            return "Lookups off";
-        }
-
         if (IsJoinSuppressed(relationship))
         {
             return "Join disabled -- no display column chosen";
@@ -1223,11 +1178,6 @@
 
     private string RelationshipStatusClass(TableSchemaRelationshipInfo relationship)
     {
-        if (!IncludeLookupDisplayColumns)
-        {
-            return "bvg-status-warning";
-        }
-
         if (IsJoinSuppressed(relationship))
         {
             return "bvg-status-error";
@@ -1968,11 +1918,6 @@
 
     private string BuildMetadataPlaceholder(string prefix, string projection, string outputColumnName, string businessName = "", string businessDescription = "", bool disableInheritance = false)
     {
-        if (!IncludeMetadataPlaceholders)
-        {
-            return string.Empty;
-        }
-
         if (disableInheritance)
         {
             businessName = string.IsNullOrWhiteSpace(businessName) ? outputColumnName : businessName;
