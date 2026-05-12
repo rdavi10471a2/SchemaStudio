@@ -231,6 +231,41 @@
     ]
   },
   {
+    "Id": "object-shaper",
+    "Title": "Object Shaper",
+    "Subtitle": "Trim regular composed SQL into a selected object shape",
+    "Icon": "account_tree",
+    "Details": [
+      {
+        "Id": "purpose",
+        "Label": "What This Page Does",
+        "Section": "Overview",
+        "Subtitle": "Downstream object shaping",
+        "Description": "Object Shaper consumes regular shaped SQL after a composed object already exists.\n\nPaste a SELECT or CREATE VIEW statement, parse it, choose the output fields to keep, and copy a generated SQL shape with only the joins those fields still require.",
+        "Icon": "schema",
+        "CustomFragmentName": ""
+      },
+      {
+        "Id": "lookup-boundary",
+        "Label": "Lookup Boundary",
+        "Section": "Workflow",
+        "Subtitle": "Discovery happens upstream",
+        "Description": "This page does not discover lookup relationships or guess display columns. Base View Generator owns that table-metadata problem.\n\nHere, a lookup value is simply a projected field that references a joined alias. Removing that projected field can remove the join when nothing else depends on it.",
+        "Icon": "manage_search",
+        "CustomFragmentName": ""
+      },
+      {
+        "Id": "joins-follow-fields",
+        "Label": "Joins Follow Fields",
+        "Section": "Workflow",
+        "Subtitle": "Dependency-driven FROM output",
+        "Description": "The generated SQL keeps the root source, selected projection fields, joins needed by selected fields, and joins required by WHERE predicates.\n\nUse the join section to see which projected fields are keeping a join alive. Toggling a join selects or clears the fields that directly come from that joined alias.",
+        "Icon": "account_tree",
+        "CustomFragmentName": ""
+      }
+    ]
+  },
+  {
     "Id": "manage-databases",
     "Title": "Manage Databases",
     "Subtitle": "Database and domain maintenance",

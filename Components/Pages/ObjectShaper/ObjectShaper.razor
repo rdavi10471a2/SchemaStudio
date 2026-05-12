@@ -1,0 +1,257 @@
+@page "/object-shaper"
+@rendermode InteractiveServer
+
+@using SchemaStudio.AIHelpers
+@using SchemaStudioWebViewer.Components.HelpSystem
+@using SchemaStudioWebViewer.Components.Pages.ObjectShaper
+
+@inject DialogService DialogService
+@inject IJSRuntime JSRuntime
+
+@attribute [FileVersion("1.0")]
+@attribute [AIFileContext(
+    "Components/Pages/ObjectShaper/ObjectShaper.razor",
+    "Interactive downstream object shaper for regular composed SQL views.",
+    Responsibilities = "Let users paste regular shaped SQL, select projected fields, inspect join dependencies, and copy a trimmed object SQL shape.",
+    Nuances = "Lookup discovery belongs to Base View Generator; this page only consumes the composed SQL projection and derives join dependencies from selected output fields.")]
+
+<PageTitle>Object Shaper</PageTitle>
+
+<section class="os-page">
+    <header class="os-header">
+        <div>
+            <div class="os-title-row">
+                <h1>Object Shaper</h1>
+                <RadzenIcon Icon="help_outline"
+                            class="os-help-icon"
+                            @onclick="@(() => OpenHelpAsync())" />
+            </div>
+            <p>Shape a composed SQL object by selecting output fields; joins follow the fields that still need them.</p>
+        </div>
+        <div class="os-header-actions">
+            <RadzenButton Text="Load Sample" Icon="science" ButtonStyle="ButtonStyle.Light" Click="@LoadSample" />
+            <RadzenButton Text="Parse SQL" Icon="account_tree" ButtonStyle="ButtonStyle.Primary" Click="@ParseInput" />
+        </div>
+    </header>
+
+    <div class="os-status" role="status">
+        <RadzenIcon Icon="info" />
+        <span>@Session.StatusMessage</span>
+    </div>
+
+    <div class="@LayoutClass">
+        @if (!IsSourceCollapsed)
+        {
+            <aside class="os-source-pane">
+                <header class="os-pane-header">
+                    <span>Input SQL</span>
+                    <RadzenButton Text="Hide" Icon="chevron_left" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="@ToggleSource" />
+                </header>
+                <textarea @bind="Session.InputSql" spellcheck="false"></textarea>
+            </aside>
+        }
+        else
+        {
+            <button type="button" class="os-show-source" @onclick="ToggleSource">Show Input</button>
+        }
+
+        <main class="os-work-pane">
+            <nav class="os-tabs" aria-label="Object Shaper tabs">
+                <button type="button" class="@TabClass("shape")" @onclick="@(() => SelectTab("shape"))">Select Projection</button>
+                <button type="button" class="@TabClass("sql")" @onclick="@(() => SelectTab("sql"))">Generated SQL</button>
+            </nav>
+
+            @if (ActiveTab == "sql")
+            {
+                <section class="os-sql-pane">
+                    <div class="os-toolbar">
+                        <RadzenButton Text="Copy SQL" Icon="content_copy" ButtonStyle="ButtonStyle.Primary" Click="@CopySqlAsync" Disabled="@(!Session.HasParsedShape)" />
+                    </div>
+                    <pre>@Session.EnsureGeneratedSql()</pre>
+                </section>
+            }
+            else
+            {
+                <section class="os-shape-pane">
+                    <div class="os-toolbar">
+                        <input class="os-filter"
+                               value="@FilterText"
+                               @oninput="@OnFilterChanged"
+                               placeholder="Filter fields or joins" />
+                        <RadzenButton Text="Select All" Icon="done_all" ButtonStyle="ButtonStyle.Light" Click="@SelectAll" Disabled="@(!Session.HasParsedShape)" />
+                        <RadzenButton Text="Clear Lookup Values" Icon="remove_done" ButtonStyle="ButtonStyle.Light" Click="@ClearLookupFields" Disabled="@(!Session.HasParsedShape)" />
+                    </div>
+
+                    @if (!Session.HasParsedShape)
+                    {
+                        <div class="os-empty-state">
+                            Paste a regular SELECT or CREATE VIEW statement, then parse it.
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="os-split-stack">
+                            <section class="os-card os-projection-card">
+                                <header class="os-card-header">
+                                    <span>Select</span>
+                                    <small>@Session.SelectedFieldKeys.Count selected / @Session.ParseResult!.Select.Fields.Count field(s)</small>
+                                </header>
+                                <div class="os-grid os-field-grid">
+                                    <div></div>
+                                    <div>Column</div>
+                                    <div>Source</div>
+                                    <div>Role</div>
+                                    @foreach (var row in Session.GetFieldRows(FilterText))
+                                    {
+                                        <label class="os-check-cell">
+                                            <RadzenCheckBox TValue="bool"
+                                                            Value="@row.IsSelected"
+                                                            Change="@((bool value) => ToggleField(row.Field.Key, value))" />
+                                        </label>
+                                        <div class="os-code">@row.Field.ToSelectSql()</div>
+                                        <div>@row.SourceText</div>
+                                        <div><span class="@ObjectShapePresentation.FieldRoleClass(row.Field)">@row.Field.Role</span></div>
+                                    }
+                                </div>
+                            </section>
+
+                            <section class="os-card os-join-card">
+                                <header class="os-card-header">
+                                    <span>From</span>
+                                    <small>@Session.GetJoinRows(FilterText).Count(row => row.IsActive) active / @Session.ParseResult!.Select.Joins.Count join(s)</small>
+                                </header>
+                                <div class="os-join-list">
+                                    @if (Session.ParseResult!.Select.Sources.FirstOrDefault() is { } source)
+                                    {
+                                        <div class="os-source-row">
+                                            <span class="os-row-marker">FROM</span>
+                                            <code>@source.DisplayText</code>
+                                        </div>
+                                    }
+
+                                    @foreach (var row in Session.GetJoinRows(FilterText))
+                                    {
+                                        <article class="@ObjectShapePresentation.JoinRowClass(row)">
+                                            <div class="os-join-control">
+                                                <RadzenCheckBox TValue="bool"
+                                                                Value="@row.IsActive"
+                                                                Change="@((bool value) => ToggleJoin(row, value))" />
+                                            </div>
+                                            <span class="@ObjectShapePresentation.JoinStatusClass(row)">@row.Status</span>
+                                            <code>@BreakJoin(row.Join.DisplayText)</code>
+                                            <span class="os-join-summary">@row.ProjectionSummary</span>
+                                        </article>
+                                    }
+                                </div>
+                            </section>
+                        </div>
+                    }
+                </section>
+            }
+        </main>
+    </div>
+</section>
+
+@code {
+    private ObjectShapeSession Session { get; } = new();
+
+    private string ActiveTab { get; set; } = "shape";
+
+    private string FilterText { get; set; } = string.Empty;
+
+    private bool IsSourceCollapsed { get; set; }
+
+    private string LayoutClass => IsSourceCollapsed
+        ? "os-layout os-layout--source-collapsed"
+        : "os-layout";
+
+    protected override void OnInitialized()
+    {
+        Session.LoadInput();
+    }
+
+    private void ParseInput()
+    {
+        Session.LoadInput();
+        ActiveTab = "shape";
+    }
+
+    private void LoadSample()
+    {
+        Session.InputSql = ObjectShapeSession.SampleSql;
+        Session.LoadInput();
+        ActiveTab = "shape";
+    }
+
+    private void ToggleSource()
+    {
+        IsSourceCollapsed = !IsSourceCollapsed;
+    }
+
+    private void SelectTab(string tab)
+    {
+        ActiveTab = tab;
+    }
+
+    private string TabClass(string tab)
+    {
+        return ActiveTab == tab
+            ? "os-tab os-tab--active"
+            : "os-tab";
+    }
+
+    private void OnFilterChanged(ChangeEventArgs args)
+    {
+        FilterText = args.Value?.ToString() ?? string.Empty;
+    }
+
+    private void ToggleField(string key, bool value)
+    {
+        Session.ToggleField(key, value);
+    }
+
+    private void ToggleJoin(ObjectShapeJoinRow row, bool value)
+    {
+        Session.ToggleJoin(row, value);
+    }
+
+    private void SelectAll()
+    {
+        Session.SelectAllFields();
+    }
+
+    private void ClearLookupFields()
+    {
+        Session.ClearLookupFields();
+    }
+
+    private async Task CopySqlAsync()
+    {
+        await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", Session.EnsureGeneratedSql());
+    }
+
+    private async Task OpenHelpAsync()
+    {
+        await DialogService.OpenAsync<HelpDialog>(
+            "Object Shaper Help",
+            new Dictionary<string, object?>
+            {
+                ["InitialSubjectId"] = "object-shaper"
+            },
+            new DialogOptions
+            {
+                Width = "820px",
+                Height = "720px",
+                Resizable = true,
+                Draggable = true
+            });
+    }
+
+    private static MarkupString BreakJoin(string joinText)
+    {
+        var escaped = System.Net.WebUtility.HtmlEncode(joinText)
+            .Replace(" ON ", "<br />    ON ", StringComparison.OrdinalIgnoreCase)
+            .Replace(" AND ", "<br />    AND ", StringComparison.OrdinalIgnoreCase);
+        return new MarkupString(escaped);
+    }
+}
