@@ -7,6 +7,7 @@
 @using SchemaStudio.Data.Models
 @using SchemaStudio.Data.Repositories
 @using SchemaStudio.AIHelpers
+@using SchemaStudioWebViewer.Components.HelpSystem
 @using SchemaStudioWebViewer.Data
 @using SchemaStudioWebViewer.Models
 @using SchemaStudioWebViewer.Utils
@@ -15,10 +16,11 @@
 @inject DatabaseLookupRelationshipRepository LookupRelationshipRepository
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject IJSRuntime JSRuntime
+@inject DialogService DialogService
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.90")]
+@attribute [FileVersion("1.92")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -34,7 +36,12 @@
 
     <section class="bvg-header">
         <div>
-            <h1>Base View Generator</h1>
+            <div class="bvg-title-row">
+                <h1>Base View Generator</h1>
+                <RadzenIcon Icon="help_outline"
+                            class="bvg-page-help-icon"
+                            @onclick="@(() => OpenHelp("base-view-generator"))" />
+            </div>
             <p>Generate deterministic base view SQL from table metadata and M-to-1 foreign keys.</p>
         </div>
         <div class="bvg-header-actions">
@@ -52,7 +59,7 @@
                 <header class="bvg-panel-header">Source Table</header>
             <div class="bvg-form-grid">
                 <label>
-                    <span>Source Database</span>
+                    @HelpLabel("Source Database", "Source SQL Server database used for metadata discovery and generated FROM/JOIN names.")
                     <RadzenDropDown TValue="string"
                                     Data="@Databases"
                                     TextProperty="DatabaseName"
@@ -65,12 +72,12 @@
                 </label>
 
                 <label>
-                    <span>Source Schema</span>
+                    @HelpLabel("Source Schema", "Schema that owns the source table. For most Excede source metadata this is dbo.")
                     <input value="@SelectedSchemaName" @oninput="OnSchemaNameChanged" placeholder="dbo" disabled="@IsBusy" />
                 </label>
 
                 <label>
-                    <span>Source Table</span>
+                    @HelpLabel("Source Table", "Physical table to inspect. Loading the table discovers base columns, FK relationships, and database-specific lookup relationships.")
                     <div class="bvg-table-entry">
                         <input value="@SelectedTableName" @oninput="OnTableNameChanged" placeholder="Type table name" disabled="@IsBusy" />
                         <button type="button"
@@ -83,7 +90,7 @@
                 </label>
 
                 <label>
-                    <span>Base Alias</span>
+                    @HelpLabel("Base Alias", "Alias used for the source table in generated SQL and projection labels.")
                     <input value="@BaseAlias" @oninput="OnBaseAliasChanged" />
                 </label>
             </div>
@@ -92,15 +99,15 @@
                 <h2>Target View</h2>
                 <div class="bvg-form-grid">
                     <label>
-                        <span>Target Database</span>
+                        @HelpLabel("Target Database", "Target integration database for the generated view name and SQL preview.")
                         <input value="@TargetDatabaseName" @oninput="OnTargetDatabaseChanged" />
                     </label>
                     <label>
-                        <span>Target Schema</span>
+                        @HelpLabel("Target Schema", "Schema for the generated CREATE OR ALTER VIEW statement.")
                         <input value="@TargetSchemaName" @oninput="OnTargetSchemaChanged" />
                     </label>
                     <label class="bvg-wide">
-                        <span>View Name</span>
+                        @HelpLabel("View Name", "Generated or overridden base view name. This is the object created by the copied SQL.")
                         <input value="@TargetViewName" @oninput="OnTargetViewNameChanged" />
                     </label>
                 </div>
@@ -119,7 +126,7 @@
                         <div class="bvg-options">
                             <label><input type="checkbox" checked="@IgnoreSelfJoins" @onchange="OnIgnoreSelfJoinsChanged" /> Ignore self joins @HelpIcon("Hides relationships where the source table references itself. The source table FK columns are still available in the Columns tab.")</label>
                             <label>
-                                Output shape @HelpIcon("CTE wraps the generated table SQL in a TableName_Source unit and projects the final view from that named source. Standard emits one flat SELECT.")
+                                @HelpLabel("Output shape", "CTE wraps the generated table SQL in a TableName_Source unit and projects the final view from that named source. Standard emits one flat SELECT.")
                                 <select value="@OutputShape" @onchange="OnOutputShapeChanged">
                                     <option value="@OutputShapeCte">CTE</option>
                                     <option value="@OutputShapeStandard">Standard</option>
@@ -758,6 +765,7 @@
             await LoadSavedLookupRelationshipsAsync(selectedDatabase);
             ApplySavedLookupRelationships();
             ApplyRelationshipFilters();
+            CollapseJoinGroups();
             RegenerateSql();
             StatusMessage = BuildLoadedStatusMessage();
         }, $"Failed to load table details from [{SelectedDatabaseName}].[{SelectedSchemaName}].[{SelectedTableName}].");
@@ -2090,6 +2098,23 @@
         builder.AddAttribute(3, "MouseEnter", EventCallback.Factory.Create<ElementReference>(this, args => TooltipService.Open(args, description)));
         builder.CloseComponent();
     };
+
+    private async Task OpenHelp(string id)
+    {
+        await DialogService.OpenAsync<HelpDialog>(
+            "Schema Studio Help Console",
+            new Dictionary<string, object?>
+            {
+                { "InitialSubjectId", id }
+            },
+            new DialogOptions
+            {
+                Width = "1200px",
+                Height = "800px",
+                Resizable = true,
+                Draggable = true
+            });
+    }
 
     private static bool ToBool(object? value) =>
         value switch

@@ -187,6 +187,50 @@
     ]
   },
   {
+    "Id": "base-view-generator",
+    "Title": "Base View Generator",
+    "Subtitle": "Generate base views from table metadata and lookup relationships",
+    "Icon": "account_tree",
+    "Details": [
+      {
+        "Id": "purpose",
+        "Label": "What This Page Does",
+        "Section": "Overview",
+        "Subtitle": "Schema-driven view authoring",
+        "Description": "Base View Generator builds deterministic CREATE OR ALTER VIEW SQL from a selected source table.\n\nIt loads source columns, discovers M-to-1 foreign-key relationships, expands database-specific lookup relationships such as COLOOKUP, and lets you choose which lookup display columns should be projected.",
+        "Icon": "schema",
+        "CustomFragmentName": ""
+      },
+      {
+        "Id": "select-projection",
+        "Label": "Select Projection",
+        "Section": "Workflow",
+        "Subtitle": "Choose the columns the base view exposes",
+        "Description": "Use Select Projection to include or remove source columns and lookup display columns.\n\nFK reference columns can remain in the projection even when their lookup display column is not selected. A join is generated only when a projected lookup display column depends on that relationship.",
+        "Icon": "view_column",
+        "CustomFragmentName": ""
+      },
+      {
+        "Id": "lookup-display-fields",
+        "Label": "Lookup Display Fields",
+        "Section": "Workflow",
+        "Subtitle": "Pick the text column for each relationship",
+        "Description": "Lookup relationships need a display field before their join is useful. The page suggests display fields from table metadata and database-specific lookup discovery, but the user can override the selected display column before regenerating SQL.",
+        "Icon": "manage_search",
+        "CustomFragmentName": ""
+      },
+      {
+        "Id": "metadata-defaults",
+        "Label": "Metadata Defaults",
+        "Section": "Business Metadata",
+        "Subtitle": "System hints that can be overridden",
+        "Description": "When a lookup display projection is active, the generator can emit default business metadata and disable inheritance so the lookup meaning is explicit in the base view.\n\nThose defaults are hints, not locks. Use Edit on the Select Projection row to replace the generated business name or description.",
+        "Icon": "help_outline",
+        "CustomFragmentName": ""
+      }
+    ]
+  },
+  {
     "Id": "manage-databases",
     "Title": "Manage Databases",
     "Subtitle": "Database and domain maintenance",

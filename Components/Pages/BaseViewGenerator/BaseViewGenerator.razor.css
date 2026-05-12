@@ -51,6 +51,18 @@
     font-size: 1.55rem;
 }
 
+.bvg-title-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+::deep .bvg-page-help-icon {
+    color: var(--rz-primary) !important;
+    cursor: pointer;
+    font-size: 1.25rem;
+}
+
 .bvg-header p {
     margin: 0.15rem 0 0;
     color: #526071;
@@ -236,14 +248,22 @@
     font-weight: 700;
 }
 
-.bvg-field-label {
+.bvg-field-label,
+.bvg-form-grid .bvg-field-label {
     display: inline-flex;
     align-items: center;
-    gap: 0.25rem;
+    gap: 0.35rem;
+    min-height: 20px;
+    color: var(--rz-primary);
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
 }
 
 ::deep .bvg-help-icon {
     color: var(--rz-primary) !important;
+    cursor: help;
     font-size: 1rem;
     line-height: 1;
     vertical-align: middle;
