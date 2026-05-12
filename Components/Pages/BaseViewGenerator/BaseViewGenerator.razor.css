@@ -958,25 +958,28 @@
     padding: 1rem;
 }
 
-.bvg-modal-body label {
+.bvg-modal-field {
     display: grid;
     gap: 0.35rem;
     margin: 0;
+}
+
+.bvg-modal-field-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.bvg-character-count {
+    flex: 0 0 auto;
+    color: #64748b;
+    font-size: 0.74rem;
     font-weight: 700;
 }
 
-.bvg-modal-body input,
-.bvg-modal-body textarea {
-    width: 100%;
-    padding: 0.45rem 0.55rem;
-    border: 1px solid #d6dce8;
-    border-radius: 4px;
-    font: inherit;
-}
-
-.bvg-modal-body textarea {
-    min-height: 112px;
-    resize: vertical;
+::deep .bvg-metadata-textarea {
+    min-height: 160px;
 }
 
 .bvg-modal-actions {

@@ -20,7 +20,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.92")]
+@attribute [FileVersion("1.93")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -365,14 +365,27 @@
                 <button type="button" class="bvg-icon-button" @onclick="CloseMetadataDialog" aria-label="Close metadata editor">x</button>
             </header>
             <div class="bvg-modal-body">
-                <label>
-                    @HelpLabel("Business Name", ReflectionUtils.GetDescription(typeof(SchemaObjectColumnDefinition), nameof(SchemaObjectColumnDefinition.BusinessName)))
-                    <input value="@MetadataEditBusinessName" maxlength="@MetadataBusinessNameMaxLength" @oninput="args => MetadataEditBusinessName = args.Value?.ToString() ?? string.Empty" />
-                </label>
-                <label>
-                    @HelpLabel("Business Description", ReflectionUtils.GetDescription(typeof(SchemaObjectColumnDefinition), nameof(SchemaObjectColumnDefinition.BusinessDescription)))
-                    <textarea value="@MetadataEditBusinessDescription" maxlength="@MetadataBusinessDescriptionMaxLength" @oninput="args => MetadataEditBusinessDescription = args.Value?.ToString() ?? string.Empty"></textarea>
-                </label>
+                <div class="bvg-modal-field">
+                    <div class="bvg-modal-field-header">
+                        @MetadataFieldLabel(nameof(SchemaObjectColumnDefinition.BusinessName))
+                        <span class="bvg-character-count">@MetadataEditBusinessName.Length / @MetadataBusinessNameMaxLength</span>
+                    </div>
+                    <RadzenTextBox @bind-Value="@MetadataEditBusinessName"
+                                   MaxLength="@MetadataBusinessNameMaxLength"
+                                   Style="width:100%;"
+                                   Placeholder="Business label for this generated column" />
+                </div>
+                <div class="bvg-modal-field bvg-modal-field-wide">
+                    <div class="bvg-modal-field-header">
+                        @MetadataFieldLabel(nameof(SchemaObjectColumnDefinition.BusinessDescription))
+                        <span class="bvg-character-count">@MetadataEditBusinessDescription.Length / @MetadataBusinessDescriptionMaxLength</span>
+                    </div>
+                    <RadzenTextArea @bind-Value="@MetadataEditBusinessDescription"
+                                    MaxLength="@MetadataBusinessDescriptionMaxLength"
+                                    Style="width:100%; max-width:100%; min-width:0; box-sizing:border-box; resize:vertical; overflow-y:auto;"
+                                    class="bvg-metadata-textarea"
+                                    Placeholder="Business-facing description for this generated column" />
+                </div>
             </div>
             <footer class="bvg-modal-actions">
                 <button type="button" class="bvg-button secondary" @onclick="CloseMetadataDialog">Cancel</button>
@@ -2037,6 +2050,15 @@
         builder.AddAttribute(1, "class", "bvg-field-label");
         builder.AddContent(2, label);
         builder.AddContent(3, HelpIcon(description));
+        builder.CloseElement();
+    };
+
+    private RenderFragment MetadataFieldLabel(string propertyName) => builder =>
+    {
+        builder.OpenElement(0, "span");
+        builder.AddAttribute(1, "class", "bvg-field-label");
+        builder.AddContent(2, ReflectionUtils.GetDisplayName(typeof(SchemaObjectColumnDefinition), propertyName));
+        builder.AddContent(3, MetadataHelp(typeof(SchemaObjectColumnDefinition), propertyName));
         builder.CloseElement();
     };
 
