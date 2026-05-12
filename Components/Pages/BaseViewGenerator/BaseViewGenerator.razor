@@ -18,7 +18,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.82")]
+@attribute [FileVersion("1.83")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -254,27 +254,30 @@
                                     }
                                     @foreach (var relationship in FilteredRelationships)
                                     {
-                                        @foreach (var column in GetRelationshipColumns(relationship))
+                                        @if (RelationshipOwnsProjectionColumns(relationship))
                                         {
-                                            <div class="@TreeColumnRowClass(column)">
-                                                <div class="bvg-tree-indent"></div>
-                                                <input type="checkbox" checked="@column.Include" @onchange="args => OnColumnIncludeChanged(column, args)" disabled="@(!relationship.Include)" />
-                                                <div class="bvg-tree-main">
-                                                    <span class="bvg-output-expression">@BuildBaseProjectionText(column)</span>
-                                                    <span class="bvg-role-glyph">FK Ref</span>
-                                                    @if (IsJoinSuppressed(relationship))
-                                                    {
-                                                        <span class="bvg-role-glyph">No Display Selected</span>
-                                                    }
+                                            @foreach (var column in GetRelationshipColumns(relationship))
+                                            {
+                                                <div class="@TreeColumnRowClass(column)">
+                                                    <div class="bvg-tree-indent"></div>
+                                                    <input type="checkbox" checked="@column.Include" @onchange="args => OnColumnIncludeChanged(column, args)" disabled="@(!relationship.Include)" />
+                                                    <div class="bvg-tree-main">
+                                                        <span class="bvg-output-expression">@BuildBaseProjectionText(column)</span>
+                                                        <span class="bvg-role-glyph">FK Ref</span>
+                                                        @if (IsJoinSuppressed(relationship))
+                                                        {
+                                                            <span class="bvg-role-glyph">No Display Selected</span>
+                                                        }
+                                                    </div>
+                                                    <span class="bvg-business-name">@MetadataDisplayValue(column.BusinessName, "No business name")</span>
+                                                    <span class="bvg-business-description">@MetadataDisplayValue(column.BusinessDescription, "No business description")</span>
+                                                    <button type="button" class="bvg-link-button" @onclick="() => OpenColumnMetadataDialog(column)">Edit</button>
+                                                    <span class="bvg-system-note">Yes</span>
                                                 </div>
-                                                <span class="bvg-business-name">@MetadataDisplayValue(column.BusinessName, "No business name")</span>
-                                                <span class="bvg-business-description">@MetadataDisplayValue(column.BusinessDescription, "No business description")</span>
-                                                <button type="button" class="bvg-link-button" @onclick="() => OpenColumnMetadataDialog(column)">Edit</button>
-                                                <span class="bvg-system-note">Yes</span>
-                                            </div>
+                                            }
                                         }
 
-                                        @if (!string.IsNullOrWhiteSpace(relationship.DisplayColumnName))
+                                        @if (relationship.Include && !string.IsNullOrWhiteSpace(relationship.DisplayColumnName))
                                         {
                                             <div class="@TreeDisplayRowClass(relationship)">
                                                 <div class="bvg-tree-indent"></div>
@@ -494,8 +497,8 @@
     private int FilteredSelectProjectionRowCount =>
         FilteredStandaloneColumns.Count() +
         FilteredRelationships.Sum(relationship =>
-            GetRelationshipColumns(relationship).Count() +
-            (!string.IsNullOrWhiteSpace(relationship.DisplayColumnName) ? 1 : 0));
+            (RelationshipOwnsProjectionColumns(relationship) ? GetRelationshipColumns(relationship).Count() : 0) +
+            (relationship.Include && !string.IsNullOrWhiteSpace(relationship.DisplayColumnName) ? 1 : 0));
 
     private string FilterText =>
         ColumnFilter.Trim();
@@ -1625,6 +1628,7 @@
         string.IsNullOrWhiteSpace(value) ? emptyText : value;
 
     private bool RelationshipOwnsProjectionColumns(TableSchemaRelationshipInfo relationship) =>
+        relationship.Include &&
         relationship.Columns.Count > 0;
 
     private bool RelationshipOwnsColumn(string columnName) =>
