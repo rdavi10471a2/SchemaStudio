@@ -18,7 +18,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.72")]
+@attribute [FileVersion("1.73")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -42,9 +42,14 @@
         </div>
     </section>
 
-    <div class="@LayoutClass" style="@LayoutStyle">
-        <section class="bvg-panel bvg-source-panel" aria-hidden="@SourcePanelCollapsed">
-            <header class="bvg-panel-header">Source Table</header>
+    <div class="@LayoutClass"
+         style="@LayoutStyle"
+         @onpointermove="@ResizePane"
+         @onpointerup="@EndPaneResize">
+        @if (!SourcePanelCollapsed)
+        {
+            <section class="bvg-panel bvg-source-panel">
+                <header class="bvg-panel-header">Source Table</header>
             <div class="bvg-form-grid">
                 <label>
                     <span>Source Database</span>
@@ -174,17 +179,13 @@
                 </div>
             </section>
 
-        </section>
-
-        <div class="bvg-pane-splitter" aria-hidden="@SourcePanelCollapsed">
-            <input type="range"
-                   min="320"
-                   max="560"
-                   step="10"
-                   value="@SourcePanelWidth"
-                   @oninput="OnSourcePanelWidthChanged"
-                   title="Resize source pane" />
-        </div>
+            </section>
+            <button type="button"
+                    class="bvg-resize-handle"
+                    title="Resize source pane"
+                    aria-label="Resize source pane"
+                    @onpointerdown="BeginSourcePaneResize"></button>
+        }
 
         <section class="bvg-panel bvg-workspace-panel">
             <header class="bvg-tabs" role="tablist" aria-label="Base view generator workspace">
@@ -368,6 +369,9 @@
     private const string DefaultTargetSchemaName = "dbo";
     private const string OutputShapeCte = "CTE";
     private const string OutputShapeStandard = "Standard";
+    private const int SourcePanelDefaultWidth = 400;
+    private const int SourcePanelMinWidth = 300;
+    private const int SourcePanelMaxWidth = 620;
 
     private bool IsBusy;
     private bool IncludeLookupDisplayColumns = true;
@@ -391,9 +395,12 @@
     private bool HighlightSqlPending;
     private bool SourceGroupExpanded = true;
     private bool SourcePanelCollapsed;
+    private bool IsResizingSourcePanel;
     private bool MetadataDialogOpen;
     private int SqlRenderVersion;
-    private int SourcePanelWidth = 400;
+    private double ResizeStartX;
+    private int ResizeStartWidth;
+    private int SourcePanelWidth = SourcePanelDefaultWidth;
     private bool SqlDirty;
     private HashSet<string> CollapsedRelationshipGroups = new(StringComparer.OrdinalIgnoreCase);
     private TableSchemaColumnInfo? MetadataEditColumn;
@@ -433,7 +440,12 @@
         SqlDirty ? "bvg-button primary" : "bvg-button secondary";
 
     private string LayoutClass =>
-        SourcePanelCollapsed ? "bvg-layout source-collapsed" : "bvg-layout";
+        (SourcePanelCollapsed, IsResizingSourcePanel) switch
+        {
+            (true, _) => "bvg-layout source-collapsed",
+            (_, true) => "bvg-layout bvg-resizing",
+            _ => "bvg-layout"
+        };
 
     private string LayoutStyle =>
         SourcePanelCollapsed ? "" : $"--source-pane-width: {SourcePanelWidth}px;";
@@ -527,12 +539,27 @@
         SourcePanelCollapsed = !SourcePanelCollapsed;
     }
 
-    private void OnSourcePanelWidthChanged(ChangeEventArgs args)
+    private void BeginSourcePaneResize(PointerEventArgs args)
     {
-        if (int.TryParse(args.Value?.ToString(), out var width))
+        IsResizingSourcePanel = true;
+        ResizeStartX = args.ClientX;
+        ResizeStartWidth = SourcePanelWidth;
+    }
+
+    private void ResizePane(PointerEventArgs args)
+    {
+        if (!IsResizingSourcePanel)
         {
-            SourcePanelWidth = Math.Clamp(width, 320, 560);
+            return;
         }
+
+        var delta = (int)Math.Round(args.ClientX - ResizeStartX);
+        SourcePanelWidth = Math.Clamp(ResizeStartWidth + delta, SourcePanelMinWidth, SourcePanelMaxWidth);
+    }
+
+    private void EndPaneResize()
+    {
+        IsResizingSourcePanel = false;
     }
 
     private void ToggleSourceGroup()
