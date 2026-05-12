@@ -231,6 +231,32 @@
     ]
   },
   {
+    "Id": "base-view-creator",
+    "Title": "Base View Creator",
+    "Subtitle": "Base view generation with isolated new plumbing",
+    "Icon": "account_tree",
+    "Details": [
+      {
+        "Id": "purpose",
+        "Label": "What This Page Does",
+        "Section": "Overview",
+        "Subtitle": "A safe fork of the generator workflow",
+        "Description": "Base View Creator keeps the familiar Base View Generator workspace while new internal plumbing is developed away from the production page.\n\nUse it for the same base-view creation workflow, then validate behavior here before promoting any engine changes back into shared code.",
+        "Icon": "schema",
+        "CustomFragmentName": ""
+      },
+      {
+        "Id": "relationship-plumbing",
+        "Label": "Relationship Plumbing",
+        "Section": "Workflow",
+        "Subtitle": "Same UI, different implementation path",
+        "Description": "The page starts from the proven projection and lookup selection experience. Its purpose is to support a cleaner internal model for base columns, lookup projections, join dependencies, and metadata defaults without destabilizing the existing generator.",
+        "Icon": "account_tree",
+        "CustomFragmentName": ""
+      }
+    ]
+  },
+  {
     "Id": "manage-databases",
     "Title": "Manage Databases",
     "Subtitle": "Database and domain maintenance",
