@@ -261,7 +261,7 @@
                                             {
                                                 <div class="@TreeColumnRowClass(column)">
                                                     <div class="bvg-tree-indent"></div>
-                                                    <input type="checkbox" checked="@column.Include" @onchange="args => OnColumnIncludeChanged(column, args)" disabled="@(!relationship.Include)" />
+                                                    <input type="checkbox" checked="@column.Include" @onchange="args => OnColumnIncludeChanged(column, args)" />
                                                     <div class="bvg-tree-main">
                                                         <span class="bvg-output-expression">@BuildBaseProjectionText(column)</span>
                                                         <span class="bvg-role-glyph">FK Ref</span>
@@ -286,7 +286,7 @@
                                         {
                                             <div class="@TreeDisplayRowClass(relationship)">
                                                 <div class="bvg-tree-indent"></div>
-                                                <input type="checkbox" checked="@relationship.IncludeDisplayColumn" @onchange="args => OnRelationshipDisplayIncludeChanged(relationship, args)" disabled="@(!relationship.Include || string.IsNullOrWhiteSpace(relationship.DisplayColumnName))" />
+                                                <input type="checkbox" checked="@relationship.IncludeDisplayColumn" @onchange="args => OnRelationshipDisplayIncludeChanged(relationship, args)" disabled="@string.IsNullOrWhiteSpace(relationship.DisplayColumnName)" />
                                                 <div class="bvg-tree-main">
                                                     <span class="bvg-output-expression">@BuildDisplayProjectionText(relationship)</span>
                                                     <span class="bvg-role-glyph">Lookup</span>
