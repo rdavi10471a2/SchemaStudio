@@ -21,7 +21,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.6")]
+@attribute [FileVersion("1.7")]
 @attribute [AIFileContext("Components/Pages/BaseViewCreator/BaseViewCreator.razor", "Forked base-view creator page that preserves the proven Base View Generator UI while allowing different internal plumbing to evolve safely.", Responsibilities = "Keep the base-view creation workflow visually familiar while isolating experimental model and engine changes from the production Base View Generator page.", Nuances = "This page intentionally starts as a UI-preserving fork. Lookup discovery and the proven base-view workflow remain available in BaseViewGenerator while new plumbing is validated here first.", RelatedFiles = "Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", LastReviewed = "2026-05-12")]
 
 <PageTitle>Base View Creator</PageTitle>
@@ -367,41 +367,15 @@
 
 @if (MetadataDialogOpen)
 {
-    <div class="bvg-modal-backdrop">
-        <section class="bvg-modal" role="dialog" aria-modal="true" aria-labelledby="bvg-metadata-dialog-title">
-            <header class="bvg-modal-header">
-                <h2 id="bvg-metadata-dialog-title">@MetadataDialogTitle</h2>
-                <button type="button" class="bvg-icon-button" @onclick="CloseMetadataDialog" aria-label="Close metadata editor">x</button>
-            </header>
-            <div class="bvg-modal-body">
-                <div class="bvg-modal-field">
-                    <div class="bvg-modal-field-header">
-                        @MetadataFieldLabel(nameof(SchemaObjectColumnDefinition.BusinessName))
-                        <span class="bvg-character-count">@MetadataEditBusinessName.Length / @MetadataBusinessNameMaxLength</span>
-                    </div>
-                    <RadzenTextBox @bind-Value="@MetadataEditBusinessName"
-                                   MaxLength="@MetadataBusinessNameMaxLength"
-                                   Style="width:100%;"
-                                   Placeholder="Business label for this generated column" />
-                </div>
-                <div class="bvg-modal-field bvg-modal-field-wide">
-                    <div class="bvg-modal-field-header">
-                        @MetadataFieldLabel(nameof(SchemaObjectColumnDefinition.BusinessDescription))
-                        <span class="bvg-character-count">@MetadataEditBusinessDescription.Length / @MetadataBusinessDescriptionMaxLength</span>
-                    </div>
-                    <RadzenTextArea @bind-Value="@MetadataEditBusinessDescription"
-                                    MaxLength="@MetadataBusinessDescriptionMaxLength"
-                                    Style="width:100%; max-width:100%; min-width:0; box-sizing:border-box; resize:vertical; overflow-y:auto;"
-                                    class="bvg-metadata-textarea"
-                                    Placeholder="Business-facing description for this generated column" />
-                </div>
-            </div>
-            <footer class="bvg-modal-actions">
-                <button type="button" class="bvg-button secondary" @onclick="CloseMetadataDialog">Cancel</button>
-                <button type="button" class="bvg-button primary" @onclick="ApplyMetadataDialog">Apply</button>
-            </footer>
-        </section>
-    </div>
+    <BaseViewCreatorMetadataDialog Title="@MetadataDialogTitle"
+                                   BusinessName="@MetadataEditBusinessName"
+                                   BusinessDescription="@MetadataEditBusinessDescription"
+                                   BusinessNameMaxLength="@MetadataBusinessNameMaxLength"
+                                   BusinessDescriptionMaxLength="@MetadataBusinessDescriptionMaxLength"
+                                   BusinessNameLabel="@MetadataFieldLabel(nameof(SchemaObjectColumnDefinition.BusinessName))"
+                                   BusinessDescriptionLabel="@MetadataFieldLabel(nameof(SchemaObjectColumnDefinition.BusinessDescription))"
+                                   OnCancel="@CloseMetadataDialog"
+                                   OnApply="@ApplyMetadataDialog" />
 }
 
 @code {
@@ -1032,72 +1006,6 @@
         MarkSqlDirty();
     }
 
-    private void OpenColumnMetadataDialog(TableSchemaColumnInfo column)
-    {
-        MetadataEditColumn = column;
-        MetadataEditRelationship = null;
-        MetadataDialogTitle = $"Metadata for {column.ColumnName}";
-        MetadataEditBusinessName = column.BusinessName;
-        MetadataEditBusinessDescription = column.BusinessDescription;
-        MetadataDialogOpen = true;
-    }
-
-    private void OpenRelationshipDisplayMetadataDialog(TableSchemaRelationshipInfo relationship)
-    {
-        MetadataEditColumn = null;
-        MetadataEditRelationship = relationship;
-        MetadataDialogTitle = $"Metadata for {BuildLookupProjectionAlias(relationship)}";
-        MetadataEditBusinessName = relationship.DisplayBusinessName;
-        MetadataEditBusinessDescription = relationship.DisplayBusinessDescription;
-        MetadataDialogOpen = true;
-    }
-
-    private void CloseMetadataDialog()
-    {
-        MetadataDialogOpen = false;
-        MetadataEditColumn = null;
-        MetadataEditRelationship = null;
-    }
-
-    private void ApplyMetadataDialog()
-    {
-        if (!ValidateMetadataDialog())
-        {
-            return;
-        }
-
-        if (MetadataEditColumn is not null)
-        {
-            MetadataEditColumn.BusinessName = MetadataEditBusinessName;
-            MetadataEditColumn.BusinessDescription = MetadataEditBusinessDescription;
-        }
-        else if (MetadataEditRelationship is not null)
-        {
-            MetadataEditRelationship.DisplayBusinessName = MetadataEditBusinessName;
-            MetadataEditRelationship.DisplayBusinessDescription = MetadataEditBusinessDescription;
-        }
-
-        MarkSqlDirty();
-        CloseMetadataDialog();
-    }
-
-    private bool ValidateMetadataDialog()
-    {
-        if (MetadataEditBusinessName.Length > MetadataBusinessNameMaxLength)
-        {
-            NotifyError($"Business Name is {MetadataEditBusinessName.Length} characters; max is {MetadataBusinessNameMaxLength}.");
-            return false;
-        }
-
-        if (MetadataEditBusinessDescription.Length > MetadataBusinessDescriptionMaxLength)
-        {
-            NotifyError($"Business Description is {MetadataEditBusinessDescription.Length} characters; max is {MetadataBusinessDescriptionMaxLength}.");
-            return false;
-        }
-
-        return true;
-    }
-
     private void OnColumnIncludeChanged(TableSchemaColumnInfo column, ChangeEventArgs args)
     {
         column.Include = ToBool(args.Value);
@@ -1712,60 +1620,6 @@
     private string BuildProjectionLine(string prefix, string projection, string outputColumnName, string businessName = "", string businessDescription = "", bool disableInheritance = false) =>
         $"{prefix}{projection}{BuildMetadataPlaceholder(prefix, projection, outputColumnName, businessName, businessDescription, disableInheritance)}";
 
-    private string BuildMetadataPlaceholder(string prefix, string projection, string outputColumnName, string businessName = "", string businessDescription = "", bool disableInheritance = false)
-    {
-        if (disableInheritance)
-        {
-            businessName = string.IsNullOrWhiteSpace(businessName) ? outputColumnName : businessName;
-            businessDescription = string.IsNullOrWhiteSpace(businessDescription) ? outputColumnName : businessDescription;
-        }
-
-        var parts = new List<string>();
-
-        if (!string.IsNullOrWhiteSpace(businessName))
-        {
-            parts.Add($"@BusinessName: {businessName}");
-        }
-
-        if (!string.IsNullOrWhiteSpace(businessDescription))
-        {
-            parts.Add($"@BusinessDescription: {businessDescription}");
-        }
-
-        if (disableInheritance)
-        {
-            parts.Add("@DisableInheritance: True");
-        }
-
-        if (parts.Count == 0)
-        {
-            return string.Empty;
-        }
-
-        return BuildMultilineMetadataPlaceholder(prefix, projection, parts);
-    }
-
-    private static string BuildMultilineMetadataPlaceholder(string prefix, string projection, IReadOnlyList<string> parts)
-    {
-        var projectionLeadLength = prefix.Length + projection.Length;
-        var tagIndent = new string(' ', projectionLeadLength + 4);
-        var closeIndent = new string(' ', projectionLeadLength + 1);
-        var builder = new System.Text.StringBuilder();
-        builder.Append($" /* {parts[0]}");
-
-        for (var index = 1; index < parts.Count; index++)
-        {
-            builder.AppendLine();
-            builder.Append(tagIndent);
-            builder.Append(parts[index]);
-        }
-
-        builder.AppendLine();
-        builder.Append(closeIndent);
-        builder.Append("*/");
-        return builder.ToString();
-    }
-
     private static string ProjectionPrefix(bool first) =>
         first ? "      " : "    , ";
 
@@ -1805,60 +1659,6 @@
         builder.AddAttribute(1, "class", "bvg-field-label");
         builder.AddContent(2, label);
         builder.AddContent(3, HelpIcon(description));
-        builder.CloseElement();
-    };
-
-    private RenderFragment MetadataFieldLabel(string propertyName) => builder =>
-    {
-        builder.OpenElement(0, "span");
-        builder.AddAttribute(1, "class", "bvg-field-label");
-        builder.AddContent(2, ReflectionUtils.GetDisplayName(typeof(SchemaObjectColumnDefinition), propertyName));
-        builder.AddContent(3, MetadataHelp(typeof(SchemaObjectColumnDefinition), propertyName));
-        builder.CloseElement();
-    };
-
-    private RenderFragment MetadataHelp(Type modelType, string propertyName) => builder =>
-    {
-        var description = ReflectionUtils.GetDescription(modelType, propertyName);
-        if (string.IsNullOrWhiteSpace(description))
-        {
-            return;
-        }
-
-        builder.OpenComponent<RadzenIcon>(0);
-        builder.AddAttribute(1, "Icon", "help_outline");
-        builder.AddAttribute(2, "class", "bvg-help-icon");
-        builder.AddAttribute(3, "MouseEnter", EventCallback.Factory.Create<ElementReference>(this, args => TooltipService.Open(args, description)));
-        builder.CloseComponent();
-    };
-
-    private RenderFragment MetadataSummary(string? businessName, string? businessDescription) => builder =>
-    {
-        var hasName = !string.IsNullOrWhiteSpace(businessName);
-        var hasDescription = !string.IsNullOrWhiteSpace(businessDescription);
-
-        builder.OpenElement(0, "span");
-        builder.AddAttribute(1, "class", hasName || hasDescription ? "bvg-metadata-summary" : "bvg-metadata-summary empty");
-
-        if (hasName)
-        {
-            builder.OpenElement(2, "strong");
-            builder.AddContent(3, businessName);
-            builder.CloseElement();
-        }
-
-        if (hasDescription)
-        {
-            builder.OpenElement(4, "span");
-            builder.AddContent(5, businessDescription);
-            builder.CloseElement();
-        }
-
-        if (!hasName && !hasDescription)
-        {
-            builder.AddContent(6, "No metadata");
-        }
-
         builder.CloseElement();
     };
 
