@@ -18,7 +18,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.70")]
+@attribute [FileVersion("1.71")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -41,17 +41,6 @@
             <button type="button" class="bvg-button secondary" @onclick="RefreshMetadataAsync" disabled="@IsBusy">Refresh Metadata</button>
         </div>
     </section>
-
-    @if (!string.IsNullOrWhiteSpace(StatusMessage))
-    {
-        <div class="bvg-status">
-            @StatusMessage
-            @if (SqlDirty)
-            {
-                <span class="bvg-dirty-note">SQL has pending changes. Click Regenerate SQL.</span>
-            }
-        </div>
-    }
 
     <div class="bvg-layout">
         <section class="bvg-panel bvg-source-panel">
@@ -134,6 +123,16 @@
                                     <option value="@OutputShapeStandard">Standard</option>
                                 </select>
                             </label>
+                            @if (!string.IsNullOrWhiteSpace(StatusMessage))
+                            {
+                                <div class="bvg-status bvg-source-status">
+                                    @StatusMessage
+                                    @if (SqlDirty)
+                                    {
+                                        <span class="bvg-dirty-note">SQL has pending changes. Click Regenerate SQL.</span>
+                                    }
+                                </div>
+                            }
                         </div>
                     }
                     else
