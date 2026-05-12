@@ -21,7 +21,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.2")]
+@attribute [FileVersion("1.3")]
 @attribute [AIFileContext("Components/Pages/BaseViewCreator/BaseViewCreator.razor", "Forked base-view creator page that preserves the proven Base View Generator UI while allowing different internal plumbing to evolve safely.", Responsibilities = "Keep the base-view creation workflow visually familiar while isolating experimental model and engine changes from the production Base View Generator page.", Nuances = "This page intentionally starts as a UI-preserving fork. Lookup discovery and the proven base-view workflow remain available in BaseViewGenerator while new plumbing is validated here first.", RelatedFiles = "Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", LastReviewed = "2026-05-12")]
 
 <PageTitle>Base View Creator</PageTitle>
@@ -1647,7 +1647,8 @@
         CurrentSelectionPlan.ColumnHasLookupDisplayProjection(columnName);
 
     private static bool RelationshipOwnsEditorProjectionColumns(TableSchemaRelationshipInfo relationship) =>
-        relationship.Columns.Count > 0;
+        relationship.Columns.Count > 0 &&
+        HasDisplayColumn(relationship);
 
     private bool RelationshipOwnsEditorColumn(string columnName) =>
         Relationships.Any(relationship =>
