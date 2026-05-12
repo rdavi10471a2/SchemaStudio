@@ -10,7 +10,7 @@
 @inject DialogService DialogService
 @inject IJSRuntime JSRuntime
 
-@attribute [FileVersion("1.26")]
+@attribute [FileVersion("1.27")]
 @attribute [AIChange(
     "1.14",
     "2026-05-01 09:20 AM CDT replaced native details menus with explicit Blazor menu state so commands close dropdowns and navigate without route flicker.",
@@ -348,7 +348,8 @@
 
     private bool ShouldGateNavigationMenu =>
         AppConfig.Current.Auth.Enabled &&
-        AppConfig.Current.Auth.RequireLoginForHome;
+        AppConfig.Current.Auth.RequireLoginForHome &&
+        IsHomeRoute;
 
     private bool CanShowNavigationMenu =>
         !HideNavigationChrome &&
@@ -369,6 +370,9 @@
             return (queryIndex >= 0 ? relative[..queryIndex] : relative).Trim('/');
         }
     }
+
+    private bool IsHomeRoute =>
+        string.IsNullOrWhiteSpace(CurrentRelativePath);
 
     protected override void OnInitialized()
     {
