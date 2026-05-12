@@ -18,7 +18,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.80")]
+@attribute [FileVersion("1.81")]
 @attribute [AIFileContext("Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", "Maintenance page for generating deterministic base-view SQL from SQL Server table metadata and foreign-key relationships.", Responsibilities = "Lets a user select a source database/schema/table, review M-to-1 FK relationships, override join inclusion/type, and copy generated CREATE OR ALTER VIEW SQL.", Nuances = "The page generates mechanical SQL only; business metadata comments are intentionally optional placeholders because final annotations are reviewed outside this automation.", RelatedFiles = "Repositories/TableSchemaSmoRepository.cs", LastReviewed = "2026-05-07")]
 
 <PageTitle>Base View Generator</PageTitle>
@@ -241,6 +241,10 @@
                                                 {
                                                     <span class="bvg-role-glyph">@ColumnKeyRoleLabel(column)</span>
                                                 }
+                                                @if (IsSuppressedRelationshipColumn(column))
+                                                {
+                                                    <span class="bvg-role-glyph">No Display Selected</span>
+                                                }
                                             </div>
                                             <span class="bvg-business-name">@MetadataDisplayValue(column.BusinessName, "No business name")</span>
                                             <span class="bvg-business-description">@MetadataDisplayValue(column.BusinessDescription, "No business description")</span>
@@ -258,6 +262,10 @@
                                                 <div class="bvg-tree-main">
                                                     <span class="bvg-output-expression">@BuildBaseProjectionText(column)</span>
                                                     <span class="bvg-role-glyph">FK Ref</span>
+                                                    @if (IsJoinSuppressed(relationship))
+                                                    {
+                                                        <span class="bvg-role-glyph">No Display Selected</span>
+                                                    }
                                                 </div>
                                                 <span class="bvg-business-name">@MetadataDisplayValue(column.BusinessName, "No business name")</span>
                                                 <span class="bvg-business-description">@MetadataDisplayValue(column.BusinessDescription, "No business description")</span>
@@ -1170,9 +1178,7 @@
             .Any(pair => string.Equals(pair.LocalColumnName, column.ColumnName, StringComparison.OrdinalIgnoreCase));
 
     private string ColumnKeyRoleLabel(TableSchemaColumnInfo column) =>
-        IsSuppressedRelationshipColumn(column) && !string.IsNullOrWhiteSpace(column.KeyRole)
-            ? $"{column.KeyRole}, lookup suppressed"
-            : column.KeyRole;
+        column.KeyRole;
 
     private bool ShouldGenerateJoin(TableSchemaRelationshipInfo relationship) =>
         IncludeLookupDisplayColumns &&
