@@ -103,10 +103,14 @@
 
 .dom-shell {
     display: grid;
-    grid-template-columns: 360px minmax(0, 1fr);
+    grid-template-columns: auto minmax(0, 1fr);
     gap: 0.75rem;
     min-height: 0;
     overflow: hidden;
+}
+
+.dom-shell-collapsed {
+    grid-template-columns: minmax(0, 1fr);
 }
 
 .dom-panel,
@@ -123,6 +127,13 @@
 .dom-card {
     display: flex;
     flex-direction: column;
+}
+
+.dom-base-panel {
+    width: 360px;
+    min-width: 280px;
+    max-width: 560px;
+    resize: horizontal;
 }
 
 .dom-panel-header,
@@ -285,17 +296,22 @@
 .dom-model-grid {
     min-height: 0;
     display: grid;
-    grid-template-columns: 440px minmax(0, 1fr);
+    grid-template-columns: auto minmax(420px, 0.85fr);
     gap: 0.75rem;
     padding: 0.75rem;
     overflow: hidden;
 }
 
 .dom-config-stack {
+    width: 610px;
+    min-width: 430px;
+    max-width: 860px;
     min-height: 0;
     display: grid;
-    grid-template-rows: auto 250px minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
     gap: 0.75rem;
+    resize: horizontal;
+    overflow: auto;
 }
 
 .dom-two-fields {
@@ -305,28 +321,41 @@
     padding: 0.75rem;
 }
 
-.dom-name-list,
-.dom-join-list {
+.dom-element-list {
     flex: 1 1 auto;
     min-height: 0;
     overflow: auto;
     padding: 0.65rem;
 }
 
-.dom-name-row {
+.dom-element-row {
     display: grid;
-    grid-template-columns: 76px minmax(0, 1fr) minmax(0, 1.15fr);
-    align-items: center;
     gap: 0.5rem;
-    min-height: 36px;
-    padding: 0.45rem 0.5rem;
+    min-height: 80px;
+    padding: 0.6rem;
     border: 1px solid #e2e7ef;
     border-radius: 5px;
     background: #f8fafc;
 }
 
-.dom-name-row + .dom-name-row {
-    margin-top: 0.45rem;
+.dom-element-row + .dom-element-row {
+    margin-top: 0.55rem;
+}
+
+.dom-element-topline {
+    display: grid;
+    grid-template-columns: 76px minmax(120px, 1fr) minmax(150px, 0.9fr);
+    align-items: end;
+    gap: 0.5rem;
+}
+
+.dom-alias-field {
+    display: grid;
+    gap: 0.25rem;
+    min-width: 0;
+    color: #526071;
+    font-size: 0.72rem;
+    font-weight: 800;
 }
 
 .dom-anchor {
@@ -351,39 +380,17 @@
     font-weight: 800;
 }
 
-.dom-join-row {
-    min-height: 80px;
+.dom-anchor-note {
+    padding-left: 84px;
+    color: #526071;
+    font-size: 0.8rem;
+}
+
+.dom-element-join {
     display: grid;
-    grid-template-columns: 112px minmax(0, 1fr);
-    gap: 0.55rem;
-    padding: 0.55rem;
-    border: 1px solid #e2e7ef;
-    border-radius: 6px;
-    background: #f8fafc;
-}
-
-.dom-join-row + .dom-join-row {
-    margin-top: 0.55rem;
-}
-
-.dom-join-detail {
+    grid-template-columns: 114px minmax(0, 1fr);
+    gap: 0.5rem;
     min-width: 0;
-    display: grid;
-    gap: 0.35rem;
-}
-
-.dom-join-element {
-    display: flex;
-    align-items: center;
-    gap: 0.45rem;
-    min-width: 0;
-    font-weight: 800;
-}
-
-.dom-join-element code {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
 .dom-card-footer,

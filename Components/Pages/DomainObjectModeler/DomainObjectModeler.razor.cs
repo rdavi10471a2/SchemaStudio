@@ -43,6 +43,7 @@ public partial class DomainObjectModeler
     private string StatusMessage = "Select a database and domain to begin.";
     private string LoadError = string.Empty;
     private bool IsBusy;
+    private bool IsBaseViewPanelHidden;
     private bool StripSourceComments;
 
     protected override async Task OnInitializedAsync()
@@ -67,6 +68,19 @@ public partial class DomainObjectModeler
         !string.IsNullOrWhiteSpace(TargetSchema) &&
         !string.IsNullOrWhiteSpace(TargetViewName) &&
         NonAnchorSelectedBaseViews.All(item => !string.IsNullOrWhiteSpace(FindJoinRow(item.SchemaObjectId)?.OnClause));
+
+    private string LayoutClass =>
+        IsBaseViewPanelHidden
+            ? "dom-shell dom-shell-collapsed"
+            : "dom-shell";
+
+    private string ToggleBaseViewPanelText =>
+        IsBaseViewPanelHidden ? "Show Base Views" : "Hide Base Views";
+
+    private void ToggleBaseViewPanel()
+    {
+        IsBaseViewPanelHidden = !IsBaseViewPanelHidden;
+    }
 
     private RenderFragment FieldLabel(Type modelType, string propertyName) => builder =>
     {

@@ -186,8 +186,7 @@ public partial class DomainObjectModeler
             {
                 JoinRows.Add(new DomainObjectJoinRow
                 {
-                    SchemaObjectId = item.SchemaObjectId,
-                    OnClause = BuildDefaultOnClause(item)
+                    SchemaObjectId = item.SchemaObjectId
                 });
             }
         }
@@ -208,18 +207,6 @@ public partial class DomainObjectModeler
         }
 
         return string.IsNullOrWhiteSpace(token) ? "SourceObject" : $"{token}Source";
-    }
-
-    private string BuildDefaultOnClause(DomainBaseViewItem item)
-    {
-        var anchor = AnchorView;
-        if (anchor is null)
-        {
-            return string.Empty;
-        }
-
-        var keyName = $"{SanitizeIdentifierToken(SelectedDomain)}Key";
-        return $"[{anchor.AliasName}].[{keyName}] = [{item.AliasName}].[{keyName}]";
     }
 
     private static string SanitizeIdentifierToken(string value)

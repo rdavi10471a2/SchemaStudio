@@ -43,6 +43,7 @@
             <p>Define an editable domain object surface by composing selected base views into one CTE-backed view.</p>
         </div>
         <div class="dom-header-actions">
+            <button type="button" class="dom-button secondary" @onclick="ToggleBaseViewPanel">@ToggleBaseViewPanelText</button>
             <button type="button" class="dom-button secondary" @onclick="RefreshCatalogAsync" disabled="@IsBusy">Refresh Catalog</button>
         </div>
     </section>
@@ -54,8 +55,10 @@
         </RadzenAlert>
     }
 
-    <div class="dom-shell">
-        <aside class="dom-panel dom-base-panel">
+    <div class="@LayoutClass">
+        @if (!IsBaseViewPanelHidden)
+        {
+            <aside class="dom-panel dom-base-panel">
                 <header class="dom-panel-header">
                     <span>Base Views</span>
                     <span class="dom-pill success">single domain</span>
@@ -117,7 +120,8 @@
                 </div>
 
                 <footer class="dom-panel-note">No field choices here. Projection and trimming happen later in the domain object editor.</footer>
-        </aside>
+            </aside>
+        }
 
         <main class="dom-workspace">
             <section class="dom-workspace-header">
@@ -146,12 +150,12 @@
                         </div>
                     </section>
 
-                    <section class="dom-card dom-names-card">
+                    <section class="dom-card dom-elements-card">
                         <header class="dom-card-header">
-                            <span>Base View Output Names</span>
-                            <span class="dom-pill success">anchor + aliases</span>
+                            <span>Selected CTE Elements</span>
+                            <span class="dom-pill success">anchor + aliases + joins</span>
                         </header>
-                        <div class="dom-name-list">
+                        <div class="dom-element-list">
                             @if (SelectedBaseViews.Count == 0)
                             {
                                 <div class="dom-empty">Select at least one base view.</div>
@@ -160,65 +164,46 @@
                             {
                                 @foreach (var item in SelectedBaseViews)
                                 {
-                                    <div class="dom-name-row">
-                                        <button type="button"
-                                                class="@(item.IsAnchor ? "dom-anchor active" : "dom-anchor")"
-                                                @onclick="@(() => SetAnchor(item))">
-                                            Anchor
-                                        </button>
-                                        <span class="dom-source-name" title="@item.SourceFullName">@item.DisplayName</span>
-                                        <RadzenTextBox Value="@item.AliasName"
-                                                       Change="@(value => OnAliasChanged(item, value?.ToString()))"
-                                                       Style="width:100%;"
-                                                       MaxLength="128" />
-                                    </div>
-                                }
-                            }
-                        </div>
-                    </section>
-
-                    <section class="dom-card dom-joins-card">
-                        <header class="dom-card-header">
-                            <span>Join Requirements</span>
-                            <span class="dom-pill warning">one per non-anchor CTE</span>
-                        </header>
-                        <div class="dom-hint compact">
-                            The anchor emits as <strong>FROM [@(AnchorView?.AliasName ?? "AnchorAlias")]</strong>. Every other selected base view needs a join type and ON clause before SQL can be generated.
-                        </div>
-                        <div class="dom-join-list">
-                            @if (AnchorView is null)
-                            {
-                                <div class="dom-empty">Choose an anchor to create join rows.</div>
-                            }
-                            else if (NonAnchorSelectedBaseViews.Count == 0)
-                            {
-                                <div class="dom-empty">Select another base view to add join requirements.</div>
-                            }
-                            else
-                            {
-                                @foreach (var item in NonAnchorSelectedBaseViews)
-                                {
                                     var row = FindJoinRow(item.SchemaObjectId);
-                                    if (row is not null)
-                                    {
-                                        <div class="dom-join-row">
-                                            <RadzenDropDown TValue="string"
-                                                            Data="@JoinTypes"
-                                                            Value="@row.JoinType"
-                                                            Change="@(value => OnJoinTypeChanged(row, value))"
-                                                            Style="width:100%;" />
-                                            <div class="dom-join-detail">
-                                                <div class="dom-join-element">
-                                                    <span class="dom-pill">element</span>
-                                                    <code>@item.AliasName</code>
-                                                </div>
+                                    <div class="dom-element-row">
+                                        <div class="dom-element-topline">
+                                            <button type="button"
+                                                    class="@(item.IsAnchor ? "dom-anchor active" : "dom-anchor")"
+                                                    @onclick="@(() => SetAnchor(item))">
+                                                Anchor
+                                            </button>
+                                            <span class="dom-source-name" title="@item.SourceFullName">@item.DisplayName</span>
+                                            <label class="dom-alias-field">
+                                                <span>Alias</span>
+                                                <RadzenTextBox Value="@item.AliasName"
+                                                               Change="@(value => OnAliasChanged(item, value?.ToString()))"
+                                                               Style="width:100%;"
+                                                               MaxLength="128" />
+                                            </label>
+                                        </div>
+
+                                        @if (item.IsAnchor)
+                                        {
+                                            <div class="dom-anchor-note">
+                                                Emits as <strong>FROM [@item.AliasName]</strong>.
+                                            </div>
+                                        }
+                                        else if (row is not null)
+                                        {
+                                            <div class="dom-element-join">
+                                                <RadzenDropDown TValue="string"
+                                                                Data="@JoinTypes"
+                                                                Value="@row.JoinType"
+                                                                Change="@(value => OnJoinTypeChanged(row, value))"
+                                                                Style="width:100%;" />
                                                 <RadzenTextBox Value="@row.OnClause"
                                                                Change="@(value => OnJoinClauseChanged(row, value?.ToString()))"
+                                                               Placeholder="ON clause"
                                                                Style="width:100%;"
                                                                MaxLength="1200" />
                                             </div>
-                                        </div>
-                                    }
+                                        }
+                                    </div>
                                 }
                             }
                         </div>
