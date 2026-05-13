@@ -452,6 +452,12 @@
         color: #335cff;
     }
 
+    .node-badge.cte {
+        border-color: #d8ece7;
+        background: #f1fbf8;
+        color: #047857;
+    }
+
     .node-badge.warning {
         border-color: #fde2a8;
         background: #fff8e6;
@@ -1203,11 +1209,17 @@
     private static ExplorerTreeNode BuildSourceNode(SourceTable source)
     {
         var objectName = FormatQualifiedName(source.Database, source.Schema, source.Table);
-        var isView = source.NestedQuery != null;
-        var node = new ExplorerTreeNode(isView ? TreeNodeKind.View : TreeNodeKind.Table, objectName)
+        var isCte = source.Kind == SourceKind.Cte;
+        var isView = !isCte && source.NestedQuery != null;
+        var nodeKind = isCte
+            ? TreeNodeKind.Cte
+            : isView
+                ? TreeNodeKind.View
+                : TreeNodeKind.Table;
+        var node = new ExplorerTreeNode(nodeKind, objectName)
         {
-            Badge = isView ? "View" : "Table",
-            BadgeClass = isView ? "inheritance" : string.Empty,
+            Badge = isCte ? "CTE" : isView ? "View" : "Table",
+            BadgeClass = isCte ? "cte" : isView ? "inheritance" : string.Empty,
             Tooltip = objectName,
             Expanded = false
         };
@@ -1217,6 +1229,7 @@
         node.ObjectName = source.Table ?? string.Empty;
 
         AddDetail(node, "Object", objectName);
+        AddDetail(node, "Source Type", node.Badge);
         AddDetail(node, "Join Type", source.JoinType);
         AddDetail(node, "Join", source.JoinExpression);
 
@@ -1264,6 +1277,7 @@
             "Physical Lineage" => "The physical database, schema, table, and column where the data ultimately comes from.",
             "Inheritance" => "Whether semantic metadata inheritance is allowed for this projected column.",
             "Object" => "The fully qualified object selected in the dependency tree.",
+            "Source Type" => "Whether this source is a persisted table, a persisted view, or a CTE alias inside the current SQL.",
             "Join Type" => "The SQL join type used for this source object when available.",
             "Join" => "The join expression parsed for this source object when available.",
             _ => string.Empty
@@ -1278,6 +1292,7 @@
         Inheritance,
         Lineage,
         View,
+        Cte,
         Table
     }
 
