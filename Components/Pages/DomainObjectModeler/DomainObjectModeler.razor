@@ -161,6 +161,7 @@
                             <label class="dom-field">
                                 @HelpLabel("Target Schema", "Schema for the generated CREATE OR ALTER VIEW statement.")
                                 <input class="dom-native-input"
+                                       id="dom-modeler-target-schema"
                                        @bind-value="TargetSchema"
                                        @bind-value:event="oninput"
                                        maxlength="128" />
@@ -168,6 +169,7 @@
                             <label class="dom-field">
                                 @HelpLabel("View Name", "Name of the composed domain object view generated from the selected base views.")
                                 <input class="dom-native-input"
+                                       id="dom-modeler-target-view"
                                        @bind-value="TargetViewName"
                                        @bind-value:event="oninput"
                                        maxlength="256" />

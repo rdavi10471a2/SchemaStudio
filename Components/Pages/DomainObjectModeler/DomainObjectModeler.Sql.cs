@@ -15,6 +15,8 @@ public partial class DomainObjectModeler
 {
     private async Task GenerateSqlAsync()
     {
+        await SyncTargetInputsAsync();
+
         if (!CanGenerate)
         {
             StatusMessage = "Choose an anchor and complete every join clause before generating SQL.";

@@ -11,6 +11,12 @@ namespace SchemaStudioWebViewer.Components.Pages.DomainObjectModeler;
 
 public partial class DomainObjectModeler
 {
+    private async Task SyncTargetInputsAsync()
+    {
+        TargetSchema = await JSRuntime.InvokeAsync<string>("domModeler.value", new object?[] { "dom-modeler-target-schema" });
+        TargetViewName = await JSRuntime.InvokeAsync<string>("domModeler.value", new object?[] { "dom-modeler-target-view" });
+    }
+
     private void OnAliasInput(DomainBaseViewItem item, ChangeEventArgs args)
     {
         OnAliasChanged(item, args.Value?.ToString());

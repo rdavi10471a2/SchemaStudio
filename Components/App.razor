@@ -1,6 +1,6 @@
 ﻿@using SchemaStudio.AIHelpers
 
-@attribute [FileVersion("1.6")]
+@attribute [FileVersion("1.7")]
 @attribute [AIFileContext("Components/App.razor", "Defines the root HTML shell, shared browser-side state helpers, script references, and global client behaviors for the Blazor app.")]
 @attribute [AIChange("1.4", "2026-05-01 08:58 AM CDT stopped clearing session authentication on pagehide so browser refresh does not immediately log the user out.", AICommandStatus.Pending)]
 @attribute [AIChange("1.3", "2026-04-22 06:06 PM CDT restored Radzen script before Blazor so dropdowns and other Radzen components initialize their JavaScript.", AICommandStatus.Pending)]
@@ -75,6 +75,13 @@
                 }
 
                 console.warn("Prism highlight failed: Element not found after 30 attempts.");
+            };
+
+            window.domModeler = {
+                value: function (id) {
+                    const element = document.getElementById(id);
+                    return element && typeof element.value === "string" ? element.value : "";
+                }
             };
         })();
     </script>
