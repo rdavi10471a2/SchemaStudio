@@ -20,7 +20,10 @@ namespace SchemaStudioWebViewer.Components.Pages.DomainObjectModeler;
 public partial class DomainObjectModeler
 {
     private const string HelpSubjectId = "domain-object-modeler";
-    private const string DefaultTargetSchema = "domain";
+    private const string DefaultDatabaseName = "ExcedeSchema";
+    private const string DefaultDomainName = "Service";
+    private const string DefaultTargetSchema = "dbo";
+    private const string DefaultTargetViewName = "ServiceWorkorder";
 
     private readonly string[] JoinTypes =
     [
@@ -46,6 +49,7 @@ public partial class DomainObjectModeler
     private bool IsBaseViewPanelHidden;
     private bool StripSourceComments;
     private bool ShouldHighlightSql;
+    private bool HasAppliedWorkingDefaults;
 
     protected override async Task OnInitializedAsync()
     {

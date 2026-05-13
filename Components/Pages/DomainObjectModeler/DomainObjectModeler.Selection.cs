@@ -26,6 +26,11 @@ public partial class DomainObjectModeler
             StatusMessage = Databases.Count == 0
                 ? "No active databases are configured."
                 : "Select a database and domain to begin.";
+
+            if (!HasAppliedWorkingDefaults)
+            {
+                await ApplyWorkingDefaultsAsync();
+            }
         }
         catch (Exception ex)
         {
@@ -124,6 +129,8 @@ public partial class DomainObjectModeler
                 ? TargetViewName
                 : $"v{SanitizeIdentifierToken(SelectedDomain)}EditableObject";
 
+            ApplyServiceBaseViewDefaults();
+
             StatusMessage = BaseViews.Count == 0
                 ? $"No active base views are registered for {SelectedDomain}."
                 : $"Loaded {BaseViews.Count} base views for {SelectedDomain}.";
@@ -136,6 +143,81 @@ public partial class DomainObjectModeler
         {
             IsBusy = false;
         }
+    }
+
+    private async Task ApplyWorkingDefaultsAsync()
+    {
+        HasAppliedWorkingDefaults = true;
+
+        var defaultDatabase = Databases.FirstOrDefault(database =>
+            string.Equals(database.DatabaseName, DefaultDatabaseName, StringComparison.OrdinalIgnoreCase));
+        if (defaultDatabase is null)
+        {
+            return;
+        }
+
+        SelectedDatabaseId = defaultDatabase.DatabaseId;
+        Domains = (await DatabaseDomainRepository.GetByDatabaseIdAsync(defaultDatabase.DatabaseId))
+            .OrderBy(domain => domain.Domain, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (!Domains.Any(domain => string.Equals(domain.Domain, DefaultDomainName, StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        SelectedDomain = DefaultDomainName;
+        TargetSchema = DefaultTargetSchema;
+        TargetViewName = DefaultTargetViewName;
+        await LoadBaseViewsAsync();
+    }
+
+    private void ApplyServiceBaseViewDefaults()
+    {
+        if (!string.Equals(SelectedDomain, DefaultDomainName, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(SelectedDatabaseName(), DefaultDatabaseName, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        TargetSchema = DefaultTargetSchema;
+        TargetViewName = DefaultTargetViewName;
+
+        var svsls = FindBaseViewBySourceName("SVSLS");
+        var svslsops = FindBaseViewBySourceName("SVSLSOPS");
+        var svslsitm = FindBaseViewBySourceName("SVSLSITM");
+        if (svsls is null || svslsops is null || svslsitm is null)
+        {
+            return;
+        }
+
+        foreach (var item in BaseViews)
+        {
+            item.IsSelected = false;
+            item.IsAnchor = false;
+        }
+
+        svsls.IsSelected = true;
+        svsls.IsAnchor = true;
+        svsls.AliasName = "SVSLS";
+
+        svslsops.IsSelected = true;
+        svslsops.AliasName = "SVSLSOPS";
+
+        svslsitm.IsSelected = true;
+        svslsitm.AliasName = "SVSLSITM";
+
+        JoinRows.Clear();
+        JoinRows.Add(new DomainObjectJoinRow
+        {
+            SchemaObjectId = svslsops.SchemaObjectId,
+            OnClause = "SVSLS.SLSID = SVSLSOPS.SLSID"
+        });
+        JoinRows.Add(new DomainObjectJoinRow
+        {
+            SchemaObjectId = svslsitm.SchemaObjectId,
+            OnClause = "SVSLSITM.SLSID=SVSLSOPS.SLSID and SVSLSITM.OPSID = SVSLSOPS.OPSID"
+        });
     }
 
     private void ToggleBaseView(DomainBaseViewItem item, bool isSelected)
@@ -198,6 +280,11 @@ public partial class DomainObjectModeler
     private DomainBaseViewItem? FindBaseView(int schemaObjectId) =>
         BaseViews.FirstOrDefault(item => item.SchemaObjectId == schemaObjectId);
 
+    private DomainBaseViewItem? FindBaseViewBySourceName(string sourceName) =>
+        BaseViews.FirstOrDefault(item =>
+            string.Equals(item.Source.SourceObjectName, sourceName, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(SanitizeIdentifierToken(item.Source.SourceObjectName), sourceName, StringComparison.OrdinalIgnoreCase));
+
     private static string BuildDefaultAlias(string sourceObjectName)
     {
         var token = SanitizeIdentifierToken(sourceObjectName);
@@ -206,7 +293,7 @@ public partial class DomainObjectModeler
             token = token[2..];
         }
 
-        return string.IsNullOrWhiteSpace(token) ? "SourceObject" : $"{token}Source";
+        return string.IsNullOrWhiteSpace(token) ? "SourceObject" : token;
     }
 
     private static string SanitizeIdentifierToken(string value)
