@@ -42,7 +42,6 @@
             <p>Define an editable domain object surface by composing selected base views into one CTE-backed view.</p>
         </div>
         <div class="dom-header-actions">
-            <button type="button" class="dom-button secondary" @onclick="ToggleBaseViewPanel">@ToggleBaseViewPanelText</button>
             <button type="button" class="dom-button secondary" @onclick="RefreshCatalogAsync" disabled="@IsBusy">Refresh Catalog</button>
         </div>
     </section>
@@ -54,10 +53,8 @@
         </RadzenAlert>
     }
 
-    <div class="@LayoutClass">
-        @if (!IsBaseViewPanelHidden)
-        {
-            <aside class="dom-panel dom-base-panel">
+    <div class="dom-shell">
+        <aside class="dom-panel dom-base-panel">
                 <header class="dom-panel-header">
                     <span>Base Views</span>
                     <span class="dom-pill success">single domain</span>
@@ -119,8 +116,7 @@
                 </div>
 
                 <footer class="dom-panel-note">No field choices here. Projection and trimming happen later in the domain object editor.</footer>
-            </aside>
-        }
+        </aside>
 
         <main class="dom-workspace">
             <section class="dom-workspace-header">

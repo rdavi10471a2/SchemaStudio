@@ -109,10 +109,6 @@
     overflow: hidden;
 }
 
-.dom-shell-collapsed {
-    grid-template-columns: minmax(0, 1fr);
-}
-
 .dom-panel,
 .dom-card,
 .dom-workspace {
