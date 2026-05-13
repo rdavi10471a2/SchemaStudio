@@ -42,6 +42,11 @@ namespace SchemaStudioWebViewer.Models
         [MultilineDisplayRequired(true, 250)]
         public string? DeveloperNotes { get; set; }
 
+        [Display(Name = "Composition Definition", Order = 55)]
+        [Description("JSON recipe used to compose this derived domain object from managed base views.")]
+        [MultilineDisplayRequired(true, 250)]
+        public string? CompositionDefinitionJson { get; set; }
+
         [Display(Name = "Base Object", Order = 60)]
         [Description("Indicates if this view represents a root business concept")]
         public bool IsBaseObject { get; set; }

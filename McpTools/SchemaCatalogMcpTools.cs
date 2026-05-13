@@ -355,6 +355,7 @@ public sealed class SchemaCatalogMcpTools
         schemaObject.BusinessName,
         schemaObject.BusinessDescription,
         schemaObject.DeveloperNotes,
+        schemaObject.CompositionDefinitionJson,
         schemaObject.IsBaseObject,
         schemaObject.Domain,
         schemaObject.LastSynced,

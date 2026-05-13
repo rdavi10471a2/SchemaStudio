@@ -76,6 +76,11 @@
     gap: 0.5rem;
 }
 
+.dom-action-row {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
 .dom-button {
     min-height: 34px;
     padding: 0.4rem 0.8rem;
@@ -354,6 +359,20 @@
     padding: 0.75rem;
 }
 
+.dom-composition-field {
+    margin: 0;
+    padding: 0 0.75rem 0.75rem;
+}
+
+.dom-composition-json {
+    min-height: 92px;
+    resize: vertical;
+    font-family: "Cascadia Mono", Consolas, "Courier New", monospace;
+    font-size: 0.76rem;
+    line-height: 1.35;
+    color: #475569;
+}
+
 .dom-native-input {
     width: 100%;
     min-width: 0;
@@ -503,6 +522,8 @@
 }
 
 .dom-status-text {
+    flex: 1 1 220px;
+    min-width: 0;
     color: #0f6b4b;
     font-weight: 800;
 }

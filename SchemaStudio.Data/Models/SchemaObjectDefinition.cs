@@ -16,6 +16,7 @@ public sealed class SchemaObjectDefinition
     private string? _businessName;
     private string? _businessDescription;
     private string? _developerNotes;
+    private string? _compositionDefinitionJson;
     private bool _isActive = true;
     private DateTime _lastSynced = DateTime.Now;
     private bool _isDirty;
@@ -110,7 +111,16 @@ public sealed class SchemaObjectDefinition
         set => SetField(ref _developerNotes, value);
     }
 
-    [Display(Name = "Active", Order = 90)]
+    [StringLength(2500)]
+    [Display(Name = "Composition Definition", Order = 90)]
+    [Description("JSON recipe used to compose this derived domain object from managed base views.")]
+    public string? CompositionDefinitionJson
+    {
+        get => _compositionDefinitionJson;
+        set => SetField(ref _compositionDefinitionJson, value);
+    }
+
+    [Display(Name = "Active", Order = 100)]
     public bool IsActive
     {
         get => _isActive;

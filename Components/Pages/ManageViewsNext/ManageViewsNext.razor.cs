@@ -511,6 +511,7 @@ public partial class ManageViewsNext
             BusinessName = source.BusinessName,
             BusinessDescription = source.BusinessDescription,
             DeveloperNotes = source.DeveloperNotes,
+            CompositionDefinitionJson = source.CompositionDefinitionJson,
             IsActive = source.IsActive,
             LastSynced = source.LastSynced
         };

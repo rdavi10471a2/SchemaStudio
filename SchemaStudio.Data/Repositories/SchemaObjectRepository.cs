@@ -29,6 +29,7 @@ SELECT
     BusinessName,
     BusinessDescription,
     DeveloperNotes,
+    CompositionDefinitionJson,
     IsActive,
     LastSynced
 FROM dbo.SchemaObject
@@ -59,6 +60,7 @@ SELECT
     BusinessName,
     BusinessDescription,
     DeveloperNotes,
+    CompositionDefinitionJson,
     IsActive,
     LastSynced
 FROM dbo.SchemaObject
@@ -97,6 +99,7 @@ SELECT
     BusinessName,
     BusinessDescription,
     DeveloperNotes,
+    CompositionDefinitionJson,
     IsActive,
     LastSynced
 FROM dbo.SchemaObject
@@ -129,6 +132,7 @@ SELECT TOP (1)
     BusinessName,
     BusinessDescription,
     DeveloperNotes,
+    CompositionDefinitionJson,
     IsActive,
     LastSynced
 FROM dbo.SchemaObject
@@ -169,6 +173,7 @@ INSERT INTO dbo.SchemaObject
     BusinessName,
     BusinessDescription,
     DeveloperNotes,
+    CompositionDefinitionJson,
     IsActive,
     LastSynced
 )
@@ -184,6 +189,7 @@ VALUES
     @BusinessName,
     @BusinessDescription,
     @DeveloperNotes,
+    @CompositionDefinitionJson,
     @IsActive,
     SYSDATETIME()
 );
@@ -212,6 +218,7 @@ SET
     BusinessName = @BusinessName,
     BusinessDescription = @BusinessDescription,
     DeveloperNotes = @DeveloperNotes,
+    CompositionDefinitionJson = @CompositionDefinitionJson,
     IsActive = @IsActive,
     LastSynced = SYSDATETIME()
 WHERE SchemaObjectId = @SchemaObjectId;

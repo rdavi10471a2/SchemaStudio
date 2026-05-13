@@ -154,6 +154,7 @@ SELECT TOP (@top)
     BusinessName,
     BusinessDescription,
     DeveloperNotes,
+    CompositionDefinitionJson,
     IsActive,
     LastSynced
 FROM SchemaObject
@@ -206,6 +207,7 @@ SELECT
     BusinessName,
     BusinessDescription,
     DeveloperNotes,
+    CompositionDefinitionJson,
     IsActive,
     LastSynced
 FROM SchemaObject

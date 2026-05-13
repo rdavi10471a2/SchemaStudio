@@ -19,7 +19,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.3")]
+@attribute [FileVersion("1.4")]
 @attribute [AIFileContext("Components/Pages/DomainObjectModeler/DomainObjectModeler.razor", "Domain object modeling page that composes an editable domain surface from selected managed base views.", Responsibilities = "Owns the /domain-object-modeler route and renders the database/domain selector, base-view checklist, anchor and alias controls, structured join rows, generated SQL preview, and page-level commands.", Nuances = "This page defines the editable object surface only. Field projection and trimming happen downstream in the domain object editor/projection workflow.", RelatedFiles = "DomainObjectModeler.razor.cs; DomainObjectModeler.Selection.cs; DomainObjectModeler.Joins.cs; DomainObjectModeler.Sql.cs; DomainObjectModeler.Models.cs; DomainObjectModeler.razor.css", LastReviewed = "2026-05-13")]
 
 <PageTitle>Domain Object Modeler</PageTitle>
@@ -175,6 +175,13 @@
                                        maxlength="256" />
                             </label>
                         </div>
+                        <label class="dom-field dom-composition-field">
+                            @HelpLabel("Composition Definition JSON", "Read-only recipe saved with the composed view header. Manage Views uses the header after the physical SQL view is applied.")
+                            <textarea class="dom-native-input dom-composition-json"
+                                      readonly
+                                      value="@CompositionDefinitionJsonPreview"
+                                      rows="4"></textarea>
+                        </label>
                     </section>
 
                     <section class="dom-card dom-elements-card">
@@ -281,6 +288,7 @@
                         <span class="dom-status-text">@StatusMessage</span>
                         <div class="dom-action-row">
                             <button type="button" class="dom-button primary" @onclick="GenerateSqlAsync" disabled="@(!CanGenerate)">Generate</button>
+                            <button type="button" class="dom-button secondary" @onclick="SaveViewDefinitionAsync" disabled="@(!CanSaveViewDefinition)">Save View Definition</button>
                             <button type="button" class="dom-button secondary" @onclick="ValidateSql" disabled="@string.IsNullOrWhiteSpace(GeneratedSql)">Validate</button>
                             <button type="button" class="dom-button secondary" @onclick="RemoveCommentsAsync" disabled="@(SelectedBaseViews.Count == 0)">Remove Comments</button>
                             <button type="button" class="dom-button secondary" @onclick="CopySqlAsync" disabled="@string.IsNullOrWhiteSpace(GeneratedSql)">Copy</button>
