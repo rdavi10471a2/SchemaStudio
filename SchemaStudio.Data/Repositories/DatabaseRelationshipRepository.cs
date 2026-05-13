@@ -5,7 +5,7 @@ using SchemaStudio.Data.Models;
 
 namespace SchemaStudio.Data.Repositories;
 
-[FileVersion("1.2")]
+[FileVersion("1.3")]
 [AIFileContext("SchemaStudio.Data/Repositories/DatabaseRelationshipRepository.cs", "Read/write repository for the curated database relationship registry.", Responsibilities = "Loads relationship headers with ordered column pairs and saves imported or user-curated relationships without creating or altering database objects.", Nuances = "This repository intentionally assumes dbo.DatabaseRelationships and dbo.DatabaseRelationshipColumns already exist; table creation remains a human-run script.", LastReviewed = "2026-05-13")]
 public sealed class DatabaseRelationshipRepository
 {
@@ -199,10 +199,12 @@ ORDER BY DatabaseRelationshipId, OrdinalPosition;
         }
         catch (SqlException ex) when (ex.Number == 208)
         {
-            var databaseName = connection.Database;
-            throw new InvalidOperationException(
-                $"The relationship header table was found, but {relationshipColumnsTable} is missing or inaccessible. The selected source database supplies table metadata; the relationship registry is stored in the Schema Studio metadata database.",
-                ex);
+            foreach (var relationship in relationships)
+            {
+                relationship.Columns = new List<DatabaseRelationshipColumnDefinition>();
+            }
+
+            return;
         }
 
         foreach (var relationship in relationships)
@@ -358,7 +360,14 @@ DELETE FROM {relationshipColumnsTable}
 WHERE DatabaseRelationshipId = @databaseRelationshipId;
 """;
 
-        await connection.ExecuteAsync(deleteSql, new { databaseRelationshipId }, transaction);
+        try
+        {
+            await connection.ExecuteAsync(deleteSql, new { databaseRelationshipId }, transaction);
+        }
+        catch (SqlException ex) when (ex.Number == 208)
+        {
+            return;
+        }
 
         var insertSql = $"""
 INSERT INTO {relationshipColumnsTable}
@@ -392,7 +401,14 @@ VALUES
 
         if (rows.Count > 0)
         {
-            await connection.ExecuteAsync(insertSql, rows, transaction);
+            try
+            {
+                await connection.ExecuteAsync(insertSql, rows, transaction);
+            }
+            catch (SqlException ex) when (ex.Number == 208)
+            {
+                return;
+            }
         }
     }
 
