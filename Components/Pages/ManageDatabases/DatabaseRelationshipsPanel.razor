@@ -8,7 +8,7 @@
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("1.1")]
+@attribute [FileVersion("1.2")]
 @attribute [AIFileContext("Components/Pages/ManageDatabases/DatabaseRelationshipsPanel.razor", "Manage Databases child panel for the curated database relationship registry.", Responsibilities = "Loads source tables, imports source-system foreign-key relationships into dbo.DatabaseRelationships, and displays the registry rows that touch the selected table.", Nuances = "The panel does not create metadata tables; database DDL stays in human-run scripts.", LastReviewed = "2026-05-13")]
 
 <RadzenStack Gap="0.75rem" class="relationships-panel">
@@ -73,7 +73,7 @@
                                       Click="@LoadTablesAsync"
                                       Disabled="@isLoading" />
                         <RadzenButton Icon="account_tree"
-                                      Text="Import FK Relationships"
+                                      Text="Import Source Lookups"
                                       ButtonStyle="ButtonStyle.Primary"
                                       Click="@ImportForeignKeysAsync"
                                       Disabled="@(!CanImport)" />
@@ -327,20 +327,22 @@
 
         try
         {
-            var edges = await TableSchemaRepository.GetRelationshipsBetweenTablesAsync(
+            var details = await TableSchemaRepository.GetTableDetailsAsync(
                 Database.DatabaseName,
-                [selectedTableName.Trim()]);
+                schemaName.Trim(),
+                selectedTableName.Trim(),
+                Database.SQLLookupString);
 
             var imported = 0;
-            foreach (var edge in edges)
+            foreach (var sourceRelationship in details.Relationships)
             {
-                var relationship = FromEdge(Database.DatabaseId, edge);
+                var relationship = await FromSourceLookupAsync(Database.DatabaseId, details, sourceRelationship);
                 await RelationshipRepository.UpsertAsync(relationship);
                 imported++;
             }
 
             await LoadRelationshipsAsync(setLoading: false);
-            SetStatus($"Imported or refreshed {imported} source-system FK relationship(s) for {selectedTableName}.", AlertStyle.Success);
+            SetStatus($"Imported or refreshed {imported} source lookup relationship(s) for {selectedTableName}.", AlertStyle.Success);
             Notify(NotificationSeverity.Success, $"Imported {imported} relationship(s).");
         }
         catch (Exception ex)
@@ -374,38 +376,66 @@
         return "related";
     }
 
-    private static DatabaseRelationshipDefinition FromEdge(int databaseId, TableSchemaForeignKeyEdge edge)
+    private async Task<DatabaseRelationshipDefinition> FromSourceLookupAsync(
+        int databaseId,
+        TableSchemaDetails details,
+        TableSchemaRelationshipInfo sourceRelationship)
     {
+        var lookupValues = string.IsNullOrWhiteSpace(sourceRelationship.DisplayColumnName)
+            ? null
+            : await TableSchemaRepository.GetLookupValuesTextAsync(
+                details.DatabaseName,
+                sourceRelationship.ReferencedSchemaName,
+                sourceRelationship.ReferencedTableName,
+                sourceRelationship.DisplayColumnName,
+                sourceRelationship.LookupFilterColumnName,
+                sourceRelationship.LookupFilterValue);
+
         return new DatabaseRelationshipDefinition
         {
             DatabaseId = databaseId,
-            SourceSchemaName = edge.ParentSchemaName,
-            SourceTableName = edge.ParentTableName,
-            TargetSchemaName = edge.ReferencedSchemaName,
-            TargetTableName = edge.ReferencedTableName,
-            JoinType = "LEFT JOIN",
-            RelationshipRole = "ParentReference",
-            RelationshipName = edge.ForeignKeyName,
-            RelationshipKey = BuildRelationshipKey(edge),
+            SourceSchemaName = details.SchemaName,
+            SourceTableName = details.TableName,
+            TargetSchemaName = sourceRelationship.ReferencedSchemaName,
+            TargetTableName = sourceRelationship.ReferencedTableName,
+            JoinType = sourceRelationship.SelectedJoinType,
+            RelationshipRole = "Lookup",
+            RelationshipName = sourceRelationship.ForeignKeyName,
+            RelationshipKey = BuildRelationshipKey(details, sourceRelationship),
             SourceSystemDetected = true,
             UserConfirmed = false,
-            DefaultIncludeInBaseView = false,
+            DefaultIncludeInBaseView = sourceRelationship.Include,
             UseInDomainObjectModeler = true,
             UseInQueryBuilder = true,
+            DisplayColumnName = sourceRelationship.DisplayColumnName,
+            FilterColumnName = sourceRelationship.LookupFilterColumnName,
+            FilterValue = sourceRelationship.LookupFilterValue,
+            LegalValues = lookupValues,
             Active = true,
-            Columns = edge.Columns
+            Columns = sourceRelationship.Columns
                 .Select((column, index) => new DatabaseRelationshipColumnDefinition
                 {
                     OrdinalPosition = index + 1,
-                    SourceColumnName = column.ParentColumnName,
+                    SourceColumnName = column.LocalColumnName,
                     TargetColumnName = column.ReferencedColumnName
                 })
                 .ToList()
         };
     }
 
-    private static string BuildRelationshipKey(TableSchemaForeignKeyEdge edge) =>
-        $"FK:{edge.ForeignKeyName}:{edge.ParentSchemaName}.{edge.ParentTableName}->{edge.ReferencedSchemaName}.{edge.ReferencedTableName}";
+    private static string BuildRelationshipKey(TableSchemaDetails details, TableSchemaRelationshipInfo relationship) =>
+        string.Join("|",
+        [
+            "LOOKUP",
+            details.SchemaName.Trim(),
+            details.TableName.Trim(),
+            string.Join(",", relationship.Columns.Select(column => column.LocalColumnName.Trim())),
+            relationship.ReferencedSchemaName.Trim(),
+            relationship.ReferencedTableName.Trim(),
+            string.Join(",", relationship.Columns.Select(column => column.ReferencedColumnName.Trim())),
+            relationship.LookupFilterColumnName?.Trim() ?? "",
+            relationship.LookupFilterValue?.Trim() ?? ""
+        ]);
 
     private void SetStatus(string message, AlertStyle style)
     {
