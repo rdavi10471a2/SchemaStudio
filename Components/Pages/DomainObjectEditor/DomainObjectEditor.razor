@@ -282,12 +282,12 @@
     private double ResizeStartY { get; set; }
     private int ResizeStartSize { get; set; }
     private int InspectorWidth { get; set; } = 680;
-    private int OutputFieldsHeight { get; set; } = 430;
+    private int RelationshipHeight { get; set; } = 220;
 
     private const int InspectorMinWidth = 320;
     private const int InspectorMaxWidth = 1100;
-    private const int OutputFieldsMinHeight = 220;
-    private const int OutputFieldsMaxHeight = 720;
+    private const int RelationshipMinHeight = 120;
+    private const int RelationshipMaxHeight = 420;
 
     private enum ResizeTarget
     {
@@ -299,7 +299,7 @@
         ActiveResizeTarget is null ? "cte-workbench" : "cte-workbench cte-resizing";
 
     private string WorkbenchStyle =>
-        $"--cte-inspector-width: {InspectorWidth}px; --cte-output-height: {OutputFieldsHeight}px;";
+        $"--cte-inspector-width: {InspectorWidth}px; --cte-relationship-height: {RelationshipHeight}px;";
 
     protected override async Task OnInitializedAsync()
     {
@@ -589,7 +589,7 @@
         ResizeStartSize = target switch
         {
             ResizeTarget.Inspector => InspectorWidth,
-            ResizeTarget.OutputFields => OutputFieldsHeight,
+            ResizeTarget.OutputFields => RelationshipHeight,
             _ => 0
         };
     }
@@ -610,7 +610,7 @@
                 InspectorWidth = Math.Clamp(ResizeStartSize - horizontalDelta, InspectorMinWidth, InspectorMaxWidth);
                 break;
             case ResizeTarget.OutputFields:
-                OutputFieldsHeight = Math.Clamp(ResizeStartSize + verticalDelta, OutputFieldsMinHeight, OutputFieldsMaxHeight);
+                RelationshipHeight = Math.Clamp(ResizeStartSize - verticalDelta, RelationshipMinHeight, RelationshipMaxHeight);
                 break;
         }
     }
