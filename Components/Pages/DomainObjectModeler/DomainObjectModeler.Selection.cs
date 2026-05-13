@@ -178,7 +178,8 @@ public partial class DomainObjectModeler
 
     private void MoveSelectedElement(DomainBaseViewItem item, int direction)
     {
-        var ordered = SelectedBaseViews.ToList();
+        var anchor = AnchorView;
+        var ordered = NonAnchorSelectedBaseViews.ToList();
         var index = ordered.IndexOf(item);
         var targetIndex = index + direction;
         if (index < 0 || targetIndex < 0 || targetIndex >= ordered.Count)
@@ -187,17 +188,23 @@ public partial class DomainObjectModeler
         }
 
         (ordered[index], ordered[targetIndex]) = (ordered[targetIndex], ordered[index]);
-        for (var ordinal = 0; ordinal < ordered.Count; ordinal++)
+        var nextOrdinal = 1;
+        if (anchor is not null)
         {
-            ordered[ordinal].SelectionOrdinal = ordinal + 1;
+            anchor.SelectionOrdinal = nextOrdinal++;
         }
 
-        NextSelectionOrdinal = ordered.Count + 1;
+        for (var ordinal = 0; ordinal < ordered.Count; ordinal++)
+        {
+            ordered[ordinal].SelectionOrdinal = nextOrdinal++;
+        }
+
+        NextSelectionOrdinal = nextOrdinal;
         GeneratedSql = string.Empty;
     }
 
-    private int GetSelectedElementIndex(DomainBaseViewItem item) =>
-        SelectedBaseViews.ToList().IndexOf(item);
+    private int GetJoinElementIndex(DomainBaseViewItem item) =>
+        NonAnchorSelectedBaseViews.ToList().IndexOf(item);
 
     private void SetAnchor(DomainBaseViewItem item)
     {
@@ -206,12 +213,18 @@ public partial class DomainObjectModeler
             item.IsSelected = true;
         }
 
+        if (item.SelectionOrdinal == 0)
+        {
+            item.SelectionOrdinal = NextSelectionOrdinal++;
+        }
+
         foreach (var baseView in BaseViews)
         {
             baseView.IsAnchor = ReferenceEquals(baseView, item);
         }
 
         GeneratedSql = string.Empty;
+        StatusMessage = $"FROM anchor changed to {item.DisplayName}. Check join clauses for the remaining elements.";
         EnsureJoinRows();
     }
 
