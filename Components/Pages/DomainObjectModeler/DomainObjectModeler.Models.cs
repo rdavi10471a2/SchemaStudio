@@ -17,6 +17,7 @@ public partial class DomainObjectModeler
         public bool IsSelected { get; set; }
         public string AliasName { get; set; } = string.Empty;
         public bool IsAnchor { get; set; }
+        public string CteSourceMode { get; set; } = CteSourceModeInlineContents;
 
         public int SchemaObjectId => Source.SchemaObjectId;
         public string DisplayName => string.IsNullOrWhiteSpace(Source.BusinessName)
@@ -33,5 +34,7 @@ public partial class DomainObjectModeler
         public string JoinType { get; set; } = "LEFT JOIN";
         public string OnClause { get; set; } = string.Empty;
     }
+
+    private sealed record CteSourceModeOption(string Value, string Text);
 }
 

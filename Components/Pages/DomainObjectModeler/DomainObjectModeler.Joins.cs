@@ -27,6 +27,12 @@ public partial class DomainObjectModeler
         GeneratedSql = string.Empty;
     }
 
+    private void OnCteSourceModeChanged(DomainBaseViewItem item, string? value)
+    {
+        item.CteSourceMode = value is CteSourceModeViewSurface ? CteSourceModeViewSurface : CteSourceModeInlineContents;
+        GeneratedSql = string.Empty;
+    }
+
     private async Task RemoveCommentsAsync()
     {
         StripSourceComments = true;

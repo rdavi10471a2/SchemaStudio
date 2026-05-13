@@ -9,7 +9,6 @@ using SchemaStudioWebViewer.WEBSemanticModel.Parsing;
     Responsibilities = "Fetch selected base-view SQL, optionally strip internal comments, assemble CREATE OR ALTER VIEW CTE SQL, validate parser compatibility, and quote identifiers.",
     RelatedFiles = "Components/Pages/DomainObjectModeler/DomainObjectModeler.razor; Repositories/ReadOnlyViewDefinitionRepository.cs",
     LastReviewed = "2026-05-13")]
-
 namespace SchemaStudioWebViewer.Components.Pages.DomainObjectModeler;
 
 public partial class DomainObjectModeler
@@ -37,18 +36,7 @@ public partial class DomainObjectModeler
             for (var index = 0; index < selected.Count; index++)
             {
                 var item = selected[index];
-                var definition = await ReadOnlyViewDefinitionRepository.GetViewDefinitionAsync(
-                    item.Source.SourceDatabaseName ?? SelectedDatabaseName(),
-                    item.Source.SourceSchemaName,
-                    item.Source.SourceObjectName);
-
-                var sql = definition?.Definition ?? $"SELECT * FROM {QualifiedName(item.Source.SourceDatabaseName, item.Source.SourceSchemaName, item.Source.SourceObjectName)}";
-                if (StripSourceComments)
-                {
-                    sql = ReadOnlyViewDefinitionRepository.CleanSqlDefinition(sql);
-                }
-
-                sql = ExtractSelectableSql(sql);
+                var sql = await BuildCteBodySqlAsync(item);
 
                 builder.AppendLine($"    {QuoteIdentifier(item.AliasName)} AS");
                 builder.AppendLine("    (");
@@ -88,7 +76,7 @@ public partial class DomainObjectModeler
             ShouldHighlightSql = true;
             StatusMessage = StripSourceComments
                 ? "Generated SQL with internal source comments removed."
-                : "Generated SQL from current anchor, names, and join rows.";
+                : "Generated SQL from current anchor, source modes, names, and join rows.";
         }
         catch (Exception ex)
         {
@@ -113,6 +101,69 @@ public partial class DomainObjectModeler
             .OrderByDescending(item => ReferenceEquals(item, anchor))
             .ThenBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    private async Task<string> BuildCteBodySqlAsync(DomainBaseViewItem item)
+    {
+        if (item.CteSourceMode == CteSourceModeViewSurface)
+        {
+            return await BuildViewSurfaceSqlAsync(item);
+        }
+
+        var definition = await ReadOnlyViewDefinitionRepository.GetViewDefinitionAsync(
+            item.Source.SourceDatabaseName ?? SelectedDatabaseName(),
+            item.Source.SourceSchemaName,
+            item.Source.SourceObjectName);
+
+        var sql = definition?.Definition
+            ?? $"SELECT * FROM {QualifiedName(item.Source.SourceDatabaseName ?? SelectedDatabaseName(), item.Source.SourceSchemaName, item.Source.SourceObjectName)}";
+        if (StripSourceComments)
+        {
+            sql = ReadOnlyViewDefinitionRepository.CleanSqlDefinition(sql);
+        }
+
+        return ExtractSelectableSql(sql);
+    }
+
+    private async Task<string> BuildViewSurfaceSqlAsync(DomainBaseViewItem item)
+    {
+        var columns = (await SchemaObjectColumnRepository.GetByObjectAsync(item.SchemaObjectId))
+            .Where(column => !string.IsNullOrWhiteSpace(column.SourceColumnName))
+            .OrderBy(column => column.OrdinalPosition)
+            .ToList();
+
+        var sourceAlias = SanitizeAlias(item.AliasName);
+        var sourceName = QualifiedName(
+            item.Source.SourceDatabaseName ?? SelectedDatabaseName(),
+            item.Source.SourceSchemaName,
+            item.Source.SourceObjectName);
+
+        if (columns.Count == 0)
+        {
+            return $"SELECT *{Environment.NewLine}FROM {sourceName} AS {QuoteIdentifier(sourceAlias)}";
+        }
+
+        var builder = new StringBuilder();
+        builder.AppendLine("SELECT");
+
+        for (var index = 0; index < columns.Count; index++)
+        {
+            var column = columns[index].SourceColumnName;
+            var prefix = index == 0 ? "    " : "    , ";
+            builder.Append(prefix);
+            builder.Append(QuoteIdentifier(sourceAlias));
+            builder.Append('.');
+            builder.Append(QuoteIdentifier(column));
+            builder.Append(" AS ");
+            builder.Append(QuoteIdentifier(column));
+            builder.AppendLine();
+        }
+
+        builder.Append("FROM ");
+        builder.Append(sourceName);
+        builder.Append(" AS ");
+        builder.Append(QuoteIdentifier(sourceAlias));
+        return builder.ToString();
     }
 
     private async Task<IReadOnlyList<string>> BuildFinalProjectionLinesAsync(IReadOnlyList<DomainBaseViewItem> selected)

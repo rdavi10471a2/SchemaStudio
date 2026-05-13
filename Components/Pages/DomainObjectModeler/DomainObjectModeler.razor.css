@@ -377,12 +377,13 @@
 
 .dom-element-topline {
     display: grid;
-    grid-template-columns: 76px minmax(120px, 1fr) minmax(150px, 0.9fr);
+    grid-template-columns: 76px minmax(120px, 1fr) minmax(130px, 0.75fr) minmax(130px, 0.7fr);
     align-items: end;
     gap: 0.5rem;
 }
 
-.dom-alias-field {
+.dom-alias-field,
+.dom-source-mode-field {
     display: grid;
     gap: 0.25rem;
     min-width: 0;

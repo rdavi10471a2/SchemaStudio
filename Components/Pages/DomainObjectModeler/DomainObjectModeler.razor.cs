@@ -24,6 +24,8 @@ public partial class DomainObjectModeler
     private const string DefaultDomainName = "Service";
     private const string DefaultTargetSchema = "dbo";
     private const string DefaultTargetViewName = "ServiceWorkorder";
+    private const string CteSourceModeInlineContents = "contents";
+    private const string CteSourceModeViewSurface = "surface";
     private const int BaseViewPanelDefaultWidth = 360;
     private const int BaseViewPanelMinWidth = 280;
     private const int BaseViewPanelMaxWidth = 560;
@@ -37,6 +39,12 @@ public partial class DomainObjectModeler
         "INNER JOIN",
         "RIGHT JOIN",
         "FULL JOIN"
+    ];
+
+    private readonly CteSourceModeOption[] CteSourceModes =
+    [
+        new(CteSourceModeInlineContents, "CTE contents"),
+        new(CteSourceModeViewSurface, "View surface")
     ];
 
     private List<DatabaseDefinition> Databases = new();
