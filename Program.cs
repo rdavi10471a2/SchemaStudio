@@ -11,7 +11,7 @@ using System.Text.Json;
 
 namespace SchemaStudioWebViewer
 {
-    [FileVersion("1.14")]
+    [FileVersion("1.15")]
     [AIChange("1.6", "2026-04-23 01:29 PM CDT registered the source-view repository for the new manage-views workspace so available import candidates can be queried by database and ViewNameFilter.", AICommandStatus.Pending)]
     [AIFileContext("Program.cs", "Bootstraps the SchemaStudioWebViewer web app, initializes configuration, registers services, and maps the Razor and MCP endpoints.")]
     [AIChange("1.5", "2026-04-22 06:20 PM CDT registered SQL Server dependency metadata repository for ParserLab where-used lookups.", AICommandStatus.Pending)]
@@ -67,6 +67,8 @@ namespace SchemaStudioWebViewer
                 new DatabaseRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
             builder.Services.AddScoped(_ =>
                 new DatabaseLookupRelationshipRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
+            builder.Services.AddScoped(_ =>
+                new DatabaseRelationshipRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
             builder.Services.AddScoped(_ =>
                 new DatabaseDomainRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
             builder.Services.AddScoped(_ =>

@@ -1,0 +1,427 @@
+@namespace SchemaStudioWebViewer.Components.Pages
+@using Microsoft.Data.SqlClient
+@using SchemaStudio.AIHelpers
+@using SchemaStudio.Data.Models
+@using SchemaStudio.Data.Repositories
+@using SchemaStudioWebViewer.Data
+@inject DatabaseRelationshipRepository RelationshipRepository
+@inject TableSchemaSmoRepository TableSchemaRepository
+@inject NotificationService NotificationService
+
+@attribute [FileVersion("1.0")]
+@attribute [AIFileContext("Components/Pages/ManageDatabases/DatabaseRelationshipsPanel.razor", "Manage Databases child panel for the curated database relationship registry.", Responsibilities = "Loads source tables, imports source-system foreign-key relationships into dbo.DatabaseRelationships, and displays the registry rows that touch the selected table.", Nuances = "The panel does not create metadata tables; database DDL stays in human-run scripts.", LastReviewed = "2026-05-13")]
+
+<RadzenStack Gap="0.75rem" class="relationships-panel">
+    @if (Database is null)
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat">
+            Select a database to maintain relationship metadata.
+        </RadzenAlert>
+    }
+    else
+    {
+        <RadzenStack Orientation="Orientation.Horizontal"
+                     AlignItems="AlignItems.Center"
+                     JustifyContent="JustifyContent.SpaceBetween"
+                     Gap="1rem"
+                     class="relationships-header">
+            <RadzenStack Gap="0.2rem">
+                <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-m-0">@Database.DatabaseName Relationships</RadzenText>
+                <RadzenText TextStyle="TextStyle.Body2" Style="color:#495057;">
+                    Curate physical FKs, lookup joins, detail joins, and soft relationships from one place.
+                </RadzenText>
+            </RadzenStack>
+
+            <RadzenButton Icon="refresh"
+                          Text="Reload"
+                          ButtonStyle="ButtonStyle.Light"
+                          Click="@ReloadAsync"
+                          Disabled="@isLoading" />
+        </RadzenStack>
+
+        <RadzenCard class="relationships-picker rz-p-3">
+            <RadzenRow Gap="0.75rem" AlignItems="AlignItems.End">
+                <RadzenColumn Size="12" SizeMD="3">
+                    <div class="relationship-field-label">Schema</div>
+                    <RadzenTextBox @bind-Value="@schemaName"
+                                   Style="width:100%;"
+                                   MaxLength="128"
+                                   Change="@(async _ => await LoadTablesAsync())" />
+                </RadzenColumn>
+
+                <RadzenColumn Size="12" SizeMD="5">
+                    <div class="relationship-field-label">Table</div>
+                    <RadzenDropDown TValue="string"
+                                    Data="@tables"
+                                    TextProperty="TableName"
+                                    ValueProperty="TableName"
+                                    @bind-Value="@selectedTableName"
+                                    AllowFiltering="true"
+                                    FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                                    Style="width:100%;"
+                                    Change="@(async _ => await LoadRelationshipsAsync())" />
+                </RadzenColumn>
+
+                <RadzenColumn Size="12" SizeMD="4">
+                    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.5rem">
+                        <RadzenButton Icon="table_rows"
+                                      Text="Load Tables"
+                                      ButtonStyle="ButtonStyle.Light"
+                                      Click="@LoadTablesAsync"
+                                      Disabled="@isLoading" />
+                        <RadzenButton Icon="account_tree"
+                                      Text="Import FK Relationships"
+                                      ButtonStyle="ButtonStyle.Primary"
+                                      Click="@ImportForeignKeysAsync"
+                                      Disabled="@(!CanImport)" />
+                    </RadzenStack>
+                </RadzenColumn>
+            </RadzenRow>
+        </RadzenCard>
+
+        @if (!string.IsNullOrWhiteSpace(statusText))
+        {
+            <RadzenAlert AlertStyle="@statusStyle" Variant="Variant.Flat" class="relationships-status">
+                @statusText
+            </RadzenAlert>
+        }
+
+        @if (isLoading)
+        {
+            <RadzenProgressBar Mode="ProgressBarMode.Indeterminate" />
+        }
+
+        <RadzenDataGrid Data="@relationships"
+                        TItem="DatabaseRelationshipDefinition"
+                        AllowFiltering="true"
+                        AllowSorting="true"
+                        AllowPaging="true"
+                        PageSize="12"
+                        SelectionMode="DataGridSelectionMode.Single"
+                        @bind-Value="@selectedRelationships"
+                        RowSelect="@SelectRelationship"
+                        class="relationships-grid">
+            <Columns>
+                <RadzenDataGridColumn TItem="DatabaseRelationshipDefinition" Title="Direction" Width="130px">
+                    <Template Context="relationship">
+                        <span class="relationship-chip">@DirectionFor(relationship)</span>
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="DatabaseRelationshipDefinition" Property="RelationshipRole" Title="Role" Width="140px" />
+                <RadzenDataGridColumn TItem="DatabaseRelationshipDefinition" Property="RelationshipName" Title="Name" Width="220px" />
+                <RadzenDataGridColumn TItem="DatabaseRelationshipDefinition" Property="SourceObject" Title="Source" Width="220px" />
+                <RadzenDataGridColumn TItem="DatabaseRelationshipDefinition" Property="TargetObject" Title="Target" Width="220px" />
+                <RadzenDataGridColumn TItem="DatabaseRelationshipDefinition" Property="ColumnSummary" Title="Columns" />
+                <RadzenDataGridColumn TItem="DatabaseRelationshipDefinition" Title="Use" Width="190px">
+                    <Template Context="relationship">
+                        <RadzenStack Gap="0.1rem">
+                            <span>@(relationship.DefaultIncludeInBaseView ? "base default" : "base optional")</span>
+                            <span>@(relationship.UseInDomainObjectModeler ? "modeler" : "no modeler") / @(relationship.UseInQueryBuilder ? "query" : "no query")</span>
+                        </RadzenStack>
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="DatabaseRelationshipDefinition" Property="Active" Title="Active" Width="90px">
+                    <Template Context="relationship">
+                        <RadzenCheckBox Value="@relationship.Active" Disabled="true" />
+                    </Template>
+                </RadzenDataGridColumn>
+            </Columns>
+        </RadzenDataGrid>
+
+        @if (selectedRelationship is not null)
+        {
+            <RadzenCard class="relationship-detail rz-p-3">
+                <RadzenStack Gap="0.55rem">
+                    <RadzenStack Orientation="Orientation.Horizontal"
+                                 AlignItems="AlignItems.Center"
+                                 JustifyContent="JustifyContent.SpaceBetween"
+                                 Gap="1rem">
+                        <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0">Selected Relationship</RadzenText>
+                        <span class="relationship-chip">@DirectionFor(selectedRelationship)</span>
+                    </RadzenStack>
+
+                    <div class="relationship-detail-grid">
+                        <div>
+                            <span class="relationship-detail-label">Source</span>
+                            <strong>@selectedRelationship.SourceObject</strong>
+                        </div>
+                        <div>
+                            <span class="relationship-detail-label">Target</span>
+                            <strong>@selectedRelationship.TargetObject</strong>
+                        </div>
+                        <div>
+                            <span class="relationship-detail-label">Role</span>
+                            <strong>@selectedRelationship.RelationshipRole</strong>
+                        </div>
+                        <div>
+                            <span class="relationship-detail-label">Join</span>
+                            <strong>@selectedRelationship.JoinType</strong>
+                        </div>
+                    </div>
+
+                    <pre class="relationship-columns">@selectedRelationship.ColumnSummary</pre>
+                </RadzenStack>
+            </RadzenCard>
+        }
+    }
+</RadzenStack>
+
+@code {
+    [Parameter]
+    public DatabaseDefinition? Database { get; set; }
+
+    private int? loadedDatabaseId;
+    private string schemaName = "dbo";
+    private string selectedTableName = "";
+    private List<TableSchemaTableInfo> tables = new();
+    private List<DatabaseRelationshipDefinition> relationships = new();
+    private IList<DatabaseRelationshipDefinition> selectedRelationships = new List<DatabaseRelationshipDefinition>();
+    private DatabaseRelationshipDefinition? selectedRelationship;
+    private bool isLoading;
+    private string statusText = "";
+    private AlertStyle statusStyle = AlertStyle.Info;
+
+    private bool CanImport =>
+        Database is not null &&
+        !isLoading &&
+        !string.IsNullOrWhiteSpace(selectedTableName);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Database is null)
+        {
+            loadedDatabaseId = null;
+            tables.Clear();
+            relationships.Clear();
+            return;
+        }
+
+        if (loadedDatabaseId == Database.DatabaseId)
+        {
+            return;
+        }
+
+        loadedDatabaseId = Database.DatabaseId;
+        schemaName = string.IsNullOrWhiteSpace(Database.DefaultSchema) ? "dbo" : Database.DefaultSchema;
+        selectedTableName = "";
+        selectedRelationship = null;
+        selectedRelationships.Clear();
+        await LoadTablesAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        await LoadTablesAsync(keepSelectedTable: true);
+        await LoadRelationshipsAsync();
+    }
+
+    private async Task LoadTablesAsync()
+    {
+        await LoadTablesAsync(keepSelectedTable: false);
+    }
+
+    private async Task LoadTablesAsync(bool keepSelectedTable)
+    {
+        if (Database is null || string.IsNullOrWhiteSpace(schemaName))
+        {
+            return;
+        }
+
+        isLoading = true;
+        SetStatus("", AlertStyle.Info);
+
+        try
+        {
+            tables = (await TableSchemaRepository.GetTablesAsync(Database.DatabaseName, schemaName.Trim())).ToList();
+
+            if (keepSelectedTable && tables.Any(table => table.TableName.Equals(selectedTableName, StringComparison.OrdinalIgnoreCase)))
+            {
+                // Keep current selection.
+            }
+            else
+            {
+                selectedTableName = tables.FirstOrDefault()?.TableName ?? "";
+            }
+
+            await LoadRelationshipsAsync(setLoading: false);
+            SetStatus($"Loaded {tables.Count} table(s) for {Database.DatabaseName}.{schemaName}.", AlertStyle.Info);
+        }
+        catch (Exception ex)
+        {
+            tables.Clear();
+            relationships.Clear();
+            SetStatus(FriendlyError(ex), AlertStyle.Danger);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadRelationshipsAsync()
+    {
+        await LoadRelationshipsAsync(setLoading: true);
+    }
+
+    private async Task LoadRelationshipsAsync(bool setLoading)
+    {
+        if (Database is null || string.IsNullOrWhiteSpace(schemaName) || string.IsNullOrWhiteSpace(selectedTableName))
+        {
+            relationships.Clear();
+            selectedRelationship = null;
+            selectedRelationships.Clear();
+            return;
+        }
+
+        if (setLoading)
+        {
+            isLoading = true;
+            SetStatus("", AlertStyle.Info);
+        }
+
+        try
+        {
+            relationships = (await RelationshipRepository.GetByTableAsync(
+                Database.DatabaseId,
+                schemaName.Trim(),
+                selectedTableName.Trim())).ToList();
+
+            selectedRelationship = relationships.FirstOrDefault();
+            selectedRelationships = selectedRelationship is null
+                ? new List<DatabaseRelationshipDefinition>()
+                : new List<DatabaseRelationshipDefinition> { selectedRelationship };
+
+            if (setLoading)
+            {
+                SetStatus($"Loaded {relationships.Count} relationship(s) touching {selectedTableName}.", AlertStyle.Info);
+            }
+        }
+        catch (Exception ex)
+        {
+            relationships.Clear();
+            selectedRelationship = null;
+            selectedRelationships.Clear();
+            SetStatus(FriendlyError(ex), AlertStyle.Danger);
+        }
+        finally
+        {
+            if (setLoading)
+            {
+                isLoading = false;
+            }
+        }
+    }
+
+    private async Task ImportForeignKeysAsync()
+    {
+        if (Database is null || string.IsNullOrWhiteSpace(selectedTableName))
+        {
+            return;
+        }
+
+        isLoading = true;
+        SetStatus("", AlertStyle.Info);
+
+        try
+        {
+            var edges = await TableSchemaRepository.GetRelationshipsBetweenTablesAsync(
+                Database.DatabaseName,
+                [selectedTableName.Trim()]);
+
+            var imported = 0;
+            foreach (var edge in edges)
+            {
+                var relationship = FromEdge(Database.DatabaseId, edge);
+                await RelationshipRepository.UpsertAsync(relationship);
+                imported++;
+            }
+
+            await LoadRelationshipsAsync(setLoading: false);
+            SetStatus($"Imported or refreshed {imported} source-system FK relationship(s) for {selectedTableName}.", AlertStyle.Success);
+            Notify(NotificationSeverity.Success, $"Imported {imported} relationship(s).");
+        }
+        catch (Exception ex)
+        {
+            SetStatus(FriendlyError(ex), AlertStyle.Danger);
+            Notify(NotificationSeverity.Error, FriendlyError(ex));
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void SelectRelationship(DatabaseRelationshipDefinition relationship)
+    {
+        selectedRelationship = relationship;
+    }
+
+    private string DirectionFor(DatabaseRelationshipDefinition relationship)
+    {
+        if (relationship.SourceTableName.Equals(selectedTableName, StringComparison.OrdinalIgnoreCase))
+        {
+            return "source";
+        }
+
+        if (relationship.TargetTableName.Equals(selectedTableName, StringComparison.OrdinalIgnoreCase))
+        {
+            return "target";
+        }
+
+        return "related";
+    }
+
+    private static DatabaseRelationshipDefinition FromEdge(int databaseId, TableSchemaForeignKeyEdge edge)
+    {
+        return new DatabaseRelationshipDefinition
+        {
+            DatabaseId = databaseId,
+            SourceSchemaName = edge.ParentSchemaName,
+            SourceTableName = edge.ParentTableName,
+            TargetSchemaName = edge.ReferencedSchemaName,
+            TargetTableName = edge.ReferencedTableName,
+            JoinType = "LEFT JOIN",
+            RelationshipRole = "ParentReference",
+            RelationshipName = edge.ForeignKeyName,
+            RelationshipKey = BuildRelationshipKey(edge),
+            SourceSystemDetected = true,
+            UserConfirmed = false,
+            DefaultIncludeInBaseView = false,
+            UseInDomainObjectModeler = true,
+            UseInQueryBuilder = true,
+            Active = true,
+            Columns = edge.Columns
+                .Select((column, index) => new DatabaseRelationshipColumnDefinition
+                {
+                    OrdinalPosition = index + 1,
+                    SourceColumnName = column.ParentColumnName,
+                    TargetColumnName = column.ReferencedColumnName
+                })
+                .ToList()
+        };
+    }
+
+    private static string BuildRelationshipKey(TableSchemaForeignKeyEdge edge) =>
+        $"FK:{edge.ForeignKeyName}:{edge.ParentSchemaName}.{edge.ParentTableName}->{edge.ReferencedSchemaName}.{edge.ReferencedTableName}";
+
+    private void SetStatus(string message, AlertStyle style)
+    {
+        statusText = message;
+        statusStyle = style;
+    }
+
+    private void Notify(NotificationSeverity severity, string summary)
+    {
+        NotificationService.Notify(new NotificationMessage
+        {
+            Severity = severity,
+            Summary = summary,
+            Duration = 3500
+        });
+    }
+
+    private static string FriendlyError(Exception ex) =>
+        ex is InvalidOperationException or SqlException
+            ? ex.Message
+            : $"Unexpected error: {ex.Message}";
+}

@@ -10,7 +10,7 @@
 @inject TooltipService TooltipService
 @inject AttributeService Attr
 
-@attribute [FileVersion("1.7")]
+@attribute [FileVersion("1.8")]
 @attribute [AIChange(
     "1.6",
     "2026-05-01 09:59 AM CDT kept Business Name on its own row and paired Business Description with Developer Notes as equal-height metadata fields.",
@@ -210,6 +210,10 @@
                                         </RadzenTemplateForm>
                                     }
                                 </RadzenStack>
+                            </RadzenTabsItem>
+
+                            <RadzenTabsItem Text="Relationships" Icon="account_tree">
+                                <DatabaseRelationshipsPanel Database="@selectedDatabase" />
                             </RadzenTabsItem>
                         </Tabs>
                     </RadzenTabs>

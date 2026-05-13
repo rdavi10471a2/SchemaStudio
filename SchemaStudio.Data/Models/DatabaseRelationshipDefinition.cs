@@ -1,0 +1,154 @@
+using SchemaStudio.AIHelpers;
+using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
+
+namespace SchemaStudio.Data.Models;
+
+[FileVersion("1.0")]
+[AIFileContext("SchemaStudio.Data/Models/DatabaseRelationshipDefinition.cs", "Defines curated database relationship metadata used by base-view creation, domain object modeling, and future query-building tools.", Responsibilities = "Carries relationship headers and ordered column pairs for physical foreign keys, lookup joins, soft/domain joins, and user-confirmed relationship hints.", Nuances = "Relationship meaning is contextual: the same physical relationship may be a lookup from one screen and a one-to-many path from another.", LastReviewed = "2026-05-13")]
+public sealed class DatabaseRelationshipDefinition
+{
+    [Display(AutoGenerateField = false)]
+    public int DatabaseRelationshipId { get; set; }
+
+    [Display(AutoGenerateField = false)]
+    public int DatabaseId { get; set; }
+
+    [Required]
+    [StringLength(128)]
+    [Display(Name = "Source Schema", Order = 10)]
+    [Description("Schema for the table on the source side of the relationship.")]
+    public string SourceSchemaName { get; set; } = "dbo";
+
+    [Required]
+    [StringLength(128)]
+    [Display(Name = "Source Table", Order = 20)]
+    [Description("Table on the source side of the relationship.")]
+    public string SourceTableName { get; set; } = "";
+
+    [Required]
+    [StringLength(128)]
+    [Display(Name = "Target Schema", Order = 30)]
+    [Description("Schema for the table on the target side of the relationship.")]
+    public string TargetSchemaName { get; set; } = "dbo";
+
+    [Required]
+    [StringLength(128)]
+    [Display(Name = "Target Table", Order = 40)]
+    [Description("Table on the target side of the relationship.")]
+    public string TargetTableName { get; set; } = "";
+
+    [Required]
+    [StringLength(32)]
+    [Display(Name = "Join Type", Order = 50)]
+    [Description("Default join keyword used when this relationship is projected into generated SQL.")]
+    public string JoinType { get; set; } = "LEFT JOIN";
+
+    [Required]
+    [StringLength(32)]
+    [Display(Name = "Relationship Role", Order = 60)]
+    [Description("Semantic role, such as Lookup, ParentReference, Detail, DomainJoin, or Ignore.")]
+    public string RelationshipRole { get; set; } = "Lookup";
+
+    [StringLength(128)]
+    [Display(Name = "Relationship Name", Order = 70)]
+    [Description("Human or source-system name for this relationship.")]
+    public string? RelationshipName { get; set; }
+
+    [StringLength(256)]
+    [Display(Name = "Relationship Key", Order = 80)]
+    [Description("Stable key used to merge rediscovered relationships without duplicating them.")]
+    public string? RelationshipKey { get; set; }
+
+    [Display(Name = "Source System Detected", Order = 90)]
+    [Description("This relationship was imported from source database metadata.")]
+    public bool SourceSystemDetected { get; set; }
+
+    [Display(Name = "User Confirmed", Order = 100)]
+    [Description("A human has reviewed and confirmed this relationship.")]
+    public bool UserConfirmed { get; set; }
+
+    [Display(Name = "Default Include In Base View", Order = 110)]
+    [Description("Base View Creator should include this lookup by default.")]
+    public bool DefaultIncludeInBaseView { get; set; }
+
+    [Display(Name = "Use In Domain Object Modeler", Order = 120)]
+    [Description("Domain Object Modeler may use this relationship when inferring joins.")]
+    public bool UseInDomainObjectModeler { get; set; } = true;
+
+    [Display(Name = "Use In Query Builder", Order = 130)]
+    [Description("Query builder tools may use this relationship when constructing legal query paths.")]
+    public bool UseInQueryBuilder { get; set; } = true;
+
+    [StringLength(128)]
+    [Display(Name = "Display Column", Order = 140)]
+    [Description("Optional target display column used when this relationship behaves like a lookup.")]
+    public string? DisplayColumnName { get; set; }
+
+    [StringLength(128)]
+    [Display(Name = "Filter Column", Order = 150)]
+    [Description("Optional target filter column used for constrained lookup relationships.")]
+    public string? FilterColumnName { get; set; }
+
+    [StringLength(128)]
+    [Display(Name = "Filter Value", Order = 160)]
+    [Description("Optional target filter value used with Filter Column.")]
+    public string? FilterValue { get; set; }
+
+    [StringLength(1500)]
+    [Display(Name = "Legal Values", Order = 170)]
+    [Description("Optional newline-delimited values or notes for constrained lookup relationships.")]
+    public string? LegalValues { get; set; }
+
+    [StringLength(1000)]
+    [Display(Name = "Developer Notes", Order = 180)]
+    [Description("Technical notes about why this relationship exists or how it should be used.")]
+    public string? DeveloperNotes { get; set; }
+
+    [Display(Name = "Active", Order = 190)]
+    public bool Active { get; set; } = true;
+
+    [Display(AutoGenerateField = false)]
+    public DateTime CreatedOn { get; set; }
+
+    [Display(AutoGenerateField = false)]
+    public DateTime UpdatedOn { get; set; }
+
+    public List<DatabaseRelationshipColumnDefinition> Columns { get; set; } = new();
+
+    public string SourceObject => $"{SourceSchemaName}.{SourceTableName}";
+
+    public string TargetObject => $"{TargetSchemaName}.{TargetTableName}";
+
+    public string ColumnSummary => Columns.Count == 0
+        ? ""
+        : string.Join(
+            " AND ",
+            Columns
+                .OrderBy(column => column.OrdinalPosition)
+                .Select(column => $"{SourceTableName}.{column.SourceColumnName} = {TargetTableName}.{column.TargetColumnName}"));
+}
+
+[FileVersion("1.0")]
+[AIFileContext("SchemaStudio.Data/Models/DatabaseRelationshipDefinition.cs", "Defines an ordered column pair for a curated database relationship.", Responsibilities = "Stores source-to-target column mappings for one relationship header.", LastReviewed = "2026-05-13")]
+public sealed class DatabaseRelationshipColumnDefinition
+{
+    [Display(AutoGenerateField = false)]
+    public int DatabaseRelationshipColumnId { get; set; }
+
+    [Display(AutoGenerateField = false)]
+    public int DatabaseRelationshipId { get; set; }
+
+    [Display(Name = "Ordinal", Order = 10)]
+    public int OrdinalPosition { get; set; } = 1;
+
+    [Required]
+    [StringLength(128)]
+    [Display(Name = "Source Column", Order = 20)]
+    public string SourceColumnName { get; set; } = "";
+
+    [Required]
+    [StringLength(128)]
+    [Display(Name = "Target Column", Order = 30)]
+    public string TargetColumnName { get; set; } = "";
+}

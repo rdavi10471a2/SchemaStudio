@@ -1,0 +1,76 @@
+.relationships-panel {
+    min-height: 0;
+    padding: 1rem;
+}
+
+.relationships-header {
+    flex: 0 0 auto;
+}
+
+.relationships-picker,
+.relationship-detail {
+    border: 1px solid #dee2e6;
+    box-shadow: none;
+}
+
+.relationship-field-label {
+    color: var(--rz-primary);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.25rem;
+    text-transform: uppercase;
+}
+
+.relationships-status {
+    margin: 0;
+}
+
+.relationships-grid {
+    min-height: 360px;
+}
+
+.relationship-chip {
+    background: #eef5ff;
+    border: 1px solid #cfe1ff;
+    border-radius: 999px;
+    color: #174a8b;
+    display: inline-flex;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1;
+    padding: 0.3rem 0.55rem;
+    text-transform: uppercase;
+}
+
+.relationship-detail-grid {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.relationship-detail-label {
+    color: #667085;
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    margin-bottom: 0.15rem;
+    text-transform: uppercase;
+}
+
+.relationship-columns {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    color: #0f172a;
+    margin: 0;
+    overflow: auto;
+    padding: 0.65rem;
+    white-space: pre-wrap;
+}
+
+@media (max-width: 1100px) {
+    .relationship-detail-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
