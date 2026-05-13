@@ -61,10 +61,11 @@ public partial class DomainObjectModeler
             }
 
             builder.AppendLine("SELECT");
-            for (var index = 0; index < selected.Count; index++)
+            var finalProjectionLines = await BuildFinalProjectionLinesAsync(selected);
+            for (var index = 0; index < finalProjectionLines.Count; index++)
             {
-                var suffix = index == selected.Count - 1 ? string.Empty : ",";
-                builder.AppendLine($"    {QuoteIdentifier(selected[index].AliasName)}.*{suffix}");
+                var suffix = index == finalProjectionLines.Count - 1 ? string.Empty : ",";
+                builder.AppendLine($"    {finalProjectionLines[index]}{suffix}");
             }
 
             builder.AppendLine($"FROM {QuoteIdentifier(anchor.AliasName)}");
@@ -96,6 +97,25 @@ public partial class DomainObjectModeler
         {
             IsBusy = false;
         }
+    }
+
+    private async Task<IReadOnlyList<string>> BuildFinalProjectionLinesAsync(IReadOnlyList<DomainBaseViewItem> selected)
+    {
+        var projectionLines = new List<string>();
+
+        foreach (var item in selected)
+        {
+            var columns = await SchemaObjectColumnRepository.GetByObjectAsync(item.SchemaObjectId);
+            foreach (var column in columns.Where(column => !string.IsNullOrWhiteSpace(column.SourceColumnName)))
+            {
+                projectionLines.Add(
+                    $"{QuoteIdentifier(item.AliasName)}.{QuoteIdentifier(column.SourceColumnName)} AS {QuoteIdentifier(BuildOutputColumnName(item.AliasName, column.SourceColumnName))}");
+            }
+        }
+
+        return projectionLines.Count > 0
+            ? projectionLines
+            : selected.Select(item => $"{QuoteIdentifier(item.AliasName)}.*").ToList();
     }
 
     private void ValidateSql()
@@ -142,6 +162,9 @@ public partial class DomainObjectModeler
 
     private static string QuoteIdentifier(string identifier) =>
         $"[{identifier.Replace("]", "]]", StringComparison.Ordinal)}]";
+
+    private static string BuildOutputColumnName(string aliasName, string sourceColumnName) =>
+        $"{aliasName}_{sourceColumnName}";
 }
 
 internal static class DomainObjectModelerStringExtensions
