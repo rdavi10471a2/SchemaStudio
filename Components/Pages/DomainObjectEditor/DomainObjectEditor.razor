@@ -107,7 +107,7 @@
     }
 
     <div class="cte-shape-layout @(IsInspectorCollapsed ? "cte-shape-layout--collapsed" : null)">
-        <div class="cte-output-pane">
+        <div class="cte-output-pane @OutputPaneClass">
             <div class="cte-primary-tabs">
                 <button class="@PrimaryTabClass("source")" @onclick='() => SelectPrimaryTab("source")'>Source Object SQL</button>
                 <button class="@PrimaryTabClass("build")" @onclick='() => SelectPrimaryTab("build")'>New Object</button>
@@ -233,7 +233,7 @@
                                     {
                                         <div class="cte-removed-object-note">Removed from the new object.</div>
                                     }
-                                    <pre>@foreach (var line in cte.Lines)
+                                    <pre class="cte-reference-sql">@foreach (var line in cte.Lines)
 {
 <span class="@CteSelectionPresentationEditor.LineStateClass(line)">@line.Text</span>
 }</pre>
@@ -557,6 +557,11 @@
 
     private string PrimaryTabClass(string tab) =>
         ActivePrimaryTab == tab ? "cte-primary-tab cte-primary-tab--active" : "cte-primary-tab";
+
+    private string OutputPaneClass =>
+        ActivePrimaryTab is "result" or "result-cte" or "source"
+            ? "cte-output-pane--single"
+            : string.Empty;
 
     private void ValidateResultSql(string tab, string label)
     {
