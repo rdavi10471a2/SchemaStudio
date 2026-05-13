@@ -8,7 +8,7 @@
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("1.0")]
+@attribute [FileVersion("1.1")]
 @attribute [AIFileContext("Components/Pages/ManageDatabases/DatabaseRelationshipsPanel.razor", "Manage Databases child panel for the curated database relationship registry.", Responsibilities = "Loads source tables, imports source-system foreign-key relationships into dbo.DatabaseRelationships, and displays the registry rows that touch the selected table.", Nuances = "The panel does not create metadata tables; database DDL stays in human-run scripts.", LastReviewed = "2026-05-13")]
 
 <RadzenStack Gap="0.75rem" class="relationships-panel">
@@ -29,6 +29,9 @@
                 <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-m-0">@Database.DatabaseName Relationships</RadzenText>
                 <RadzenText TextStyle="TextStyle.Body2" Style="color:#495057;">
                     Curate physical FKs, lookup joins, detail joins, and soft relationships from one place.
+                </RadzenText>
+                <RadzenText TextStyle="TextStyle.Caption" Style="color:#667085;">
+                    Registry: @($"{RelationshipRepository.MetadataDatabaseName}.dbo.DatabaseRelationships"); source tables: @Database.DatabaseName.
                 </RadzenText>
             </RadzenStack>
 

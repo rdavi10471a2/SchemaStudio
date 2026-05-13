@@ -5,16 +5,20 @@ using SchemaStudio.Data.Models;
 
 namespace SchemaStudio.Data.Repositories;
 
-[FileVersion("1.0")]
+[FileVersion("1.1")]
 [AIFileContext("SchemaStudio.Data/Repositories/DatabaseRelationshipRepository.cs", "Read/write repository for the curated database relationship registry.", Responsibilities = "Loads relationship headers with ordered column pairs and saves imported or user-curated relationships without creating or altering database objects.", Nuances = "This repository intentionally assumes dbo.DatabaseRelationships and dbo.DatabaseRelationshipColumns already exist; table creation remains a human-run script.", LastReviewed = "2026-05-13")]
 public sealed class DatabaseRelationshipRepository
 {
     private readonly string _connectionString;
+    private readonly string _metadataDatabaseName;
 
     public DatabaseRelationshipRepository(string connectionString)
     {
         _connectionString = connectionString;
+        _metadataDatabaseName = new SqlConnectionStringBuilder(connectionString).InitialCatalog;
     }
+
+    public string MetadataDatabaseName => _metadataDatabaseName;
 
     public async Task<IReadOnlyList<DatabaseRelationshipDefinition>> GetForDatabaseAsync(int databaseId)
     {
@@ -179,9 +183,20 @@ WHERE DatabaseRelationshipId IN @ids
 ORDER BY DatabaseRelationshipId, OrdinalPosition;
 """;
 
-        var columns = (await connection.QueryAsync<DatabaseRelationshipColumnDefinition>(sql, new { ids }))
-            .GroupBy(column => column.DatabaseRelationshipId)
-            .ToDictionary(group => group.Key, group => group.ToList());
+        Dictionary<int, List<DatabaseRelationshipColumnDefinition>> columns;
+        try
+        {
+            columns = (await connection.QueryAsync<DatabaseRelationshipColumnDefinition>(sql, new { ids }))
+                .GroupBy(column => column.DatabaseRelationshipId)
+                .ToDictionary(group => group.Key, group => group.ToList());
+        }
+        catch (SqlException ex) when (ex.Number == 208)
+        {
+            var databaseName = connection.Database;
+            throw new InvalidOperationException(
+                $"The relationship header table was found, but dbo.DatabaseRelationshipColumns is missing or inaccessible in metadata database '{databaseName}'. The selected source database supplies table metadata; the relationship registry is stored in the Schema Studio metadata database.",
+                ex);
+        }
 
         foreach (var relationship in relationships)
         {
