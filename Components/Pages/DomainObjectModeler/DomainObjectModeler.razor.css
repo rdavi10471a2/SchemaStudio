@@ -3,10 +3,11 @@
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
-    height: 100%;
-    max-height: 100%;
+    height: calc(100vh - 102px);
+    max-height: calc(100vh - 102px);
     min-height: 0;
     overflow: hidden;
+    padding: 0.15rem;
 }
 
 .dom-busy-overlay {
@@ -102,15 +103,14 @@
 }
 
 .dom-shell {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    gap: 0.75rem;
+    flex: 1 1 auto;
     min-height: 0;
+    height: 100%;
     overflow: hidden;
 }
 
 .dom-shell-collapsed {
-    grid-template-columns: minmax(0, 1fr);
+    display: block;
 }
 
 .dom-panel,
@@ -130,10 +130,7 @@
 }
 
 .dom-base-panel {
-    width: 360px;
-    min-width: 280px;
-    max-width: 560px;
-    resize: horizontal;
+    height: 100%;
 }
 
 .dom-panel-header,
@@ -275,6 +272,7 @@
 .dom-workspace {
     display: grid;
     grid-template-rows: auto minmax(0, 1fr);
+    height: 100%;
 }
 
 .dom-workspace-header {
@@ -293,25 +291,21 @@
     color: #526071;
 }
 
-.dom-model-grid {
+.dom-model-splitter {
     min-height: 0;
-    display: grid;
-    grid-template-columns: auto minmax(420px, 0.85fr);
-    gap: 0.75rem;
+    height: 100%;
     padding: 0.75rem;
     overflow: hidden;
 }
 
 .dom-config-stack {
-    width: 610px;
-    min-width: 430px;
-    max-width: 860px;
+    height: 100%;
     min-height: 0;
     display: grid;
     grid-template-rows: auto minmax(0, 1fr);
     gap: 0.75rem;
-    resize: horizontal;
-    overflow: auto;
+    padding-right: 0.75rem;
+    overflow: hidden;
 }
 
 .dom-two-fields {
@@ -409,6 +403,8 @@
 .dom-sql-card {
     display: grid;
     grid-template-rows: auto minmax(0, 1fr) auto;
+    height: 100%;
+    margin-left: 0.75rem;
 }
 
 .dom-sql-preview {
@@ -433,6 +429,16 @@
     font-size: 0.82rem;
     line-height: 1.5;
     white-space: pre;
+}
+
+::deep .dom-shell > .rz-splitter-bar,
+::deep .dom-model-splitter > .rz-splitter-bar {
+    background: #eef2f7;
+}
+
+::deep .dom-shell > .rz-splitter-bar:hover,
+::deep .dom-model-splitter > .rz-splitter-bar:hover {
+    background: #d8e2ef;
 }
 
 .dom-sql-preview pre[class*="language-"] {

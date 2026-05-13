@@ -55,9 +55,10 @@
         </RadzenAlert>
     }
 
-    <div class="@LayoutClass">
         @if (!IsBaseViewPanelHidden)
         {
+            <RadzenSplitter class="dom-shell" Orientation="Orientation.Horizontal">
+                <RadzenSplitterPane Size="360px" Min="280px" Max="560px">
             <aside class="dom-panel dom-base-panel">
                 <header class="dom-panel-header">
                     <span>Base Views</span>
@@ -121,9 +122,22 @@
 
                 <footer class="dom-panel-note">No field choices here. Projection and trimming happen later in the domain object editor.</footer>
             </aside>
+                </RadzenSplitterPane>
+                <RadzenSplitterPane>
+                    @WorkspaceContent
+                </RadzenSplitterPane>
+            </RadzenSplitter>
         }
+        else
+        {
+            <div class="dom-shell dom-shell-collapsed">
+                @WorkspaceContent
+            </div>
+        }
+</div>
 
-        <main class="dom-workspace">
+@code {
+    private RenderFragment WorkspaceContent => @<main class="dom-workspace">
             <section class="dom-workspace-header">
                 <div>
                     <h2>Define Editable Object Surface</h2>
@@ -131,8 +145,9 @@
                 </div>
             </section>
 
-            <div class="dom-model-grid">
-                <section class="dom-config-stack">
+            <RadzenSplitter class="dom-model-splitter" Orientation="Orientation.Horizontal">
+                <RadzenSplitterPane Size="42%" Min="430px" Max="760px">
+                    <section class="dom-config-stack">
                     <section class="dom-card">
                         <header class="dom-card-header">
                             <span>Output View</span>
@@ -213,8 +228,9 @@
                         </footer>
                     </section>
                 </section>
-
-                <section class="dom-card dom-sql-card">
+                </RadzenSplitterPane>
+                <RadzenSplitterPane>
+                    <section class="dom-card dom-sql-card">
                     <header class="dom-card-header">
                         <span>Generated SQL Preview</span>
                         <span class="dom-pill success">preview</span>
@@ -232,7 +248,7 @@
                         </div>
                     </footer>
                 </section>
-            </div>
-        </main>
-    </div>
-</div>
+                </RadzenSplitterPane>
+            </RadzenSplitter>
+        </main>;
+}
