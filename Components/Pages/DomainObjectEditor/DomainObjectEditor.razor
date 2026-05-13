@@ -19,16 +19,12 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.0")]
+@attribute [FileVersion("1.2")]
 @attribute [AIFileContext("Components/Pages/DomainObjectEditor/DomainObjectEditor.razor", "Domain object editor projection page driven by a selected composed managed view.", Responsibilities = "Loads database, domain, and composed-view selections, retrieves static SQL text for the selected managed view, feeds it into the CTE selection engine, and renders projection/path trimming controls.", Nuances = "The editor parser is intentionally text driven. This page supplies that text from Schema Studio metadata instead of a paste box.", RelatedFiles = "CteFieldParser.cs; CteSelectionSessionEditor.cs; CteSelectionPresentationEditor.cs; DomainObjectEditor.razor.css", LastReviewed = "2026-05-13")]
 
 <PageTitle>Domain Object Editor</PageTitle>
 
-<section class="@WorkbenchClass"
-         style="@WorkbenchStyle"
-         @onpointermove="@ResizePane"
-         @onpointerup="@EndPaneResize"
-         @onpointerleave="@EndPaneResize">
+<section class="cte-workbench">
     <div class="cte-workbench__header">
         <div class="cte-workbench__title">
             <h1>Domain Object Editor</h1>
@@ -106,7 +102,7 @@
         </div>
     }
 
-    <div class="cte-shape-layout @(IsInspectorCollapsed ? "cte-shape-layout--collapsed" : null)">
+    <div @ref="ShapeLayoutRef" class="cte-shape-layout @(IsInspectorCollapsed ? "cte-shape-layout--collapsed" : null)">
         <div class="cte-output-pane @OutputPaneClass">
             <div class="cte-primary-tabs">
                 <button class="@PrimaryTabClass("source")" @onclick='() => SelectPrimaryTab("source")'>Source Object SQL</button>
@@ -123,11 +119,27 @@
             }
             else if (ActivePrimaryTab == "result")
             {
-                @ResultPane("result", "Result SQL")
+                <section class="cte-result-view">
+                    <div class="cte-result-actions">
+                        <RadzenButton Text="Validate" Icon="rule" ButtonStyle="ButtonStyle.Light" Click="@((MouseEventArgs _) => ValidateResultSql("result", "Result SQL"))" />
+                        <RadzenButton Text="Copy" Icon="content_copy" ButtonStyle="ButtonStyle.Light" Click="@((MouseEventArgs _) => CopySqlAsync("result", "Result SQL"))" />
+                    </div>
+                    <label class="cte-editor cte-editor--fill">
+                        <textarea value="@Session.EnsureResultSql("result")" readonly spellcheck="false"></textarea>
+                    </label>
+                </section>
             }
             else if (ActivePrimaryTab == "result-cte")
             {
-                @ResultPane("result-cte", "Result SQL CTE")
+                <section class="cte-result-view">
+                    <div class="cte-result-actions">
+                        <RadzenButton Text="Validate" Icon="rule" ButtonStyle="ButtonStyle.Light" Click="@((MouseEventArgs _) => ValidateResultSql("result-cte", "Result SQL CTE"))" />
+                        <RadzenButton Text="Copy" Icon="content_copy" ButtonStyle="ButtonStyle.Light" Click="@((MouseEventArgs _) => CopySqlAsync("result-cte", "Result SQL CTE"))" />
+                    </div>
+                    <label class="cte-editor cte-editor--fill">
+                        <textarea value="@Session.EnsureResultSql("result-cte")" readonly spellcheck="false"></textarea>
+                    </label>
+                </section>
             }
             else if (Session.ParseResult?.IsSuccess == true)
             {
@@ -157,8 +169,7 @@
 
                 <button type="button"
                         class="cte-vertical-splitter"
-                        title="Resize object path"
-                        @onpointerdown="@(args => BeginPaneResize(ResizeTarget.OutputFields, args))"></button>
+                        title="Resize object path"></button>
 
                 <section class="cte-block cte-relationship">
                     <div class="cte-block__header">
@@ -212,8 +223,7 @@
         {
             <button type="button"
                     class="cte-horizontal-splitter"
-                    title="Resize referenced objects"
-                    @onpointerdown="@(args => BeginPaneResize(ResizeTarget.Inspector, args))"></button>
+                    title="Resize referenced objects"></button>
 
             <aside class="cte-inspector">
                 <div class="cte-block__header">
@@ -276,36 +286,18 @@
     private bool IsInspectorCollapsed { get; set; }
     private string ActivePrimaryTab { get; set; } = "build";
     private int SourceObjectTabIndex { get; set; }
+    private ElementReference ShapeLayoutRef { get; set; }
     private CteSelectionSessionEditor Session { get; set; } = default!;
-    private ResizeTarget? ActiveResizeTarget { get; set; }
-    private double ResizeStartX { get; set; }
-    private double ResizeStartY { get; set; }
-    private int ResizeStartSize { get; set; }
-    private int InspectorWidth { get; set; } = 680;
-    private int RelationshipHeight { get; set; } = 220;
-
-    private const int InspectorMinWidth = 320;
-    private const int InspectorMaxWidth = 1100;
-    private const int RelationshipMinHeight = 120;
-    private const int RelationshipMaxHeight = 420;
-
-    private enum ResizeTarget
-    {
-        Inspector,
-        OutputFields
-    }
-
-    private string WorkbenchClass =>
-        ActiveResizeTarget is null ? "cte-workbench" : "cte-workbench cte-resizing";
-
-    private string WorkbenchStyle =>
-        $"--cte-inspector-width: {InspectorWidth}px; --cte-relationship-height: {RelationshipHeight}px;";
-
     protected override async Task OnInitializedAsync()
     {
         Session = new CteSelectionSessionEditor(Parser);
         Session.ClearForInputBoundary("Select a composed view to load its SQL projection surface.");
         await LoadDatabasesAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await JSRuntime.InvokeVoidAsync("domainObjectEditorPanes.initialize", ShapeLayoutRef);
     }
 
     private async Task LoadDatabasesAsync()
@@ -518,36 +510,6 @@
         }
     }
 
-    private RenderFragment ResultPane(string tab, string label) => builder =>
-    {
-        builder.OpenElement(0, "section");
-        builder.AddAttribute(1, "class", "cte-result-view");
-        builder.OpenElement(2, "div");
-        builder.AddAttribute(3, "class", "cte-result-actions");
-        builder.OpenComponent<RadzenButton>(4);
-        builder.AddAttribute(5, "Text", "Validate");
-        builder.AddAttribute(6, "Icon", "rule");
-        builder.AddAttribute(7, "ButtonStyle", ButtonStyle.Light);
-        builder.AddAttribute(8, "Click", EventCallback.Factory.Create<MouseEventArgs>(this, _ => ValidateResultSql(tab, label)));
-        builder.CloseComponent();
-        builder.OpenComponent<RadzenButton>(9);
-        builder.AddAttribute(10, "Text", "Copy");
-        builder.AddAttribute(11, "Icon", "content_copy");
-        builder.AddAttribute(12, "ButtonStyle", ButtonStyle.Light);
-        builder.AddAttribute(13, "Click", EventCallback.Factory.Create<MouseEventArgs>(this, _ => CopySqlAsync(tab, label)));
-        builder.CloseComponent();
-        builder.CloseElement();
-        builder.OpenElement(14, "label");
-        builder.AddAttribute(15, "class", "cte-editor cte-editor--fill");
-        builder.OpenElement(16, "textarea");
-        builder.AddAttribute(17, "value", Session.EnsureResultSql(tab));
-        builder.AddAttribute(18, "readonly", true);
-        builder.AddAttribute(19, "spellcheck", "false");
-        builder.CloseElement();
-        builder.CloseElement();
-        builder.CloseElement();
-    };
-
     private void SelectPrimaryTab(string tab)
     {
         ActivePrimaryTab = tab;
@@ -580,45 +542,6 @@
     private void ToggleInspector() => IsInspectorCollapsed = !IsInspectorCollapsed;
 
     private void OnSourceObjectTabChanged(int index) => SourceObjectTabIndex = index;
-
-    private void BeginPaneResize(ResizeTarget target, PointerEventArgs args)
-    {
-        ActiveResizeTarget = target;
-        ResizeStartX = args.ClientX;
-        ResizeStartY = args.ClientY;
-        ResizeStartSize = target switch
-        {
-            ResizeTarget.Inspector => InspectorWidth,
-            ResizeTarget.OutputFields => RelationshipHeight,
-            _ => 0
-        };
-    }
-
-    private void ResizePane(PointerEventArgs args)
-    {
-        if (ActiveResizeTarget is null)
-        {
-            return;
-        }
-
-        var horizontalDelta = (int)Math.Round(args.ClientX - ResizeStartX);
-        var verticalDelta = (int)Math.Round(args.ClientY - ResizeStartY);
-
-        switch (ActiveResizeTarget)
-        {
-            case ResizeTarget.Inspector:
-                InspectorWidth = Math.Clamp(ResizeStartSize - horizontalDelta, InspectorMinWidth, InspectorMaxWidth);
-                break;
-            case ResizeTarget.OutputFields:
-                RelationshipHeight = Math.Clamp(ResizeStartSize - verticalDelta, RelationshipMinHeight, RelationshipMaxHeight);
-                break;
-        }
-    }
-
-    private void EndPaneResize()
-    {
-        ActiveResizeTarget = null;
-    }
 
     private void TogglePathSelection(CtePathRowEditor row)
     {
