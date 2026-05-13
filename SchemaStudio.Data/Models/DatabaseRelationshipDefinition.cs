@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace SchemaStudio.Data.Models;
 
-[FileVersion("1.0")]
+[FileVersion("1.1")]
 [AIFileContext("SchemaStudio.Data/Models/DatabaseRelationshipDefinition.cs", "Defines curated database relationship metadata used by base-view creation, domain object modeling, and future query-building tools.", Responsibilities = "Carries relationship headers and ordered column pairs for physical foreign keys, lookup joins, soft/domain joins, and user-confirmed relationship hints.", Nuances = "Relationship meaning is contextual: the same physical relationship may be a lookup from one screen and a one-to-many path from another.", LastReviewed = "2026-05-13")]
 public sealed class DatabaseRelationshipDefinition
 {
@@ -45,6 +45,12 @@ public sealed class DatabaseRelationshipDefinition
     public string JoinType { get; set; } = "LEFT JOIN";
 
     [Required]
+    [StringLength(2000)]
+    [Display(Name = "Join Expression", Order = 55)]
+    [Description("The ON-clause expression that joins the source table to the target table.")]
+    public string JoinExpression { get; set; } = "";
+
+    [Required]
     [StringLength(32)]
     [Display(Name = "Relationship Role", Order = 60)]
     [Description("Semantic role, such as Lookup, ParentReference, Detail, DomainJoin, or Ignore.")]
@@ -54,11 +60,6 @@ public sealed class DatabaseRelationshipDefinition
     [Display(Name = "Relationship Name", Order = 70)]
     [Description("Human or source-system name for this relationship.")]
     public string? RelationshipName { get; set; }
-
-    [StringLength(256)]
-    [Display(Name = "Relationship Key", Order = 80)]
-    [Description("Stable key used to merge rediscovered relationships without duplicating them.")]
-    public string? RelationshipKey { get; set; }
 
     [Display(Name = "Source System Detected", Order = 90)]
     [Description("This relationship was imported from source database metadata.")]
@@ -120,7 +121,9 @@ public sealed class DatabaseRelationshipDefinition
 
     public string TargetObject => $"{TargetSchemaName}.{TargetTableName}";
 
-    public string ColumnSummary => Columns.Count == 0
+    public string ColumnSummary => !string.IsNullOrWhiteSpace(JoinExpression)
+        ? JoinExpression
+        : Columns.Count == 0
         ? ""
         : string.Join(
             " AND ",

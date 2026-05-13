@@ -114,7 +114,7 @@
                 <RadzenDataGridColumn TItem="DatabaseRelationshipDefinition" Property="RelationshipName" Title="Name" Width="220px" />
                 <RadzenDataGridColumn TItem="DatabaseRelationshipDefinition" Property="SourceObject" Title="Source" Width="220px" />
                 <RadzenDataGridColumn TItem="DatabaseRelationshipDefinition" Property="TargetObject" Title="Target" Width="220px" />
-                <RadzenDataGridColumn TItem="DatabaseRelationshipDefinition" Property="ColumnSummary" Title="Columns" />
+                <RadzenDataGridColumn TItem="DatabaseRelationshipDefinition" Property="ColumnSummary" Title="Join Expression" />
                 <RadzenDataGridColumn TItem="DatabaseRelationshipDefinition" Title="Use" Width="190px">
                     <Template Context="relationship">
                         <RadzenStack Gap="0.1rem">
@@ -424,7 +424,7 @@
             JoinType = sourceRelationship.SelectedJoinType,
             RelationshipRole = "Lookup",
             RelationshipName = Truncate(sourceRelationship.ForeignKeyName, 128),
-            RelationshipKey = Truncate(BuildRelationshipKey(details, sourceRelationship), 256),
+            JoinExpression = BuildJoinExpression(sourceRelationship),
             SourceSystemDetected = true,
             UserConfirmed = false,
             DefaultIncludeInBaseView = sourceRelationship.Include,
@@ -446,19 +446,11 @@
         };
     }
 
-    private static string BuildRelationshipKey(TableSchemaDetails details, TableSchemaRelationshipInfo relationship) =>
-        string.Join("|",
-        [
-            "LOOKUP",
-            details.SchemaName.Trim(),
-            details.TableName.Trim(),
-            string.Join(",", relationship.Columns.Select(column => column.LocalColumnName.Trim())),
-            relationship.ReferencedSchemaName.Trim(),
-            relationship.ReferencedTableName.Trim(),
-            string.Join(",", relationship.Columns.Select(column => column.ReferencedColumnName.Trim())),
-            relationship.LookupFilterColumnName?.Trim() ?? "",
-            relationship.LookupFilterValue?.Trim() ?? ""
-        ]);
+    private static string BuildJoinExpression(TableSchemaRelationshipInfo relationship) =>
+        string.Join(
+            " AND ",
+            relationship.Columns.Select(column =>
+                $"[{column.LocalColumnName}] = [{relationship.ReferencedTableName}].[{column.ReferencedColumnName}]"));
 
     private static string? Truncate(string? value, int maxLength) =>
         string.IsNullOrEmpty(value) || value.Length <= maxLength

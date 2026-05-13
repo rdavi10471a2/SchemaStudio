@@ -5,7 +5,7 @@ using SchemaStudio.Data.Models;
 
 namespace SchemaStudio.Data.Repositories;
 
-[FileVersion("1.3")]
+[FileVersion("1.4")]
 [AIFileContext("SchemaStudio.Data/Repositories/DatabaseRelationshipRepository.cs", "Read/write repository for the curated database relationship registry.", Responsibilities = "Loads relationship headers with ordered column pairs and saves imported or user-curated relationships without creating or altering database objects.", Nuances = "This repository intentionally assumes dbo.DatabaseRelationships and dbo.DatabaseRelationshipColumns already exist; table creation remains a human-run script.", LastReviewed = "2026-05-13")]
 public sealed class DatabaseRelationshipRepository
 {
@@ -27,6 +27,9 @@ public sealed class DatabaseRelationshipRepository
     public async Task<IReadOnlyList<DatabaseRelationshipDefinition>> GetForDatabaseAsync(int databaseId)
     {
         await using var connection = new SqlConnection(_connectionString);
+        var joinExpressionProjection = await HasColumnAsync(connection, "DatabaseRelationships", "JoinExpression")
+            ? "JoinExpression,"
+            : "CAST(N'' AS nvarchar(2000)) AS JoinExpression,";
 
         var sql = $"""
 SELECT
@@ -37,9 +40,9 @@ SELECT
     TargetSchemaName,
     TargetTableName,
     JoinType,
+    {joinExpressionProjection}
     RelationshipRole,
     RelationshipName,
-    RelationshipKey,
     SourceSystemDetected,
     UserConfirmed,
     DefaultIncludeInBaseView,
@@ -69,6 +72,9 @@ ORDER BY SourceSchemaName, SourceTableName, TargetSchemaName, TargetTableName, R
         string tableName)
     {
         await using var connection = new SqlConnection(_connectionString);
+        var joinExpressionProjection = await HasColumnAsync(connection, "DatabaseRelationships", "JoinExpression")
+            ? "JoinExpression,"
+            : "CAST(N'' AS nvarchar(2000)) AS JoinExpression,";
 
         var sql = $"""
 SELECT
@@ -79,9 +85,9 @@ SELECT
     TargetSchemaName,
     TargetTableName,
     JoinType,
+    {joinExpressionProjection}
     RelationshipRole,
     RelationshipName,
-    RelationshipKey,
     SourceSystemDetected,
     UserConfirmed,
     DefaultIncludeInBaseView,
@@ -213,27 +219,29 @@ ORDER BY DatabaseRelationshipId, OrdinalPosition;
         }
     }
 
+    private async Task<bool> HasColumnAsync(SqlConnection connection, string tableName, string columnName)
+    {
+        var sql = $"""
+SELECT COUNT(1)
+FROM {QuoteSqlIdentifier(_metadataDatabaseName)}.sys.columns AS c
+JOIN {QuoteSqlIdentifier(_metadataDatabaseName)}.sys.objects AS o
+    ON o.object_id = c.object_id
+JOIN {QuoteSqlIdentifier(_metadataDatabaseName)}.sys.schemas AS s
+    ON s.schema_id = o.schema_id
+WHERE s.name = N'dbo'
+    AND o.name = @tableName
+    AND c.name = @columnName;
+""";
+
+        return await connection.ExecuteScalarAsync<int>(sql, new { tableName, columnName }) > 0;
+    }
+
     private static async Task<int> FindExistingIdAsync(
         SqlConnection connection,
         SqlTransaction transaction,
         DatabaseRelationshipDefinition relationship,
         string relationshipsTable)
     {
-        if (!string.IsNullOrWhiteSpace(relationship.RelationshipKey))
-        {
-            var keySql = $"""
-SELECT TOP (1) DatabaseRelationshipId
-FROM {relationshipsTable}
-WHERE DatabaseId = @DatabaseId
-    AND RelationshipKey = @RelationshipKey;
-""";
-
-            return await connection.ExecuteScalarAsync<int?>(
-                keySql,
-                relationship,
-                transaction) ?? 0;
-        }
-
         var naturalSql = $"""
 SELECT TOP (1) DatabaseRelationshipId
 FROM {relationshipsTable}
@@ -243,6 +251,8 @@ WHERE DatabaseId = @DatabaseId
     AND TargetSchemaName = @TargetSchemaName
     AND TargetTableName = @TargetTableName
     AND RelationshipRole = @RelationshipRole
+    AND JoinType = @JoinType
+    AND JoinExpression = @JoinExpression
     AND ISNULL(RelationshipName, N'') = ISNULL(@RelationshipName, N'');
 """;
 
@@ -267,9 +277,9 @@ INSERT INTO {relationshipsTable}
     TargetSchemaName,
     TargetTableName,
     JoinType,
+    JoinExpression,
     RelationshipRole,
     RelationshipName,
-    RelationshipKey,
     SourceSystemDetected,
     UserConfirmed,
     DefaultIncludeInBaseView,
@@ -292,9 +302,9 @@ VALUES
     @TargetSchemaName,
     @TargetTableName,
     @JoinType,
+    @JoinExpression,
     @RelationshipRole,
     @RelationshipName,
-    @RelationshipKey,
     @SourceSystemDetected,
     @UserConfirmed,
     @DefaultIncludeInBaseView,
@@ -327,9 +337,9 @@ SET
     TargetSchemaName = @TargetSchemaName,
     TargetTableName = @TargetTableName,
     JoinType = @JoinType,
+    JoinExpression = @JoinExpression,
     RelationshipRole = @RelationshipRole,
     RelationshipName = @RelationshipName,
-    RelationshipKey = @RelationshipKey,
     SourceSystemDetected = @SourceSystemDetected,
     UserConfirmed = @UserConfirmed,
     DefaultIncludeInBaseView = @DefaultIncludeInBaseView,
@@ -419,9 +429,9 @@ VALUES
         relationship.TargetSchemaName = NormalizeName(relationship.TargetSchemaName, "dbo");
         relationship.TargetTableName = NormalizeName(relationship.TargetTableName, "");
         relationship.JoinType = NormalizeName(relationship.JoinType, "LEFT JOIN");
+        relationship.JoinExpression = NormalizeName(relationship.JoinExpression, "");
         relationship.RelationshipRole = NormalizeName(relationship.RelationshipRole, "Lookup");
         relationship.RelationshipName = NormalizeOptional(relationship.RelationshipName);
-        relationship.RelationshipKey = NormalizeOptional(relationship.RelationshipKey);
         relationship.DisplayColumnName = NormalizeOptional(relationship.DisplayColumnName);
         relationship.FilterColumnName = NormalizeOptional(relationship.FilterColumnName);
         relationship.FilterValue = NormalizeOptional(relationship.FilterValue);

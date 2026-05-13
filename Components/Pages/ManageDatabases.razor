@@ -10,7 +10,7 @@
 @inject TooltipService TooltipService
 @inject AttributeService Attr
 
-@attribute [FileVersion("1.8")]
+@attribute [FileVersion("1.9")]
 @attribute [AIChange(
     "1.6",
     "2026-05-01 09:59 AM CDT kept Business Name on its own row and paired Business Description with Developer Notes as equal-height metadata fields.",
@@ -54,10 +54,16 @@
             </RadzenText>
         </RadzenStack>
 
-        <RadzenButton Icon="add"
-                      Text="New Database"
-                      ButtonStyle="ButtonStyle.Primary"
-                      Click="@OpenNewDatabaseDialog" />
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+            <RadzenButton Icon="@(isDatabaseListHidden ? "view_sidebar" : "hide_source")"
+                          Text="@(isDatabaseListHidden ? "Show Database Selector" : "Hide Database Selector")"
+                          ButtonStyle="ButtonStyle.Light"
+                          Click="@ToggleDatabaseList" />
+            <RadzenButton Icon="add"
+                          Text="New Database"
+                          ButtonStyle="ButtonStyle.Primary"
+                          Click="@OpenNewDatabaseDialog" />
+        </RadzenStack>
     </RadzenStack>
 
     @if (!string.IsNullOrWhiteSpace(loadError))
@@ -73,41 +79,44 @@
     }
 
     <RadzenRow Gap="1rem" class="mdb-shell">
-        <RadzenColumn Size="12" SizeLG="4" class="mdb-list-column">
-            <div class="mdb-list-panel">
-                @if (databases.Count == 0 && !isLoading)
-                {
-                    <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat">
-                        No databases exist yet. Use New Database to create the first one.
-                    </RadzenAlert>
-                }
-                else
-                {
-                    <RadzenDataGrid Data="@databases"
-                                    TItem="DatabaseDefinition"
-                                    AllowFiltering="true"
-                                    AllowSorting="true"
-                                    AllowPaging="true"
-                                    PageSize="12"
-                                    SelectionMode="DataGridSelectionMode.Single"
-                                    @bind-Value="@selectedDatabases"
-                                    RowSelect="@SelectDatabase"
-                                    Style="height:100%;">
-                        <Columns>
-                            <RadzenDataGridColumn TItem="DatabaseDefinition" Property="DatabaseName" Title="Database" />
-                            <RadzenDataGridColumn TItem="DatabaseDefinition" Property="BusinessName" Title="Business Name" />
-                            <RadzenDataGridColumn TItem="DatabaseDefinition" Property="Active" Title="Active" Width="90px">
-                                <Template Context="database">
-                                    <RadzenCheckBox Value="@database.Active" Disabled="true" />
-                                </Template>
-                            </RadzenDataGridColumn>
-                        </Columns>
-                    </RadzenDataGrid>
-                }
-            </div>
-        </RadzenColumn>
+        @if (!isDatabaseListHidden)
+        {
+            <RadzenColumn Size="12" SizeLG="4" class="mdb-list-column">
+                <div class="mdb-list-panel">
+                    @if (databases.Count == 0 && !isLoading)
+                    {
+                        <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat">
+                            No databases exist yet. Use New Database to create the first one.
+                        </RadzenAlert>
+                    }
+                    else
+                    {
+                        <RadzenDataGrid Data="@databases"
+                                        TItem="DatabaseDefinition"
+                                        AllowFiltering="true"
+                                        AllowSorting="true"
+                                        AllowPaging="true"
+                                        PageSize="12"
+                                        SelectionMode="DataGridSelectionMode.Single"
+                                        @bind-Value="@selectedDatabases"
+                                        RowSelect="@SelectDatabase"
+                                        Style="height:100%;">
+                            <Columns>
+                                <RadzenDataGridColumn TItem="DatabaseDefinition" Property="DatabaseName" Title="Database" />
+                                <RadzenDataGridColumn TItem="DatabaseDefinition" Property="BusinessName" Title="Business Name" />
+                                <RadzenDataGridColumn TItem="DatabaseDefinition" Property="Active" Title="Active" Width="90px">
+                                    <Template Context="database">
+                                        <RadzenCheckBox Value="@database.Active" Disabled="true" />
+                                    </Template>
+                                </RadzenDataGridColumn>
+                            </Columns>
+                        </RadzenDataGrid>
+                    }
+                </div>
+            </RadzenColumn>
+        }
 
-        <RadzenColumn Size="12" SizeLG="8" class="mdb-detail-column">
+        <RadzenColumn Size="12" SizeLG="@(isDatabaseListHidden ? 12 : 8)" class="mdb-detail-column">
             <div class="mdb-detail-panel">
                 @if (selectedDatabase is null)
                 {
@@ -117,7 +126,9 @@
                 }
                 else
                 {
-                    <RadzenTabs @bind-SelectedIndex="@selectedTabIndex" class="mdb-detail-tabs">
+                    <RadzenTabs @bind-SelectedIndex="@selectedTabIndex"
+                                RenderMode="TabRenderMode.Client"
+                                class="mdb-detail-tabs">
                         <Tabs>
                             <RadzenTabsItem Text="Database" Icon="database">
                                 <RadzenTemplateForm TItem="DatabaseDefinition"
@@ -422,6 +433,7 @@
     private bool isLoading;
     private bool isNewDatabaseDialogOpen;
     private bool isNewDomainDialogOpen;
+    private bool isDatabaseListHidden;
     private int selectedTabIndex;
     private string loadError = "";
 
@@ -504,7 +516,6 @@
         selectedDatabase = database;
         editDatabase = Clone(database);
         selectedDomain = null;
-        selectedTabIndex = 0;
         await LoadDomainsAsync(database.DatabaseId);
     }
 
@@ -530,6 +541,11 @@
     private void CloseNewDatabaseDialog()
     {
         isNewDatabaseDialogOpen = false;
+    }
+
+    private void ToggleDatabaseList()
+    {
+        isDatabaseListHidden = !isDatabaseListHidden;
     }
 
     private void ResetDatabaseEdit()
