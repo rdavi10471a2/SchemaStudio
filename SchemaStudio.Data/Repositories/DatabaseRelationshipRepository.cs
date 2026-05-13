@@ -5,7 +5,7 @@ using SchemaStudio.Data.Models;
 
 namespace SchemaStudio.Data.Repositories;
 
-[FileVersion("1.1")]
+[FileVersion("1.2")]
 [AIFileContext("SchemaStudio.Data/Repositories/DatabaseRelationshipRepository.cs", "Read/write repository for the curated database relationship registry.", Responsibilities = "Loads relationship headers with ordered column pairs and saves imported or user-curated relationships without creating or altering database objects.", Nuances = "This repository intentionally assumes dbo.DatabaseRelationships and dbo.DatabaseRelationshipColumns already exist; table creation remains a human-run script.", LastReviewed = "2026-05-13")]
 public sealed class DatabaseRelationshipRepository
 {
@@ -20,11 +20,15 @@ public sealed class DatabaseRelationshipRepository
 
     public string MetadataDatabaseName => _metadataDatabaseName;
 
+    private string RelationshipsTable => $"{QuoteSqlIdentifier(_metadataDatabaseName)}.dbo.DatabaseRelationships";
+
+    private string RelationshipColumnsTable => $"{QuoteSqlIdentifier(_metadataDatabaseName)}.dbo.DatabaseRelationshipColumns";
+
     public async Task<IReadOnlyList<DatabaseRelationshipDefinition>> GetForDatabaseAsync(int databaseId)
     {
         await using var connection = new SqlConnection(_connectionString);
 
-        const string sql = """
+        var sql = $"""
 SELECT
     DatabaseRelationshipId,
     DatabaseId,
@@ -49,13 +53,13 @@ SELECT
     Active,
     CreatedOn,
     UpdatedOn
-FROM dbo.DatabaseRelationships
+FROM {RelationshipsTable}
 WHERE DatabaseId = @databaseId
 ORDER BY SourceSchemaName, SourceTableName, TargetSchemaName, TargetTableName, RelationshipName;
 """;
 
         var relationships = (await connection.QueryAsync<DatabaseRelationshipDefinition>(sql, new { databaseId })).ToList();
-        await LoadColumnsAsync(connection, relationships);
+        await LoadColumnsAsync(connection, relationships, RelationshipColumnsTable);
         return relationships;
     }
 
@@ -66,7 +70,7 @@ ORDER BY SourceSchemaName, SourceTableName, TargetSchemaName, TargetTableName, R
     {
         await using var connection = new SqlConnection(_connectionString);
 
-        const string sql = """
+        var sql = $"""
 SELECT
     DatabaseRelationshipId,
     DatabaseId,
@@ -91,7 +95,7 @@ SELECT
     Active,
     CreatedOn,
     UpdatedOn
-FROM dbo.DatabaseRelationships
+FROM {RelationshipsTable}
 WHERE DatabaseId = @databaseId
     AND
     (
@@ -106,7 +110,7 @@ ORDER BY SourceSchemaName, SourceTableName, TargetSchemaName, TargetTableName, R
             sql,
             new { databaseId, schemaName, tableName })).ToList();
 
-        await LoadColumnsAsync(connection, relationships);
+        await LoadColumnsAsync(connection, relationships, RelationshipColumnsTable);
         return relationships;
     }
 
@@ -124,20 +128,20 @@ ORDER BY SourceSchemaName, SourceTableName, TargetSchemaName, TargetTableName, R
 
             if (databaseRelationshipId == 0)
             {
-                databaseRelationshipId = await FindExistingIdAsync(connection, transaction, relationship);
+                databaseRelationshipId = await FindExistingIdAsync(connection, transaction, relationship, RelationshipsTable);
             }
 
             if (databaseRelationshipId == 0)
             {
-                databaseRelationshipId = await InsertAsync(connection, transaction, relationship);
+                databaseRelationshipId = await InsertAsync(connection, transaction, relationship, RelationshipsTable);
             }
             else
             {
                 relationship.DatabaseRelationshipId = databaseRelationshipId;
-                await UpdateAsync(connection, transaction, relationship);
+                await UpdateAsync(connection, transaction, relationship, RelationshipsTable);
             }
 
-            await ReplaceColumnsAsync(connection, transaction, databaseRelationshipId, relationship.Columns);
+            await ReplaceColumnsAsync(connection, transaction, databaseRelationshipId, relationship.Columns, RelationshipColumnsTable);
             await transaction.CommitAsync();
 
             relationship.DatabaseRelationshipId = databaseRelationshipId;
@@ -154,15 +158,18 @@ ORDER BY SourceSchemaName, SourceTableName, TargetSchemaName, TargetTableName, R
     {
         await using var connection = new SqlConnection(_connectionString);
 
-        const string sql = """
-DELETE FROM dbo.DatabaseRelationships
+        var sql = $"""
+DELETE FROM {RelationshipsTable}
 WHERE DatabaseRelationshipId = @databaseRelationshipId;
 """;
 
         await connection.ExecuteAsync(sql, new { databaseRelationshipId });
     }
 
-    private static async Task LoadColumnsAsync(SqlConnection connection, List<DatabaseRelationshipDefinition> relationships)
+    private static async Task LoadColumnsAsync(
+        SqlConnection connection,
+        List<DatabaseRelationshipDefinition> relationships,
+        string relationshipColumnsTable)
     {
         if (relationships.Count == 0)
         {
@@ -171,14 +178,14 @@ WHERE DatabaseRelationshipId = @databaseRelationshipId;
 
         var ids = relationships.Select(relationship => relationship.DatabaseRelationshipId).ToArray();
 
-        const string sql = """
+        var sql = $"""
 SELECT
     DatabaseRelationshipColumnId,
     DatabaseRelationshipId,
     OrdinalPosition,
     SourceColumnName,
     TargetColumnName
-FROM dbo.DatabaseRelationshipColumns
+FROM {relationshipColumnsTable}
 WHERE DatabaseRelationshipId IN @ids
 ORDER BY DatabaseRelationshipId, OrdinalPosition;
 """;
@@ -194,7 +201,7 @@ ORDER BY DatabaseRelationshipId, OrdinalPosition;
         {
             var databaseName = connection.Database;
             throw new InvalidOperationException(
-                $"The relationship header table was found, but dbo.DatabaseRelationshipColumns is missing or inaccessible in metadata database '{databaseName}'. The selected source database supplies table metadata; the relationship registry is stored in the Schema Studio metadata database.",
+                $"The relationship header table was found, but {relationshipColumnsTable} is missing or inaccessible. The selected source database supplies table metadata; the relationship registry is stored in the Schema Studio metadata database.",
                 ex);
         }
 
@@ -207,13 +214,14 @@ ORDER BY DatabaseRelationshipId, OrdinalPosition;
     private static async Task<int> FindExistingIdAsync(
         SqlConnection connection,
         SqlTransaction transaction,
-        DatabaseRelationshipDefinition relationship)
+        DatabaseRelationshipDefinition relationship,
+        string relationshipsTable)
     {
         if (!string.IsNullOrWhiteSpace(relationship.RelationshipKey))
         {
-            const string keySql = """
+            var keySql = $"""
 SELECT TOP (1) DatabaseRelationshipId
-FROM dbo.DatabaseRelationships
+FROM {relationshipsTable}
 WHERE DatabaseId = @DatabaseId
     AND RelationshipKey = @RelationshipKey;
 """;
@@ -224,9 +232,9 @@ WHERE DatabaseId = @DatabaseId
                 transaction) ?? 0;
         }
 
-        const string naturalSql = """
+        var naturalSql = $"""
 SELECT TOP (1) DatabaseRelationshipId
-FROM dbo.DatabaseRelationships
+FROM {relationshipsTable}
 WHERE DatabaseId = @DatabaseId
     AND SourceSchemaName = @SourceSchemaName
     AND SourceTableName = @SourceTableName
@@ -245,10 +253,11 @@ WHERE DatabaseId = @DatabaseId
     private static async Task<int> InsertAsync(
         SqlConnection connection,
         SqlTransaction transaction,
-        DatabaseRelationshipDefinition relationship)
+        DatabaseRelationshipDefinition relationship,
+        string relationshipsTable)
     {
-        const string sql = """
-INSERT INTO dbo.DatabaseRelationships
+        var sql = $"""
+INSERT INTO {relationshipsTable}
 (
     DatabaseId,
     SourceSchemaName,
@@ -305,10 +314,11 @@ VALUES
     private static async Task UpdateAsync(
         SqlConnection connection,
         SqlTransaction transaction,
-        DatabaseRelationshipDefinition relationship)
+        DatabaseRelationshipDefinition relationship,
+        string relationshipsTable)
     {
-        const string sql = """
-UPDATE dbo.DatabaseRelationships
+        var sql = $"""
+UPDATE {relationshipsTable}
 SET
     SourceSchemaName = @SourceSchemaName,
     SourceTableName = @SourceTableName,
@@ -340,17 +350,18 @@ WHERE DatabaseRelationshipId = @DatabaseRelationshipId;
         SqlConnection connection,
         SqlTransaction transaction,
         int databaseRelationshipId,
-        IReadOnlyList<DatabaseRelationshipColumnDefinition> columns)
+        IReadOnlyList<DatabaseRelationshipColumnDefinition> columns,
+        string relationshipColumnsTable)
     {
-        const string deleteSql = """
-DELETE FROM dbo.DatabaseRelationshipColumns
+        var deleteSql = $"""
+DELETE FROM {relationshipColumnsTable}
 WHERE DatabaseRelationshipId = @databaseRelationshipId;
 """;
 
         await connection.ExecuteAsync(deleteSql, new { databaseRelationshipId }, transaction);
 
-        const string insertSql = """
-INSERT INTO dbo.DatabaseRelationshipColumns
+        var insertSql = $"""
+INSERT INTO {relationshipColumnsTable}
 (
     DatabaseRelationshipId,
     OrdinalPosition,
@@ -413,4 +424,7 @@ VALUES
 
     private static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static string QuoteSqlIdentifier(string identifier) =>
+        $"[{identifier.Replace("]", "]]", StringComparison.Ordinal)}]";
 }
