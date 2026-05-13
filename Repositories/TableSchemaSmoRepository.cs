@@ -150,6 +150,86 @@ ORDER BY t.name;
         return new TableSchemaDetails(databaseName, schemaName, tableName, columns, relationships, childRelationships);
     }
 
+    public async Task<IReadOnlyList<TableSchemaForeignKeyEdge>> GetRelationshipsBetweenTablesAsync(
+        string databaseName,
+        IEnumerable<string> tableNames)
+    {
+        ValidateDatabaseName(databaseName);
+        var normalizedTableNames = tableNames
+            .Where(tableName => !string.IsNullOrWhiteSpace(tableName))
+            .Select(tableName => tableName.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        if (normalizedTableNames.Length == 0)
+        {
+            return [];
+        }
+
+        var database = QuoteSqlIdentifier(databaseName);
+
+        await using var connection = new SqlConnection(connectionString);
+        await EnsureDatabaseExistsAsync(connection, databaseName);
+
+        var sql = $"""
+SELECT
+    fk.name AS ForeignKeyName,
+    ps.name AS ParentSchemaName,
+    pt.name AS ParentTableName,
+    rs.name AS ReferencedSchemaName,
+    rt.name AS ReferencedTableName,
+    fkc.constraint_column_id AS ConstraintColumnId,
+    pc.name AS ParentColumnName,
+    rc.name AS ReferencedColumnName
+FROM {database}.sys.foreign_keys AS fk
+JOIN {database}.sys.foreign_key_columns AS fkc
+    ON fkc.constraint_object_id = fk.object_id
+JOIN {database}.sys.tables AS pt
+    ON pt.object_id = fk.parent_object_id
+JOIN {database}.sys.schemas AS ps
+    ON ps.schema_id = pt.schema_id
+JOIN {database}.sys.columns AS pc
+    ON pc.object_id = fkc.parent_object_id
+    AND pc.column_id = fkc.parent_column_id
+JOIN {database}.sys.tables AS rt
+    ON rt.object_id = fk.referenced_object_id
+JOIN {database}.sys.schemas AS rs
+    ON rs.schema_id = rt.schema_id
+JOIN {database}.sys.columns AS rc
+    ON rc.object_id = fkc.referenced_object_id
+    AND rc.column_id = fkc.referenced_column_id
+WHERE pt.name IN @tableNames
+   OR rt.name IN @tableNames
+ORDER BY fk.name, fkc.constraint_column_id;
+""";
+
+        var rows = (await connection.QueryAsync<TableSchemaForeignKeyEdgeRow>(
+            sql,
+            new { tableNames = normalizedTableNames }))
+            .ToList();
+
+        return rows
+            .GroupBy(row => new
+            {
+                row.ForeignKeyName,
+                row.ParentSchemaName,
+                row.ParentTableName,
+                row.ReferencedSchemaName,
+                row.ReferencedTableName
+            })
+            .Select(group => new TableSchemaForeignKeyEdge(
+                group.Key.ForeignKeyName,
+                group.Key.ParentSchemaName,
+                group.Key.ParentTableName,
+                group.Key.ReferencedSchemaName,
+                group.Key.ReferencedTableName,
+                group
+                    .OrderBy(row => row.ConstraintColumnId)
+                    .Select(row => new TableSchemaForeignKeyEdgeColumn(row.ParentColumnName, row.ReferencedColumnName))
+                    .ToList()))
+            .ToList();
+    }
+
     public async Task<string?> GetLookupValuesTextAsync(
         string databaseName,
         string lookupSchemaName,
@@ -565,6 +645,18 @@ WHERE s.name = @schemaName
         public string ChildColumnName { get; set; } = "";
         public string ParentColumnName { get; set; } = "";
     }
+
+    private sealed class TableSchemaForeignKeyEdgeRow
+    {
+        public string ForeignKeyName { get; set; } = "";
+        public string ParentSchemaName { get; set; } = "";
+        public string ParentTableName { get; set; } = "";
+        public string ReferencedSchemaName { get; set; } = "";
+        public string ReferencedTableName { get; set; } = "";
+        public int ConstraintColumnId { get; set; }
+        public string ParentColumnName { get; set; } = "";
+        public string ReferencedColumnName { get; set; } = "";
+    }
 }
 
 public sealed record TableSchemaTableInfo(string SchemaName, string TableName)
@@ -705,6 +797,18 @@ public sealed record TableSchemaForeignKeyColumnInfo(
     [property: Description("Column on the selected many-side source table.")]
     string LocalColumnName,
     [property: Description("Column on the referenced one-side lookup table.")]
+    string ReferencedColumnName);
+
+public sealed record TableSchemaForeignKeyEdge(
+    string ForeignKeyName,
+    string ParentSchemaName,
+    string ParentTableName,
+    string ReferencedSchemaName,
+    string ReferencedTableName,
+    IReadOnlyList<TableSchemaForeignKeyEdgeColumn> Columns);
+
+public sealed record TableSchemaForeignKeyEdgeColumn(
+    string ParentColumnName,
     string ReferencedColumnName);
 
 public sealed class TableSchemaChildRelationshipInfo

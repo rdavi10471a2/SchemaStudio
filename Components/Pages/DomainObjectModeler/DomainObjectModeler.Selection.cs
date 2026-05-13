@@ -49,6 +49,7 @@ public partial class DomainObjectModeler
         Domains.Clear();
         BaseViews.Clear();
         JoinRows.Clear();
+        SourceDatabaseRelationships.Clear();
         GeneratedSql = string.Empty;
 
         if (!SelectedDatabaseId.HasValue)
@@ -100,6 +101,7 @@ public partial class DomainObjectModeler
     {
         BaseViews.Clear();
         JoinRows.Clear();
+        SourceDatabaseRelationships.Clear();
         GeneratedSql = string.Empty;
 
         if (!SelectedDatabaseId.HasValue || string.IsNullOrWhiteSpace(SelectedDomain))
@@ -117,13 +119,20 @@ public partial class DomainObjectModeler
                 SelectedDomain);
 
             BaseViews = rows
-                .Select(source => new DomainBaseViewItem
+                .Select(source =>
                 {
-                    Source = source,
-                    AliasName = BuildDefaultAlias(source.SourceObjectName)
+                    var relationshipTableName = StripConfiguredViewPrefix(source.SourceObjectName, SelectedDatabase?.ViewNameFilter);
+                    return new DomainBaseViewItem
+                    {
+                        Source = source,
+                        RelationshipTableName = relationshipTableName,
+                        AliasName = BuildDefaultAlias(relationshipTableName)
+                    };
                 })
                 .OrderBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase)
                 .ToList();
+
+            await LoadSourceDatabaseRelationshipsAsync();
 
             TargetViewName = string.IsNullOrWhiteSpace(SelectedDomain)
                 ? TargetViewName
@@ -272,6 +281,8 @@ public partial class DomainObjectModeler
                 });
             }
         }
+
+        ApplyRelationshipDefaultsToJoinRows();
     }
 
     private DomainObjectJoinRow? FindJoinRow(int schemaObjectId) =>
@@ -282,8 +293,78 @@ public partial class DomainObjectModeler
 
     private DomainBaseViewItem? FindBaseViewBySourceName(string sourceName) =>
         BaseViews.FirstOrDefault(item =>
+            string.Equals(item.RelationshipTableName, sourceName, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(item.Source.SourceObjectName, sourceName, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(SanitizeIdentifierToken(item.Source.SourceObjectName), sourceName, StringComparison.OrdinalIgnoreCase));
+
+    private async Task LoadSourceDatabaseRelationshipsAsync()
+    {
+        SourceDatabaseRelationships.Clear();
+        var databaseName = SelectedDatabaseName();
+        if (string.IsNullOrWhiteSpace(databaseName) || BaseViews.Count == 0)
+        {
+            return;
+        }
+
+        SourceDatabaseRelationships = (await TableSchemaRepository.GetRelationshipsBetweenTablesAsync(
+            databaseName,
+            BaseViews.Select(item => item.RelationshipTableName)))
+            .ToList();
+    }
+
+    private void ApplyRelationshipDefaultsToJoinRows()
+    {
+        var anchor = AnchorView;
+        if (anchor is null)
+        {
+            return;
+        }
+
+        foreach (var item in NonAnchorSelectedBaseViews)
+        {
+            var row = FindJoinRow(item.SchemaObjectId);
+            if (row is null || !string.IsNullOrWhiteSpace(row.OnClause))
+            {
+                continue;
+            }
+
+            var relationship = FindRelationshipBetween(anchor.RelationshipTableName, item.RelationshipTableName)
+                ?? SelectedBaseViews
+                    .Where(candidate => !ReferenceEquals(candidate, item))
+                    .Select(candidate => FindRelationshipBetween(candidate.RelationshipTableName, item.RelationshipTableName))
+                    .FirstOrDefault(match => match is not null);
+            if (relationship is null)
+            {
+                continue;
+            }
+
+            row.OnClause = BuildJoinCondition(relationship, item);
+            row.JoinType = "LEFT JOIN";
+        }
+    }
+
+    private SchemaStudioWebViewer.Data.TableSchemaForeignKeyEdge? FindRelationshipBetween(string leftTableName, string rightTableName) =>
+        SourceDatabaseRelationships.FirstOrDefault(relationship =>
+            (string.Equals(relationship.ParentTableName, leftTableName, StringComparison.OrdinalIgnoreCase) &&
+             string.Equals(relationship.ReferencedTableName, rightTableName, StringComparison.OrdinalIgnoreCase)) ||
+            (string.Equals(relationship.ParentTableName, rightTableName, StringComparison.OrdinalIgnoreCase) &&
+             string.Equals(relationship.ReferencedTableName, leftTableName, StringComparison.OrdinalIgnoreCase)));
+
+    private string BuildJoinCondition(SchemaStudioWebViewer.Data.TableSchemaForeignKeyEdge relationship, DomainBaseViewItem joinedItem)
+    {
+        var parent = SelectedBaseViews.FirstOrDefault(item =>
+            string.Equals(item.RelationshipTableName, relationship.ParentTableName, StringComparison.OrdinalIgnoreCase));
+        var referenced = SelectedBaseViews.FirstOrDefault(item =>
+            string.Equals(item.RelationshipTableName, relationship.ReferencedTableName, StringComparison.OrdinalIgnoreCase));
+
+        if (parent is null || referenced is null)
+        {
+            return string.Empty;
+        }
+
+        return string.Join(" and ", relationship.Columns.Select(column =>
+            $"{QuoteIdentifier(referenced.AliasName)}.{QuoteIdentifier(column.ReferencedColumnName)} = {QuoteIdentifier(parent.AliasName)}.{QuoteIdentifier(column.ParentColumnName)}"));
+    }
 
     private static string BuildDefaultAlias(string sourceObjectName)
     {
@@ -303,6 +384,30 @@ public partial class DomainObjectModeler
             .ToArray();
 
         return chars.Length == 0 ? "Object" : new string(chars);
+    }
+
+    private static string StripConfiguredViewPrefix(string sourceObjectName, string? viewNameFilter)
+    {
+        var name = sourceObjectName.Trim();
+        var prefix = NormalizeViewNamePrefix(viewNameFilter);
+        if (!string.IsNullOrWhiteSpace(prefix) &&
+            name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            name = name[prefix.Length..];
+        }
+
+        return name.TrimStart('_');
+    }
+
+    private static string NormalizeViewNamePrefix(string? viewNameFilter)
+    {
+        if (string.IsNullOrWhiteSpace(viewNameFilter))
+        {
+            return string.Empty;
+        }
+
+        var prefix = viewNameFilter.Trim().TrimEnd('%');
+        return prefix;
     }
 }
 

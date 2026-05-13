@@ -51,6 +51,7 @@ public partial class DomainObjectModeler
     private List<DatabaseDomainDefinition> Domains = new();
     private List<DomainBaseViewItem> BaseViews = new();
     private List<DomainObjectJoinRow> JoinRows = new();
+    private List<SchemaStudioWebViewer.Data.TableSchemaForeignKeyEdge> SourceDatabaseRelationships = new();
 
     private int? SelectedDatabaseId;
     private string SelectedDomain = string.Empty;
@@ -94,6 +95,9 @@ public partial class DomainObjectModeler
 
     private IReadOnlyList<DomainBaseViewItem> SelectedBaseViews =>
         BaseViews.Where(item => item.IsSelected).ToList();
+
+    private DatabaseDefinition? SelectedDatabase =>
+        Databases.FirstOrDefault(database => database.DatabaseId == SelectedDatabaseId);
 
     private DomainBaseViewItem? AnchorView =>
         BaseViews.FirstOrDefault(item => item.IsSelected && item.IsAnchor);
