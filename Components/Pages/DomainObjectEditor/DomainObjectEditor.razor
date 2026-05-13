@@ -233,10 +233,12 @@
                                     {
                                         <div class="cte-removed-object-note">Removed from the new object.</div>
                                     }
-                                    <pre class="cte-reference-sql">@foreach (var line in cte.Lines)
-{
-<span class="@CteSelectionPresentationEditor.LineStateClass(line)">@line.Text</span>
-}</pre>
+                                    <div class="cte-reference-sql">
+                                        @foreach (var line in cte.Lines)
+                                        {
+                                            <div class="cte-reference-line @CteSelectionPresentationEditor.LineStateClass(line)">@line.Text</div>
+                                        }
+                                    </div>
                                 </div>
                             </RadzenTabsItem>
                         }

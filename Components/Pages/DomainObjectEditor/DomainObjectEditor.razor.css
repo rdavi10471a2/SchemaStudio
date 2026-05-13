@@ -317,11 +317,10 @@
     margin: 0;
     padding: 0.65rem;
     min-width: max-content;
-    white-space: pre;
 }
 
-.cte-reference-sql span {
-    display: block;
+.cte-reference-line {
+    min-height: 1.2rem;
     white-space: pre;
 }
 
