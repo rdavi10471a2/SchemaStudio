@@ -67,7 +67,7 @@ public partial class DomainObjectModeler
                 }
 
                 builder.AppendLine($"{row.JoinType} {QuoteIdentifier(item.AliasName)}");
-                builder.AppendLine($"    ON {row.OnClause}");
+                AppendOnClause(builder, row.OnClause);
             }
 
             builder.AppendLine(";");
@@ -87,6 +87,30 @@ public partial class DomainObjectModeler
             IsBusy = false;
         }
     }
+
+    private static void AppendOnClause(StringBuilder builder, string onClause)
+    {
+        var lines = BreakJoinConjunctions(onClause)
+            .SplitLines()
+            .Select(line => line.Trim())
+            .Where(line => line.Length > 0)
+            .ToList();
+
+        if (lines.Count == 0)
+        {
+            return;
+        }
+
+        builder.AppendLine($"    ON {lines[0]}");
+        foreach (var line in lines.Skip(1))
+        {
+            builder.AppendLine($"       {line}");
+        }
+    }
+
+    private static string BreakJoinConjunctions(string onClause) =>
+        Regex.Replace(onClause.Trim(), @"\s+\b(AND|OR)\b\s+", match =>
+            $"{Environment.NewLine}{match.Groups[1].Value.ToUpperInvariant()} ", RegexOptions.IgnoreCase);
 
     private List<DomainBaseViewItem> GetAnchorFirstSelectedBaseViews()
     {

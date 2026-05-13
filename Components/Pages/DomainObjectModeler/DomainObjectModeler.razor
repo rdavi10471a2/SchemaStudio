@@ -19,7 +19,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.1")]
+@attribute [FileVersion("1.2")]
 @attribute [AIFileContext("Components/Pages/DomainObjectModeler/DomainObjectModeler.razor", "Domain object modeling page that composes an editable domain surface from selected managed base views.", Responsibilities = "Owns the /domain-object-modeler route and renders the database/domain selector, base-view checklist, anchor and alias controls, structured join rows, generated SQL preview, and page-level commands.", Nuances = "This page defines the editable object surface only. Field projection and trimming happen downstream in the domain object editor/projection workflow.", RelatedFiles = "DomainObjectModeler.razor.cs; DomainObjectModeler.Selection.cs; DomainObjectModeler.Joins.cs; DomainObjectModeler.Sql.cs; DomainObjectModeler.Models.cs; DomainObjectModeler.razor.css", LastReviewed = "2026-05-13")]
 
 <PageTitle>Domain Object Modeler</PageTitle>
@@ -123,7 +123,7 @@
                     </div>
                 </div>
 
-                <footer class="dom-panel-note">No field choices here. Projection and trimming happen later in the domain object editor.</footer>
+                <footer class="dom-panel-note">Compose the editable object surface from managed base views.</footer>
             </aside>
                 <button type="button"
                         class="dom-resize-handle"
@@ -225,11 +225,13 @@
                                                                 Value="@row.JoinType"
                                                                 Change="@(value => OnJoinTypeChanged(row, value))"
                                                                 Style="width:100%;" />
-                                                <RadzenTextBox Value="@row.OnClause"
-                                                               Change="@(value => OnJoinClauseChanged(row, value?.ToString()))"
-                                                               Placeholder="ON clause"
-                                                               Style="width:100%;"
-                                                               MaxLength="1200" />
+                                                <RadzenTextArea Value="@row.OnClause"
+                                                                Change="@(value => OnJoinClauseChanged(row, value?.ToString()))"
+                                                                Placeholder="ON clause"
+                                                                Rows="3"
+                                                                class="dom-join-clause-editor"
+                                                                Style="width:100%;"
+                                                                MaxLength="1200" />
                                             </div>
                                         }
                                     </div>
@@ -237,7 +239,15 @@
                             }
                         </div>
                         <footer class="dom-card-footer">
-                            <span>Generate is disabled until every non-anchor CTE has a join clause.</span>
+                            <div class="dom-footer-actions">
+                                <button type="button"
+                                        class="dom-button secondary"
+                                        @onclick="RefreshInferredJoinsAsync"
+                                        disabled="@(IsBusy || NonAnchorSelectedBaseViews.Count == 0)">
+                                    Infer Joins
+                                </button>
+                                <span>Inferred joins are guesses from source database relationships. Please check them.</span>
+                            </div>
                             <span class="dom-status-text">@NonAnchorSelectedBaseViews.Count(item => !string.IsNullOrWhiteSpace(FindJoinRow(item.SchemaObjectId)?.OnClause)) of @NonAnchorSelectedBaseViews.Count complete</span>
                         </footer>
                     </section>

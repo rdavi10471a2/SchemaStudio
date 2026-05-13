@@ -220,13 +220,18 @@ public partial class DomainObjectModeler
         JoinRows.Add(new DomainObjectJoinRow
         {
             SchemaObjectId = svslsops.SchemaObjectId,
-            OnClause = "SVSLS.SLSID = SVSLSOPS.SLSID"
+            OnClause = "SVSLS.SLSID = SVSLSOPS.SLSID",
+            IsInferred = true
         });
         JoinRows.Add(new DomainObjectJoinRow
         {
             SchemaObjectId = svslsitm.SchemaObjectId,
-            OnClause = "SVSLSITM.SLSID=SVSLSOPS.SLSID and SVSLSITM.OPSID = SVSLSOPS.OPSID"
+            OnClause = "SVSLSITM.SLSID = SVSLSOPS.SLSID" + Environment.NewLine +
+                       "AND SVSLSITM.OPSID = SVSLSOPS.OPSID",
+            IsInferred = true
         });
+
+        StatusMessage = "Joins are inferred from source database relationships. Please check them before generating.";
     }
 
     private void ToggleBaseView(DomainBaseViewItem item, bool isSelected)
@@ -282,7 +287,7 @@ public partial class DomainObjectModeler
             }
         }
 
-        ApplyRelationshipDefaultsToJoinRows();
+        ApplyRelationshipDefaultsToJoinRows(overwriteInferred: false);
     }
 
     private DomainObjectJoinRow? FindJoinRow(int schemaObjectId) =>
@@ -312,18 +317,48 @@ public partial class DomainObjectModeler
             .ToList();
     }
 
-    private void ApplyRelationshipDefaultsToJoinRows()
+    private async Task RefreshInferredJoinsAsync()
+    {
+        if (NonAnchorSelectedBaseViews.Count == 0)
+        {
+            StatusMessage = "Select at least two base views before inferring joins.";
+            return;
+        }
+
+        IsBusy = true;
+
+        try
+        {
+            await LoadSourceDatabaseRelationshipsAsync();
+            var inferredCount = ApplyRelationshipDefaultsToJoinRows(overwriteInferred: true);
+            GeneratedSql = string.Empty;
+            StatusMessage = inferredCount == 0
+                ? "No source database relationships matched the current selected base views."
+                : $"Joins are inferred from source database relationships. Please check {inferredCount} join box{(inferredCount == 1 ? string.Empty : "es")} before generating.";
+        }
+        catch (Exception ex)
+        {
+            NotifyFailure("Relationship inference failed", ex);
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private int ApplyRelationshipDefaultsToJoinRows(bool overwriteInferred)
     {
         var anchor = AnchorView;
         if (anchor is null)
         {
-            return;
+            return 0;
         }
 
+        var inferredCount = 0;
         foreach (var item in NonAnchorSelectedBaseViews)
         {
             var row = FindJoinRow(item.SchemaObjectId);
-            if (row is null || !string.IsNullOrWhiteSpace(row.OnClause))
+            if (row is null || (!overwriteInferred && !string.IsNullOrWhiteSpace(row.OnClause)) || (!row.IsInferred && !string.IsNullOrWhiteSpace(row.OnClause)))
             {
                 continue;
             }
@@ -340,7 +375,11 @@ public partial class DomainObjectModeler
 
             row.OnClause = BuildJoinCondition(relationship, item);
             row.JoinType = "LEFT JOIN";
+            row.IsInferred = true;
+            inferredCount++;
         }
+
+        return inferredCount;
     }
 
     private SchemaStudioWebViewer.Data.TableSchemaForeignKeyEdge? FindRelationshipBetween(string leftTableName, string rightTableName) =>
@@ -362,7 +401,7 @@ public partial class DomainObjectModeler
             return string.Empty;
         }
 
-        return string.Join(" and ", relationship.Columns.Select(column =>
+        return string.Join($"{Environment.NewLine}AND ", relationship.Columns.Select(column =>
             $"{QuoteIdentifier(referenced.AliasName)}.{QuoteIdentifier(column.ReferencedColumnName)} = {QuoteIdentifier(parent.AliasName)}.{QuoteIdentifier(column.ParentColumnName)}"));
     }
 

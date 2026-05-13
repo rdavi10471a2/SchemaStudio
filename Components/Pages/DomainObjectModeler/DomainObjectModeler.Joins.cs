@@ -18,12 +18,14 @@ public partial class DomainObjectModeler
     private void OnJoinTypeChanged(DomainObjectJoinRow row, object? value)
     {
         row.JoinType = value?.ToString() ?? "LEFT JOIN";
+        row.IsInferred = false;
         GeneratedSql = string.Empty;
     }
 
     private void OnJoinClauseChanged(DomainObjectJoinRow row, string? value)
     {
         row.OnClause = value?.Trim() ?? string.Empty;
+        row.IsInferred = false;
         GeneratedSql = string.Empty;
     }
 

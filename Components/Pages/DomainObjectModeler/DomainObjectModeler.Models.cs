@@ -34,6 +34,7 @@ public partial class DomainObjectModeler
         public int SchemaObjectId { get; init; }
         public string JoinType { get; set; } = "LEFT JOIN";
         public string OnClause { get; set; } = string.Empty;
+        public bool IsInferred { get; set; }
     }
 
     private sealed record CteSourceModeOption(string Value, string Text);

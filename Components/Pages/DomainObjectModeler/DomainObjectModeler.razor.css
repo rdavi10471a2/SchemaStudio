@@ -364,7 +364,7 @@
 .dom-element-row {
     display: grid;
     gap: 0.5rem;
-    min-height: 80px;
+    min-height: 112px;
     padding: 0.6rem;
     border: 1px solid #e2e7ef;
     border-radius: 5px;
@@ -423,8 +423,16 @@
 .dom-element-join {
     display: grid;
     grid-template-columns: 114px minmax(0, 1fr);
+    align-items: stretch;
     gap: 0.5rem;
     min-width: 0;
+}
+
+.dom-join-clause-editor {
+    min-height: 72px;
+    resize: vertical;
+    font-family: "Cascadia Mono", Consolas, "Courier New", monospace;
+    line-height: 1.35;
 }
 
 .dom-card-footer,
@@ -434,6 +442,18 @@
     justify-content: space-between;
     gap: 0.75rem;
     min-height: 56px;
+}
+
+.dom-footer-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-width: 0;
+}
+
+.dom-footer-actions span {
+    color: #526071;
+    font-size: 0.82rem;
 }
 
 .dom-status-text {
