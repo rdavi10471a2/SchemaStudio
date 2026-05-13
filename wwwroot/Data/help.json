@@ -249,6 +249,41 @@
                     ]
     },
     {
+        "Id":  "domain-object-editor",
+        "Title":  "Domain Object Editor",
+        "Subtitle":  "Project fields and paths from a composed view",
+        "Icon":  "edit_square",
+        "Details":  [
+                        {
+                            "Id":  "selection",
+                            "Label":  "Composed View Selection",
+                            "Section":  "Workflow",
+                            "Subtitle":  "Database, domain, composed view",
+                            "Description":  "Choose a database and domain, then select a composed managed view. Base views are intentionally excluded because this editor shapes the editable object surface produced by the modeler.",
+                            "Icon":  "view_column",
+                            "CustomFragmentName":  ""
+                        },
+                        {
+                            "Id":  "graph-editing",
+                            "Label":  "Graph Editing",
+                            "Section":  "Workflow",
+                            "Subtitle":  "Selection without re-authoring SQL",
+                            "Description":  "The selected view definition supplies static SQL text for the local parser. After loading, the page manipulates the parsed CTE graph by toggling output fields and object paths.",
+                            "Icon":  "account_tree",
+                            "CustomFragmentName":  ""
+                        },
+                        {
+                            "Id":  "results",
+                            "Label":  "Generated Results",
+                            "Section":  "SQL Output",
+                            "Subtitle":  "Trimmed SQL outputs",
+                            "Description":  "Result SQL and Result SQL CTE generate trimmed projections from the current graph state. Validate checks the generated SQL with ScriptDom and Copy places the current result on the clipboard.",
+                            "Icon":  "rule",
+                            "CustomFragmentName":  ""
+                        }
+                    ]
+    },
+    {
         "Id":  "base-view-creator",
         "Title":  "Base View Creator",
         "Subtitle":  "Base view generation with isolated new plumbing",
