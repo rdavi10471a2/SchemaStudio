@@ -122,8 +122,8 @@
                                     class="@RelationshipRowClass(relationship)"
                                     @onclick="@(() => SelectRelationship(relationship))">
                                 <span class="relationship-chip">@DirectionFor(relationship)</span>
-                                <strong>@RelationshipTitle(relationship)</strong>
-                                <code>@relationship.JoinType @relationship.TargetObject</code>
+                                <strong>@RelationshipOtherTable(relationship)</strong>
+                                <code>@relationship.JoinType</code>
                                 <span>@relationship.ColumnSummary</span>
                             </button>
                         }
@@ -135,7 +135,7 @@
                 <div class="relationship-pane-header">
                     <div>
                         <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0">Edit Relationship</RadzenText>
-                        <RadzenText TextStyle="TextStyle.Caption" Style="color:#667085;">Join text is the source of truth; column pairs are supporting metadata.</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Caption" Style="color:#667085;">Role tells the generators whether this is lookup enrichment, detail traversal, domain composition, or documentation only.</RadzenText>
                     </div>
                     @if (selectedRelationship is not null)
                     {
@@ -155,12 +155,13 @@
                         <DataAnnotationsValidator />
 
                         <div class="relationship-edit-grid relationship-primary-grid">
-                            <label>
+                            <label class="relationship-role-field">
                                 <span class="relationship-field-label">Role</span>
                                 <RadzenDropDown TValue="string"
                                                 Data="@relationshipRoles"
                                                 @bind-Value="@editRelationship.RelationshipRole"
                                                 Style="width:100%;" />
+                                <span class="relationship-help-text">@RoleHelpText(editRelationship.RelationshipRole)</span>
                             </label>
                             <label>
                                 <span class="relationship-field-label">Join Type</span>
@@ -169,9 +170,9 @@
                                                 @bind-Value="@editRelationship.JoinType"
                                                 Style="width:100%;" />
                             </label>
-                            <label class="relationship-wide">
-                                <span class="relationship-field-label">Name</span>
-                                <RadzenTextBox @bind-Value="@editRelationship.RelationshipName"
+                            <label>
+                                <span class="relationship-field-label">Target Table</span>
+                                <RadzenTextBox @bind-Value="@editRelationship.TargetTableName"
                                                Style="width:100%;"
                                                MaxLength="128" />
                             </label>
@@ -194,7 +195,7 @@
                                                 MaxLength="2000" />
                             </label>
 
-                            <label>
+                            <label class="relationship-compact-field">
                                 <span class="relationship-field-label">Display Column</span>
                                 <RadzenDropDown TValue="string"
                                                 Data="@targetColumnOptions"
@@ -206,7 +207,7 @@
                                                 Placeholder="Load on open"
                                                 Style="width:100%;" />
                             </label>
-                            <label>
+                            <label class="relationship-compact-field">
                                 <span class="relationship-field-label">Filter Column</span>
                                 <RadzenDropDown TValue="string"
                                                 Data="@targetColumnOptions"
@@ -218,7 +219,7 @@
                                                 Placeholder="Load on open"
                                                 Style="width:100%;" />
                             </label>
-                            <label>
+                            <label class="relationship-compact-field">
                                 <span class="relationship-field-label">Filter Value</span>
                                 <RadzenTextBox @bind-Value="@editRelationship.FilterValue"
                                                Style="width:100%;"
@@ -699,6 +700,32 @@
 
         return $"{relationship.SourceTableName} to {relationship.TargetTableName}";
     }
+
+    private string RelationshipOtherTable(DatabaseRelationshipDefinition relationship)
+    {
+        if (relationship.SourceTableName.Equals(selectedTableName, StringComparison.OrdinalIgnoreCase))
+        {
+            return relationship.TargetTableName;
+        }
+
+        if (relationship.TargetTableName.Equals(selectedTableName, StringComparison.OrdinalIgnoreCase))
+        {
+            return relationship.SourceTableName;
+        }
+
+        return RelationshipTitle(relationship);
+    }
+
+    private static string RoleHelpText(string? role) =>
+        role switch
+        {
+            "Lookup" => "Adds descriptive fields for a many-to-one reference.",
+            "ParentReference" => "Points from this row back to a parent/header row.",
+            "Detail" => "Moves from this row to child/detail rows.",
+            "DomainJoin" => "Allowed when composing domain objects.",
+            "Ignore" => "Kept for documentation but skipped by generators.",
+            _ => "Choose how tools should treat this relationship."
+        };
 
     private static DatabaseRelationshipDefinition CloneRelationship(DatabaseRelationshipDefinition source) =>
         new()
