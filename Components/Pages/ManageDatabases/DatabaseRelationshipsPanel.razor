@@ -8,7 +8,7 @@
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("1.2")]
+@attribute [FileVersion("1.3")]
 @attribute [AIFileContext("Components/Pages/ManageDatabases/DatabaseRelationshipsPanel.razor", "Manage Databases child panel for the curated database relationship registry.", Responsibilities = "Loads source tables, imports source-system foreign-key relationships into dbo.DatabaseRelationships, and displays the registry rows that touch the selected table.", Nuances = "The panel does not create metadata tables; database DDL stays in human-run scripts.", LastReviewed = "2026-05-13")]
 
 <RadzenStack Gap="0.75rem" class="relationships-panel">
@@ -334,16 +334,27 @@
                 Database.SQLLookupString);
 
             var imported = 0;
+            var failed = 0;
             foreach (var sourceRelationship in details.Relationships)
             {
-                var relationship = await FromSourceLookupAsync(Database.DatabaseId, details, sourceRelationship);
-                await RelationshipRepository.UpsertAsync(relationship);
-                imported++;
+                try
+                {
+                    var relationship = await FromSourceLookupAsync(Database.DatabaseId, details, sourceRelationship);
+                    await RelationshipRepository.UpsertAsync(relationship);
+                    imported++;
+                }
+                catch
+                {
+                    failed++;
+                }
             }
 
             await LoadRelationshipsAsync(setLoading: false);
-            SetStatus($"Imported or refreshed {imported} source lookup relationship(s) for {selectedTableName}.", AlertStyle.Success);
-            Notify(NotificationSeverity.Success, $"Imported {imported} relationship(s).");
+            var message = failed == 0
+                ? $"Imported or refreshed {imported} source lookup relationship(s) for {selectedTableName}."
+                : $"Imported or refreshed {imported} source lookup relationship(s) for {selectedTableName}; {failed} relationship(s) were skipped.";
+            SetStatus(message, failed == 0 ? AlertStyle.Success : AlertStyle.Warning);
+            Notify(failed == 0 ? NotificationSeverity.Success : NotificationSeverity.Warning, message);
         }
         catch (Exception ex)
         {
@@ -390,6 +401,7 @@
                 sourceRelationship.DisplayColumnName,
                 sourceRelationship.LookupFilterColumnName,
                 sourceRelationship.LookupFilterValue);
+        lookupValues = Truncate(lookupValues, 1500);
 
         return new DatabaseRelationshipDefinition
         {
@@ -436,6 +448,11 @@
             relationship.LookupFilterColumnName?.Trim() ?? "",
             relationship.LookupFilterValue?.Trim() ?? ""
         ]);
+
+    private static string? Truncate(string? value, int maxLength) =>
+        string.IsNullOrEmpty(value) || value.Length <= maxLength
+            ? value
+            : value[..maxLength];
 
     private void SetStatus(string message, AlertStyle style)
     {
