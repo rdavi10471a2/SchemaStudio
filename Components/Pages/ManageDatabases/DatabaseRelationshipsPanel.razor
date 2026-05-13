@@ -11,7 +11,11 @@
 @attribute [FileVersion("1.5")]
 @attribute [AIFileContext("Components/Pages/ManageDatabases/DatabaseRelationshipsPanel.razor", "Manage Databases child panel for the curated database relationship registry.", Responsibilities = "Loads source tables, imports source-system foreign-key relationships into dbo.DatabaseRelationships, and displays the registry rows that touch the selected table.", Nuances = "The panel does not create metadata tables; database DDL stays in human-run scripts.", LastReviewed = "2026-05-13")]
 
-<RadzenStack Gap="0.75rem" class="relationships-panel">
+<RadzenStack Gap="0.75rem"
+             class="@RelationshipsPanelClass"
+             style="@RelationshipsPanelStyle"
+             @onpointermove="@ResizePane"
+             @onpointerup="@EndPaneResize">
     @if (Database is null)
     {
         <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat">
@@ -130,6 +134,12 @@
                     }
                 </div>
             </section>
+
+            <button type="button"
+                    class="relationship-resize-handle"
+                    title="Resize relationship browser"
+                    aria-label="Resize relationship browser"
+                    @onpointerdown="@BeginPaneResize"></button>
 
             <section class="relationship-edit-pane">
                 <div class="relationship-pane-header">
@@ -319,10 +329,23 @@
     private bool isLoading;
     private string statusText = "";
     private AlertStyle statusStyle = AlertStyle.Info;
+    private bool isResizingRelationshipList;
+    private double resizeStartX;
+    private int resizeStartWidth;
+    private int relationshipListWidth = RelationshipListDefaultWidth;
 
+    private const int RelationshipListDefaultWidth = 340;
+    private const int RelationshipListMinWidth = 260;
+    private const int RelationshipListMaxWidth = 560;
     private static readonly string[] relationshipRoles = ["Lookup", "ParentReference", "Detail", "DomainJoin", "Ignore"];
     private static readonly string[] joinTypes = ["LEFT JOIN", "INNER JOIN", "LEFT OUTER JOIN", "JOIN"];
     private static readonly Dictionary<int, RelationshipPanelState> stateByDatabaseId = new();
+
+    private string RelationshipsPanelClass =>
+        isResizingRelationshipList ? "relationships-panel relationship-resizing" : "relationships-panel";
+
+    private string RelationshipsPanelStyle =>
+        $"--relationship-list-width: {relationshipListWidth}px;";
 
     private bool CanImport =>
         Database is not null &&
@@ -634,6 +657,29 @@
         editRelationship = selectedRelationship is null ? null : CloneRelationship(selectedRelationship);
         targetColumnOptions.Clear();
         targetColumnOptionsKey = "";
+    }
+
+    private void BeginPaneResize(PointerEventArgs args)
+    {
+        isResizingRelationshipList = true;
+        resizeStartX = args.ClientX;
+        resizeStartWidth = relationshipListWidth;
+    }
+
+    private void ResizePane(PointerEventArgs args)
+    {
+        if (!isResizingRelationshipList)
+        {
+            return;
+        }
+
+        var delta = (int)Math.Round(args.ClientX - resizeStartX);
+        relationshipListWidth = Math.Clamp(resizeStartWidth + delta, RelationshipListMinWidth, RelationshipListMaxWidth);
+    }
+
+    private void EndPaneResize()
+    {
+        isResizingRelationshipList = false;
     }
 
     private async Task LoadTargetColumnOptionsAsync()
