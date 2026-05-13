@@ -271,6 +271,10 @@
                                         <RadzenIcon Icon="database" />
                                         <span>Configure Databases</span>
                                     </button>
+                                    <button type="button" @onclick="@(() => NavigateToAsync("manage-views"))">
+                                        <RadzenIcon Icon="view_column" />
+                                        <span>Manage Views</span>
+                                    </button>
                                     <button type="button" @onclick="@(() => NavigateToAsync("base-view-creator"))">
                                         <RadzenIcon Icon="account_tree" />
                                         <span>Create Base Views</span>
@@ -283,13 +287,23 @@
                                         <RadzenIcon Icon="edit_square" />
                                         <span>Project Domain Objects</span>
                                     </button>
-                                    <button type="button" @onclick="@(() => NavigateToAsync("manage-views"))">
-                                        <RadzenIcon Icon="view_column" />
-                                        <span>Manage Dictionary</span>
-                                    </button>
+                                </div>
+                            }
+                        </div>
+
+                        <div class="app-menu-trigger">
+                            <button type="button"
+                                    aria-expanded="@(openMenu == "labs")"
+                                    @onclick="@(() => ToggleMenu("labs"))">
+                                <RadzenIcon Icon="science" />
+                                <span>Labs</span>
+                            </button>
+                            @if (openMenu == "labs")
+                            {
+                                <div class="app-menu-popover">
                                     <button type="button" @onclick="@(() => NavigateToAsync("parser-lab"))">
                                         <RadzenIcon Icon="schema" />
-                                        <span>Inspect Parsed SQL</span>
+                                        <span>Parser Test Area</span>
                                     </button>
                                     <button type="button" @onclick="@(() => NavigateToAsync("tool-lab"))">
                                         <RadzenIcon Icon="construction" />
