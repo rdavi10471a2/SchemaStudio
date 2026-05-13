@@ -2,6 +2,7 @@
 
 @using Radzen
 @using Radzen.Blazor
+@using Microsoft.AspNetCore.Components.Web
 @using SchemaStudio.AIHelpers
 @using SchemaStudio.Data.Models
 @using SchemaStudio.Data.Repositories
@@ -23,7 +24,11 @@
 
 <PageTitle>Domain Object Editor</PageTitle>
 
-<section class="cte-workbench">
+<section class="@WorkbenchClass"
+         style="@WorkbenchStyle"
+         @onpointermove="@ResizePane"
+         @onpointerup="@EndPaneResize"
+         @onpointerleave="@EndPaneResize">
     <div class="cte-workbench__header">
         <div class="cte-workbench__title">
             <h1>Domain Object Editor</h1>
@@ -150,6 +155,11 @@
                     </div>
                 </section>
 
+                <button type="button"
+                        class="cte-vertical-splitter"
+                        title="Resize object path"
+                        @onpointerdown="@(args => BeginPaneResize(ResizeTarget.OutputFields, args))"></button>
+
                 <section class="cte-block cte-relationship">
                     <div class="cte-block__header">
                         <h2>Object Path</h2>
@@ -200,6 +210,11 @@
 
         @if (!IsInspectorCollapsed)
         {
+            <button type="button"
+                    class="cte-horizontal-splitter"
+                    title="Resize referenced objects"
+                    @onpointerdown="@(args => BeginPaneResize(ResizeTarget.Inspector, args))"></button>
+
             <aside class="cte-inspector">
                 <div class="cte-block__header">
                     <h2>Referenced Objects</h2>
@@ -260,6 +275,29 @@
     private string ActivePrimaryTab { get; set; } = "build";
     private int SourceObjectTabIndex { get; set; }
     private CteSelectionSessionEditor Session { get; set; } = default!;
+    private ResizeTarget? ActiveResizeTarget { get; set; }
+    private double ResizeStartX { get; set; }
+    private double ResizeStartY { get; set; }
+    private int ResizeStartSize { get; set; }
+    private int InspectorWidth { get; set; } = 560;
+    private int OutputFieldsHeight { get; set; } = 430;
+
+    private const int InspectorMinWidth = 320;
+    private const int InspectorMaxWidth = 900;
+    private const int OutputFieldsMinHeight = 220;
+    private const int OutputFieldsMaxHeight = 720;
+
+    private enum ResizeTarget
+    {
+        Inspector,
+        OutputFields
+    }
+
+    private string WorkbenchClass =>
+        ActiveResizeTarget is null ? "cte-workbench" : "cte-workbench cte-resizing";
+
+    private string WorkbenchStyle =>
+        $"--cte-inspector-width: {InspectorWidth}px; --cte-output-height: {OutputFieldsHeight}px;";
 
     protected override async Task OnInitializedAsync()
     {
@@ -488,13 +526,13 @@
         builder.AddAttribute(5, "Text", "Validate");
         builder.AddAttribute(6, "Icon", "rule");
         builder.AddAttribute(7, "ButtonStyle", ButtonStyle.Light);
-        builder.AddAttribute(8, "Click", EventCallback.Factory.Create(this, () => ValidateResultSql(tab, label)));
+        builder.AddAttribute(8, "Click", EventCallback.Factory.Create<MouseEventArgs>(this, _ => ValidateResultSql(tab, label)));
         builder.CloseComponent();
         builder.OpenComponent<RadzenButton>(9);
         builder.AddAttribute(10, "Text", "Copy");
         builder.AddAttribute(11, "Icon", "content_copy");
         builder.AddAttribute(12, "ButtonStyle", ButtonStyle.Light);
-        builder.AddAttribute(13, "Click", EventCallback.Factory.Create(this, () => CopySqlAsync(tab, label)));
+        builder.AddAttribute(13, "Click", EventCallback.Factory.Create<MouseEventArgs>(this, _ => CopySqlAsync(tab, label)));
         builder.CloseComponent();
         builder.CloseElement();
         builder.OpenElement(14, "label");
@@ -535,6 +573,45 @@
     private void ToggleInspector() => IsInspectorCollapsed = !IsInspectorCollapsed;
 
     private void OnSourceObjectTabChanged(int index) => SourceObjectTabIndex = index;
+
+    private void BeginPaneResize(ResizeTarget target, PointerEventArgs args)
+    {
+        ActiveResizeTarget = target;
+        ResizeStartX = args.ClientX;
+        ResizeStartY = args.ClientY;
+        ResizeStartSize = target switch
+        {
+            ResizeTarget.Inspector => InspectorWidth,
+            ResizeTarget.OutputFields => OutputFieldsHeight,
+            _ => 0
+        };
+    }
+
+    private void ResizePane(PointerEventArgs args)
+    {
+        if (ActiveResizeTarget is null)
+        {
+            return;
+        }
+
+        var horizontalDelta = (int)Math.Round(args.ClientX - ResizeStartX);
+        var verticalDelta = (int)Math.Round(args.ClientY - ResizeStartY);
+
+        switch (ActiveResizeTarget)
+        {
+            case ResizeTarget.Inspector:
+                InspectorWidth = Math.Clamp(ResizeStartSize - horizontalDelta, InspectorMinWidth, InspectorMaxWidth);
+                break;
+            case ResizeTarget.OutputFields:
+                OutputFieldsHeight = Math.Clamp(ResizeStartSize + verticalDelta, OutputFieldsMinHeight, OutputFieldsMaxHeight);
+                break;
+        }
+    }
+
+    private void EndPaneResize()
+    {
+        ActiveResizeTarget = null;
+    }
 
     private void TogglePathSelection(CtePathRowEditor row)
     {
