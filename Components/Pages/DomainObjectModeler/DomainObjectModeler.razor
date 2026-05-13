@@ -161,15 +161,15 @@
                             <label class="dom-field">
                                 @HelpLabel("Target Schema", "Schema for the generated CREATE OR ALTER VIEW statement.")
                                 <input class="dom-native-input"
-                                       value="@TargetSchema"
-                                       @oninput="OnTargetSchemaInput"
+                                       @bind-value="TargetSchema"
+                                       @bind-value:event="oninput"
                                        maxlength="128" />
                             </label>
                             <label class="dom-field">
                                 @HelpLabel("View Name", "Name of the composed domain object view generated from the selected base views.")
                                 <input class="dom-native-input"
-                                       value="@TargetViewName"
-                                       @oninput="OnTargetViewNameInput"
+                                       @bind-value="TargetViewName"
+                                       @bind-value:event="oninput"
                                        maxlength="256" />
                             </label>
                         </div>

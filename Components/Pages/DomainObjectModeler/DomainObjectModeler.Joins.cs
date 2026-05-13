@@ -11,18 +11,6 @@ namespace SchemaStudioWebViewer.Components.Pages.DomainObjectModeler;
 
 public partial class DomainObjectModeler
 {
-    private void OnTargetSchemaInput(ChangeEventArgs args)
-    {
-        TargetSchema = args.Value?.ToString() ?? string.Empty;
-        GeneratedSql = string.Empty;
-    }
-
-    private void OnTargetViewNameInput(ChangeEventArgs args)
-    {
-        TargetViewName = args.Value?.ToString() ?? string.Empty;
-        GeneratedSql = string.Empty;
-    }
-
     private void OnAliasInput(DomainBaseViewItem item, ChangeEventArgs args)
     {
         OnAliasChanged(item, args.Value?.ToString());
