@@ -75,6 +75,7 @@ public partial class DomainObjectModeler
             builder.AppendLine(";");
 
             GeneratedSql = builder.ToString();
+            GeneratedSqlVersion++;
             ShouldHighlightSql = true;
             StatusMessage = StripSourceComments
                 ? "Generated SQL with internal source comments removed."

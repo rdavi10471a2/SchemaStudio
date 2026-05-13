@@ -58,6 +58,7 @@ public partial class DomainObjectModeler
     private string TargetSchema = DefaultTargetSchema;
     private string TargetViewName = string.Empty;
     private string GeneratedSql = string.Empty;
+    private int GeneratedSqlVersion;
     private string StatusMessage = "Select a database and domain to begin.";
     private string LoadError = string.Empty;
     private bool IsBusy;
