@@ -268,32 +268,32 @@
                             {
                                 <div class="app-menu-popover">
                                     <button type="button" @onclick="@(() => NavigateToAsync("manage-databases"))">
-                                    <RadzenIcon Icon="database" />
-                                    <span>Manage Databases</span>
-                                    </button>
-                                    <button type="button" @onclick="@(() => NavigateToAsync("manage-views"))">
-                                    <RadzenIcon Icon="view_column" />
-                                    <span>Manage Views</span>
-                                    </button>
-                                    <button type="button" @onclick="@(() => NavigateToAsync("parser-lab"))">
-                                    <RadzenIcon Icon="schema" />
-                                    <span>Parser Test Area</span>
-                                    </button>
-                                    <button type="button" @onclick="@(() => NavigateToAsync("tool-lab"))">
-                                    <RadzenIcon Icon="construction" />
-                                    <span>Tool Lab</span>
+                                        <RadzenIcon Icon="database" />
+                                        <span>Configure Databases</span>
                                     </button>
                                     <button type="button" @onclick="@(() => NavigateToAsync("base-view-creator"))">
-                                    <RadzenIcon Icon="account_tree" />
-                                    <span>Base View Creator</span>
+                                        <RadzenIcon Icon="account_tree" />
+                                        <span>Create Base Views</span>
                                     </button>
                                     <button type="button" @onclick="@(() => NavigateToAsync("domain-object-modeler"))">
-                                    <RadzenIcon Icon="hub" />
-                                    <span>Domain Object Modeler</span>
+                                        <RadzenIcon Icon="hub" />
+                                        <span>Compose Domain Objects</span>
                                     </button>
                                     <button type="button" @onclick="@(() => NavigateToAsync("domain-object-editor"))">
-                                    <RadzenIcon Icon="edit_square" />
-                                    <span>Domain Object Editor</span>
+                                        <RadzenIcon Icon="edit_square" />
+                                        <span>Project Domain Objects</span>
+                                    </button>
+                                    <button type="button" @onclick="@(() => NavigateToAsync("manage-views"))">
+                                        <RadzenIcon Icon="view_column" />
+                                        <span>Manage Dictionary</span>
+                                    </button>
+                                    <button type="button" @onclick="@(() => NavigateToAsync("parser-lab"))">
+                                        <RadzenIcon Icon="schema" />
+                                        <span>Inspect Parsed SQL</span>
+                                    </button>
+                                    <button type="button" @onclick="@(() => NavigateToAsync("tool-lab"))">
+                                        <RadzenIcon Icon="construction" />
+                                        <span>Tool Lab</span>
                                     </button>
                                 </div>
                             }
