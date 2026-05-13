@@ -19,7 +19,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.4")]
+@attribute [FileVersion("1.5")]
 @attribute [AIFileContext("Components/Pages/DomainObjectModeler/DomainObjectModeler.razor", "Domain object modeling page that composes an editable domain surface from selected managed base views.", Responsibilities = "Owns the /domain-object-modeler route and renders the database/domain selector, base-view checklist, anchor and alias controls, structured join rows, generated SQL preview, and page-level commands.", Nuances = "This page defines the editable object surface only. Field projection and trimming happen downstream in the domain object editor/projection workflow.", RelatedFiles = "DomainObjectModeler.razor.cs; DomainObjectModeler.Selection.cs; DomainObjectModeler.Joins.cs; DomainObjectModeler.Sql.cs; DomainObjectModeler.Models.cs; DomainObjectModeler.razor.css", LastReviewed = "2026-05-13")]
 
 <PageTitle>Domain Object Modeler</PageTitle>
@@ -207,11 +207,27 @@
                                                     Style="width:100%;" />
                                     @if (AnchorView is not null)
                                     {
-                                        <span class="dom-from-alias">as [@AnchorView.AliasName]</span>
+                                        <label class="dom-alias-field">
+                                            <span>Alias</span>
+                                            <input class="dom-native-input"
+                                                   value="@AnchorView.AliasName"
+                                                   @oninput="@(args => OnAliasInput(AnchorView, args))"
+                                                   maxlength="128" />
+                                        </label>
+                                        <label class="dom-source-mode-field">
+                                            <span>Source</span>
+                                            <RadzenDropDown TValue="string"
+                                                            Data="@CteSourceModes"
+                                                            TextProperty="@nameof(CteSourceModeOption.Text)"
+                                                            ValueProperty="@nameof(CteSourceModeOption.Value)"
+                                                            Value="@AnchorView.CteSourceMode"
+                                                            Change="@(value => OnCteSourceModeChanged(AnchorView, value?.ToString()))"
+                                                            Style="width:100%;" />
+                                        </label>
                                     }
                                 </div>
 
-                                @foreach (var item in SelectedBaseViews)
+                                @foreach (var item in NonAnchorSelectedBaseViews)
                                 {
                                     var row = FindJoinRow(item.SchemaObjectId);
                                     <div class="dom-element-row">
@@ -236,7 +252,7 @@
                                             </label>
                                         </div>
 
-                                        @if (!item.IsAnchor && row is not null)
+                                        @if (row is not null)
                                         {
                                             <div class="dom-element-join">
                                                 <RadzenDropDown TValue="string"
