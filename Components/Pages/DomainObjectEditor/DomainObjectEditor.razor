@@ -35,14 +35,14 @@
             <RadzenIcon Icon="help_outline"
                         class="cte-help-icon"
                         @onclick="@OpenHelpAsync"
-                        MouseEnter="@(args => TooltipService.Open(args, "Select a composed managed view, then project fields and paths from its parsed SQL surface."))" />
+                        MouseEnter="@((ElementReference args) => TooltipService.Open(args, "Select a composed managed view, then project fields and paths from its parsed SQL surface."))" />
         </div>
         <div class="cte-workbench__actions">
             <RadzenButton Text="Reload SQL"
                           Icon="refresh"
                           ButtonStyle="ButtonStyle.Light"
                           Disabled="@(!SelectedObjectId.HasValue || IsBusy)"
-                          Click="@ReloadSelectedViewSqlAsync" />
+                          Click="@((MouseEventArgs _) => ReloadSelectedViewSqlAsync())" />
         </div>
     </div>
 
@@ -50,7 +50,7 @@
         <div class="cte-selector-field">
             <RadzenIcon Icon="info"
                         class="cte-help-icon"
-                        MouseEnter="@(args => TooltipService.Open(args, "Database metadata source used to list domains and composed views."))" />
+                        MouseEnter="@((ElementReference args) => TooltipService.Open(args, "Database metadata source used to list domains and composed views."))" />
             <RadzenDropDown Data="@Databases"
                             TextProperty="@nameof(DatabaseDefinition.DatabaseName)"
                             ValueProperty="@nameof(DatabaseDefinition.DatabaseId)"
@@ -64,7 +64,7 @@
         <div class="cte-selector-field">
             <RadzenIcon Icon="info"
                         class="cte-help-icon"
-                        MouseEnter="@(args => TooltipService.Open(args, "Business domain used to narrow the composed object list."))" />
+                        MouseEnter="@((ElementReference args) => TooltipService.Open(args, "Business domain used to narrow the composed object list."))" />
             <RadzenDropDown Data="@Domains"
                             TextProperty="@nameof(DatabaseDomainDefinition.Domain)"
                             ValueProperty="@nameof(DatabaseDomainDefinition.Domain)"
@@ -78,7 +78,7 @@
         <div class="cte-selector-field cte-selector-field--wide">
             <RadzenIcon Icon="info"
                         class="cte-help-icon"
-                        MouseEnter="@(args => TooltipService.Open(args, "Only composed managed views are listed here. Base views stay in the modeler."))" />
+                        MouseEnter="@((ElementReference args) => TooltipService.Open(args, "Only composed managed views are listed here. Base views stay in the modeler."))" />
             <RadzenDropDown Data="@ComposedViews"
                             TextProperty="@nameof(DomainEditorViewItem.DisplayName)"
                             ValueProperty="@nameof(DomainEditorViewItem.SchemaObjectId)"
@@ -181,7 +181,7 @@
                                                   Icon="@row.ActionIcon"
                                                   ButtonStyle="ButtonStyle.Light"
                                                   Size="ButtonSize.Small"
-                                                  Click="@(() => TogglePathSelection(row))" />
+                                                  Click="@((MouseEventArgs _) => TogglePathSelection(row))" />
                                 </span>
                             </div>
                         }
@@ -221,7 +221,7 @@
                     <RadzenButton Icon="chevron_right"
                                   ButtonStyle="ButtonStyle.Light"
                                   Size="ButtonSize.Small"
-                                  Click="@ToggleInspector" />
+                                  Click="@((MouseEventArgs _) => ToggleInspector())" />
                 </div>
                 <RadzenTabs @key="Session.OutputGeneration" class="cte-with-tabs" SelectedIndex="@SourceObjectTabIndex" Change="@OnSourceObjectTabChanged">
                     <Tabs>
@@ -251,7 +251,7 @@
                           Text="Objects"
                           ButtonStyle="ButtonStyle.Light"
                           Size="ButtonSize.Small"
-                          Click="@ToggleInspector" />
+                          Click="@((MouseEventArgs _) => ToggleInspector())" />
         }
     </div>
 </section>
