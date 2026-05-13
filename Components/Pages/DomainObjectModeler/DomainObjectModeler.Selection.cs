@@ -46,6 +46,7 @@ public partial class DomainObjectModeler
         JoinRows.Clear();
         SourceDatabaseRelationships.Clear();
         GeneratedSql = string.Empty;
+        NextSelectionOrdinal = 1;
 
         if (!SelectedDatabaseId.HasValue)
         {
@@ -155,15 +156,47 @@ public partial class DomainObjectModeler
         if (!item.IsSelected)
         {
             item.IsAnchor = false;
+            item.SelectionOrdinal = 0;
             JoinRows.RemoveAll(row => row.SchemaObjectId == item.SchemaObjectId);
         }
-        else if (AnchorView is null)
+        else
         {
-            SetAnchor(item);
+            if (item.SelectionOrdinal == 0)
+            {
+                item.SelectionOrdinal = NextSelectionOrdinal++;
+            }
+
+            if (AnchorView is null)
+            {
+                SetAnchor(item);
+            }
         }
 
         EnsureJoinRows();
     }
+
+    private void MoveSelectedElement(DomainBaseViewItem item, int direction)
+    {
+        var ordered = SelectedBaseViews.ToList();
+        var index = ordered.IndexOf(item);
+        var targetIndex = index + direction;
+        if (index < 0 || targetIndex < 0 || targetIndex >= ordered.Count)
+        {
+            return;
+        }
+
+        (ordered[index], ordered[targetIndex]) = (ordered[targetIndex], ordered[index]);
+        for (var ordinal = 0; ordinal < ordered.Count; ordinal++)
+        {
+            ordered[ordinal].SelectionOrdinal = ordinal + 1;
+        }
+
+        NextSelectionOrdinal = ordered.Count + 1;
+        GeneratedSql = string.Empty;
+    }
+
+    private int GetSelectedElementIndex(DomainBaseViewItem item) =>
+        SelectedBaseViews.ToList().IndexOf(item);
 
     private void SetAnchor(DomainBaseViewItem item)
     {

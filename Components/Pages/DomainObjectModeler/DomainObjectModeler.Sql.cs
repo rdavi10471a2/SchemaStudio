@@ -126,7 +126,7 @@ public partial class DomainObjectModeler
 
         return selected
             .OrderByDescending(item => ReferenceEquals(item, anchor))
-            .ThenBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.SelectionOrdinal)
             .ToList();
     }
 

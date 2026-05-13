@@ -15,6 +15,7 @@ public partial class DomainObjectModeler
     {
         public required SchemaObjectDefinition Source { get; init; }
         public bool IsSelected { get; set; }
+        public int SelectionOrdinal { get; set; }
         public string AliasName { get; set; } = string.Empty;
         public string RelationshipTableName { get; set; } = string.Empty;
         public bool IsAnchor { get; set; }

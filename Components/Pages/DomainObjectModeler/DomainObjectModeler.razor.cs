@@ -61,6 +61,7 @@ public partial class DomainObjectModeler
     private bool IsBusy;
     private bool IsBaseViewPanelHidden;
     private bool StripSourceComments;
+    private int NextSelectionOrdinal = 1;
     private bool ShouldHighlightSql;
     private ResizeTarget? ActiveResizeTarget;
     private double ResizeStartX;
@@ -91,7 +92,11 @@ public partial class DomainObjectModeler
     }
 
     private IReadOnlyList<DomainBaseViewItem> SelectedBaseViews =>
-        BaseViews.Where(item => item.IsSelected).ToList();
+        BaseViews
+            .Where(item => item.IsSelected)
+            .OrderBy(item => item.SelectionOrdinal == 0 ? int.MaxValue : item.SelectionOrdinal)
+            .ThenBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
     private DatabaseDefinition? SelectedDatabase =>
         Databases.FirstOrDefault(database => database.DatabaseId == SelectedDatabaseId);

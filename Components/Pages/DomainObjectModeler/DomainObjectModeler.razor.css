@@ -442,9 +442,39 @@
 
 .dom-element-topline {
     display: grid;
-    grid-template-columns: minmax(120px, 1fr) minmax(130px, 0.75fr) minmax(130px, 0.7fr);
-    align-items: end;
+    grid-template-columns: 32px minmax(120px, 1fr) minmax(130px, 0.75fr) minmax(130px, 0.7fr);
+    align-items: center;
     gap: 0.5rem;
+}
+
+.dom-order-controls {
+    display: grid;
+    gap: 0.2rem;
+}
+
+.dom-icon-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 24px;
+    padding: 0;
+    border: 1px solid #d8dde6;
+    border-radius: 4px;
+    background: #ffffff;
+    color: #27364a;
+    cursor: pointer;
+}
+
+.dom-icon-button:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+::deep .dom-icon-button .rz-button-icon-left,
+::deep .dom-icon-button .rzi {
+    margin: 0;
+    font-size: 1rem;
 }
 
 .dom-alias-field,

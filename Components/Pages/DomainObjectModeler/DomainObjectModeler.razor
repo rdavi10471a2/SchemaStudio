@@ -19,7 +19,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.5")]
+@attribute [FileVersion("1.6")]
 @attribute [AIFileContext("Components/Pages/DomainObjectModeler/DomainObjectModeler.razor", "Domain object modeling page that composes an editable domain surface from selected managed base views.", Responsibilities = "Owns the /domain-object-modeler route and renders the database/domain selector, base-view checklist, anchor and alias controls, structured join rows, generated SQL preview, and page-level commands.", Nuances = "This page defines the editable object surface only. Field projection and trimming happen downstream in the domain object editor/projection workflow.", RelatedFiles = "DomainObjectModeler.razor.cs; DomainObjectModeler.Selection.cs; DomainObjectModeler.Joins.cs; DomainObjectModeler.Sql.cs; DomainObjectModeler.Models.cs; DomainObjectModeler.razor.css", LastReviewed = "2026-05-13")]
 
 <PageTitle>Domain Object Modeler</PageTitle>
@@ -232,6 +232,24 @@
                                     var row = FindJoinRow(item.SchemaObjectId);
                                     <div class="dom-element-row">
                                         <div class="dom-element-topline">
+                                            <div class="dom-order-controls">
+                                                <button type="button"
+                                                        class="dom-icon-button"
+                                                        title="Move up"
+                                                        aria-label="Move up"
+                                                        @onclick="@(args => MoveSelectedElement(item, -1))"
+                                                        disabled="@(GetSelectedElementIndex(item) <= 1)">
+                                                    <RadzenIcon Icon="keyboard_arrow_up" />
+                                                </button>
+                                                <button type="button"
+                                                        class="dom-icon-button"
+                                                        title="Move down"
+                                                        aria-label="Move down"
+                                                        @onclick="@(args => MoveSelectedElement(item, 1))"
+                                                        disabled="@(GetSelectedElementIndex(item) >= SelectedBaseViews.Count - 1)">
+                                                    <RadzenIcon Icon="keyboard_arrow_down" />
+                                                </button>
+                                            </div>
                                             <span class="dom-source-name" title="@item.SourceFullName">@item.DisplayName</span>
                                             <label class="dom-alias-field">
                                                 <span>Alias</span>
