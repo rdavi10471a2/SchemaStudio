@@ -130,9 +130,10 @@ public partial class DomainObjectModeler
 
             await LoadSourceDatabaseRelationshipsAsync();
 
-            TargetViewName = string.IsNullOrWhiteSpace(SelectedDomain)
-                ? TargetViewName
-                : $"v{SanitizeIdentifierToken(SelectedDomain)}EditableObject";
+            if (string.IsNullOrWhiteSpace(TargetViewName))
+            {
+                TargetViewName = GetConfiguredViewNamePrefix();
+            }
 
             StatusMessage = BaseViews.Count == 0
                 ? $"No active base views are registered for {SelectedDomain}."
@@ -407,6 +408,27 @@ public partial class DomainObjectModeler
 
         var prefix = viewNameFilter.Trim().TrimEnd('%');
         return prefix;
+    }
+
+    private string GetConfiguredViewNamePrefix() =>
+        NormalizeViewNamePrefix(SelectedDatabase?.ViewNameFilter);
+
+    private void EnsureTargetViewNamePrefix()
+    {
+        var prefix = GetConfiguredViewNamePrefix();
+        if (string.IsNullOrWhiteSpace(prefix) || string.IsNullOrWhiteSpace(TargetViewName))
+        {
+            return;
+        }
+
+        var trimmed = TargetViewName.Trim();
+        if (trimmed.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            TargetViewName = trimmed;
+            return;
+        }
+
+        TargetViewName = $"{prefix}{trimmed.TrimStart('_')}";
     }
 }
 

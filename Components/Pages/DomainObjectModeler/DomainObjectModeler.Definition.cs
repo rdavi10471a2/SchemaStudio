@@ -28,6 +28,7 @@ public partial class DomainObjectModeler
     private async Task SaveViewDefinitionAsync()
     {
         await SyncTargetInputsAsync();
+        EnsureTargetViewNamePrefix();
 
         if (!CanSaveViewDefinition)
         {

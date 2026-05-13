@@ -16,6 +16,7 @@ public partial class DomainObjectModeler
     private async Task GenerateSqlAsync()
     {
         await SyncTargetInputsAsync();
+        EnsureTargetViewNamePrefix();
 
         if (!CanGenerate)
         {

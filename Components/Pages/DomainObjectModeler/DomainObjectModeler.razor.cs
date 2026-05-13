@@ -61,6 +61,7 @@ public partial class DomainObjectModeler
     private bool IsBusy;
     private bool IsBaseViewPanelHidden;
     private bool StripSourceComments;
+    private bool IsCompositionJsonVisible;
     private int NextSelectionOrdinal = 1;
     private bool ShouldHighlightSql;
     private ResizeTarget? ActiveResizeTarget;
@@ -130,9 +131,17 @@ public partial class DomainObjectModeler
     private string ToggleBaseViewPanelText =>
         IsBaseViewPanelHidden ? "Show Base Views" : "Hide Base Views";
 
+    private string ToggleCompositionJsonText =>
+        IsCompositionJsonVisible ? "Hide Definition JSON" : "Show Definition JSON";
+
     private void ToggleBaseViewPanel()
     {
         IsBaseViewPanelHidden = !IsBaseViewPanelHidden;
+    }
+
+    private void ToggleCompositionJson()
+    {
+        IsCompositionJsonVisible = !IsCompositionJsonVisible;
     }
 
     private void BeginPaneResize(ResizeTarget target, PointerEventArgs args)
