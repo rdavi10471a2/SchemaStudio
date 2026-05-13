@@ -11,7 +11,7 @@ using System.Text.Json;
 
 namespace SchemaStudioWebViewer
 {
-    [FileVersion("1.12")]
+    [FileVersion("1.13")]
     [AIChange("1.6", "2026-04-23 01:29 PM CDT registered the source-view repository for the new manage-views workspace so available import candidates can be queried by database and ViewNameFilter.", AICommandStatus.Pending)]
     [AIFileContext("Program.cs", "Bootstraps the SchemaStudioWebViewer web app, initializes configuration, registers services, and maps the Razor and MCP endpoints.")]
     [AIChange("1.5", "2026-04-22 06:20 PM CDT registered SQL Server dependency metadata repository for ParserLab where-used lookups.", AICommandStatus.Pending)]
@@ -71,6 +71,8 @@ namespace SchemaStudioWebViewer
                 new DatabaseDomainRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
             builder.Services.AddScoped(_ =>
                 new SourceViewRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
+            builder.Services.AddScoped(_ =>
+                new ReadOnlyViewDefinitionRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
             // 2026-04-22 04:27 PM CDT AI v1.4 data-layer marker: register async schema object repositories for the imported object metadata layer.
             builder.Services.AddScoped(_ =>
                 new SchemaObjectRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));

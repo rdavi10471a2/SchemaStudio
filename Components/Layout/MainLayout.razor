@@ -10,7 +10,7 @@
 @inject DialogService DialogService
 @inject IJSRuntime JSRuntime
 
-@attribute [FileVersion("1.26")]
+@attribute [FileVersion("1.27")]
 @attribute [AIChange(
     "1.14",
     "2026-05-01 09:20 AM CDT replaced native details menus with explicit Blazor menu state so commands close dropdowns and navigate without route flicker.",
@@ -283,13 +283,13 @@
                                     <RadzenIcon Icon="construction" />
                                     <span>Tool Lab</span>
                                     </button>
-                                    <button type="button" @onclick="@(() => NavigateToAsync("base-view-generator"))">
-                                    <RadzenIcon Icon="table_view" />
-                                    <span>Base View Generator</span>
-                                    </button>
                                     <button type="button" @onclick="@(() => NavigateToAsync("base-view-creator"))">
                                     <RadzenIcon Icon="account_tree" />
                                     <span>Base View Creator</span>
+                                    </button>
+                                    <button type="button" @onclick="@(() => NavigateToAsync("domain-object-modeler"))">
+                                    <RadzenIcon Icon="hub" />
+                                    <span>Domain Object Modeler</span>
                                     </button>
                                 </div>
                             }

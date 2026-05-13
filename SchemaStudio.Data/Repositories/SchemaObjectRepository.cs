@@ -41,6 +41,46 @@ ORDER BY SourceSchemaName, SourceObjectName;
         }
     }
 
+    public async Task<IReadOnlyList<SchemaObjectDefinition>> GetBaseObjectsByDatabaseAndDomainAsync(
+        int databaseId,
+        string domain)
+    {
+        await using (var connection = new SqlConnection(_connectionString))
+        {
+            const string sql = """
+SELECT
+    SchemaObjectId,
+    DatabaseId,
+    SourceDatabaseName,
+    SourceSchemaName,
+    SourceObjectName,
+    IsBaseObject,
+    Domain,
+    BusinessName,
+    BusinessDescription,
+    DeveloperNotes,
+    IsActive,
+    LastSynced
+FROM dbo.SchemaObject
+WHERE DatabaseId = @databaseId
+  AND IsBaseObject = 1
+  AND IsActive = 1
+  AND ISNULL(Domain, '') = @domain
+ORDER BY SourceSchemaName, SourceObjectName;
+""";
+
+            var rows = await connection.QueryAsync<SchemaObjectDefinition>(
+                sql,
+                new
+                {
+                    databaseId,
+                    domain = domain?.Trim() ?? string.Empty
+                });
+
+            return rows.Select(ClearDirty).ToList();
+        }
+    }
+
     public async Task<SchemaObjectDefinition?> GetByIdAsync(int schemaObjectId)
     {
         await using (var connection = new SqlConnection(_connectionString))
