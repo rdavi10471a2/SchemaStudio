@@ -27,7 +27,7 @@ public partial class DomainObjectModeler
         try
         {
             var anchor = AnchorView!;
-            var selected = SelectedBaseViews.ToList();
+            var selected = GetAnchorFirstSelectedBaseViews();
             var builder = new StringBuilder();
 
             builder.AppendLine($"CREATE OR ALTER VIEW {QualifiedName(TargetSchema, TargetViewName)}");
@@ -97,6 +97,21 @@ public partial class DomainObjectModeler
         {
             IsBusy = false;
         }
+    }
+
+    private List<DomainBaseViewItem> GetAnchorFirstSelectedBaseViews()
+    {
+        var selected = SelectedBaseViews.ToList();
+        var anchor = AnchorView;
+        if (anchor is null)
+        {
+            return selected;
+        }
+
+        return selected
+            .OrderByDescending(item => ReferenceEquals(item, anchor))
+            .ThenBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private async Task<IReadOnlyList<string>> BuildFinalProjectionLinesAsync(IReadOnlyList<DomainBaseViewItem> selected)
