@@ -8,7 +8,7 @@
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("1.4")]
+@attribute [FileVersion("1.5")]
 @attribute [AIFileContext("Components/Pages/ManageDatabases/DatabaseRelationshipsPanel.razor", "Manage Databases child panel for the curated database relationship registry.", Responsibilities = "Loads source tables, imports source-system foreign-key relationships into dbo.DatabaseRelationships, and displays the registry rows that touch the selected table.", Nuances = "The panel does not create metadata tables; database DDL stays in human-run scripts.", LastReviewed = "2026-05-13")]
 
 <RadzenStack Gap="0.75rem" class="relationships-panel">
@@ -94,78 +94,189 @@
             <RadzenProgressBar Mode="ProgressBarMode.Indeterminate" />
         }
 
-        <RadzenDataGrid Data="@relationships"
-                        TItem="DatabaseRelationshipDefinition"
-                        AllowFiltering="true"
-                        AllowSorting="true"
-                        AllowPaging="true"
-                        PageSize="12"
-                        SelectionMode="DataGridSelectionMode.Single"
-                        @bind-Value="@selectedRelationships"
-                        RowSelect="@SelectRelationship"
-                        class="relationships-grid">
-            <Columns>
-                <RadzenDataGridColumn TItem="DatabaseRelationshipDefinition" Title="Direction" Width="130px">
-                    <Template Context="relationship">
-                        <span class="relationship-chip">@DirectionFor(relationship)</span>
-                    </Template>
-                </RadzenDataGridColumn>
-                <RadzenDataGridColumn TItem="DatabaseRelationshipDefinition" Property="RelationshipRole" Title="Role" Width="140px" />
-                <RadzenDataGridColumn TItem="DatabaseRelationshipDefinition" Property="RelationshipName" Title="Name" Width="220px" />
-                <RadzenDataGridColumn TItem="DatabaseRelationshipDefinition" Property="SourceObject" Title="Source" Width="220px" />
-                <RadzenDataGridColumn TItem="DatabaseRelationshipDefinition" Property="TargetObject" Title="Target" Width="220px" />
-                <RadzenDataGridColumn TItem="DatabaseRelationshipDefinition" Property="ColumnSummary" Title="Join Expression" />
-                <RadzenDataGridColumn TItem="DatabaseRelationshipDefinition" Title="Use" Width="190px">
-                    <Template Context="relationship">
-                        <RadzenStack Gap="0.1rem">
-                            <span>@(relationship.DefaultIncludeInBaseView ? "base default" : "base optional")</span>
-                            <span>@(relationship.UseInDomainObjectModeler ? "modeler" : "no modeler") / @(relationship.UseInQueryBuilder ? "query" : "no query")</span>
-                        </RadzenStack>
-                    </Template>
-                </RadzenDataGridColumn>
-                <RadzenDataGridColumn TItem="DatabaseRelationshipDefinition" Property="Active" Title="Active" Width="90px">
-                    <Template Context="relationship">
-                        <RadzenCheckBox Value="@relationship.Active" Disabled="true" />
-                    </Template>
-                </RadzenDataGridColumn>
-            </Columns>
-        </RadzenDataGrid>
-
-        @if (selectedRelationship is not null)
-        {
-            <RadzenCard class="relationship-detail rz-p-3">
-                <RadzenStack Gap="0.55rem">
-                    <RadzenStack Orientation="Orientation.Horizontal"
-                                 AlignItems="AlignItems.Center"
-                                 JustifyContent="JustifyContent.SpaceBetween"
-                                 Gap="1rem">
-                        <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0">Selected Relationship</RadzenText>
-                        <span class="relationship-chip">@DirectionFor(selectedRelationship)</span>
-                    </RadzenStack>
-
-                    <div class="relationship-detail-grid">
-                        <div>
-                            <span class="relationship-detail-label">Source</span>
-                            <strong>@selectedRelationship.SourceObject</strong>
-                        </div>
-                        <div>
-                            <span class="relationship-detail-label">Target</span>
-                            <strong>@selectedRelationship.TargetObject</strong>
-                        </div>
-                        <div>
-                            <span class="relationship-detail-label">Role</span>
-                            <strong>@selectedRelationship.RelationshipRole</strong>
-                        </div>
-                        <div>
-                            <span class="relationship-detail-label">Join</span>
-                            <strong>@selectedRelationship.JoinType</strong>
-                        </div>
+        <div class="relationships-workspace">
+            <section class="relationship-list-pane">
+                <div class="relationship-pane-header">
+                    <div>
+                        <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0">Relationships</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Caption" Style="color:#667085;">@relationships.Count touching @selectedTableName</RadzenText>
                     </div>
+                    <RadzenButton Icon="add"
+                                  Text="New"
+                                  Size="ButtonSize.Small"
+                                  ButtonStyle="ButtonStyle.Light"
+                                  Click="@NewRelationship"
+                                  Disabled="@(Database is null || string.IsNullOrWhiteSpace(selectedTableName))" />
+                </div>
 
-                    <pre class="relationship-columns">@selectedRelationship.ColumnSummary</pre>
-                </RadzenStack>
-            </RadzenCard>
-        }
+                <div class="relationship-list">
+                    @if (relationships.Count == 0)
+                    {
+                        <div class="relationship-empty">No relationships loaded for this table.</div>
+                    }
+                    else
+                    {
+                        @foreach (var relationship in relationships)
+                        {
+                            <button type="button"
+                                    class="@RelationshipRowClass(relationship)"
+                                    @onclick="@(() => SelectRelationship(relationship))">
+                                <span class="relationship-chip">@DirectionFor(relationship)</span>
+                                <strong>@RelationshipTitle(relationship)</strong>
+                                <code>@relationship.JoinType @relationship.TargetObject</code>
+                                <span>@relationship.ColumnSummary</span>
+                            </button>
+                        }
+                    }
+                </div>
+            </section>
+
+            <section class="relationship-edit-pane">
+                <div class="relationship-pane-header">
+                    <div>
+                        <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0">Edit Relationship</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Caption" Style="color:#667085;">Join text is the source of truth; column pairs are supporting metadata.</RadzenText>
+                    </div>
+                    @if (selectedRelationship is not null)
+                    {
+                        <span class="relationship-chip">@DirectionFor(selectedRelationship)</span>
+                    }
+                </div>
+
+                @if (editRelationship is null)
+                {
+                    <div class="relationship-empty relationship-edit-empty">Select or create a relationship.</div>
+                }
+                else
+                {
+                    <RadzenTemplateForm TItem="DatabaseRelationshipDefinition"
+                                        Data="@editRelationship"
+                                        Submit="@SaveRelationshipAsync">
+                        <DataAnnotationsValidator />
+
+                        <div class="relationship-edit-grid">
+                            <label>
+                                <span class="relationship-field-label">Role</span>
+                                <RadzenDropDown TValue="string"
+                                                Data="@relationshipRoles"
+                                                @bind-Value="@editRelationship.RelationshipRole"
+                                                Style="width:100%;" />
+                            </label>
+                            <label>
+                                <span class="relationship-field-label">Join Type</span>
+                                <RadzenDropDown TValue="string"
+                                                Data="@joinTypes"
+                                                @bind-Value="@editRelationship.JoinType"
+                                                Style="width:100%;" />
+                            </label>
+                            <label class="relationship-wide">
+                                <span class="relationship-field-label">Name</span>
+                                <RadzenTextBox @bind-Value="@editRelationship.RelationshipName"
+                                               Style="width:100%;"
+                                               MaxLength="128" />
+                            </label>
+
+                            <label>
+                                <span class="relationship-field-label">Source Schema</span>
+                                <RadzenTextBox @bind-Value="@editRelationship.SourceSchemaName"
+                                               Style="width:100%;"
+                                               MaxLength="128" />
+                            </label>
+                            <label>
+                                <span class="relationship-field-label">Source Table</span>
+                                <RadzenTextBox @bind-Value="@editRelationship.SourceTableName"
+                                               Style="width:100%;"
+                                               MaxLength="128" />
+                            </label>
+                            <label>
+                                <span class="relationship-field-label">Target Schema</span>
+                                <RadzenTextBox @bind-Value="@editRelationship.TargetSchemaName"
+                                               Style="width:100%;"
+                                               MaxLength="128" />
+                            </label>
+                            <label>
+                                <span class="relationship-field-label">Target Table</span>
+                                <RadzenTextBox @bind-Value="@editRelationship.TargetTableName"
+                                               Style="width:100%;"
+                                               MaxLength="128" />
+                            </label>
+
+                            <label class="relationship-wide relationship-join-editor">
+                                <span class="relationship-field-label">ON Clause</span>
+                                <RadzenTextArea @bind-Value="@editRelationship.JoinExpression"
+                                                Style="width:100%;"
+                                                Rows="5"
+                                                MaxLength="2000" />
+                            </label>
+
+                            <label>
+                                <span class="relationship-field-label">Display Column</span>
+                                <RadzenDropDown TValue="string"
+                                                Data="@targetColumnOptions"
+                                                @bind-Value="@editRelationship.DisplayColumnName"
+                                                Open="@LoadTargetColumnOptionsAsync"
+                                                AllowClear="true"
+                                                AllowFiltering="true"
+                                                FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                                                Placeholder="Load on open"
+                                                Style="width:100%;" />
+                            </label>
+                            <label>
+                                <span class="relationship-field-label">Filter Column</span>
+                                <RadzenDropDown TValue="string"
+                                                Data="@targetColumnOptions"
+                                                @bind-Value="@editRelationship.FilterColumnName"
+                                                Open="@LoadTargetColumnOptionsAsync"
+                                                AllowClear="true"
+                                                AllowFiltering="true"
+                                                FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                                                Placeholder="Load on open"
+                                                Style="width:100%;" />
+                            </label>
+                            <label>
+                                <span class="relationship-field-label">Filter Value</span>
+                                <RadzenTextBox @bind-Value="@editRelationship.FilterValue"
+                                               Style="width:100%;"
+                                               MaxLength="128" />
+                            </label>
+
+                            <label class="relationship-wide">
+                                <span class="relationship-field-label">Developer Notes</span>
+                                <RadzenTextArea @bind-Value="@editRelationship.DeveloperNotes"
+                                                Style="width:100%;"
+                                                Rows="3"
+                                                MaxLength="1000" />
+                            </label>
+                        </div>
+
+                        <div class="relationship-switches">
+                            <label><RadzenCheckBox @bind-Value="@editRelationship.UserConfirmed" /> User confirmed</label>
+                            <label><RadzenCheckBox @bind-Value="@editRelationship.DefaultIncludeInBaseView" /> Include in base view by default</label>
+                            <label><RadzenCheckBox @bind-Value="@editRelationship.UseInDomainObjectModeler" /> Use in modeler</label>
+                            <label><RadzenCheckBox @bind-Value="@editRelationship.UseInQueryBuilder" /> Use in query builder</label>
+                            <label><RadzenCheckBox @bind-Value="@editRelationship.Active" /> Active</label>
+                        </div>
+
+                        <div class="relationship-actions">
+                            <RadzenButton Icon="refresh"
+                                          Text="Reset"
+                                          ButtonStyle="ButtonStyle.Light"
+                                          Click="@ResetRelationshipEdit"
+                                          Disabled="@(selectedRelationship is null)" />
+                            <RadzenButton Icon="delete"
+                                          Text="Delete"
+                                          ButtonStyle="ButtonStyle.Danger"
+                                          Click="@DeleteRelationshipAsync"
+                                          Disabled="@(selectedRelationship is null || selectedRelationship.DatabaseRelationshipId == 0)" />
+                            <RadzenButton Icon="save"
+                                          Text="Save Relationship"
+                                          ButtonType="ButtonType.Submit"
+                                          ButtonStyle="ButtonStyle.Primary" />
+                        </div>
+                    </RadzenTemplateForm>
+                }
+            </section>
+        </div>
     }
 </RadzenStack>
 
@@ -180,9 +291,16 @@
     private List<DatabaseRelationshipDefinition> relationships = new();
     private IList<DatabaseRelationshipDefinition> selectedRelationships = new List<DatabaseRelationshipDefinition>();
     private DatabaseRelationshipDefinition? selectedRelationship;
+    private DatabaseRelationshipDefinition? editRelationship;
+    private List<string> targetColumnOptions = new();
+    private string targetColumnOptionsKey = "";
     private bool isLoading;
     private string statusText = "";
     private AlertStyle statusStyle = AlertStyle.Info;
+
+    private static readonly string[] relationshipRoles = ["Lookup", "ParentReference", "Detail", "DomainJoin", "Ignore"];
+    private static readonly string[] joinTypes = ["LEFT JOIN", "INNER JOIN", "LEFT OUTER JOIN", "JOIN"];
+    private static readonly Dictionary<int, RelationshipPanelState> stateByDatabaseId = new();
 
     private bool CanImport =>
         Database is not null &&
@@ -196,6 +314,10 @@
             loadedDatabaseId = null;
             tables.Clear();
             relationships.Clear();
+            selectedTableName = "";
+            selectedRelationship = null;
+            selectedRelationships.Clear();
+            editRelationship = null;
             return;
         }
 
@@ -209,6 +331,16 @@
         selectedTableName = "";
         selectedRelationship = null;
         selectedRelationships.Clear();
+        editRelationship = null;
+        targetColumnOptions.Clear();
+        targetColumnOptionsKey = "";
+
+        if (stateByDatabaseId.TryGetValue(Database.DatabaseId, out var cachedState))
+        {
+            RestoreState(cachedState);
+            return;
+        }
+
         await LoadTablesAsync();
     }
 
@@ -247,12 +379,16 @@
             }
 
             await LoadRelationshipsAsync(setLoading: false);
+            CacheState();
             SetStatus($"Loaded {tables.Count} table(s) for {Database.DatabaseName}.{schemaName}.", AlertStyle.Info);
         }
         catch (Exception ex)
         {
             tables.Clear();
             relationships.Clear();
+            selectedRelationship = null;
+            selectedRelationships.Clear();
+            editRelationship = null;
             SetStatus(FriendlyError(ex), AlertStyle.Danger);
         }
         finally
@@ -273,6 +409,8 @@
             relationships.Clear();
             selectedRelationship = null;
             selectedRelationships.Clear();
+            editRelationship = null;
+            CacheState();
             return;
         }
 
@@ -293,17 +431,23 @@
             selectedRelationships = selectedRelationship is null
                 ? new List<DatabaseRelationshipDefinition>()
                 : new List<DatabaseRelationshipDefinition> { selectedRelationship };
+            editRelationship = selectedRelationship is null ? null : CloneRelationship(selectedRelationship);
+            targetColumnOptions.Clear();
+            targetColumnOptionsKey = "";
 
             if (setLoading)
             {
                 SetStatus($"Loaded {relationships.Count} relationship(s) touching {selectedTableName}.", AlertStyle.Info);
             }
+            CacheState();
         }
         catch (Exception ex)
         {
             relationships.Clear();
             selectedRelationship = null;
             selectedRelationships.Clear();
+            editRelationship = null;
+            CacheState();
             SetStatus(FriendlyError(ex), AlertStyle.Danger);
         }
         finally
@@ -376,6 +520,133 @@
     private void SelectRelationship(DatabaseRelationshipDefinition relationship)
     {
         selectedRelationship = relationship;
+        selectedRelationships = new List<DatabaseRelationshipDefinition> { relationship };
+        editRelationship = CloneRelationship(relationship);
+        targetColumnOptions.Clear();
+        targetColumnOptionsKey = "";
+        CacheState();
+    }
+
+    private void NewRelationship()
+    {
+        if (Database is null)
+        {
+            return;
+        }
+
+        selectedRelationship = null;
+        selectedRelationships.Clear();
+        editRelationship = new DatabaseRelationshipDefinition
+        {
+            DatabaseId = Database.DatabaseId,
+            SourceSchemaName = schemaName.Trim(),
+            SourceTableName = selectedTableName.Trim(),
+            TargetSchemaName = schemaName.Trim(),
+            TargetTableName = "",
+            JoinType = "LEFT JOIN",
+            RelationshipRole = "Lookup",
+            JoinExpression = "",
+            UseInDomainObjectModeler = true,
+            UseInQueryBuilder = true,
+            Active = true
+        };
+        targetColumnOptions.Clear();
+        targetColumnOptionsKey = "";
+    }
+
+    private async Task SaveRelationshipAsync()
+    {
+        if (Database is null || editRelationship is null)
+        {
+            return;
+        }
+
+        try
+        {
+            editRelationship.DatabaseId = Database.DatabaseId;
+            await RelationshipRepository.UpsertAsync(editRelationship);
+            await LoadRelationshipsAsync(setLoading: false);
+            selectedRelationship = relationships.FirstOrDefault(relationship =>
+                relationship.DatabaseRelationshipId == editRelationship.DatabaseRelationshipId);
+            if (selectedRelationship is not null)
+            {
+                selectedRelationships = new List<DatabaseRelationshipDefinition> { selectedRelationship };
+                editRelationship = CloneRelationship(selectedRelationship);
+            }
+
+            CacheState();
+            SetStatus($"Saved relationship {RelationshipTitle(editRelationship)}.", AlertStyle.Success);
+            Notify(NotificationSeverity.Success, "Relationship saved.");
+        }
+        catch (Exception ex)
+        {
+            SetStatus(FriendlyError(ex), AlertStyle.Danger);
+            Notify(NotificationSeverity.Error, FriendlyError(ex));
+        }
+    }
+
+    private async Task DeleteRelationshipAsync()
+    {
+        if (selectedRelationship is null || selectedRelationship.DatabaseRelationshipId == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            await RelationshipRepository.DeleteAsync(selectedRelationship.DatabaseRelationshipId);
+            await LoadRelationshipsAsync(setLoading: false);
+            CacheState();
+            SetStatus("Deleted relationship.", AlertStyle.Success);
+            Notify(NotificationSeverity.Success, "Relationship deleted.");
+        }
+        catch (Exception ex)
+        {
+            SetStatus(FriendlyError(ex), AlertStyle.Danger);
+            Notify(NotificationSeverity.Error, FriendlyError(ex));
+        }
+    }
+
+    private void ResetRelationshipEdit()
+    {
+        editRelationship = selectedRelationship is null ? null : CloneRelationship(selectedRelationship);
+        targetColumnOptions.Clear();
+        targetColumnOptionsKey = "";
+    }
+
+    private async Task LoadTargetColumnOptionsAsync()
+    {
+        if (Database is null || editRelationship is null ||
+            string.IsNullOrWhiteSpace(editRelationship.TargetSchemaName) ||
+            string.IsNullOrWhiteSpace(editRelationship.TargetTableName))
+        {
+            targetColumnOptions.Clear();
+            targetColumnOptionsKey = "";
+            return;
+        }
+
+        var key = string.Join("|", Database.DatabaseName, editRelationship.TargetSchemaName, editRelationship.TargetTableName);
+        if (string.Equals(targetColumnOptionsKey, key, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        try
+        {
+            var details = await TableSchemaRepository.GetTableDetailsAsync(
+                Database.DatabaseName,
+                editRelationship.TargetSchemaName.Trim(),
+                editRelationship.TargetTableName.Trim(),
+                Database.SQLLookupString);
+            targetColumnOptions = details.Columns.Select(column => column.ColumnName).ToList();
+            targetColumnOptionsKey = key;
+        }
+        catch (Exception ex)
+        {
+            targetColumnOptions.Clear();
+            targetColumnOptionsKey = "";
+            SetStatus(FriendlyError(ex), AlertStyle.Warning);
+        }
     }
 
     private string DirectionFor(DatabaseRelationshipDefinition relationship)
@@ -391,6 +662,92 @@
         }
 
         return "related";
+    }
+
+    private string RelationshipRowClass(DatabaseRelationshipDefinition relationship) =>
+        selectedRelationship?.DatabaseRelationshipId == relationship.DatabaseRelationshipId
+            ? "relationship-row selected"
+            : "relationship-row";
+
+    private static string RelationshipTitle(DatabaseRelationshipDefinition relationship)
+    {
+        if (!string.IsNullOrWhiteSpace(relationship.RelationshipName))
+        {
+            return relationship.RelationshipName;
+        }
+
+        return $"{relationship.SourceTableName} to {relationship.TargetTableName}";
+    }
+
+    private static DatabaseRelationshipDefinition CloneRelationship(DatabaseRelationshipDefinition source) =>
+        new()
+        {
+            DatabaseRelationshipId = source.DatabaseRelationshipId,
+            DatabaseId = source.DatabaseId,
+            SourceSchemaName = source.SourceSchemaName,
+            SourceTableName = source.SourceTableName,
+            TargetSchemaName = source.TargetSchemaName,
+            TargetTableName = source.TargetTableName,
+            JoinType = source.JoinType,
+            JoinExpression = source.JoinExpression,
+            RelationshipRole = source.RelationshipRole,
+            RelationshipName = source.RelationshipName,
+            SourceSystemDetected = source.SourceSystemDetected,
+            UserConfirmed = source.UserConfirmed,
+            DefaultIncludeInBaseView = source.DefaultIncludeInBaseView,
+            UseInDomainObjectModeler = source.UseInDomainObjectModeler,
+            UseInQueryBuilder = source.UseInQueryBuilder,
+            DisplayColumnName = source.DisplayColumnName,
+            FilterColumnName = source.FilterColumnName,
+            FilterValue = source.FilterValue,
+            LegalValues = source.LegalValues,
+            DeveloperNotes = source.DeveloperNotes,
+            Active = source.Active,
+            CreatedOn = source.CreatedOn,
+            UpdatedOn = source.UpdatedOn,
+            Columns = source.Columns
+                .Select(column => new DatabaseRelationshipColumnDefinition
+                {
+                    DatabaseRelationshipColumnId = column.DatabaseRelationshipColumnId,
+                    DatabaseRelationshipId = column.DatabaseRelationshipId,
+                    OrdinalPosition = column.OrdinalPosition,
+                    SourceColumnName = column.SourceColumnName,
+                    TargetColumnName = column.TargetColumnName
+                })
+                .ToList()
+        };
+
+    private void CacheState()
+    {
+        if (Database is null)
+        {
+            return;
+        }
+
+        stateByDatabaseId[Database.DatabaseId] = new RelationshipPanelState(
+            schemaName,
+            selectedTableName,
+            tables.ToList(),
+            relationships.ToList(),
+            selectedRelationship?.DatabaseRelationshipId ?? 0,
+            statusText,
+            statusStyle);
+    }
+
+    private void RestoreState(RelationshipPanelState state)
+    {
+        schemaName = state.SchemaName;
+        selectedTableName = state.SelectedTableName;
+        tables = state.Tables.ToList();
+        relationships = state.Relationships.ToList();
+        selectedRelationship = relationships.FirstOrDefault(relationship =>
+            relationship.DatabaseRelationshipId == state.SelectedRelationshipId);
+        selectedRelationships = selectedRelationship is null
+            ? new List<DatabaseRelationshipDefinition>()
+            : new List<DatabaseRelationshipDefinition> { selectedRelationship };
+        editRelationship = selectedRelationship is null ? null : CloneRelationship(selectedRelationship);
+        statusText = state.StatusText;
+        statusStyle = state.StatusStyle;
     }
 
     private async Task<DatabaseRelationshipDefinition> FromSourceLookupAsync(
@@ -477,4 +834,13 @@
         ex is InvalidOperationException or SqlException
             ? ex.Message
             : $"Unexpected error: {ex.Message}";
+
+    private sealed record RelationshipPanelState(
+        string SchemaName,
+        string SelectedTableName,
+        List<TableSchemaTableInfo> Tables,
+        List<DatabaseRelationshipDefinition> Relationships,
+        int SelectedRelationshipId,
+        string StatusText,
+        AlertStyle StatusStyle);
 }
