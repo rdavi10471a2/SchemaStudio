@@ -268,7 +268,9 @@
 }
 
 .cte-result-view {
+    flex: 1 1 auto;
     gap: 0.45rem;
+    min-height: 0;
 }
 
 .cte-result-actions {
@@ -285,11 +287,11 @@
 
 .cte-with-tabs,
 .cte-with-panel {
+    flex: 1 1 auto;
     min-height: 0;
 }
 
 .cte-with-panel {
-    height: calc(100vh - 240px);
     overflow: auto;
 }
 
@@ -299,7 +301,12 @@
     line-height: 1.45;
     margin: 0;
     padding: 0.65rem;
-    white-space: pre-wrap;
+    min-width: max-content;
+    white-space: pre;
+}
+
+.cte-with-panel span {
+    white-space: pre;
 }
 
 .cte-removed-object-note {
