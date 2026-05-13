@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace SchemaStudio.Data.Models;
 
-[FileVersion("1.1")]
+[FileVersion("1.2")]
 [AIFileContext("SchemaStudio.Data/Models/DatabaseRelationshipDefinition.cs", "Defines curated database relationship metadata used by base-view creation, domain object modeling, and future query-building tools.", Responsibilities = "Carries relationship headers and ordered column pairs for physical foreign keys, lookup joins, soft/domain joins, and user-confirmed relationship hints.", Nuances = "Relationship meaning is contextual: the same physical relationship may be a lookup from one screen and a one-to-many path from another.", LastReviewed = "2026-05-13")]
 public sealed class DatabaseRelationshipDefinition
 {
@@ -55,6 +55,18 @@ public sealed class DatabaseRelationshipDefinition
     [Display(Name = "Relationship Role", Order = 60)]
     [Description("Semantic role, such as Lookup, ParentReference, Detail, DomainJoin, or Ignore.")]
     public string RelationshipRole { get; set; } = "Lookup";
+
+    [Required]
+    [StringLength(32)]
+    [Display(Name = "Source To Target Role", Order = 61)]
+    [Description("Semantic role when traversing from SourceTableName to TargetTableName.")]
+    public string SourceToTargetRole { get; set; } = "Lookup";
+
+    [Required]
+    [StringLength(32)]
+    [Display(Name = "Target To Source Role", Order = 62)]
+    [Description("Semantic role when traversing from TargetTableName back to SourceTableName.")]
+    public string TargetToSourceRole { get; set; } = "ReferencedBy";
 
     [StringLength(128)]
     [Display(Name = "Relationship Name", Order = 70)]

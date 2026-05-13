@@ -5,7 +5,7 @@ using SchemaStudio.Data.Models;
 
 namespace SchemaStudio.Data.Repositories;
 
-[FileVersion("1.4")]
+[FileVersion("1.5")]
 [AIFileContext("SchemaStudio.Data/Repositories/DatabaseRelationshipRepository.cs", "Read/write repository for the curated database relationship registry.", Responsibilities = "Loads relationship headers with ordered column pairs and saves imported or user-curated relationships without creating or altering database objects.", Nuances = "This repository intentionally assumes dbo.DatabaseRelationships and dbo.DatabaseRelationshipColumns already exist; table creation remains a human-run script.", LastReviewed = "2026-05-13")]
 public sealed class DatabaseRelationshipRepository
 {
@@ -30,6 +30,12 @@ public sealed class DatabaseRelationshipRepository
         var joinExpressionProjection = await HasColumnAsync(connection, "DatabaseRelationships", "JoinExpression")
             ? "JoinExpression,"
             : "CAST(N'' AS nvarchar(2000)) AS JoinExpression,";
+        var sourceToTargetRoleProjection = await HasColumnAsync(connection, "DatabaseRelationships", "SourceToTargetRole")
+            ? "SourceToTargetRole,"
+            : "RelationshipRole AS SourceToTargetRole,";
+        var targetToSourceRoleProjection = await HasColumnAsync(connection, "DatabaseRelationships", "TargetToSourceRole")
+            ? "TargetToSourceRole,"
+            : "CAST(N'ReferencedBy' AS nvarchar(32)) AS TargetToSourceRole,";
 
         var sql = $"""
 SELECT
@@ -42,6 +48,8 @@ SELECT
     JoinType,
     {joinExpressionProjection}
     RelationshipRole,
+    {sourceToTargetRoleProjection}
+    {targetToSourceRoleProjection}
     RelationshipName,
     SourceSystemDetected,
     UserConfirmed,
@@ -75,6 +83,12 @@ ORDER BY SourceSchemaName, SourceTableName, TargetSchemaName, TargetTableName, R
         var joinExpressionProjection = await HasColumnAsync(connection, "DatabaseRelationships", "JoinExpression")
             ? "JoinExpression,"
             : "CAST(N'' AS nvarchar(2000)) AS JoinExpression,";
+        var sourceToTargetRoleProjection = await HasColumnAsync(connection, "DatabaseRelationships", "SourceToTargetRole")
+            ? "SourceToTargetRole,"
+            : "RelationshipRole AS SourceToTargetRole,";
+        var targetToSourceRoleProjection = await HasColumnAsync(connection, "DatabaseRelationships", "TargetToSourceRole")
+            ? "TargetToSourceRole,"
+            : "CAST(N'ReferencedBy' AS nvarchar(32)) AS TargetToSourceRole,";
 
         var sql = $"""
 SELECT
@@ -87,6 +101,8 @@ SELECT
     JoinType,
     {joinExpressionProjection}
     RelationshipRole,
+    {sourceToTargetRoleProjection}
+    {targetToSourceRoleProjection}
     RelationshipName,
     SourceSystemDetected,
     UserConfirmed,
@@ -130,6 +146,8 @@ ORDER BY SourceSchemaName, SourceTableName, TargetSchemaName, TargetTableName, R
 
         try
         {
+            var hasDirectionalRoles = await HasColumnAsync(connection, "DatabaseRelationships", "SourceToTargetRole") &&
+                await HasColumnAsync(connection, "DatabaseRelationships", "TargetToSourceRole");
             var databaseRelationshipId = relationship.DatabaseRelationshipId;
 
             if (databaseRelationshipId == 0)
@@ -139,12 +157,12 @@ ORDER BY SourceSchemaName, SourceTableName, TargetSchemaName, TargetTableName, R
 
             if (databaseRelationshipId == 0)
             {
-                databaseRelationshipId = await InsertAsync(connection, transaction, relationship, RelationshipsTable);
+                databaseRelationshipId = await InsertAsync(connection, transaction, relationship, RelationshipsTable, hasDirectionalRoles);
             }
             else
             {
                 relationship.DatabaseRelationshipId = databaseRelationshipId;
-                await UpdateAsync(connection, transaction, relationship, RelationshipsTable);
+                await UpdateAsync(connection, transaction, relationship, RelationshipsTable, hasDirectionalRoles);
             }
 
             await ReplaceColumnsAsync(connection, transaction, databaseRelationshipId, relationship.Columns, RelationshipColumnsTable);
@@ -266,8 +284,17 @@ WHERE DatabaseId = @DatabaseId
         SqlConnection connection,
         SqlTransaction transaction,
         DatabaseRelationshipDefinition relationship,
-        string relationshipsTable)
+        string relationshipsTable,
+        bool hasDirectionalRoles)
     {
+        var directionalColumns = hasDirectionalRoles ? """
+    SourceToTargetRole,
+    TargetToSourceRole,
+""" : "";
+        var directionalValues = hasDirectionalRoles ? """
+    @SourceToTargetRole,
+    @TargetToSourceRole,
+""" : "";
         var sql = $"""
 INSERT INTO {relationshipsTable}
 (
@@ -279,6 +306,7 @@ INSERT INTO {relationshipsTable}
     JoinType,
     JoinExpression,
     RelationshipRole,
+{directionalColumns}
     RelationshipName,
     SourceSystemDetected,
     UserConfirmed,
@@ -304,6 +332,7 @@ VALUES
     @JoinType,
     @JoinExpression,
     @RelationshipRole,
+{directionalValues}
     @RelationshipName,
     @SourceSystemDetected,
     @UserConfirmed,
@@ -327,8 +356,13 @@ VALUES
         SqlConnection connection,
         SqlTransaction transaction,
         DatabaseRelationshipDefinition relationship,
-        string relationshipsTable)
+        string relationshipsTable,
+        bool hasDirectionalRoles)
     {
+        var directionalSet = hasDirectionalRoles ? """
+    SourceToTargetRole = @SourceToTargetRole,
+    TargetToSourceRole = @TargetToSourceRole,
+""" : "";
         var sql = $"""
 UPDATE {relationshipsTable}
 SET
@@ -339,6 +373,7 @@ SET
     JoinType = @JoinType,
     JoinExpression = @JoinExpression,
     RelationshipRole = @RelationshipRole,
+{directionalSet}
     RelationshipName = @RelationshipName,
     SourceSystemDetected = @SourceSystemDetected,
     UserConfirmed = @UserConfirmed,
@@ -431,6 +466,8 @@ VALUES
         relationship.JoinType = NormalizeName(relationship.JoinType, "LEFT JOIN");
         relationship.JoinExpression = NormalizeName(relationship.JoinExpression, "");
         relationship.RelationshipRole = NormalizeName(relationship.RelationshipRole, "Lookup");
+        relationship.SourceToTargetRole = NormalizeName(relationship.SourceToTargetRole, relationship.RelationshipRole);
+        relationship.TargetToSourceRole = NormalizeName(relationship.TargetToSourceRole, "ReferencedBy");
         relationship.RelationshipName = NormalizeOptional(relationship.RelationshipName);
         relationship.DisplayColumnName = NormalizeOptional(relationship.DisplayColumnName);
         relationship.FilterColumnName = NormalizeOptional(relationship.FilterColumnName);

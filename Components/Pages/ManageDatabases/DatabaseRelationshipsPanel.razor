@@ -5,6 +5,7 @@
 @using SchemaStudio.Data.Repositories
 @using SchemaStudioWebViewer.Data
 @inject DatabaseRelationshipRepository RelationshipRepository
+@inject DatabaseLookupRelationshipRepository LookupRelationshipRepository
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject NotificationService NotificationService
 
@@ -125,7 +126,7 @@
                             <button type="button"
                                     class="@RelationshipRowClass(relationship)"
                                     @onclick="@(() => SelectRelationship(relationship))">
-                                <span class="relationship-chip">@DirectionFor(relationship)</span>
+                                <span class="relationship-chip">@CurrentRoleFor(relationship)</span>
                                 <strong>@RelationshipOtherTable(relationship)</strong>
                                 <code>@relationship.JoinType</code>
                                 <span>@relationship.ColumnSummary</span>
@@ -149,7 +150,7 @@
                     </div>
                     @if (selectedRelationship is not null)
                     {
-                        <span class="relationship-chip">@DirectionFor(selectedRelationship)</span>
+                        <span class="relationship-chip">@CurrentRoleFor(selectedRelationship)</span>
                     }
                 </div>
 
@@ -169,9 +170,9 @@
                                 <span class="relationship-field-label">Role</span>
                                 <RadzenDropDown TValue="string"
                                                 Data="@relationshipRoles"
-                                                @bind-Value="@editRelationship.RelationshipRole"
+                                                @bind-Value="@CurrentDirectionRole"
                                                 Style="width:100%;" />
-                                <span class="relationship-help-text">@RoleHelpText(editRelationship.RelationshipRole)</span>
+                                <span class="relationship-help-text">@RoleHelpText(CurrentDirectionRole)</span>
                             </label>
                             <label>
                                 <span class="relationship-field-label">Join Type</span>
@@ -337,7 +338,7 @@
     private const int RelationshipListDefaultWidth = 340;
     private const int RelationshipListMinWidth = 260;
     private const int RelationshipListMaxWidth = 560;
-    private static readonly string[] relationshipRoles = ["Lookup", "ParentReference", "Detail", "DomainJoin", "Ignore"];
+    private static readonly string[] relationshipRoles = ["Lookup", "ParentReference", "Detail", "DomainJoin", "ReferencedBy", "Ignore"];
     private static readonly string[] joinTypes = ["LEFT JOIN", "INNER JOIN", "LEFT OUTER JOIN", "JOIN"];
     private static readonly Dictionary<int, RelationshipPanelState> stateByDatabaseId = new();
 
@@ -351,6 +352,38 @@
         Database is not null &&
         !isLoading &&
         !string.IsNullOrWhiteSpace(selectedTableName);
+
+    private string CurrentDirectionRole
+    {
+        get
+        {
+            if (editRelationship is null)
+            {
+                return "Lookup";
+            }
+
+            return IsEditingFromSelectedTable()
+                ? editRelationship.SourceToTargetRole
+                : editRelationship.TargetToSourceRole;
+        }
+        set
+        {
+            if (editRelationship is null)
+            {
+                return;
+            }
+
+            if (IsEditingFromSelectedTable())
+            {
+                editRelationship.SourceToTargetRole = value;
+                editRelationship.RelationshipRole = value;
+            }
+            else
+            {
+                editRelationship.TargetToSourceRole = value;
+            }
+        }
+    }
 
     protected override async Task OnParametersSetAsync()
     {
@@ -522,6 +555,8 @@
                 selectedTableName.Trim(),
                 Database.SQLLookupString);
 
+            await ImportSavedLookupRelationshipsAsync(details);
+
             var imported = 0;
             var failed = 0;
             string? firstFailure = null;
@@ -590,6 +625,8 @@
             TargetTableName = "",
             JoinType = "LEFT JOIN",
             RelationshipRole = "Lookup",
+            SourceToTargetRole = "Lookup",
+            TargetToSourceRole = "ReferencedBy",
             JoinExpression = "",
             UseInDomainObjectModeler = true,
             UseInQueryBuilder = true,
@@ -597,6 +634,7 @@
         };
         targetColumnOptions.Clear();
         targetColumnOptionsKey = "";
+        SetStatus("New relationship started. Fill the target table and ON clause, then save.", AlertStyle.Info);
     }
 
     private async Task SaveRelationshipAsync()
@@ -613,6 +651,12 @@
             await LoadRelationshipsAsync(setLoading: false);
             selectedRelationship = relationships.FirstOrDefault(relationship =>
                 relationship.DatabaseRelationshipId == editRelationship.DatabaseRelationshipId);
+            selectedRelationship ??= relationships.FirstOrDefault(relationship =>
+                string.Equals(relationship.SourceSchemaName, editRelationship.SourceSchemaName, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(relationship.SourceTableName, editRelationship.SourceTableName, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(relationship.TargetSchemaName, editRelationship.TargetSchemaName, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(relationship.TargetTableName, editRelationship.TargetTableName, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(relationship.JoinExpression, editRelationship.JoinExpression, StringComparison.OrdinalIgnoreCase));
             if (selectedRelationship is not null)
             {
                 selectedRelationships = new List<DatabaseRelationshipDefinition> { selectedRelationship };
@@ -737,6 +781,20 @@
             ? "relationship-row selected"
             : "relationship-row";
 
+    private bool IsEditingFromSelectedTable() =>
+        editRelationship is null ||
+        editRelationship.SourceTableName.Equals(selectedTableName, StringComparison.OrdinalIgnoreCase);
+
+    private string CurrentRoleFor(DatabaseRelationshipDefinition relationship) =>
+        relationship.SourceTableName.Equals(selectedTableName, StringComparison.OrdinalIgnoreCase)
+            ? CoalesceRole(relationship.SourceToTargetRole, relationship.RelationshipRole)
+            : relationship.TargetTableName.Equals(selectedTableName, StringComparison.OrdinalIgnoreCase)
+                ? CoalesceRole(relationship.TargetToSourceRole, "ReferencedBy")
+                : CoalesceRole(relationship.RelationshipRole, "Related");
+
+    private static string CoalesceRole(string? value, string fallback) =>
+        string.IsNullOrWhiteSpace(value) ? fallback : value;
+
     private static string RelationshipTitle(DatabaseRelationshipDefinition relationship)
     {
         if (!string.IsNullOrWhiteSpace(relationship.RelationshipName))
@@ -769,6 +827,7 @@
             "ParentReference" => "Points from this row back to a parent/header row.",
             "Detail" => "Moves from this row to child/detail rows.",
             "DomainJoin" => "Allowed when composing domain objects.",
+            "ReferencedBy" => "Inverse side of a lookup or parent reference.",
             "Ignore" => "Kept for documentation but skipped by generators.",
             _ => "Choose how tools should treat this relationship."
         };
@@ -785,6 +844,8 @@
             JoinType = source.JoinType,
             JoinExpression = source.JoinExpression,
             RelationshipRole = source.RelationshipRole,
+            SourceToTargetRole = string.IsNullOrWhiteSpace(source.SourceToTargetRole) ? source.RelationshipRole : source.SourceToTargetRole,
+            TargetToSourceRole = string.IsNullOrWhiteSpace(source.TargetToSourceRole) ? "ReferencedBy" : source.TargetToSourceRole,
             RelationshipName = source.RelationshipName,
             SourceSystemDetected = source.SourceSystemDetected,
             UserConfirmed = source.UserConfirmed,
@@ -874,6 +935,8 @@
             TargetTableName = sourceRelationship.ReferencedTableName,
             JoinType = sourceRelationship.SelectedJoinType,
             RelationshipRole = "Lookup",
+            SourceToTargetRole = "Lookup",
+            TargetToSourceRole = "ReferencedBy",
             RelationshipName = Truncate(sourceRelationship.ForeignKeyName, 128),
             JoinExpression = BuildJoinExpression(sourceRelationship),
             SourceSystemDetected = true,
@@ -895,6 +958,61 @@
                 })
                 .ToList()
         };
+    }
+
+    private async Task ImportSavedLookupRelationshipsAsync(TableSchemaDetails details)
+    {
+        if (Database is null)
+        {
+            return;
+        }
+
+        var savedLookups = await LookupRelationshipRepository.GetBySourceAsync(
+            Database.DatabaseId,
+            details.SchemaName,
+            details.TableName);
+        var existingKeys = details.Relationships
+            .Select(BuildSourceRelationshipKey)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var lookup in savedLookups.Where(lookup => lookup.Active))
+        {
+            var relationship = new TableSchemaRelationshipInfo(
+                string.IsNullOrWhiteSpace(lookup.RelationshipName)
+                    ? $"REGISTERED_{lookup.SourceTableName}_{lookup.SourceColumnName}_{lookup.LookupTableName}"
+                    : lookup.RelationshipName,
+                lookup.LookupSchemaName,
+                lookup.LookupTableName,
+                lookup.LookupDisplayColumnName,
+                false,
+                lookup.JoinType,
+                [new TableSchemaForeignKeyColumnInfo(lookup.SourceColumnName, lookup.LookupKeyColumnName)],
+                lookup.LookupFilterColumnName,
+                lookup.LookupFilterValue);
+
+            if (!existingKeys.Add(BuildSourceRelationshipKey(relationship)))
+            {
+                continue;
+            }
+
+            var definition = await FromSourceLookupAsync(Database.DatabaseId, details, relationship);
+            definition.RelationshipName = Truncate(lookup.RelationshipName, 128);
+            definition.LegalValues = Truncate(lookup.LookupValues, 1500);
+            await RelationshipRepository.UpsertAsync(definition);
+        }
+    }
+
+    private static string BuildSourceRelationshipKey(TableSchemaRelationshipInfo relationship)
+    {
+        var firstColumn = relationship.Columns.FirstOrDefault();
+        return string.Join(
+            "|",
+            relationship.ReferencedSchemaName,
+            relationship.ReferencedTableName,
+            firstColumn?.LocalColumnName ?? "",
+            firstColumn?.ReferencedColumnName ?? "",
+            relationship.LookupFilterColumnName ?? "",
+            relationship.LookupFilterValue ?? "");
     }
 
     private static string BuildJoinExpression(TableSchemaRelationshipInfo relationship) =>
