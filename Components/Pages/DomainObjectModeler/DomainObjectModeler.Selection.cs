@@ -268,6 +268,20 @@ public partial class DomainObjectModeler
         EnsureJoinRows();
     }
 
+    private void OnAnchorChanged(object? value)
+    {
+        if (value is not int schemaObjectId)
+        {
+            return;
+        }
+
+        var item = FindBaseView(schemaObjectId);
+        if (item is not null)
+        {
+            SetAnchor(item);
+        }
+    }
+
     private void EnsureJoinRows()
     {
         var requiredIds = NonAnchorSelectedBaseViews

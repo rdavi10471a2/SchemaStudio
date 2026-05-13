@@ -379,6 +379,30 @@
     padding: 0.65rem;
 }
 
+.dom-from-row {
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.65rem;
+    padding: 0.55rem 0.6rem;
+    border: 1px solid #dbe3ee;
+    border-radius: 5px;
+    background: #ffffff;
+}
+
+.dom-from-keyword,
+.dom-from-alias {
+    color: #335cff;
+    font-family: "Cascadia Mono", Consolas, "Courier New", monospace;
+    font-weight: 800;
+}
+
+.dom-from-alias {
+    color: #526071;
+    white-space: nowrap;
+}
+
 .dom-element-row {
     display: grid;
     gap: 0.5rem;
@@ -395,7 +419,7 @@
 
 .dom-element-topline {
     display: grid;
-    grid-template-columns: 76px minmax(120px, 1fr) minmax(130px, 0.75fr) minmax(130px, 0.7fr);
+    grid-template-columns: minmax(120px, 1fr) minmax(130px, 0.75fr) minmax(130px, 0.7fr);
     align-items: end;
     gap: 0.5rem;
 }
@@ -410,32 +434,11 @@
     font-weight: 800;
 }
 
-.dom-anchor {
-    min-height: 26px;
-    border: 1px solid #b7c3d4;
-    border-radius: 999px;
-    background: #ffffff;
-    color: #334155;
-    font-weight: 800;
-}
-
-.dom-anchor.active {
-    border-color: var(--rz-primary);
-    background: var(--rz-primary);
-    color: #ffffff;
-}
-
 .dom-source-name {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     font-weight: 800;
-}
-
-.dom-anchor-note {
-    padding-left: 84px;
-    color: #526071;
-    font-size: 0.8rem;
 }
 
 .dom-element-join {

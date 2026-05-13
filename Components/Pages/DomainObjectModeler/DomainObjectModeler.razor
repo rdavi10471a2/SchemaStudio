@@ -19,7 +19,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.2")]
+@attribute [FileVersion("1.3")]
 @attribute [AIFileContext("Components/Pages/DomainObjectModeler/DomainObjectModeler.razor", "Domain object modeling page that composes an editable domain surface from selected managed base views.", Responsibilities = "Owns the /domain-object-modeler route and renders the database/domain selector, base-view checklist, anchor and alias controls, structured join rows, generated SQL preview, and page-level commands.", Nuances = "This page defines the editable object surface only. Field projection and trimming happen downstream in the domain object editor/projection workflow.", RelatedFiles = "DomainObjectModeler.razor.cs; DomainObjectModeler.Selection.cs; DomainObjectModeler.Joins.cs; DomainObjectModeler.Sql.cs; DomainObjectModeler.Models.cs; DomainObjectModeler.razor.css", LastReviewed = "2026-05-13")]
 
 <PageTitle>Domain Object Modeler</PageTitle>
@@ -189,16 +189,26 @@
                             }
                             else
                             {
+                                <div class="dom-from-row">
+                                    <span class="dom-from-keyword">FROM</span>
+                                    <RadzenDropDown TValue="int?"
+                                                    Data="@SelectedBaseViews"
+                                                    TextProperty="@nameof(DomainBaseViewItem.DisplayName)"
+                                                    ValueProperty="@nameof(DomainBaseViewItem.SchemaObjectId)"
+                                                    Value="@AnchorView?.SchemaObjectId"
+                                                    Change="@OnAnchorChanged"
+                                                    Style="width:100%;" />
+                                    @if (AnchorView is not null)
+                                    {
+                                        <span class="dom-from-alias">as [@AnchorView.AliasName]</span>
+                                    }
+                                </div>
+
                                 @foreach (var item in SelectedBaseViews)
                                 {
                                     var row = FindJoinRow(item.SchemaObjectId);
                                     <div class="dom-element-row">
                                         <div class="dom-element-topline">
-                                            <button type="button"
-                                                    class="@(item.IsAnchor ? "dom-anchor active" : "dom-anchor")"
-                                                    @onclick="@(() => SetAnchor(item))">
-                                                Anchor
-                                            </button>
                                             <span class="dom-source-name" title="@item.SourceFullName">@item.DisplayName</span>
                                             <label class="dom-alias-field">
                                                 <span>Alias</span>
@@ -219,13 +229,7 @@
                                             </label>
                                         </div>
 
-                                        @if (item.IsAnchor)
-                                        {
-                                            <div class="dom-anchor-note">
-                                                Emits as <strong>FROM [@item.AliasName]</strong>.
-                                            </div>
-                                        }
-                                        else if (row is not null)
+                                        @if (!item.IsAnchor && row is not null)
                                         {
                                             <div class="dom-element-join">
                                                 <RadzenDropDown TValue="string"
