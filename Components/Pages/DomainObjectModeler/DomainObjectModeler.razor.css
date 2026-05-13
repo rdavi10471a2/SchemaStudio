@@ -440,10 +440,21 @@
 
 .dom-element-join {
     display: grid;
-    grid-template-columns: 114px minmax(0, 1fr);
+    grid-template-columns: 114px 32px minmax(0, 1fr);
     align-items: stretch;
     gap: 0.5rem;
     min-width: 0;
+}
+
+.dom-join-on {
+    align-self: start;
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #335cff;
+    font-family: "Cascadia Mono", Consolas, "Courier New", monospace;
+    font-weight: 800;
 }
 
 .dom-join-clause-editor {

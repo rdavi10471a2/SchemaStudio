@@ -233,6 +233,7 @@
                                                                 Value="@row.JoinType"
                                                                 Change="@(value => OnJoinTypeChanged(row, value))"
                                                                 Style="width:100%;" />
+                                                <span class="dom-join-on">ON</span>
                                                 <textarea class="dom-native-input dom-join-clause-editor"
                                                           value="@row.OnClause"
                                                           @oninput="@(args => OnJoinClauseInput(row, args))"
