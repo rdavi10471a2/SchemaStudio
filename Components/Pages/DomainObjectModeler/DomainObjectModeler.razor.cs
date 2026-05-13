@@ -20,10 +20,7 @@ namespace SchemaStudioWebViewer.Components.Pages.DomainObjectModeler;
 public partial class DomainObjectModeler
 {
     private const string HelpSubjectId = "domain-object-modeler";
-    private const string DefaultDatabaseName = "ExcedeSchema";
-    private const string DefaultDomainName = "Service";
     private const string DefaultTargetSchema = "dbo";
-    private const string DefaultTargetViewName = "ServiceWorkorder";
     private const string CteSourceModeInlineContents = "contents";
     private const string CteSourceModeViewSurface = "surface";
     private const int BaseViewPanelDefaultWidth = 360;
@@ -65,7 +62,6 @@ public partial class DomainObjectModeler
     private bool IsBaseViewPanelHidden;
     private bool StripSourceComments;
     private bool ShouldHighlightSql;
-    private bool HasAppliedWorkingDefaults;
     private ResizeTarget? ActiveResizeTarget;
     private double ResizeStartX;
     private int ResizeStartSize;

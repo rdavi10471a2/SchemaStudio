@@ -258,9 +258,9 @@
                                         disabled="@(IsBusy || NonAnchorSelectedBaseViews.Count == 0)">
                                     Infer Joins
                                 </button>
-                                <span>Inferred joins are guesses from source database relationships. Please check them.</span>
+                                <span class="dom-footer-note">Inferred joins are guesses from source database relationships. Please check them.</span>
+                                <span class="dom-completion-chip">@NonAnchorSelectedBaseViews.Count(item => !string.IsNullOrWhiteSpace(FindJoinRow(item.SchemaObjectId)?.OnClause)) of @NonAnchorSelectedBaseViews.Count complete</span>
                             </div>
-                            <span class="dom-status-text">@NonAnchorSelectedBaseViews.Count(item => !string.IsNullOrWhiteSpace(FindJoinRow(item.SchemaObjectId)?.OnClause)) of @NonAnchorSelectedBaseViews.Count complete</span>
                         </footer>
                     </section>
                 </section>
