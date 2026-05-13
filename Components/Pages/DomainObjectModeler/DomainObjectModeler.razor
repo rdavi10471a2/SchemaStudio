@@ -160,11 +160,17 @@
                         <div class="dom-two-fields">
                             <label class="dom-field">
                                 @HelpLabel("Target Schema", "Schema for the generated CREATE OR ALTER VIEW statement.")
-                                <RadzenTextBox @bind-Value="@TargetSchema" Style="width:100%;" MaxLength="128" />
+                                <input class="dom-native-input"
+                                       value="@TargetSchema"
+                                       @oninput="OnTargetSchemaInput"
+                                       maxlength="128" />
                             </label>
                             <label class="dom-field">
                                 @HelpLabel("View Name", "Name of the composed domain object view generated from the selected base views.")
-                                <RadzenTextBox @bind-Value="@TargetViewName" Style="width:100%;" MaxLength="256" />
+                                <input class="dom-native-input"
+                                       value="@TargetViewName"
+                                       @oninput="OnTargetViewNameInput"
+                                       maxlength="256" />
                             </label>
                         </div>
                     </section>
@@ -194,10 +200,10 @@
                                             <span class="dom-source-name" title="@item.SourceFullName">@item.DisplayName</span>
                                             <label class="dom-alias-field">
                                                 <span>Alias</span>
-                                                <RadzenTextBox Value="@item.AliasName"
-                                                               Change="@(value => OnAliasChanged(item, value?.ToString()))"
-                                                               Style="width:100%;"
-                                                               MaxLength="128" />
+                                                <input class="dom-native-input"
+                                                       value="@item.AliasName"
+                                                       @oninput="@(args => OnAliasInput(item, args))"
+                                                       maxlength="128" />
                                             </label>
                                             <label class="dom-source-mode-field">
                                                 <span>Source</span>
@@ -225,13 +231,12 @@
                                                                 Value="@row.JoinType"
                                                                 Change="@(value => OnJoinTypeChanged(row, value))"
                                                                 Style="width:100%;" />
-                                                <RadzenTextArea Value="@row.OnClause"
-                                                                Change="@(value => OnJoinClauseChanged(row, value?.ToString()))"
-                                                                Placeholder="ON clause"
-                                                                Rows="3"
-                                                                class="dom-join-clause-editor"
-                                                                Style="width:100%;"
-                                                                MaxLength="1200" />
+                                                <textarea class="dom-native-input dom-join-clause-editor"
+                                                          value="@row.OnClause"
+                                                          @oninput="@(args => OnJoinClauseInput(row, args))"
+                                                          placeholder="ON clause"
+                                                          rows="3"
+                                                          maxlength="1200"></textarea>
                                             </div>
                                         }
                                     </div>

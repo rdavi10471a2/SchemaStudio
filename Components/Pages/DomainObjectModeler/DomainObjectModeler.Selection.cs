@@ -358,7 +358,7 @@ public partial class DomainObjectModeler
         foreach (var item in NonAnchorSelectedBaseViews)
         {
             var row = FindJoinRow(item.SchemaObjectId);
-            if (row is null || (!overwriteInferred && !string.IsNullOrWhiteSpace(row.OnClause)) || (!row.IsInferred && !string.IsNullOrWhiteSpace(row.OnClause)))
+            if (row is null || (!overwriteInferred && !string.IsNullOrWhiteSpace(row.OnClause)))
             {
                 continue;
             }

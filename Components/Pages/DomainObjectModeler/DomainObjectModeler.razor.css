@@ -354,6 +354,24 @@
     padding: 0.75rem;
 }
 
+.dom-native-input {
+    width: 100%;
+    min-width: 0;
+    min-height: 36px;
+    border: 1px solid #d6dce6;
+    border-radius: 4px;
+    background: #ffffff;
+    color: #1f2937;
+    font: inherit;
+    padding: 0.45rem 0.55rem;
+}
+
+.dom-native-input:focus {
+    border-color: var(--rz-primary);
+    box-shadow: 0 0 0 1px var(--rz-primary);
+    outline: none;
+}
+
 .dom-element-list {
     flex: 1 1 auto;
     min-height: 0;

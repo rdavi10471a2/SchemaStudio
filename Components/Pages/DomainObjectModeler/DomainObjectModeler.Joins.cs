@@ -1,7 +1,9 @@
-﻿[module: SchemaStudio.AIHelpers.AIFileContext(
+using Microsoft.AspNetCore.Components;
+
+[module: SchemaStudio.AIHelpers.AIFileContext(
     "Components/Pages/DomainObjectModeler/DomainObjectModeler.Joins.cs",
     "Join editing helpers for the Domain Object Modeler page.",
-    Responsibilities = "Keep CTE alias edits, join type changes, ON clause changes, and comment-stripping state coordinated with generated SQL invalidation.",
+    Responsibilities = "Keep CTE target name edits, alias edits, join type changes, ON clause changes, and comment-stripping state coordinated with generated SQL invalidation.",
     RelatedFiles = "Components/Pages/DomainObjectModeler/DomainObjectModeler.razor",
     LastReviewed = "2026-05-13")]
 
@@ -9,6 +11,23 @@ namespace SchemaStudioWebViewer.Components.Pages.DomainObjectModeler;
 
 public partial class DomainObjectModeler
 {
+    private void OnTargetSchemaInput(ChangeEventArgs args)
+    {
+        TargetSchema = args.Value?.ToString() ?? string.Empty;
+        GeneratedSql = string.Empty;
+    }
+
+    private void OnTargetViewNameInput(ChangeEventArgs args)
+    {
+        TargetViewName = args.Value?.ToString() ?? string.Empty;
+        GeneratedSql = string.Empty;
+    }
+
+    private void OnAliasInput(DomainBaseViewItem item, ChangeEventArgs args)
+    {
+        OnAliasChanged(item, args.Value?.ToString());
+    }
+
     private void OnAliasChanged(DomainBaseViewItem item, string? value)
     {
         item.AliasName = SanitizeAlias(value);
@@ -25,6 +44,13 @@ public partial class DomainObjectModeler
     private void OnJoinClauseChanged(DomainObjectJoinRow row, string? value)
     {
         row.OnClause = value?.Trim() ?? string.Empty;
+        row.IsInferred = false;
+        GeneratedSql = string.Empty;
+    }
+
+    private void OnJoinClauseInput(DomainObjectJoinRow row, ChangeEventArgs args)
+    {
+        row.OnClause = args.Value?.ToString() ?? string.Empty;
         row.IsInferred = false;
         GeneratedSql = string.Empty;
     }
@@ -61,4 +87,3 @@ public partial class DomainObjectModeler
         return chars.Length == 0 ? "SourceObject" : new string(chars);
     }
 }
-
