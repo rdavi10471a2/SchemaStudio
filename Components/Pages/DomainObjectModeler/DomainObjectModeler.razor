@@ -23,7 +23,10 @@
 
 <PageTitle>Domain Object Modeler</PageTitle>
 
-<div class="dom-page">
+<div class="@DomainObjectModelerClass"
+     style="@PaneResizeStyle"
+     @onpointermove="@ResizePane"
+     @onpointerup="@EndPaneResize">
     @if (IsBusy)
     {
         <div class="dom-busy-overlay" role="status" aria-live="polite">
@@ -57,8 +60,7 @@
 
         @if (!IsBaseViewPanelHidden)
         {
-            <RadzenSplitter class="dom-shell" Orientation="Orientation.Horizontal">
-                <RadzenSplitterPane Size="360px" Min="280px" Max="560px">
+            <div class="dom-shell">
             <aside class="dom-panel dom-base-panel">
                 <header class="dom-panel-header">
                     <span>Base Views</span>
@@ -122,11 +124,13 @@
 
                 <footer class="dom-panel-note">No field choices here. Projection and trimming happen later in the domain object editor.</footer>
             </aside>
-                </RadzenSplitterPane>
-                <RadzenSplitterPane>
-                    @WorkspaceContent
-                </RadzenSplitterPane>
-            </RadzenSplitter>
+                <button type="button"
+                        class="dom-resize-handle"
+                        title="Resize base views"
+                        aria-label="Resize base views"
+                        @onpointerdown="@(args => BeginPaneResize(ResizeTarget.BaseViews, args))"></button>
+                @WorkspaceContent
+            </div>
         }
         else
         {
@@ -145,8 +149,7 @@
                 </div>
             </section>
 
-            <RadzenSplitter class="dom-model-splitter" Orientation="Orientation.Horizontal">
-                <RadzenSplitterPane Size="42%" Min="430px" Max="760px">
+            <div class="dom-model-grid">
                     <section class="dom-config-stack">
                     <section class="dom-card">
                         <header class="dom-card-header">
@@ -228,8 +231,11 @@
                         </footer>
                     </section>
                 </section>
-                </RadzenSplitterPane>
-                <RadzenSplitterPane>
+                <button type="button"
+                        class="dom-resize-handle"
+                        title="Resize CTE editor"
+                        aria-label="Resize CTE editor"
+                        @onpointerdown="@(args => BeginPaneResize(ResizeTarget.ElementEditor, args))"></button>
                     <section class="dom-card dom-sql-card">
                     <header class="dom-card-header">
                         <span>Generated SQL Preview</span>
@@ -248,7 +254,6 @@
                         </div>
                     </footer>
                 </section>
-                </RadzenSplitterPane>
-            </RadzenSplitter>
+            </div>
         </main>;
 }

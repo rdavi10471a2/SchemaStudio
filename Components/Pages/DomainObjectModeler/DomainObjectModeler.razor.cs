@@ -24,6 +24,12 @@ public partial class DomainObjectModeler
     private const string DefaultDomainName = "Service";
     private const string DefaultTargetSchema = "dbo";
     private const string DefaultTargetViewName = "ServiceWorkorder";
+    private const int BaseViewPanelDefaultWidth = 360;
+    private const int BaseViewPanelMinWidth = 280;
+    private const int BaseViewPanelMaxWidth = 560;
+    private const int ElementEditorDefaultWidth = 620;
+    private const int ElementEditorMinWidth = 430;
+    private const int ElementEditorMaxWidth = 860;
 
     private readonly string[] JoinTypes =
     [
@@ -50,6 +56,17 @@ public partial class DomainObjectModeler
     private bool StripSourceComments;
     private bool ShouldHighlightSql;
     private bool HasAppliedWorkingDefaults;
+    private ResizeTarget? ActiveResizeTarget;
+    private double ResizeStartX;
+    private int ResizeStartSize;
+    private int BaseViewPanelWidth = BaseViewPanelDefaultWidth;
+    private int ElementEditorWidth = ElementEditorDefaultWidth;
+
+    private enum ResizeTarget
+    {
+        BaseViews,
+        ElementEditor
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -90,12 +107,56 @@ public partial class DomainObjectModeler
             ? "dom-shell dom-shell-collapsed"
             : "dom-shell";
 
+    private string DomainObjectModelerClass =>
+        ActiveResizeTarget is null ? "dom-page" : "dom-page dom-resizing";
+
+    private string PaneResizeStyle =>
+        $"--dom-base-width: {BaseViewPanelWidth}px; --dom-editor-width: {ElementEditorWidth}px;";
+
     private string ToggleBaseViewPanelText =>
         IsBaseViewPanelHidden ? "Show Base Views" : "Hide Base Views";
 
     private void ToggleBaseViewPanel()
     {
         IsBaseViewPanelHidden = !IsBaseViewPanelHidden;
+    }
+
+    private void BeginPaneResize(ResizeTarget target, PointerEventArgs args)
+    {
+        ActiveResizeTarget = target;
+        ResizeStartX = args.ClientX;
+        ResizeStartSize = target switch
+        {
+            ResizeTarget.BaseViews => BaseViewPanelWidth,
+            ResizeTarget.ElementEditor => ElementEditorWidth,
+            _ => 0
+        };
+    }
+
+    private void ResizePane(PointerEventArgs args)
+    {
+        if (ActiveResizeTarget is null)
+        {
+            return;
+        }
+
+        var horizontalDelta = (int)Math.Round(args.ClientX - ResizeStartX);
+        var nextWidth = ResizeStartSize + horizontalDelta;
+
+        switch (ActiveResizeTarget)
+        {
+            case ResizeTarget.BaseViews:
+                BaseViewPanelWidth = Math.Clamp(nextWidth, BaseViewPanelMinWidth, BaseViewPanelMaxWidth);
+                break;
+            case ResizeTarget.ElementEditor:
+                ElementEditorWidth = Math.Clamp(nextWidth, ElementEditorMinWidth, ElementEditorMaxWidth);
+                break;
+        }
+    }
+
+    private void EndPaneResize()
+    {
+        ActiveResizeTarget = null;
     }
 
     private RenderFragment FieldLabel(Type modelType, string propertyName) => builder =>
