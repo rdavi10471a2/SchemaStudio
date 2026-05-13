@@ -413,13 +413,57 @@
 
 .dom-sql-preview {
     min-height: 0;
-    margin: 0;
-    padding: 0.9rem;
     overflow: auto;
-    background: #0b1220;
-    color: #dbeafe;
-    font-family: Consolas, "Courier New", monospace;
+    border: 0;
+    background: #ffffff;
+    color: #111827;
+    --sql-keyword-color: #0000ff;
+    --sql-comment-color: #008000;
+    --sql-string-color: #a31515;
+}
+
+.dom-sql-preview pre[class*="language-"],
+.dom-sql-preview code[class*="language-"] {
+    min-height: 100%;
+    margin: 0;
+    background: #ffffff !important;
+    color: #111827 !important;
+    text-shadow: none !important;
+    font-family: "Cascadia Mono", Consolas, "Courier New", monospace !important;
     font-size: 0.82rem;
-    line-height: 1.55;
-    white-space: pre-wrap;
+    line-height: 1.5;
+    white-space: pre;
+}
+
+.dom-sql-preview pre[class*="language-"] {
+    padding: 0.9rem;
+}
+
+.dom-sql-preview .token.keyword {
+    color: var(--sql-keyword-color) !important;
+    font-weight: 700;
+}
+
+.dom-sql-preview .token.string {
+    color: var(--sql-string-color) !important;
+}
+
+.dom-sql-preview .token.comment {
+    color: var(--sql-comment-color) !important;
+    font-style: normal;
+    font-weight: 500;
+}
+
+.dom-sql-preview .token.operator,
+.dom-sql-preview .token.punctuation {
+    color: #374151 !important;
+}
+
+.dom-sql-preview .token.function,
+.dom-sql-preview .token.builtin {
+    color: #0f766e !important;
+}
+
+.dom-sql-preview .token.number {
+    color: #b45309 !important;
 }

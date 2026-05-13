@@ -45,10 +45,22 @@ public partial class DomainObjectModeler
     private bool IsBusy;
     private bool IsBaseViewPanelHidden;
     private bool StripSourceComments;
+    private bool ShouldHighlightSql;
 
     protected override async Task OnInitializedAsync()
     {
         await LoadDatabasesAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!ShouldHighlightSql)
+        {
+            return;
+        }
+
+        ShouldHighlightSql = false;
+        await JSRuntime.InvokeVoidAsync("highlightSql", 30);
     }
 
     private IReadOnlyList<DomainBaseViewItem> SelectedBaseViews =>
