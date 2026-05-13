@@ -88,7 +88,7 @@ h1:focus {
     height: 100%;
     min-height: 0;
     min-width: 0;
-    overflow: auto !important;
+    overflow: hidden !important;
     padding: 0 !important;
 }
 
@@ -102,13 +102,11 @@ h1:focus {
 
 .cte-inspector .cte-with-panel {
     box-sizing: border-box;
-    height: 100%;
-    max-height: calc(100vh - 218px);
-    overflow: auto !important;
+    min-height: 100%;
+    overflow: visible !important;
 }
 
 .cte-inspector .cte-reference-sql {
     box-sizing: border-box;
-    max-height: calc(100vh - 218px);
-    overflow: auto !important;
+    overflow: visible !important;
 }
