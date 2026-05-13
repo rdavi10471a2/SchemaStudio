@@ -400,6 +400,11 @@
     margin: 0 0 .45rem;
 }
 
+.cte-path-status {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    margin-top: .65rem;
+}
+
 .cte-with-tabs {
     display: flex;
     flex: 1;

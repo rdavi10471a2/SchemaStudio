@@ -19,7 +19,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.2")]
+@attribute [FileVersion("1.3")]
 @attribute [AIFileContext("Components/Pages/DomainObjectEditor/DomainObjectEditor.razor", "Domain object editor projection page driven by a selected composed managed view.", Responsibilities = "Loads database, domain, and composed-view selections, retrieves static SQL text for the selected managed view, feeds it into the CTE selection engine, and renders projection/path trimming controls.", Nuances = "The editor parser is intentionally text driven. This page supplies that text from Schema Studio metadata instead of a paste box.", RelatedFiles = "CteFieldParser.cs; CteSelectionSessionEditor.cs; CteSelectionPresentationEditor.cs; DomainObjectEditor.razor.css", LastReviewed = "2026-05-13")]
 
 <PageTitle>Domain Object Editor</PageTitle>
@@ -94,14 +94,6 @@
             <span>@LoadError</span>
         </div>
     }
-    else if (!string.IsNullOrWhiteSpace(Session.StatusMessage))
-    {
-        <div class="cte-status-bar" role="status">
-            <RadzenIcon Icon="info" />
-            <span>@Session.StatusMessage</span>
-        </div>
-    }
-
     <div @ref="ShapeLayoutRef" class="cte-shape-layout @(IsInspectorCollapsed ? "cte-shape-layout--collapsed" : null)">
         <div class="cte-output-pane @OutputPaneClass">
             <div class="cte-primary-tabs">
@@ -194,6 +186,13 @@
                                                   Size="ButtonSize.Small"
                                                   Click="@((MouseEventArgs _) => TogglePathSelection(row))" />
                                 </span>
+                            </div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(Session.StatusMessage))
+                        {
+                            <div class="cte-status-bar cte-path-status" role="status">
+                                <RadzenIcon Icon="info" />
+                                <span>@Session.StatusMessage</span>
                             </div>
                         }
                         @if (!string.IsNullOrWhiteSpace(Session.RequiredPathNotice))
