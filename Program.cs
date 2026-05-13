@@ -73,6 +73,7 @@ namespace SchemaStudioWebViewer
                 new SourceViewRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
             builder.Services.AddScoped(_ =>
                 new ReadOnlyViewDefinitionRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
+            builder.Services.AddScoped<SchemaStudioWebViewer.Components.Pages.DomainObjectEditor.CteFieldParser>();
             // 2026-04-22 04:27 PM CDT AI v1.4 data-layer marker: register async schema object repositories for the imported object metadata layer.
             builder.Services.AddScoped(_ =>
                 new SchemaObjectRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
