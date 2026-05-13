@@ -62,3 +62,39 @@ h1:focus {
 .help-dialog-no-scroll {
     overflow: hidden !important;
 }
+
+/* Domain Object Editor: Radzen tabs render outside Razor CSS isolation, so the
+   scroll box for the referenced objects pane has to be applied globally. */
+.cte-inspector .rz-tabview.cte-with-tabs {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.cte-inspector .rz-tabview.cte-with-tabs > .rz-tabview-nav,
+.cte-inspector .rz-tabview.cte-with-tabs > .rz-tabview-nav-scroll {
+    flex: 0 0 auto;
+}
+
+.cte-inspector .rz-tabview.cte-with-tabs .rz-tabview-panels {
+    border: 0;
+    border-radius: 0;
+    flex: 1 1 auto;
+    height: 100%;
+    min-height: 0;
+    min-width: 0;
+    overflow: auto !important;
+    padding: 0 !important;
+}
+
+.cte-inspector .rz-tabview.cte-with-tabs .rz-tabview-panel {
+    height: 100%;
+    min-height: 0;
+    min-width: 0;
+    overflow: auto !important;
+    padding: 0 !important;
+}
