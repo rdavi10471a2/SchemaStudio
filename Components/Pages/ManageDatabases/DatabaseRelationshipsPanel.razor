@@ -9,7 +9,7 @@
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("1.5")]
+@attribute [FileVersion("1.6")]
 @attribute [AIFileContext("Components/Pages/ManageDatabases/DatabaseRelationshipsPanel.razor", "Manage Databases child panel for the curated database relationship registry.", Responsibilities = "Loads source tables, imports source-system foreign-key relationships into dbo.DatabaseRelationships, and displays the registry rows that touch the selected table.", Nuances = "The panel does not create metadata tables; database DDL stays in human-run scripts.", LastReviewed = "2026-05-13")]
 
 <RadzenStack Gap="0.75rem"
@@ -193,8 +193,12 @@
                                 <div class="relationship-statement-line">
                                     <span>FROM</span>
                                     <code>@editRelationship.SourceObject</code>
+                                    <span>AS</span>
+                                    <code>@QuoteIdentifier(editRelationship.SourceTableName)</code>
                                     <span>@editRelationship.JoinType</span>
                                     <code>@editRelationship.TargetObject</code>
+                                    <span>AS</span>
+                                    <code>@QuoteIdentifier(editRelationship.TargetTableName)</code>
                                 </div>
                             </div>
 
@@ -647,6 +651,7 @@
         try
         {
             editRelationship.DatabaseId = Database.DatabaseId;
+            editRelationship.JoinExpression = NormalizeJoinExpressionAliases(editRelationship);
             await RelationshipRepository.UpsertAsync(editRelationship);
             await LoadRelationshipsAsync(setLoading: false);
             selectedRelationship = relationships.FirstOrDefault(relationship =>
@@ -842,7 +847,7 @@
             TargetSchemaName = source.TargetSchemaName,
             TargetTableName = source.TargetTableName,
             JoinType = source.JoinType,
-            JoinExpression = source.JoinExpression,
+            JoinExpression = NormalizeJoinExpressionAliases(source),
             RelationshipRole = source.RelationshipRole,
             SourceToTargetRole = string.IsNullOrWhiteSpace(source.SourceToTargetRole) ? source.RelationshipRole : source.SourceToTargetRole,
             TargetToSourceRole = string.IsNullOrWhiteSpace(source.TargetToSourceRole) ? "ReferencedBy" : source.TargetToSourceRole,
@@ -938,7 +943,7 @@
             SourceToTargetRole = "Lookup",
             TargetToSourceRole = "ReferencedBy",
             RelationshipName = Truncate(sourceRelationship.ForeignKeyName, 128),
-            JoinExpression = BuildJoinExpression(sourceRelationship),
+            JoinExpression = BuildJoinExpression(details.TableName, sourceRelationship),
             SourceSystemDetected = true,
             UserConfirmed = false,
             DefaultIncludeInBaseView = sourceRelationship.Include,
@@ -1015,11 +1020,61 @@
             relationship.LookupFilterValue ?? "");
     }
 
-    private static string BuildJoinExpression(TableSchemaRelationshipInfo relationship) =>
+    private static string NormalizeJoinExpressionAliases(DatabaseRelationshipDefinition relationship)
+    {
+        var joinExpression = relationship.JoinExpression?.Trim() ?? "";
+        if (relationship.Columns.Count == 0)
+        {
+            return joinExpression;
+        }
+
+        if (string.IsNullOrWhiteSpace(joinExpression))
+        {
+            return BuildJoinExpression(
+                relationship.SourceTableName,
+                relationship.TargetTableName,
+                relationship.Columns);
+        }
+
+        var normalized = joinExpression;
+        foreach (var column in relationship.Columns.OrderBy(column => column.OrdinalPosition))
+        {
+            var qualifiedSource = $"{QuoteIdentifier(relationship.SourceTableName)}.{QuoteIdentifier(column.SourceColumnName)}";
+            var qualifiedTarget = $"{QuoteIdentifier(relationship.TargetTableName)}.{QuoteIdentifier(column.TargetColumnName)}";
+            var unqualifiedSource = QuoteIdentifier(column.SourceColumnName);
+
+            normalized = normalized.Replace(
+                $"{unqualifiedSource} = {qualifiedTarget}",
+                $"{qualifiedSource} = {qualifiedTarget}",
+                StringComparison.OrdinalIgnoreCase);
+            normalized = normalized.Replace(
+                $"{unqualifiedSource}={qualifiedTarget}",
+                $"{qualifiedSource} = {qualifiedTarget}",
+                StringComparison.OrdinalIgnoreCase);
+        }
+
+        return normalized;
+    }
+
+    private static string BuildJoinExpression(string sourceTableName, TableSchemaRelationshipInfo relationship) =>
         string.Join(
             " AND ",
             relationship.Columns.Select(column =>
-                $"[{column.LocalColumnName}] = [{relationship.ReferencedTableName}].[{column.ReferencedColumnName}]"));
+                $"{QuoteIdentifier(sourceTableName)}.{QuoteIdentifier(column.LocalColumnName)} = {QuoteIdentifier(relationship.ReferencedTableName)}.{QuoteIdentifier(column.ReferencedColumnName)}"));
+
+    private static string BuildJoinExpression(
+        string sourceTableName,
+        string targetTableName,
+        IEnumerable<DatabaseRelationshipColumnDefinition> columns) =>
+        string.Join(
+            " AND ",
+            columns
+                .OrderBy(column => column.OrdinalPosition)
+                .Select(column =>
+                    $"{QuoteIdentifier(sourceTableName)}.{QuoteIdentifier(column.SourceColumnName)} = {QuoteIdentifier(targetTableName)}.{QuoteIdentifier(column.TargetColumnName)}"));
+
+    private static string QuoteIdentifier(string value) =>
+        $"[{value.Replace("]", "]]", StringComparison.Ordinal)}]";
 
     private static string? Truncate(string? value, int maxLength) =>
         string.IsNullOrEmpty(value) || value.Length <= maxLength
