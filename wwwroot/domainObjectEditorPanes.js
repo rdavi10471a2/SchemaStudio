@@ -24,7 +24,8 @@
             const computed = getComputedStyle(layout);
             const startX = event.clientX;
             const startY = event.clientY;
-            const startInspectorWidth = parsePixels(computed.getPropertyValue("--cte-inspector-width"), 680);
+            const startInspectorWidth = layout.querySelector(".cte-inspector")?.getBoundingClientRect().width
+                ?? parsePixels(computed.getPropertyValue("--cte-inspector-width"), 680);
             const startRelationshipHeight = parsePixels(computed.getPropertyValue("--cte-relationship-height"), 220);
 
             layout.classList.add(direction === "horizontal" ? "cte-resizing-horizontal" : "cte-resizing-vertical");

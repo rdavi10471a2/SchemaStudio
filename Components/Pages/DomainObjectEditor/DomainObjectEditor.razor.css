@@ -151,7 +151,7 @@
     height: 100%;
     min-height: 0;
     padding: .35rem 0 0;
-    --cte-inspector-width: 680px;
+    --cte-inspector-width: 50%;
     --cte-relationship-height: 220px;
 }
 
@@ -219,7 +219,7 @@
     flex: 0 0 var(--cte-inspector-width);
     max-height: 100%;
     max-width: 68rem;
-    min-width: 16rem;
+    min-width: 24rem;
 }
 
 .cte-horizontal-splitter {
@@ -422,7 +422,7 @@
     flex: 1;
     min-height: 0;
     min-width: 0;
-    overflow: auto;
+    overflow: hidden;
     padding: 0;
 }
 
@@ -436,9 +436,9 @@
 
 .cte-with-panel {
     min-height: 100%;
-    min-width: max-content;
+    min-width: 0;
     overflow: visible;
-    width: max-content;
+    width: 100%;
 }
 
 .cte-with-panel pre {
@@ -461,15 +461,15 @@
     font-family: Consolas, "Courier New", monospace;
     font-size: .82rem;
     margin: 0;
-    min-width: max-content;
+    min-width: 0;
     overflow: visible;
     padding: .75rem;
-    width: max-content;
+    width: 100%;
 }
 
 .cte-reference-line {
     display: block;
-    white-space: pre;
+    white-space: pre-wrap;
 }
 
 .cte-removed-object-note {
