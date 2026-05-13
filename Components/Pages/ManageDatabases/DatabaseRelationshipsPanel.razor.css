@@ -1,4 +1,6 @@
 .relationships-panel {
+    box-sizing: border-box;
+    height: 100%;
     min-height: 0;
     padding: 1rem;
 }
@@ -26,8 +28,112 @@
     margin: 0;
 }
 
-.relationships-grid {
-    min-height: 360px;
+.relationships-workspace {
+    border: 1px solid #d6dde8;
+    display: grid;
+    flex: 1 1 auto;
+    grid-template-columns: minmax(360px, 34%) minmax(0, 1fr);
+    min-height: 0;
+    overflow: hidden;
+}
+
+.relationship-list-pane,
+.relationship-edit-pane {
+    background: #fff;
+    min-height: 0;
+    min-width: 0;
+}
+
+.relationship-list-pane {
+    border-right: 1px solid #cbd5e1;
+    display: flex;
+    flex-direction: column;
+}
+
+.relationship-edit-pane {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.relationship-pane-header {
+    align-items: center;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    flex: 0 0 auto;
+    gap: 1rem;
+    justify-content: space-between;
+    min-height: 58px;
+    padding: 0.75rem 0.85rem;
+}
+
+.relationship-list {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 0.45rem;
+    min-height: 0;
+    overflow: auto;
+    padding: 0.75rem;
+}
+
+.relationship-row {
+    align-items: flex-start;
+    background: #fff;
+    border: 1px solid #d6dde8;
+    border-radius: 4px;
+    color: #172033;
+    cursor: pointer;
+    display: grid;
+    gap: 0.25rem 0.5rem;
+    grid-template-columns: auto minmax(0, 1fr);
+    padding: 0.55rem 0.65rem;
+    text-align: left;
+    width: 100%;
+}
+
+.relationship-row:hover {
+    border-color: #9eb8ea;
+    background: #f8fbff;
+}
+
+.relationship-row.selected {
+    border-color: var(--rz-primary);
+    background: #edf3ff;
+}
+
+.relationship-row strong,
+.relationship-row code,
+.relationship-row span:last-child {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.relationship-row strong {
+    font-weight: 800;
+}
+
+.relationship-row code,
+.relationship-row span:last-child {
+    grid-column: 2;
+}
+
+.relationship-row code {
+    color: #344054;
+    font-size: 0.78rem;
+}
+
+.relationship-row span:last-child {
+    color: #667085;
+    font-size: 0.78rem;
+}
+
+.relationship-edit-pane form {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
 }
 
 .relationship-chip {
@@ -43,34 +149,138 @@
     text-transform: uppercase;
 }
 
-.relationship-detail-grid {
+.relationship-edit-grid {
     display: grid;
     gap: 0.75rem;
     grid-template-columns: repeat(4, minmax(0, 1fr));
+    padding: 0.85rem;
 }
 
-.relationship-detail-label {
-    color: #667085;
-    display: block;
+.relationship-primary-grid {
+    grid-template-columns: minmax(180px, 0.7fr) minmax(180px, 0.7fr) minmax(260px, 1.6fr);
+}
+
+.relationship-edit-grid label {
+    min-width: 0;
+}
+
+.relationship-wide {
+    grid-column: 1 / -1;
+}
+
+.relationship-join-editor textarea {
+    font-family: Consolas, "Courier New", monospace;
+    min-height: 118px;
+    resize: vertical;
+}
+
+.relationship-statement {
+    min-width: 0;
+}
+
+.relationship-statement-line {
+    align-items: center;
+    background: #f8fafc;
+    border: 1px solid #d6dde8;
+    border-radius: 4px;
+    display: grid;
+    gap: 0.45rem;
+    grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr);
+    min-height: 38px;
+    padding: 0.45rem 0.6rem;
+}
+
+.relationship-statement-line span {
+    color: var(--rz-primary);
     font-size: 0.75rem;
-    font-weight: 700;
-    margin-bottom: 0.15rem;
+    font-weight: 800;
     text-transform: uppercase;
 }
 
-.relationship-columns {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 4px;
-    color: #0f172a;
-    margin: 0;
-    overflow: auto;
-    padding: 0.65rem;
-    white-space: pre-wrap;
+.relationship-statement-line code {
+    color: #172033;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.relationship-field-label {
+    color: var(--rz-primary);
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.25rem;
+    text-transform: uppercase;
+}
+
+.relationship-switches {
+    align-items: center;
+    border-top: 1px solid #edf0f4;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.15rem;
+    padding: 0.75rem 0.85rem;
+}
+
+.relationship-switches label {
+    align-items: center;
+    display: inline-flex;
+    gap: 0.4rem;
+}
+
+.relationship-advanced {
+    border-top: 1px solid #edf0f4;
+}
+
+.relationship-advanced summary {
+    color: #344054;
+    cursor: pointer;
+    font-weight: 700;
+    padding: 0.65rem 0.85rem;
+}
+
+.relationship-actions {
+    align-items: center;
+    border-top: 1px solid #edf0f4;
+    display: flex;
+    flex: 0 0 auto;
+    gap: 0.6rem;
+    justify-content: flex-end;
+    padding: 0.75rem 0.85rem;
+}
+
+.relationship-empty {
+    color: #667085;
+    padding: 0.85rem;
+}
+
+.relationship-edit-empty {
+    border-top: 1px solid #edf0f4;
+    flex: 1 1 auto;
 }
 
 @media (max-width: 1100px) {
-    .relationship-detail-grid {
+    .relationships-workspace {
+        grid-template-columns: 1fr;
+    }
+
+    .relationship-list-pane {
+        border-right: none;
+        border-bottom: 1px solid #cbd5e1;
+        min-height: 260px;
+    }
+
+    .relationship-edit-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .relationship-primary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .relationship-statement-line {
+        grid-template-columns: auto minmax(0, 1fr);
     }
 }

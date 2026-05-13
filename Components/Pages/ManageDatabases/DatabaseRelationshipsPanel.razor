@@ -154,7 +154,7 @@
                                         Submit="@SaveRelationshipAsync">
                         <DataAnnotationsValidator />
 
-                        <div class="relationship-edit-grid">
+                        <div class="relationship-edit-grid relationship-primary-grid">
                             <label>
                                 <span class="relationship-field-label">Role</span>
                                 <RadzenDropDown TValue="string"
@@ -176,30 +176,15 @@
                                                MaxLength="128" />
                             </label>
 
-                            <label>
-                                <span class="relationship-field-label">Source Schema</span>
-                                <RadzenTextBox @bind-Value="@editRelationship.SourceSchemaName"
-                                               Style="width:100%;"
-                                               MaxLength="128" />
-                            </label>
-                            <label>
-                                <span class="relationship-field-label">Source Table</span>
-                                <RadzenTextBox @bind-Value="@editRelationship.SourceTableName"
-                                               Style="width:100%;"
-                                               MaxLength="128" />
-                            </label>
-                            <label>
-                                <span class="relationship-field-label">Target Schema</span>
-                                <RadzenTextBox @bind-Value="@editRelationship.TargetSchemaName"
-                                               Style="width:100%;"
-                                               MaxLength="128" />
-                            </label>
-                            <label>
-                                <span class="relationship-field-label">Target Table</span>
-                                <RadzenTextBox @bind-Value="@editRelationship.TargetTableName"
-                                               Style="width:100%;"
-                                               MaxLength="128" />
-                            </label>
+                            <div class="relationship-wide relationship-statement">
+                                <span class="relationship-field-label">Statement</span>
+                                <div class="relationship-statement-line">
+                                    <span>FROM</span>
+                                    <code>@editRelationship.SourceObject</code>
+                                    <span>@editRelationship.JoinType</span>
+                                    <code>@editRelationship.TargetObject</code>
+                                </div>
+                            </div>
 
                             <label class="relationship-wide relationship-join-editor">
                                 <span class="relationship-field-label">ON Clause</span>
@@ -239,14 +224,6 @@
                                                Style="width:100%;"
                                                MaxLength="128" />
                             </label>
-
-                            <label class="relationship-wide">
-                                <span class="relationship-field-label">Developer Notes</span>
-                                <RadzenTextArea @bind-Value="@editRelationship.DeveloperNotes"
-                                                Style="width:100%;"
-                                                Rows="3"
-                                                MaxLength="1000" />
-                            </label>
                         </div>
 
                         <div class="relationship-switches">
@@ -256,6 +233,50 @@
                             <label><RadzenCheckBox @bind-Value="@editRelationship.UseInQueryBuilder" /> Use in query builder</label>
                             <label><RadzenCheckBox @bind-Value="@editRelationship.Active" /> Active</label>
                         </div>
+
+                        <details class="relationship-advanced">
+                            <summary>Advanced record fields</summary>
+                            <div class="relationship-edit-grid">
+                                <label>
+                                    <span class="relationship-field-label">Source Schema</span>
+                                    <RadzenTextBox @bind-Value="@editRelationship.SourceSchemaName"
+                                                   Style="width:100%;"
+                                                   MaxLength="128" />
+                                </label>
+                                <label>
+                                    <span class="relationship-field-label">Source Table</span>
+                                    <RadzenTextBox @bind-Value="@editRelationship.SourceTableName"
+                                                   Style="width:100%;"
+                                                   MaxLength="128" />
+                                </label>
+                                <label>
+                                    <span class="relationship-field-label">Target Schema</span>
+                                    <RadzenTextBox @bind-Value="@editRelationship.TargetSchemaName"
+                                                   Style="width:100%;"
+                                                   MaxLength="128" />
+                                </label>
+                                <label>
+                                    <span class="relationship-field-label">Target Table</span>
+                                    <RadzenTextBox @bind-Value="@editRelationship.TargetTableName"
+                                                   Style="width:100%;"
+                                                   MaxLength="128" />
+                                </label>
+                                <label class="relationship-wide">
+                                    <span class="relationship-field-label">Developer Notes</span>
+                                    <RadzenTextArea @bind-Value="@editRelationship.DeveloperNotes"
+                                                    Style="width:100%;"
+                                                    Rows="3"
+                                                    MaxLength="1000" />
+                                </label>
+                                <label class="relationship-wide">
+                                    <span class="relationship-field-label">Legal Values</span>
+                                    <RadzenTextArea @bind-Value="@editRelationship.LegalValues"
+                                                    Style="width:100%;"
+                                                    Rows="3"
+                                                    MaxLength="1500" />
+                                </label>
+                            </div>
+                        </details>
 
                         <div class="relationship-actions">
                             <RadzenButton Icon="refresh"
