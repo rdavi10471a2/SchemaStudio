@@ -8,7 +8,7 @@
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("1.3")]
+@attribute [FileVersion("1.4")]
 @attribute [AIFileContext("Components/Pages/ManageDatabases/DatabaseRelationshipsPanel.razor", "Manage Databases child panel for the curated database relationship registry.", Responsibilities = "Loads source tables, imports source-system foreign-key relationships into dbo.DatabaseRelationships, and displays the registry rows that touch the selected table.", Nuances = "The panel does not create metadata tables; database DDL stays in human-run scripts.", LastReviewed = "2026-05-13")]
 
 <RadzenStack Gap="0.75rem" class="relationships-panel">
@@ -335,6 +335,7 @@
 
             var imported = 0;
             var failed = 0;
+            string? firstFailure = null;
             foreach (var sourceRelationship in details.Relationships)
             {
                 try
@@ -343,9 +344,10 @@
                     await RelationshipRepository.UpsertAsync(relationship);
                     imported++;
                 }
-                catch
+                catch (Exception ex)
                 {
                     failed++;
+                    firstFailure ??= FriendlyError(ex);
                 }
             }
 
@@ -353,6 +355,10 @@
             var message = failed == 0
                 ? $"Imported or refreshed {imported} source lookup relationship(s) for {selectedTableName}."
                 : $"Imported or refreshed {imported} source lookup relationship(s) for {selectedTableName}; {failed} relationship(s) were skipped.";
+            if (!string.IsNullOrWhiteSpace(firstFailure))
+            {
+                message = $"{message} First failure: {firstFailure}";
+            }
             SetStatus(message, failed == 0 ? AlertStyle.Success : AlertStyle.Warning);
             Notify(failed == 0 ? NotificationSeverity.Success : NotificationSeverity.Warning, message);
         }
@@ -392,6 +398,11 @@
         TableSchemaDetails details,
         TableSchemaRelationshipInfo sourceRelationship)
     {
+        if (sourceRelationship.Columns.Count == 0)
+        {
+            throw new InvalidOperationException($"Relationship {sourceRelationship.ForeignKeyName} has no source-to-target column pairs.");
+        }
+
         var lookupValues = string.IsNullOrWhiteSpace(sourceRelationship.DisplayColumnName)
             ? null
             : await TableSchemaRepository.GetLookupValuesTextAsync(
@@ -412,24 +423,24 @@
             TargetTableName = sourceRelationship.ReferencedTableName,
             JoinType = sourceRelationship.SelectedJoinType,
             RelationshipRole = "Lookup",
-            RelationshipName = sourceRelationship.ForeignKeyName,
-            RelationshipKey = BuildRelationshipKey(details, sourceRelationship),
+            RelationshipName = Truncate(sourceRelationship.ForeignKeyName, 128),
+            RelationshipKey = Truncate(BuildRelationshipKey(details, sourceRelationship), 256),
             SourceSystemDetected = true,
             UserConfirmed = false,
             DefaultIncludeInBaseView = sourceRelationship.Include,
             UseInDomainObjectModeler = true,
             UseInQueryBuilder = true,
-            DisplayColumnName = sourceRelationship.DisplayColumnName,
-            FilterColumnName = sourceRelationship.LookupFilterColumnName,
-            FilterValue = sourceRelationship.LookupFilterValue,
+            DisplayColumnName = Truncate(sourceRelationship.DisplayColumnName, 128),
+            FilterColumnName = Truncate(sourceRelationship.LookupFilterColumnName, 128),
+            FilterValue = Truncate(sourceRelationship.LookupFilterValue, 128),
             LegalValues = lookupValues,
             Active = true,
             Columns = sourceRelationship.Columns
                 .Select((column, index) => new DatabaseRelationshipColumnDefinition
                 {
                     OrdinalPosition = index + 1,
-                    SourceColumnName = column.LocalColumnName,
-                    TargetColumnName = column.ReferencedColumnName
+                    SourceColumnName = Truncate(column.LocalColumnName, 128) ?? "",
+                    TargetColumnName = Truncate(column.ReferencedColumnName, 128) ?? ""
                 })
                 .ToList()
         };
