@@ -619,8 +619,8 @@
             }
 
             var message = failed == 0
-                ? $"Previewed {imported} source lookup relationship(s) and {childImported} child relationship(s) for {selectedTableName}. Save selected rows to persist them."
-                : $"Previewed {imported} source lookup relationship(s) and {childImported} child relationship(s) for {selectedTableName}; {failed} relationship(s) were skipped. Save selected rows to persist them.";
+                ? $"Previewed {imported} source lookup relationship(s) and {childImported} child relationship(s) for {selectedTableName}. Select a row and Save Relationship to persist it."
+                : $"Previewed {imported} source lookup relationship(s) and {childImported} child relationship(s) for {selectedTableName}; {failed} relationship(s) were skipped. Select a row and Save Relationship to persist it.";
             if (!string.IsNullOrWhiteSpace(firstFailure))
             {
                 message = $"{message} First failure: {firstFailure}";
@@ -704,6 +704,7 @@
         {
             editRelationship.DatabaseId = Database.DatabaseId;
             editRelationship.JoinExpression = editRelationship.JoinExpression?.Trim() ?? "";
+            SynchronizeColumnPairsFromJoinExpression(editRelationship);
             if (!IsConstrainedLookupTarget(editRelationship))
             {
                 editRelationship.FilterColumnName = null;
@@ -1224,6 +1225,101 @@
                 .OrderBy(column => column.OrdinalPosition)
                 .Select(column =>
                     $"{QuoteIdentifier(sourceTableName)}.{QuoteIdentifier(BareColumnName(column.SourceColumnName))} = {QuoteIdentifier(targetTableName)}.{QuoteIdentifier(BareColumnName(column.TargetColumnName))}"));
+
+    private static void SynchronizeColumnPairsFromJoinExpression(DatabaseRelationshipDefinition relationship)
+    {
+        var parsedColumns = ParseJoinExpressionColumnPairs(
+            relationship.JoinExpression,
+            relationship.SourceTableName,
+            relationship.TargetTableName);
+
+        if (parsedColumns.Count > 0)
+        {
+            relationship.Columns = parsedColumns;
+        }
+    }
+
+    private static List<DatabaseRelationshipColumnDefinition> ParseJoinExpressionColumnPairs(
+        string joinExpression,
+        string sourceTableName,
+        string targetTableName)
+    {
+        if (string.IsNullOrWhiteSpace(joinExpression) ||
+            string.IsNullOrWhiteSpace(sourceTableName) ||
+            string.IsNullOrWhiteSpace(targetTableName))
+        {
+            return new List<DatabaseRelationshipColumnDefinition>();
+        }
+
+        var columns = new List<DatabaseRelationshipColumnDefinition>();
+        var comparisons = joinExpression.Split(
+            [" AND ", "\r\nAND ", "\nAND ", "\tAND "],
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        foreach (var comparison in comparisons)
+        {
+            var equalsParts = comparison.Split('=', 2, StringSplitOptions.TrimEntries);
+            if (equalsParts.Length != 2)
+            {
+                continue;
+            }
+
+            var left = ParseQualifiedColumnReference(equalsParts[0]);
+            var right = ParseQualifiedColumnReference(equalsParts[1]);
+            if (left is null || right is null)
+            {
+                continue;
+            }
+
+            var sourceOnLeft = IsTableToken(left.Value.TableToken, sourceTableName) &&
+                IsTableToken(right.Value.TableToken, targetTableName);
+            var sourceOnRight = IsTableToken(right.Value.TableToken, sourceTableName) &&
+                IsTableToken(left.Value.TableToken, targetTableName);
+
+            if (!sourceOnLeft && !sourceOnRight)
+            {
+                continue;
+            }
+
+            var sourceColumn = sourceOnLeft ? left.Value.ColumnName : right.Value.ColumnName;
+            var targetColumn = sourceOnLeft ? right.Value.ColumnName : left.Value.ColumnName;
+            columns.Add(new DatabaseRelationshipColumnDefinition
+            {
+                OrdinalPosition = columns.Count + 1,
+                SourceColumnName = BareColumnName(sourceColumn),
+                TargetColumnName = BareColumnName(targetColumn)
+            });
+        }
+
+        return columns;
+    }
+
+    private static (string TableToken, string ColumnName)? ParseQualifiedColumnReference(string value)
+    {
+        var trimmed = value.Trim().TrimEnd(';').Trim();
+        if (string.IsNullOrWhiteSpace(trimmed))
+        {
+            return null;
+        }
+
+        var dotIndex = trimmed.LastIndexOf('.');
+        if (dotIndex <= 0 || dotIndex >= trimmed.Length - 1)
+        {
+            return null;
+        }
+
+        var tableToken = trimmed[..dotIndex].Trim().Trim('[', ']');
+        var columnName = BareColumnName(trimmed[(dotIndex + 1)..]);
+        if (string.IsNullOrWhiteSpace(tableToken) || string.IsNullOrWhiteSpace(columnName))
+        {
+            return null;
+        }
+
+        return (BareColumnName(tableToken), columnName);
+    }
+
+    private static bool IsTableToken(string tableToken, string tableName) =>
+        string.Equals(BareColumnName(tableToken), BareColumnName(tableName), StringComparison.OrdinalIgnoreCase);
 
     private static string BareColumnName(string value)
     {
