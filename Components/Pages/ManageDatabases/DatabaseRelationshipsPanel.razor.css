@@ -34,6 +34,10 @@
     margin: 0;
 }
 
+.relationship-action-bar {
+    flex-wrap: wrap;
+}
+
 .relationship-busy {
     align-items: center;
     color: #475467;
@@ -216,6 +220,28 @@
 
 .relationship-row strong {
     font-weight: 800;
+}
+
+.relationship-row-meta,
+.relationship-editor-status {
+    align-items: center;
+    display: inline-flex;
+    gap: 0.25rem;
+    min-width: 0;
+}
+
+.relationship-imported-icon {
+    align-items: center;
+    background: #ecfdf3;
+    border: 1px solid #abefc6;
+    border-radius: 999px;
+    color: #027a48;
+    display: inline-flex;
+    flex: 0 0 auto;
+    font-size: 0.82rem;
+    height: 1.35rem;
+    justify-content: center;
+    width: 1.35rem;
 }
 
 .relationship-row code,

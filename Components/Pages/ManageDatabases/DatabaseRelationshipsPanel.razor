@@ -9,7 +9,7 @@
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("2.15")]
+@attribute [FileVersion("2.17")]
 @attribute [AIFileContext("Components/Pages/ManageDatabases/DatabaseRelationshipsPanel.razor", "Manage Databases child panel for the curated database relationship registry.", Responsibilities = "Loads source tables, imports source-system foreign-key relationships into dbo.DatabaseRelationships, and displays the registry rows that touch the selected table.", Nuances = "The panel does not create metadata tables; database DDL stays in human-run scripts.", LastReviewed = "2026-05-13")]
 
 <RadzenStack Gap="0.75rem"
@@ -40,16 +40,17 @@
                 </RadzenText>
             </RadzenStack>
 
-            <RadzenButton Icon="refresh"
-                          Text="Reload"
+            <RadzenButton Icon="sync"
+                          Text="Refresh Relationships"
                           ButtonStyle="ButtonStyle.Light"
-                          Click="@ReloadAsync"
-                          Disabled="@isLoading" />
+                          title="Reload saved relationships for the selected table."
+                          Click="@LoadRelationshipsAsync"
+                          Disabled="@(!CanLoadRelationships)" />
         </RadzenStack>
 
         <RadzenCard class="relationships-picker rz-p-3">
             <RadzenRow Gap="0.75rem" AlignItems="AlignItems.End">
-                <RadzenColumn Size="12" SizeMD="3">
+                <RadzenColumn Size="12" SizeMD="2">
                     <div class="relationship-field-label">Schema</div>
                     <RadzenTextBox @bind-Value="@schemaName"
                                    Style="width:100%;"
@@ -57,7 +58,7 @@
                                    Change="@(async _ => await LoadTablesAsync())" />
                 </RadzenColumn>
 
-                <RadzenColumn Size="12" SizeMD="5">
+                <RadzenColumn Size="12" SizeMD="4">
                     <div class="relationship-field-label">Table</div>
                     <RadzenDropDown TValue="string"
                                     Data="@tables"
@@ -70,21 +71,24 @@
                                     Change="@(async _ => await LoadRelationshipsAsync())" />
                 </RadzenColumn>
 
-                <RadzenColumn Size="12" SizeMD="4">
-                    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.5rem">
-                        <RadzenButton Icon="table_rows"
-                                      Text="Load Tables"
-                                      ButtonStyle="ButtonStyle.Light"
-                                      Click="@LoadTablesAsync"
-                                      Disabled="@isLoading" />
+                <RadzenColumn Size="12" SizeMD="6">
+                    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.5rem" class="relationship-action-bar">
+                        <RadzenButton Icon="sync"
+                                      Text="Load Relationships"
+                                      ButtonStyle="ButtonStyle.Primary"
+                                      title="Load saved relationships for the selected table."
+                                      Click="@LoadRelationshipsAsync"
+                                      Disabled="@(!CanLoadRelationships)" />
                         <RadzenButton Icon="account_tree"
                                       Text="Preview Detected Joins"
-                                      ButtonStyle="ButtonStyle.Primary"
+                                      ButtonStyle="ButtonStyle.Secondary"
+                                      title="Preview source-system joins for this table before saving them."
                                       Click="@ImportForeignKeysAsync"
                                       Disabled="@(!CanImport)" />
                         <RadzenButton Icon="save"
                                       Text="Save All"
                                       ButtonStyle="ButtonStyle.Secondary"
+                                      title="Save the relationship rows currently shown."
                                       Click="@SaveAllRelationshipsAsync"
                                       Disabled="@(!CanSaveAllRelationships)" />
                     </RadzenStack>
@@ -146,7 +150,15 @@
                             <button type="button"
                                     class="@RelationshipRowClass(relationship)"
                                     @onclick="@(() => SelectRelationship(relationship))">
-                                <span class="@RelationshipStatusChipClass(relationship)">@RelationshipStatusText(relationship)</span>
+                                <span class="relationship-row-meta">
+                                    <span class="@RelationshipStatusChipClass(relationship)">@RelationshipStatusText(relationship)</span>
+                                    @if (IsImportedRelationship(relationship))
+                                    {
+                                        <RadzenIcon Icon="download_done"
+                                                    class="relationship-imported-icon"
+                                                    title="Imported relationship already saved" />
+                                    }
+                                </span>
                                 <strong>@RelationshipOtherTable(relationship)</strong>
                                 <code>@relationship.JoinType</code>
                                 <span>@relationship.ColumnSummary</span>
@@ -170,7 +182,15 @@
                     </div>
                     @if (editRelationship is not null)
                     {
-                        <span class="@RelationshipStatusChipClass(editRelationship)">@RelationshipStatusText(editRelationship)</span>
+                        <span class="relationship-editor-status">
+                            <span class="@RelationshipStatusChipClass(editRelationship)">@RelationshipStatusText(editRelationship)</span>
+                            @if (IsImportedRelationship(editRelationship))
+                            {
+                                <RadzenIcon Icon="download_done"
+                                            class="relationship-imported-icon"
+                                            title="Imported relationship already saved" />
+                            }
+                        </span>
                     }
                 </div>
 
@@ -397,6 +417,10 @@
         !isLoading &&
         !string.IsNullOrWhiteSpace(selectedTableName);
 
+    private bool CanLoadRelationships =>
+        CanImport &&
+        !string.IsNullOrWhiteSpace(schemaName);
+
     private bool CanSaveAllRelationships =>
         Database is not null &&
         !isLoading &&
@@ -442,12 +466,6 @@
         await LoadTablesAsync();
     }
 
-    private async Task ReloadAsync()
-    {
-        await LoadTablesAsync(keepSelectedTable: true);
-        await LoadRelationshipsAsync();
-    }
-
     private async Task LoadTablesAsync()
     {
         await LoadTablesAsync(keepSelectedTable: false);
@@ -479,7 +497,7 @@
 
             await LoadRelationshipsAsync(setLoading: false);
             CacheState();
-            SetStatus($"Loaded {tables.Count} table(s) for {Database.DatabaseName}.{schemaName}.", AlertStyle.Info);
+            SetStatus($"Loaded {tables.Count} table(s) for {Database.DatabaseName}.{schemaName}. Use Load Relationships for the selected table.", AlertStyle.Info);
         }
         catch (Exception ex)
         {
@@ -553,7 +571,7 @@
 
             if (setLoading)
             {
-                SetStatus($"Loaded {relationships.Count} relationship(s) from {selectedTableName}.", AlertStyle.Info);
+                SetStatus($"Loaded {relationships.Count} parent/lookup relationship(s) and {childRelationships.Count} child relationship(s) for {selectedTableName}.", AlertStyle.Info);
             }
             CacheState();
         }
@@ -1051,6 +1069,13 @@
 
     private static bool IsUnsavedRelationship(DatabaseRelationshipDefinition relationship) =>
         relationship.DatabaseRelationshipId == 0;
+
+    private static bool IsImportedRelationship(DatabaseRelationshipDefinition relationship) =>
+        !IsUnsavedRelationship(relationship) &&
+        (
+            relationship.DiscoverySource.Equals(DiscoverySchemaLookup, StringComparison.OrdinalIgnoreCase) ||
+            relationship.DiscoverySource.Equals(DiscoverySchemaChild, StringComparison.OrdinalIgnoreCase)
+        );
 
     private static bool IsPersistableRelationship(DatabaseRelationshipDefinition relationship) =>
         !string.IsNullOrWhiteSpace(relationship.SourceTableName) &&
