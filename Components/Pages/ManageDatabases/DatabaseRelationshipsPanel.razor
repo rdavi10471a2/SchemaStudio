@@ -9,7 +9,7 @@
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("1.6")]
+@attribute [FileVersion("1.7")]
 @attribute [AIFileContext("Components/Pages/ManageDatabases/DatabaseRelationshipsPanel.razor", "Manage Databases child panel for the curated database relationship registry.", Responsibilities = "Loads source tables, imports source-system foreign-key relationships into dbo.DatabaseRelationships, and displays the registry rows that touch the selected table.", Nuances = "The panel does not create metadata tables; database DDL stays in human-run scripts.", LastReviewed = "2026-05-13")]
 
 <RadzenStack Gap="0.75rem"
@@ -104,7 +104,7 @@
                 <div class="relationship-pane-header">
                     <div>
                         <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0">Relationships</RadzenText>
-                        <RadzenText TextStyle="TextStyle.Caption" Style="color:#667085;">@relationships.Count touching @selectedTableName</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Caption" Style="color:#667085;">@relationships.Count from @selectedTableName</RadzenText>
                     </div>
                     <RadzenButton Icon="add"
                                   Text="New"
@@ -446,6 +446,7 @@
 
         isLoading = true;
         SetStatus("", AlertStyle.Info);
+        await InvokeAsync(StateHasChanged);
 
         try
         {
@@ -500,6 +501,7 @@
         {
             isLoading = true;
             SetStatus("", AlertStyle.Info);
+            await InvokeAsync(StateHasChanged);
         }
 
         try
@@ -519,7 +521,7 @@
 
             if (setLoading)
             {
-                SetStatus($"Loaded {relationships.Count} relationship(s) touching {selectedTableName}.", AlertStyle.Info);
+                SetStatus($"Loaded {relationships.Count} relationship(s) from {selectedTableName}.", AlertStyle.Info);
             }
             CacheState();
         }
@@ -550,6 +552,7 @@
 
         isLoading = true;
         SetStatus("", AlertStyle.Info);
+        await InvokeAsync(StateHasChanged);
 
         try
         {
@@ -958,8 +961,8 @@
                 .Select((column, index) => new DatabaseRelationshipColumnDefinition
                 {
                     OrdinalPosition = index + 1,
-                    SourceColumnName = Truncate(column.LocalColumnName, 128) ?? "",
-                    TargetColumnName = Truncate(column.ReferencedColumnName, 128) ?? ""
+                    SourceColumnName = Truncate(BareColumnName(column.LocalColumnName), 128) ?? "",
+                    TargetColumnName = Truncate(BareColumnName(column.ReferencedColumnName), 128) ?? ""
                 })
                 .ToList()
         };
@@ -1024,7 +1027,7 @@
         string.Join(
             " AND ",
             relationship.Columns.Select(column =>
-                $"{QuoteIdentifier(sourceTableName)}.{QuoteIdentifier(column.LocalColumnName)} = {QuoteIdentifier(relationship.ReferencedTableName)}.{QuoteIdentifier(column.ReferencedColumnName)}"));
+                $"{QuoteIdentifier(sourceTableName)}.{QuoteIdentifier(BareColumnName(column.LocalColumnName))} = {QuoteIdentifier(relationship.ReferencedTableName)}.{QuoteIdentifier(BareColumnName(column.ReferencedColumnName))}"));
 
     private static string BuildJoinExpression(
         string sourceTableName,
@@ -1035,7 +1038,30 @@
             columns
                 .OrderBy(column => column.OrdinalPosition)
                 .Select(column =>
-                    $"{QuoteIdentifier(sourceTableName)}.{QuoteIdentifier(column.SourceColumnName)} = {QuoteIdentifier(targetTableName)}.{QuoteIdentifier(column.TargetColumnName)}"));
+                    $"{QuoteIdentifier(sourceTableName)}.{QuoteIdentifier(BareColumnName(column.SourceColumnName))} = {QuoteIdentifier(targetTableName)}.{QuoteIdentifier(BareColumnName(column.TargetColumnName))}"));
+
+    private static string BareColumnName(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "";
+        }
+
+        var trimmed = value.Trim();
+        if (trimmed.EndsWith("]", StringComparison.Ordinal))
+        {
+            var openBracket = trimmed.LastIndexOf('[', trimmed.Length - 1);
+            if (openBracket >= 0 && openBracket < trimmed.Length - 1)
+            {
+                return trimmed[(openBracket + 1)..^1];
+            }
+        }
+
+        var dot = trimmed.LastIndexOf('.');
+        return dot >= 0 && dot < trimmed.Length - 1
+            ? trimmed[(dot + 1)..].Trim('[', ']')
+            : trimmed.Trim('[', ']');
+    }
 
     private static string QuoteIdentifier(string value) =>
         $"[{value.Replace("]", "]]", StringComparison.Ordinal)}]";

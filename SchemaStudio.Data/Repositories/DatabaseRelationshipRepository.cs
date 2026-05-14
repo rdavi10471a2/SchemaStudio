@@ -5,7 +5,7 @@ using SchemaStudio.Data.Models;
 
 namespace SchemaStudio.Data.Repositories;
 
-[FileVersion("1.6")]
+    [FileVersion("1.8")]
 [AIFileContext("SchemaStudio.Data/Repositories/DatabaseRelationshipRepository.cs", "Read/write repository for the curated database relationship registry.", Responsibilities = "Loads relationship headers with ordered column pairs and saves imported or user-curated relationships without creating or altering database objects.", Nuances = "This repository intentionally assumes dbo.DatabaseRelationships and dbo.DatabaseRelationshipColumns already exist; table creation remains a human-run script.", LastReviewed = "2026-05-13")]
 public sealed class DatabaseRelationshipRepository
 {
@@ -119,12 +119,8 @@ SELECT
     UpdatedOn
 FROM {RelationshipsTable}
 WHERE DatabaseId = @databaseId
-    AND
-    (
-        (SourceSchemaName = @schemaName AND SourceTableName = @tableName)
-        OR
-        (TargetSchemaName = @schemaName AND TargetTableName = @tableName)
-    )
+    AND SourceSchemaName = @schemaName
+    AND SourceTableName = @tableName
 ORDER BY SourceSchemaName, SourceTableName, TargetSchemaName, TargetTableName, RelationshipName;
 """;
 
@@ -319,6 +315,25 @@ ORDER BY DatabaseRelationshipId, OrdinalPosition;
                 {
                     return candidateId;
                 }
+            }
+
+            if (!string.IsNullOrWhiteSpace(relationship.RelationshipName))
+            {
+                var namedCandidateSql = $"""
+SELECT TOP (1) DatabaseRelationshipId
+FROM {relationshipsTable}
+WHERE DatabaseId = @DatabaseId
+    AND SourceSchemaName = @SourceSchemaName
+    AND SourceTableName = @SourceTableName
+    AND TargetSchemaName = @TargetSchemaName
+    AND TargetTableName = @TargetTableName
+    AND ISNULL(RelationshipName, N'') = ISNULL(@RelationshipName, N'');
+""";
+
+                return await connection.ExecuteScalarAsync<int?>(
+                    namedCandidateSql,
+                    relationship,
+                    transaction) ?? 0;
             }
 
             return 0;
@@ -567,13 +582,36 @@ VALUES
 
         foreach (var column in relationship.Columns)
         {
-            column.SourceColumnName = NormalizeName(column.SourceColumnName, "");
-            column.TargetColumnName = NormalizeName(column.TargetColumnName, "");
+            column.SourceColumnName = NormalizeColumnName(column.SourceColumnName);
+            column.TargetColumnName = NormalizeColumnName(column.TargetColumnName);
         }
     }
 
     private static string NormalizeName(string value, string fallback) =>
         string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
+
+    private static string NormalizeColumnName(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "";
+        }
+
+        var trimmed = value.Trim();
+        if (trimmed.EndsWith("]", StringComparison.Ordinal))
+        {
+            var openBracket = trimmed.LastIndexOf('[', trimmed.Length - 1);
+            if (openBracket >= 0 && openBracket < trimmed.Length - 1)
+            {
+                return trimmed[(openBracket + 1)..^1];
+            }
+        }
+
+        var dot = trimmed.LastIndexOf('.');
+        return dot >= 0 && dot < trimmed.Length - 1
+            ? trimmed[(dot + 1)..].Trim('[', ']')
+            : trimmed.Trim('[', ']');
+    }
 
     private static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
