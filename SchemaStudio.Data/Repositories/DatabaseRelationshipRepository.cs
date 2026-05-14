@@ -5,7 +5,7 @@ using SchemaStudio.Data.Models;
 
 namespace SchemaStudio.Data.Repositories;
 
-[FileVersion("1.5")]
+[FileVersion("1.6")]
 [AIFileContext("SchemaStudio.Data/Repositories/DatabaseRelationshipRepository.cs", "Read/write repository for the curated database relationship registry.", Responsibilities = "Loads relationship headers with ordered column pairs and saves imported or user-curated relationships without creating or altering database objects.", Nuances = "This repository intentionally assumes dbo.DatabaseRelationships and dbo.DatabaseRelationshipColumns already exist; table creation remains a human-run script.", LastReviewed = "2026-05-13")]
 public sealed class DatabaseRelationshipRepository
 {
@@ -152,7 +152,12 @@ ORDER BY SourceSchemaName, SourceTableName, TargetSchemaName, TargetTableName, R
 
             if (databaseRelationshipId == 0)
             {
-                databaseRelationshipId = await FindExistingIdAsync(connection, transaction, relationship, RelationshipsTable);
+                databaseRelationshipId = await FindExistingIdAsync(
+                    connection,
+                    transaction,
+                    relationship,
+                    RelationshipsTable,
+                    RelationshipColumnsTable);
             }
 
             if (databaseRelationshipId == 0)
@@ -258,8 +263,65 @@ WHERE s.name = N'dbo'
         SqlConnection connection,
         SqlTransaction transaction,
         DatabaseRelationshipDefinition relationship,
-        string relationshipsTable)
+        string relationshipsTable,
+        string relationshipColumnsTable)
     {
+        if (relationship.Columns.Count > 0)
+        {
+            var candidatesSql = $"""
+SELECT DatabaseRelationshipId
+FROM {relationshipsTable}
+WHERE DatabaseId = @DatabaseId
+    AND SourceSchemaName = @SourceSchemaName
+    AND SourceTableName = @SourceTableName
+    AND TargetSchemaName = @TargetSchemaName
+    AND TargetTableName = @TargetTableName;
+""";
+
+            var candidateIds = (await connection.QueryAsync<int>(
+                candidatesSql,
+                relationship,
+                transaction)).ToList();
+
+            if (candidateIds.Count == 0)
+            {
+                return 0;
+            }
+
+            var columnsSql = $"""
+SELECT
+    DatabaseRelationshipId,
+    OrdinalPosition,
+    SourceColumnName,
+    TargetColumnName
+FROM {relationshipColumnsTable}
+WHERE DatabaseRelationshipId IN @candidateIds
+ORDER BY DatabaseRelationshipId, OrdinalPosition;
+""";
+
+            var candidateColumns = (await connection.QueryAsync<DatabaseRelationshipColumnDefinition>(
+                columnsSql,
+                new { candidateIds },
+                transaction))
+                .GroupBy(column => column.DatabaseRelationshipId)
+                .ToDictionary(group => group.Key, group => group.ToList());
+
+            var expectedColumns = relationship.Columns
+                .OrderBy(column => column.OrdinalPosition)
+                .ToList();
+
+            foreach (var candidateId in candidateIds)
+            {
+                var actualColumns = candidateColumns.GetValueOrDefault(candidateId) ?? new List<DatabaseRelationshipColumnDefinition>();
+                if (ColumnsMatch(expectedColumns, actualColumns))
+                {
+                    return candidateId;
+                }
+            }
+
+            return 0;
+        }
+
         var naturalSql = $"""
 SELECT TOP (1) DatabaseRelationshipId
 FROM {relationshipsTable}
@@ -270,7 +332,6 @@ WHERE DatabaseId = @DatabaseId
     AND TargetTableName = @TargetTableName
     AND RelationshipRole = @RelationshipRole
     AND JoinType = @JoinType
-    AND JoinExpression = @JoinExpression
     AND ISNULL(RelationshipName, N'') = ISNULL(@RelationshipName, N'');
 """;
 
@@ -278,6 +339,27 @@ WHERE DatabaseId = @DatabaseId
             naturalSql,
             relationship,
             transaction) ?? 0;
+    }
+
+    private static bool ColumnsMatch(
+        IReadOnlyList<DatabaseRelationshipColumnDefinition> expectedColumns,
+        IReadOnlyList<DatabaseRelationshipColumnDefinition> actualColumns)
+    {
+        if (expectedColumns.Count != actualColumns.Count)
+        {
+            return false;
+        }
+
+        for (var index = 0; index < expectedColumns.Count; index++)
+        {
+            if (!string.Equals(expectedColumns[index].SourceColumnName, actualColumns[index].SourceColumnName, StringComparison.OrdinalIgnoreCase) ||
+                !string.Equals(expectedColumns[index].TargetColumnName, actualColumns[index].TargetColumnName, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static async Task<int> InsertAsync(
