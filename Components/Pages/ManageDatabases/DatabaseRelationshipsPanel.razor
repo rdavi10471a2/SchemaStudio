@@ -9,7 +9,7 @@
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("2.3")]
+@attribute [FileVersion("2.5")]
 @attribute [AIFileContext("Components/Pages/ManageDatabases/DatabaseRelationshipsPanel.razor", "Manage Databases child panel for the curated database relationship registry.", Responsibilities = "Loads source tables, imports source-system foreign-key relationships into dbo.DatabaseRelationships, and displays the registry rows that touch the selected table.", Nuances = "The panel does not create metadata tables; database DDL stays in human-run scripts.", LastReviewed = "2026-05-13")]
 
 <RadzenStack Gap="0.75rem"
@@ -578,6 +578,7 @@
                 Database.SQLLookupString);
 
             var imported = 0;
+            var childImported = 0;
             var failed = 0;
             string? firstFailure = null;
             foreach (var sourceRelationship in details.Relationships)
@@ -585,7 +586,7 @@
                 try
                 {
                     var relationship = await FromSourceLookupAsync(Database.DatabaseId, details, sourceRelationship);
-                    StageRelationship(relationship);
+                    StageRelationship(relationships, relationship);
                     imported++;
                 }
                 catch (Exception ex)
@@ -595,9 +596,24 @@
                 }
             }
 
+            foreach (var childRelationship in details.ChildRelationships)
+            {
+                try
+                {
+                    var relationship = FromChildRelationship(Database.DatabaseId, details, childRelationship);
+                    StageRelationship(childRelationships, relationship);
+                    childImported++;
+                }
+                catch (Exception ex)
+                {
+                    failed++;
+                    firstFailure ??= FriendlyError(ex);
+                }
+            }
+
             var message = failed == 0
-                ? $"Previewed {imported} source lookup relationship(s) for {selectedTableName}. Save selected rows to persist them."
-                : $"Previewed {imported} source lookup relationship(s) for {selectedTableName}; {failed} relationship(s) were skipped. Save selected rows to persist them.";
+                ? $"Previewed {imported} source lookup relationship(s) and {childImported} child relationship(s) for {selectedTableName}. Save selected rows to persist them."
+                : $"Previewed {imported} source lookup relationship(s) and {childImported} child relationship(s) for {selectedTableName}; {failed} relationship(s) were skipped. Save selected rows to persist them.";
             if (!string.IsNullOrWhiteSpace(firstFailure))
             {
                 message = $"{message} First failure: {firstFailure}";
@@ -843,9 +859,9 @@
                 selectedRelationship.DatabaseRelationshipId == relationship.DatabaseRelationshipId)
         );
 
-    private void StageRelationship(DatabaseRelationshipDefinition relationship)
+    private void StageRelationship(List<DatabaseRelationshipDefinition> relationshipList, DatabaseRelationshipDefinition relationship)
     {
-        var existing = relationships.FirstOrDefault(candidate =>
+        var existing = relationshipList.FirstOrDefault(candidate =>
             string.Equals(candidate.SourceSchemaName, relationship.SourceSchemaName, StringComparison.OrdinalIgnoreCase) &&
             string.Equals(candidate.SourceTableName, relationship.SourceTableName, StringComparison.OrdinalIgnoreCase) &&
             string.Equals(candidate.TargetSchemaName, relationship.TargetSchemaName, StringComparison.OrdinalIgnoreCase) &&
@@ -854,26 +870,41 @@
 
         if (existing is null)
         {
-            relationships.Add(relationship);
+            relationshipList.Add(relationship);
             return;
         }
 
-        var index = relationships.IndexOf(existing);
+        var index = relationshipList.IndexOf(existing);
         relationship.DatabaseRelationshipId = existing.DatabaseRelationshipId;
-        relationships[index] = relationship;
+        relationshipList[index] = relationship;
     }
 
     private bool IsEditingFromSelectedTable() =>
         editRelationship is null ||
         editRelationship.SourceTableName.Equals(selectedTableName, StringComparison.OrdinalIgnoreCase);
 
-    private static string RelationshipStatusText(DatabaseRelationshipDefinition relationship) =>
-        IsIgnoredForBaseView(relationship) ? "Ignore" : "Lookup";
+    private static string RelationshipStatusText(DatabaseRelationshipDefinition relationship)
+    {
+        if (IsChildRelationship(relationship))
+        {
+            return "Child";
+        }
+
+        if (string.IsNullOrWhiteSpace(relationship.DisplayColumnName))
+        {
+            return "Join Only";
+        }
+
+        return relationship.DefaultIncludeInBaseView ? "Default Lookup" : "Known Lookup";
+    }
 
     private static string RelationshipStatusChipClass(DatabaseRelationshipDefinition relationship) =>
-        IsIgnoredForBaseView(relationship)
+        IsChildRelationship(relationship) || !relationship.DefaultIncludeInBaseView
             ? "relationship-chip relationship-chip-warning"
             : "relationship-chip";
+
+    private static bool IsChildRelationship(DatabaseRelationshipDefinition relationship) =>
+        string.Equals(relationship.SourceToTargetRole, "Child", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsIgnoredForBaseView(DatabaseRelationshipDefinition relationship) =>
         !relationship.DefaultIncludeInBaseView;
@@ -1060,6 +1091,50 @@
         };
     }
 
+    private static DatabaseRelationshipDefinition FromChildRelationship(
+        int databaseId,
+        TableSchemaDetails details,
+        TableSchemaChildRelationshipInfo childRelationship)
+    {
+        if (childRelationship.Columns.Count == 0)
+        {
+            throw new InvalidOperationException($"Child relationship {childRelationship.ForeignKeyName} has no parent-to-child column pairs.");
+        }
+
+        return new DatabaseRelationshipDefinition
+        {
+            DatabaseId = databaseId,
+            SourceSchemaName = details.SchemaName,
+            SourceTableName = details.TableName,
+            TargetSchemaName = childRelationship.ChildSchemaName,
+            TargetTableName = childRelationship.ChildTableName,
+            JoinType = "LEFT JOIN",
+            RelationshipRole = "Detail",
+            SourceToTargetRole = "Child",
+            TargetToSourceRole = "Parent",
+            RelationshipName = Truncate(childRelationship.ForeignKeyName, 128),
+            JoinExpression = BuildChildJoinExpression(details.TableName, childRelationship),
+            SourceSystemDetected = true,
+            UserConfirmed = false,
+            DefaultIncludeInBaseView = false,
+            UseInDomainObjectModeler = true,
+            UseInQueryBuilder = true,
+            DisplayColumnName = null,
+            FilterColumnName = null,
+            FilterValue = null,
+            LegalValues = null,
+            Active = true,
+            Columns = childRelationship.Columns
+                .Select((column, index) => new DatabaseRelationshipColumnDefinition
+                {
+                    OrdinalPosition = index + 1,
+                    SourceColumnName = Truncate(BareColumnName(column.ParentColumnName), 128) ?? "",
+                    TargetColumnName = Truncate(BareColumnName(column.ChildColumnName), 128) ?? ""
+                })
+                .ToList()
+        };
+    }
+
     private static string BuildSourceRelationshipKey(TableSchemaRelationshipInfo relationship)
     {
         var firstColumn = relationship.Columns.FirstOrDefault();
@@ -1078,6 +1153,12 @@
             " AND ",
             relationship.Columns.Select(column =>
                 $"{QuoteIdentifier(sourceTableName)}.{QuoteIdentifier(BareColumnName(column.LocalColumnName))} = {QuoteIdentifier(relationship.ReferencedTableName)}.{QuoteIdentifier(BareColumnName(column.ReferencedColumnName))}"));
+
+    private static string BuildChildJoinExpression(string sourceTableName, TableSchemaChildRelationshipInfo relationship) =>
+        string.Join(
+            " AND ",
+            relationship.Columns.Select(column =>
+                $"{QuoteIdentifier(sourceTableName)}.{QuoteIdentifier(BareColumnName(column.ParentColumnName))} = {QuoteIdentifier(relationship.ChildTableName)}.{QuoteIdentifier(BareColumnName(column.ChildColumnName))}"));
 
     private static string BuildJoinExpression(
         string sourceTableName,
@@ -1126,6 +1207,18 @@
 
     private static void ApplyInferredRelationshipRole(DatabaseRelationshipDefinition relationship)
     {
+        if (IsChildRelationship(relationship))
+        {
+            relationship.RelationshipRole = "Detail";
+            relationship.SourceToTargetRole = "Child";
+            relationship.TargetToSourceRole = "Parent";
+            relationship.DefaultIncludeInBaseView = false;
+            relationship.DisplayColumnName = null;
+            relationship.FilterColumnName = null;
+            relationship.FilterValue = null;
+            return;
+        }
+
         var role = RelationshipRoleForDisplayColumn(relationship.DisplayColumnName);
         relationship.RelationshipRole = role;
         relationship.SourceToTargetRole = role;
