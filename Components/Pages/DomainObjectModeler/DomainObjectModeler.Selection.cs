@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Components;
+using SchemaStudio.Data.Models;
 
 [module: SchemaStudio.AIHelpers.AIFileContext(
     "Components/Pages/DomainObjectModeler/DomainObjectModeler.Selection.cs",
@@ -280,14 +281,35 @@ public partial class DomainObjectModeler
     {
         SourceDatabaseRelationships.Clear();
         var databaseName = SelectedDatabaseName();
-        if (string.IsNullOrWhiteSpace(databaseName) || BaseViews.Count == 0)
+        if (string.IsNullOrWhiteSpace(databaseName) || SelectedDatabaseId is null || BaseViews.Count == 0)
         {
+            return;
+        }
+
+        var selectedTableNames = BaseViews
+            .Select(item => item.RelationshipTableName)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var registryRelationships = (await DatabaseRelationshipRepository.GetForDatabaseAsync(SelectedDatabaseId.Value))
+            .Where(relationship =>
+                relationship.Active &&
+                relationship.UseInDomainObjectModeler &&
+                relationship.Columns.Count > 0 &&
+                selectedTableNames.Contains(relationship.SourceTableName) &&
+                selectedTableNames.Contains(relationship.TargetTableName))
+            .Select(ToForeignKeyEdge)
+            .ToList();
+
+        if (registryRelationships.Count > 0)
+        {
+            SourceDatabaseRelationships = registryRelationships;
             return;
         }
 
         SourceDatabaseRelationships = (await TableSchemaRepository.GetRelationshipsBetweenTablesAsync(
             databaseName,
-            BaseViews.Select(item => item.RelationshipTableName)))
+            selectedTableNames))
             .ToList();
     }
 
@@ -378,6 +400,20 @@ public partial class DomainObjectModeler
         return string.Join($"{Environment.NewLine}AND ", relationship.Columns.Select(column =>
             $"{QuoteIdentifier(referenced.AliasName)}.{QuoteIdentifier(column.ReferencedColumnName)} = {QuoteIdentifier(parent.AliasName)}.{QuoteIdentifier(column.ParentColumnName)}"));
     }
+
+    private static SchemaStudioWebViewer.Data.TableSchemaForeignKeyEdge ToForeignKeyEdge(DatabaseRelationshipDefinition relationship) =>
+        new(
+            relationship.RelationshipName ?? $"{relationship.SourceTableName}_{relationship.TargetTableName}",
+            relationship.SourceSchemaName,
+            relationship.SourceTableName,
+            relationship.TargetSchemaName,
+            relationship.TargetTableName,
+            relationship.Columns
+                .OrderBy(column => column.OrdinalPosition)
+                .Select(column => new SchemaStudioWebViewer.Data.TableSchemaForeignKeyEdgeColumn(
+                    column.SourceColumnName,
+                    column.TargetColumnName))
+                .ToList());
 
     private static string BuildDefaultAlias(string sourceObjectName)
     {
