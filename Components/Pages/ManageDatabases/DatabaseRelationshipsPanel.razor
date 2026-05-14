@@ -753,11 +753,13 @@
             : "Relationship Detail";
 
     private string RelationshipEditorSubtitle =>
-        editRelationship is not null && IsUnsavedRelationship(editRelationship)
-            ? "Unsaved staged relationship. Fill the target table and ON clause, then save it."
-            : IsChildRelationship(editRelationship)
-                ? "Captured 1-to-M child join metadata under the selected table."
-                : "Captured M-to-1 parent/lookup join metadata for the selected table.";
+        editRelationship is null
+            ? "Select or create a relationship."
+            : IsUnsavedRelationship(editRelationship)
+                ? "Unsaved staged relationship. Fill the target table and ON clause, then save it."
+                : IsChildRelationship(editRelationship)
+                    ? "Captured 1-to-M child join metadata under the selected table."
+                    : "Captured M-to-1 parent/lookup join metadata for the selected table.";
 
     private async Task DeleteRelationshipAsync()
     {
@@ -929,7 +931,8 @@
     private static bool IsUnsavedRelationship(DatabaseRelationshipDefinition relationship) =>
         relationship.DatabaseRelationshipId == 0 && !relationship.SourceSystemDetected;
 
-    private static bool IsChildRelationship(DatabaseRelationshipDefinition relationship) =>
+    private static bool IsChildRelationship(DatabaseRelationshipDefinition? relationship) =>
+        relationship is not null &&
         string.Equals(relationship.SourceToTargetRole ?? "", "Child", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsIgnoredForBaseView(DatabaseRelationshipDefinition relationship) =>
