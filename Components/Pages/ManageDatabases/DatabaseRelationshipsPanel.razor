@@ -513,15 +513,23 @@
 
         try
         {
-            var sourceRelationships = (await RelationshipRepository.GetByTableAsync(
-                Database.DatabaseId,
-                schemaName.Trim(),
-                selectedTableName.Trim())).ToList();
-            relationships = sourceRelationships
-                .Where(relationship => !IsChildRelationship(relationship))
+            var selectedSchema = schemaName.Trim();
+            var selectedTable = selectedTableName.Trim();
+            var touchingRelationships = (await RelationshipRepository.GetForDatabaseAsync(Database.DatabaseId))
+                .Where(relationship =>
+                    IsSelectedSource(relationship, selectedSchema, selectedTable) ||
+                    IsSelectedTarget(relationship, selectedSchema, selectedTable))
                 .ToList();
-            childRelationships = sourceRelationships
-                .Where(IsChildRelationship)
+
+            relationships = touchingRelationships
+                .Where(relationship =>
+                    !IsChildRelationship(relationship) ||
+                    IsSelectedTarget(relationship, selectedSchema, selectedTable))
+                .ToList();
+            childRelationships = touchingRelationships
+                .Where(relationship =>
+                    IsChildRelationship(relationship) &&
+                    IsSelectedSource(relationship, selectedSchema, selectedTable))
                 .ToList();
 
             selectedRelationship = VisibleRelationships.FirstOrDefault();
@@ -902,6 +910,20 @@
     private bool IsEditingFromSelectedTable() =>
         editRelationship is null ||
         editRelationship.SourceTableName.Equals(selectedTableName, StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsSelectedSource(
+        DatabaseRelationshipDefinition relationship,
+        string selectedSchema,
+        string selectedTable) =>
+        relationship.SourceSchemaName.Equals(selectedSchema, StringComparison.OrdinalIgnoreCase) &&
+        relationship.SourceTableName.Equals(selectedTable, StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsSelectedTarget(
+        DatabaseRelationshipDefinition relationship,
+        string selectedSchema,
+        string selectedTable) =>
+        relationship.TargetSchemaName.Equals(selectedSchema, StringComparison.OrdinalIgnoreCase) &&
+        relationship.TargetTableName.Equals(selectedTable, StringComparison.OrdinalIgnoreCase);
 
     private static string RelationshipStatusText(DatabaseRelationshipDefinition relationship)
     {
