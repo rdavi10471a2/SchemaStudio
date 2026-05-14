@@ -508,6 +508,10 @@
                 Database.DatabaseId,
                 schemaName.Trim(),
                 selectedTableName.Trim())).ToList();
+            foreach (var relationship in relationships)
+            {
+                relationship.JoinExpression = NormalizeJoinExpressionAliases(relationship);
+            }
 
             selectedRelationship = relationships.FirstOrDefault();
             selectedRelationships = selectedRelationship is null
@@ -1043,17 +1047,25 @@
             var qualifiedTarget = $"{QuoteIdentifier(relationship.TargetTableName)}.{QuoteIdentifier(column.TargetColumnName)}";
             var unqualifiedSource = QuoteIdentifier(column.SourceColumnName);
 
-            normalized = normalized.Replace(
-                $"{unqualifiedSource} = {qualifiedTarget}",
-                $"{qualifiedSource} = {qualifiedTarget}",
-                StringComparison.OrdinalIgnoreCase);
-            normalized = normalized.Replace(
-                $"{unqualifiedSource}={qualifiedTarget}",
-                $"{qualifiedSource} = {qualifiedTarget}",
-                StringComparison.OrdinalIgnoreCase);
+            normalized = CollapseDuplicateQualifier(normalized, relationship.SourceTableName, column.SourceColumnName);
+            normalized = CollapseDuplicateQualifier(normalized, relationship.TargetTableName, column.TargetColumnName);
+
+            var pattern = $@"(?<!\.){System.Text.RegularExpressions.Regex.Escape(unqualifiedSource)}\s*=\s*{System.Text.RegularExpressions.Regex.Escape(qualifiedTarget)}";
+            normalized = System.Text.RegularExpressions.Regex.Replace(
+                normalized,
+                pattern,
+                _ => $"{qualifiedSource} = {qualifiedTarget}",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
         }
 
         return normalized;
+    }
+
+    private static string CollapseDuplicateQualifier(string expression, string tableName, string columnName)
+    {
+        var qualifiedColumn = $"{QuoteIdentifier(tableName)}.{QuoteIdentifier(columnName)}";
+        var duplicateColumn = $"{QuoteIdentifier(tableName)}.{qualifiedColumn}";
+        return expression.Replace(duplicateColumn, qualifiedColumn, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string BuildJoinExpression(string sourceTableName, TableSchemaRelationshipInfo relationship) =>
