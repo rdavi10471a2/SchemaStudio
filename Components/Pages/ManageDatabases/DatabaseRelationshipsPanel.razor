@@ -9,7 +9,7 @@
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("2.0")]
+@attribute [FileVersion("2.1")]
 @attribute [AIFileContext("Components/Pages/ManageDatabases/DatabaseRelationshipsPanel.razor", "Manage Databases child panel for the curated database relationship registry.", Responsibilities = "Loads source tables, imports source-system foreign-key relationships into dbo.DatabaseRelationships, and displays the registry rows that touch the selected table.", Nuances = "The panel does not create metadata tables; database DDL stays in human-run scripts.", LastReviewed = "2026-05-13")]
 
 <RadzenStack Gap="0.75rem"
@@ -160,8 +160,8 @@
             <section class="relationship-edit-pane">
                 <div class="relationship-pane-header">
                     <div>
-                        <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0">Edit Relationship</RadzenText>
-                        <RadzenText TextStyle="TextStyle.Caption" Style="color:#667085;">Role tells the generators whether this is lookup enrichment, detail traversal, domain composition, or documentation only.</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0">Relationship Detail</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Caption" Style="color:#667085;">Captured M-to-1 join metadata for the selected table.</RadzenText>
                     </div>
                     @if (selectedRelationship is not null)
                     {
@@ -181,14 +181,6 @@
                         <DataAnnotationsValidator />
 
                         <div class="relationship-edit-grid relationship-primary-grid">
-                            <label class="relationship-role-field">
-                                <span class="relationship-field-label">Role</span>
-                                <RadzenDropDown TValue="string"
-                                                Data="@relationshipRoles"
-                                                @bind-Value="@CurrentDirectionRole"
-                                                Style="width:100%;" />
-                                <span class="relationship-help-text">@RoleHelpText(CurrentDirectionRole)</span>
-                            </label>
                             <label>
                                 <span class="relationship-field-label">Join Type</span>
                                 <RadzenDropDown TValue="string"
@@ -202,9 +194,20 @@
                                                Style="width:100%;"
                                                MaxLength="128" />
                             </label>
+                            <label class="relationship-compact-field">
+                                <span class="relationship-field-label">Display Column</span>
+                                <RadzenDropDown TValue="string"
+                                                Data="@targetColumnOptions"
+                                                @bind-Value="@editRelationship.DisplayColumnName"
+                                                Open="@LoadTargetColumnOptionsAsync"
+                                                AllowClear="true"
+                                                AllowFiltering="true"
+                                                FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                                                Placeholder="Load on open"
+                                                Style="width:100%;" />
+                            </label>
 
                             <div class="relationship-wide relationship-statement">
-                                <span class="relationship-field-label">Statement</span>
                                 <div class="relationship-statement-line">
                                     <span>FROM</span>
                                     <code>@editRelationship.SourceObject</code>
@@ -225,18 +228,6 @@
                                                 MaxLength="2000" />
                             </label>
 
-                            <label class="relationship-compact-field">
-                                <span class="relationship-field-label">Display Column</span>
-                                <RadzenDropDown TValue="string"
-                                                Data="@targetColumnOptions"
-                                                @bind-Value="@editRelationship.DisplayColumnName"
-                                                Open="@LoadTargetColumnOptionsAsync"
-                                                AllowClear="true"
-                                                AllowFiltering="true"
-                                                FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
-                                                Placeholder="Load on open"
-                                                Style="width:100%;" />
-                            </label>
                             <label class="relationship-compact-field">
                                 <span class="relationship-field-label">Filter Column</span>
                                 <RadzenDropDown TValue="string"
@@ -268,6 +259,13 @@
                         <details class="relationship-advanced">
                             <summary>Advanced record fields</summary>
                             <div class="relationship-edit-grid">
+                                <label>
+                                    <span class="relationship-field-label">Role</span>
+                                    <RadzenDropDown TValue="string"
+                                                    Data="@relationshipRoles"
+                                                    @bind-Value="@CurrentDirectionRole"
+                                                    Style="width:100%;" />
+                                </label>
                                 <label>
                                     <span class="relationship-field-label">Source Schema</span>
                                     <RadzenTextBox @bind-Value="@editRelationship.SourceSchemaName"

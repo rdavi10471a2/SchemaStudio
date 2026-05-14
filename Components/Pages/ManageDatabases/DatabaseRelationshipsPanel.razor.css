@@ -263,7 +263,7 @@
 }
 
 .relationship-primary-grid {
-    grid-template-columns: minmax(190px, 1fr) minmax(150px, 0.7fr) minmax(190px, 1fr);
+    grid-template-columns: minmax(150px, 0.45fr) minmax(190px, 0.75fr) minmax(190px, 1fr);
 }
 
 .relationship-edit-grid label {
@@ -276,7 +276,7 @@
 
 .relationship-join-editor textarea {
     font-family: Consolas, "Courier New", monospace;
-    min-height: 88px;
+    min-height: 78px;
     resize: vertical;
 }
 
@@ -338,8 +338,8 @@
     border-top: 1px solid #edf0f4;
     display: flex;
     flex-wrap: wrap;
-    gap: 0.45rem 0.95rem;
-    padding: 0.55rem 0.75rem;
+    gap: 0.35rem 0.85rem;
+    padding: 0.45rem 0.75rem;
 }
 
 .relationship-switches label {
