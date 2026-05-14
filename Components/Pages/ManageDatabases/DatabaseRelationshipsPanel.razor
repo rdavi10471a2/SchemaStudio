@@ -9,7 +9,7 @@
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("2.2")]
+@attribute [FileVersion("2.3")]
 @attribute [AIFileContext("Components/Pages/ManageDatabases/DatabaseRelationshipsPanel.razor", "Manage Databases child panel for the curated database relationship registry.", Responsibilities = "Loads source tables, imports source-system foreign-key relationships into dbo.DatabaseRelationships, and displays the registry rows that touch the selected table.", Nuances = "The panel does not create metadata tables; database DDL stays in human-run scripts.", LastReviewed = "2026-05-13")]
 
 <RadzenStack Gap="0.75rem"
@@ -195,10 +195,19 @@
                                                MaxLength="128" />
                             </label>
                             <label class="relationship-compact-field">
+                                <span class="relationship-field-label">Base View Action</span>
+                                <RadzenDropDown TValue="string"
+                                                Data="@baseViewActions"
+                                                Value="@BaseViewActionFor(editRelationship)"
+                                                Change="@SetBaseViewAction"
+                                                Style="width:100%;" />
+                            </label>
+                            <label class="relationship-compact-field">
                                 <span class="relationship-field-label">Display Column</span>
                                 <RadzenDropDown TValue="string"
                                                 Data="@targetColumnOptions"
                                                 @bind-Value="@editRelationship.DisplayColumnName"
+                                                Change="@OnDisplayColumnChanged"
                                                 Open="@LoadTargetColumnOptionsAsync"
                                                 AllowClear="true"
                                                 AllowFiltering="true"
@@ -228,36 +237,38 @@
                                                 MaxLength="2000" />
                             </label>
 
-                            <label class="relationship-compact-field">
-                                <span class="relationship-field-label">Filter Column</span>
-                                <RadzenDropDown TValue="string"
-                                                Data="@targetColumnOptions"
-                                                @bind-Value="@editRelationship.FilterColumnName"
-                                                Open="@LoadTargetColumnOptionsAsync"
-                                                AllowClear="true"
-                                                AllowFiltering="true"
-                                                FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
-                                                Placeholder="Load on open"
-                                                Style="width:100%;" />
-                            </label>
-                            <label class="relationship-compact-field">
-                                <span class="relationship-field-label">Filter Value</span>
-                                <RadzenTextBox @bind-Value="@editRelationship.FilterValue"
-                                               Style="width:100%;"
-                                               MaxLength="128" />
-                            </label>
-                        </div>
-
-                        <div class="relationship-switches">
-                            <label><RadzenCheckBox @bind-Value="@editRelationship.UserConfirmed" /> User confirmed</label>
-                            <label><RadzenCheckBox @bind-Value="@editRelationship.DefaultIncludeInBaseView" /> Include in base view by default</label>
-                            <label><RadzenCheckBox @bind-Value="@editRelationship.UseInDomainObjectModeler" /> Use in modeler</label>
-                            <label><RadzenCheckBox @bind-Value="@editRelationship.UseInQueryBuilder" /> Use in query builder</label>
-                            <label><RadzenCheckBox @bind-Value="@editRelationship.Active" /> Active</label>
+                            @if (IsConstrainedLookupTarget(editRelationship))
+                            {
+                                <label class="relationship-compact-field">
+                                    <span class="relationship-field-label">Filter Column</span>
+                                    <RadzenDropDown TValue="string"
+                                                    Data="@targetColumnOptions"
+                                                    @bind-Value="@editRelationship.FilterColumnName"
+                                                    Open="@LoadTargetColumnOptionsAsync"
+                                                    AllowClear="true"
+                                                    AllowFiltering="true"
+                                                    FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                                                    Placeholder="Load on open"
+                                                    Style="width:100%;" />
+                                </label>
+                                <label class="relationship-compact-field">
+                                    <span class="relationship-field-label">Filter Value</span>
+                                    <RadzenTextBox @bind-Value="@editRelationship.FilterValue"
+                                                   Style="width:100%;"
+                                                   MaxLength="128" />
+                                </label>
+                            }
                         </div>
 
                         <details class="relationship-advanced">
                             <summary>Advanced record fields</summary>
+                            <div class="relationship-switches">
+                                <label title="Human has reviewed this relationship."><RadzenCheckBox @bind-Value="@editRelationship.UserConfirmed" /> User confirmed</label>
+                                <label title="Base View Creator may include this lookup display by default. Use Base View Action for the normal path."><RadzenCheckBox @bind-Value="@editRelationship.DefaultIncludeInBaseView" /> Include in base view by default</label>
+                                <label title="Domain Object Modeler may use this relationship when inferring joins."><RadzenCheckBox @bind-Value="@editRelationship.UseInDomainObjectModeler" /> Use in modeler</label>
+                                <label title="Future query builders may use this relationship as an allowed path."><RadzenCheckBox @bind-Value="@editRelationship.UseInQueryBuilder" /> Use in query builder</label>
+                                <label title="Inactive relationships stay saved but are ignored by generators."><RadzenCheckBox @bind-Value="@editRelationship.Active" /> Active</label>
+                            </div>
                             <div class="relationship-edit-grid">
                                 <label>
                                     <span class="relationship-field-label">Source Schema</span>
@@ -352,7 +363,10 @@
     private const int RelationshipListMaxWidth = 560;
     private const string SourceListMode = "source";
     private const string ChildrenListMode = "children";
+    private const string BaseViewActionUseLookup = "Include join by default";
+    private const string BaseViewActionIgnore = "Do not include by default";
     private static readonly string[] joinTypes = ["LEFT JOIN", "INNER JOIN", "LEFT OUTER JOIN", "JOIN"];
+    private static readonly string[] baseViewActions = [BaseViewActionUseLookup, BaseViewActionIgnore];
     private static readonly Dictionary<int, RelationshipPanelState> stateByDatabaseId = new();
 
     private string RelationshipsPanelClass =>
@@ -661,6 +675,11 @@
         {
             editRelationship.DatabaseId = Database.DatabaseId;
             editRelationship.JoinExpression = editRelationship.JoinExpression?.Trim() ?? "";
+            if (!IsConstrainedLookupTarget(editRelationship))
+            {
+                editRelationship.FilterColumnName = null;
+                editRelationship.FilterValue = null;
+            }
             ApplyInferredRelationshipRole(editRelationship);
             editRelationship.DatabaseRelationshipId = await RelationshipRepository.UpsertAsync(editRelationship);
             await LoadRelationshipsAsync(setLoading: false);
@@ -849,12 +868,51 @@
         editRelationship.SourceTableName.Equals(selectedTableName, StringComparison.OrdinalIgnoreCase);
 
     private static string RelationshipStatusText(DatabaseRelationshipDefinition relationship) =>
-        string.IsNullOrWhiteSpace(relationship.DisplayColumnName) ? "Ignore" : "Lookup";
+        IsIgnoredForBaseView(relationship) ? "Ignore" : "Lookup";
 
     private static string RelationshipStatusChipClass(DatabaseRelationshipDefinition relationship) =>
-        string.IsNullOrWhiteSpace(relationship.DisplayColumnName)
+        IsIgnoredForBaseView(relationship)
             ? "relationship-chip relationship-chip-warning"
             : "relationship-chip";
+
+    private static bool IsIgnoredForBaseView(DatabaseRelationshipDefinition relationship) =>
+        !relationship.DefaultIncludeInBaseView;
+
+    private static bool IsConstrainedLookupTarget(DatabaseRelationshipDefinition relationship) =>
+        relationship.TargetTableName.Equals("COLOOKUP", StringComparison.OrdinalIgnoreCase);
+
+    private static string BaseViewActionFor(DatabaseRelationshipDefinition relationship) =>
+        IsIgnoredForBaseView(relationship) ? BaseViewActionIgnore : BaseViewActionUseLookup;
+
+    private void SetBaseViewAction(object? value)
+    {
+        if (editRelationship is null)
+        {
+            return;
+        }
+
+        var action = value?.ToString();
+        if (string.Equals(action, BaseViewActionIgnore, StringComparison.OrdinalIgnoreCase))
+        {
+            editRelationship.DefaultIncludeInBaseView = false;
+            ApplyInferredRelationshipRole(editRelationship);
+            return;
+        }
+
+        editRelationship.DefaultIncludeInBaseView = true;
+        ApplyInferredRelationshipRole(editRelationship);
+    }
+
+    private void OnDisplayColumnChanged(object? value)
+    {
+        if (editRelationship is null)
+        {
+            return;
+        }
+
+        editRelationship.DisplayColumnName = value?.ToString();
+        ApplyInferredRelationshipRole(editRelationship);
+    }
 
     private static string RelationshipTitle(DatabaseRelationshipDefinition relationship)
     {
