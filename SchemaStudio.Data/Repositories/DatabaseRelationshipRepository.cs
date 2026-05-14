@@ -341,16 +341,14 @@ INSERT INTO {relationshipColumnsTable}
     DatabaseRelationshipId,
     OrdinalPosition,
     SourceColumnName,
-    TargetColumnName,
-    UpdatedOn
+    TargetColumnName
 )
 VALUES
 (
     @DatabaseRelationshipId,
     @OrdinalPosition,
     @SourceColumnName,
-    @TargetColumnName,
-    SYSDATETIME()
+    @TargetColumnName
 );
 """,
             rows,
