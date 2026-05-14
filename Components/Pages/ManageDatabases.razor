@@ -10,7 +10,7 @@
 @inject TooltipService TooltipService
 @inject AttributeService Attr
 
-@attribute [FileVersion("2.0")]
+@attribute [FileVersion("2.1")]
 @attribute [AIChange(
     "1.6",
     "2026-05-01 09:59 AM CDT kept Business Name on its own row and paired Business Description with Developer Notes as equal-height metadata fields.",
@@ -296,11 +296,13 @@
 <style>
     .manage-databases-page {
         min-width: 0;
-        min-height: 100%;
+        height: calc(100vh - 82px);
+        max-height: calc(100vh - 82px);
+        min-height: 0;
         display: flex;
         flex-direction: column;
         gap: 0.55rem !important;
-        overflow: visible;
+        overflow: hidden;
     }
 
     .mdb-page-header {
@@ -310,8 +312,10 @@
 
     .mdb-shell {
         flex: 1 1 auto;
+        height: 100%;
         min-height: 0;
         align-items: stretch;
+        overflow: hidden;
     }
 
     .mdb-list-column,
@@ -330,13 +334,13 @@
     }
 
     .mdb-list-panel {
-        height: calc(100vh - 170px);
-        max-height: calc(100vh - 170px);
+        height: 100%;
+        max-height: 100%;
     }
 
     .mdb-detail-panel {
-        height: calc(100vh - 170px);
-        max-height: calc(100vh - 170px);
+        height: 100%;
+        max-height: 100%;
         overflow: hidden;
     }
 
@@ -428,8 +432,8 @@
     @@media (max-width: 1320px) {
         .mdb-list-panel,
         .mdb-detail-panel {
-            height: auto;
-            max-height: none;
+            height: 100%;
+            max-height: 100%;
         }
 
         .mdb-list-panel {
@@ -437,6 +441,8 @@
         }
 
         .manage-databases-page {
+            height: auto;
+            max-height: none;
             overflow: auto;
         }
     }

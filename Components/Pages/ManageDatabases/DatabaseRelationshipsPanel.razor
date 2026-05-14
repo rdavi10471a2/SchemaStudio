@@ -9,7 +9,7 @@
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("1.9")]
+@attribute [FileVersion("2.0")]
 @attribute [AIFileContext("Components/Pages/ManageDatabases/DatabaseRelationshipsPanel.razor", "Manage Databases child panel for the curated database relationship registry.", Responsibilities = "Loads source tables, imports source-system foreign-key relationships into dbo.DatabaseRelationships, and displays the registry rows that touch the selected table.", Nuances = "The panel does not create metadata tables; database DDL stays in human-run scripts.", LastReviewed = "2026-05-13")]
 
 <RadzenStack Gap="0.75rem"
@@ -78,7 +78,7 @@
                                       Click="@LoadTablesAsync"
                                       Disabled="@isLoading" />
                         <RadzenButton Icon="account_tree"
-                                      Text="Import Source Lookups"
+                                      Text="Preview Source Lookups"
                                       ButtonStyle="ButtonStyle.Primary"
                                       Click="@ImportForeignKeysAsync"
                                       Disabled="@(!CanImport)" />
@@ -96,7 +96,10 @@
 
         @if (isLoading)
         {
-            <RadzenProgressBar Mode="ProgressBarMode.Indeterminate" />
+            <div class="relationship-busy" role="status" aria-live="polite">
+                <div class="relationship-spinner"></div>
+                <span>Loading relationships...</span>
+            </div>
         }
 
         <div class="relationships-workspace">
@@ -610,7 +613,7 @@
                 try
                 {
                     var relationship = await FromSourceLookupAsync(Database.DatabaseId, details, sourceRelationship);
-                    await RelationshipRepository.UpsertAsync(relationship);
+                    StageRelationship(relationship);
                     imported++;
                 }
                 catch (Exception ex)
@@ -620,16 +623,22 @@
                 }
             }
 
-            await LoadRelationshipsAsync(setLoading: false);
             var message = failed == 0
-                ? $"Imported or refreshed {imported} source lookup relationship(s) for {selectedTableName}."
-                : $"Imported or refreshed {imported} source lookup relationship(s) for {selectedTableName}; {failed} relationship(s) were skipped.";
+                ? $"Previewed {imported} source lookup relationship(s) for {selectedTableName}. Save selected rows to persist them."
+                : $"Previewed {imported} source lookup relationship(s) for {selectedTableName}; {failed} relationship(s) were skipped. Save selected rows to persist them.";
             if (!string.IsNullOrWhiteSpace(firstFailure))
             {
                 message = $"{message} First failure: {firstFailure}";
             }
             SetStatus(message, failed == 0 ? AlertStyle.Success : AlertStyle.Warning);
             Notify(failed == 0 ? NotificationSeverity.Success : NotificationSeverity.Warning, message);
+            relationshipListMode = SourceListMode;
+            selectedRelationship = relationships.FirstOrDefault();
+            selectedRelationships = selectedRelationship is null
+                ? new List<DatabaseRelationshipDefinition>()
+                : new List<DatabaseRelationshipDefinition> { selectedRelationship };
+            editRelationship = selectedRelationship is null ? null : CloneRelationship(selectedRelationship);
+            CacheState();
         }
         catch (Exception ex)
         {
@@ -694,7 +703,7 @@
         {
             editRelationship.DatabaseId = Database.DatabaseId;
             editRelationship.JoinExpression = editRelationship.JoinExpression?.Trim() ?? "";
-            await RelationshipRepository.UpsertAsync(editRelationship);
+            editRelationship.DatabaseRelationshipId = await RelationshipRepository.UpsertAsync(editRelationship);
             await LoadRelationshipsAsync(setLoading: false);
             selectedRelationship = relationships.FirstOrDefault(relationship =>
                 relationship.DatabaseRelationshipId == editRelationship.DatabaseRelationshipId);
@@ -844,9 +853,37 @@
     }
 
     private string RelationshipRowClass(DatabaseRelationshipDefinition relationship) =>
-        selectedRelationship?.DatabaseRelationshipId == relationship.DatabaseRelationshipId
+        IsSelectedRelationship(relationship)
             ? "relationship-row selected"
             : "relationship-row";
+
+    private bool IsSelectedRelationship(DatabaseRelationshipDefinition relationship) =>
+        selectedRelationship is not null &&
+        (
+            ReferenceEquals(selectedRelationship, relationship) ||
+            (selectedRelationship.DatabaseRelationshipId != 0 &&
+                selectedRelationship.DatabaseRelationshipId == relationship.DatabaseRelationshipId)
+        );
+
+    private void StageRelationship(DatabaseRelationshipDefinition relationship)
+    {
+        var existing = relationships.FirstOrDefault(candidate =>
+            string.Equals(candidate.SourceSchemaName, relationship.SourceSchemaName, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(candidate.SourceTableName, relationship.SourceTableName, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(candidate.TargetSchemaName, relationship.TargetSchemaName, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(candidate.TargetTableName, relationship.TargetTableName, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(candidate.RelationshipName, relationship.RelationshipName, StringComparison.OrdinalIgnoreCase));
+
+        if (existing is null)
+        {
+            relationships.Add(relationship);
+            return;
+        }
+
+        var index = relationships.IndexOf(existing);
+        relationship.DatabaseRelationshipId = existing.DatabaseRelationshipId;
+        relationships[index] = relationship;
+    }
 
     private bool IsEditingFromSelectedTable() =>
         editRelationship is null ||
