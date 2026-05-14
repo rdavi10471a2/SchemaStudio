@@ -14,14 +14,14 @@
 @using SchemaStudioWebViewer.Utils
 
 @inject DatabaseRepository DatabaseRepository
-@inject DatabaseLookupRelationshipRepository LookupRelationshipRepository
+@inject DatabaseRelationshipRepository RelationshipRepository
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject IJSRuntime JSRuntime
 @inject DialogService DialogService
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("2.0")]
+@attribute [FileVersion("2.1")]
 @attribute [AIFileContext("Components/Pages/BaseViewCreator/BaseViewCreator.razor", "Forked base-view creator page that preserves the proven Base View Generator UI while allowing different internal plumbing to evolve safely.", Responsibilities = "Keep the base-view creation workflow visually familiar while isolating experimental model and engine changes from the production Base View Generator page.", Nuances = "This page intentionally starts as a UI-preserving fork. Lookup discovery and the proven base-view workflow remain available in BaseViewGenerator while new plumbing is validated here first.", RelatedFiles = "Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", LastReviewed = "2026-05-12")]
 
 <PageTitle>Base View Creator</PageTitle>
@@ -435,7 +435,7 @@
     private List<TableSchemaRelationshipInfo> AllRelationships = new();
     private List<TableSchemaRelationshipInfo> Relationships = new();
     private List<TableSchemaChildRelationshipInfo> ChildRelationships = new();
-    private List<DatabaseLookupRelationshipDefinition> SavedLookupRelationships = new();
+    private List<DatabaseRelationshipDefinition> SavedLookupRelationships = new();
     private HashSet<string> SavedLookupRelationshipKeys = new(StringComparer.OrdinalIgnoreCase);
     private HashSet<string> SelectedLookupRelationshipKeys = new(StringComparer.OrdinalIgnoreCase);
     private Dictionary<string, string> BootstrapLookupDisplayColumns = new(StringComparer.OrdinalIgnoreCase);
@@ -806,10 +806,11 @@
             return;
         }
 
-        SavedLookupRelationships = (await LookupRelationshipRepository.GetBySourceAsync(
-            selectedDatabase.DatabaseId,
-            SelectedSchemaName,
-            SelectedTableName)).ToList();
+        SavedLookupRelationships = (await RelationshipRepository.GetForDatabaseAsync(selectedDatabase.DatabaseId))
+            .Where(relationship =>
+                string.Equals(relationship.SourceSchemaName, SelectedSchemaName, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(relationship.SourceTableName, SelectedTableName, StringComparison.OrdinalIgnoreCase))
+            .ToList();
         SavedLookupRelationshipKeys = SavedLookupRelationships
             .Select(BuildRelationshipRegistryKey)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -817,32 +818,47 @@
 
     private void ApplySavedLookupRelationships()
     {
-        foreach (var savedRelationship in SavedLookupRelationships.Where(relationship => relationship.Active))
+        foreach (var savedRelationship in SavedLookupRelationships)
         {
             var key = BuildRelationshipRegistryKey(savedRelationship);
             var existing = AllRelationships.FirstOrDefault(relationship => string.Equals(BuildRelationshipRegistryKey(relationship), key, StringComparison.OrdinalIgnoreCase));
 
             if (existing is not null)
             {
-                existing.DisplayColumnName = savedRelationship.LookupDisplayColumnName;
+                existing.DisplayColumnName = savedRelationship.DisplayColumnName;
                 existing.SelectedJoinType = savedRelationship.JoinType;
-                existing.Include = true;
-                existing.IncludeDisplayColumn = !string.IsNullOrWhiteSpace(savedRelationship.LookupDisplayColumnName);
+                existing.Include = savedRelationship.IncludeLookupByDefault &&
+                    !string.IsNullOrWhiteSpace(savedRelationship.DisplayColumnName);
+                existing.IncludeDisplayColumn = existing.Include;
+                continue;
+            }
+
+            if (savedRelationship.Columns.Count == 0)
+            {
                 continue;
             }
 
             AllRelationships.Add(new TableSchemaRelationshipInfo(
-                string.IsNullOrWhiteSpace(savedRelationship.RelationshipName)
-                    ? $"REGISTERED_{savedRelationship.SourceTableName}_{savedRelationship.SourceColumnName}_{savedRelationship.LookupTableName}"
-                    : savedRelationship.RelationshipName,
-                savedRelationship.LookupSchemaName,
-                savedRelationship.LookupTableName,
-                savedRelationship.LookupDisplayColumnName,
+                string.IsNullOrWhiteSpace(savedRelationship.SourceConstraintName)
+                    ? $"REGISTERED_{savedRelationship.SourceTableName}_{savedRelationship.TargetTableName}"
+                    : savedRelationship.SourceConstraintName,
+                savedRelationship.TargetSchemaName,
+                savedRelationship.TargetTableName,
+                savedRelationship.DisplayColumnName,
                 string.Equals(savedRelationship.JoinType, "INNER JOIN", StringComparison.OrdinalIgnoreCase),
                 savedRelationship.JoinType,
-                [new TableSchemaForeignKeyColumnInfo(savedRelationship.SourceColumnName, savedRelationship.LookupKeyColumnName)],
-                savedRelationship.LookupFilterColumnName,
-                savedRelationship.LookupFilterValue));
+                savedRelationship.Columns
+                    .OrderBy(column => column.OrdinalPosition)
+                    .Select(column => new TableSchemaForeignKeyColumnInfo(column.SourceColumnName, column.TargetColumnName))
+                    .ToList(),
+                savedRelationship.FilterColumnName,
+                savedRelationship.FilterValue)
+            {
+                Include = savedRelationship.IncludeLookupByDefault &&
+                    !string.IsNullOrWhiteSpace(savedRelationship.DisplayColumnName),
+                IncludeDisplayColumn = savedRelationship.IncludeLookupByDefault &&
+                    !string.IsNullOrWhiteSpace(savedRelationship.DisplayColumnName)
+            });
         }
     }
 
@@ -934,7 +950,7 @@
         var savedCount = 0;
         foreach (var relationship in relationshipsToSave)
         {
-            await LookupRelationshipRepository.UpsertAsync(await BuildLookupRelationshipDefinitionAsync(selectedDatabase.DatabaseId, relationship));
+            await RelationshipRepository.UpsertAsync(BuildLookupRelationshipDefinition(selectedDatabase.DatabaseId, relationship));
             savedCount++;
         }
 
@@ -1367,6 +1383,22 @@
         return $"JOIN {QualifiedName(SelectedDatabaseName, relationship.ChildSchemaName, relationship.ChildTableName)} AS {QuoteIdentifier(childAlias)} ON {string.Join(" AND ", predicates)}";
     }
 
+    private string BuildRegistryJoinExpression(TableSchemaRelationshipInfo relationship)
+    {
+        var sourceAlias = SanitizeAliasToken(SelectedTableName);
+        var targetAlias = SanitizeAliasToken(relationship.ReferencedTableName);
+        var predicates = relationship.Columns
+            .Select(pair => $"{QuoteIdentifier(sourceAlias)}.{QuoteIdentifier(pair.LocalColumnName)} = {QuoteIdentifier(targetAlias)}.{QuoteIdentifier(pair.ReferencedColumnName)}");
+
+        if (!string.IsNullOrWhiteSpace(relationship.LookupFilterColumnName) &&
+            !string.IsNullOrWhiteSpace(relationship.LookupFilterValue))
+        {
+            predicates = predicates.Append($"{QuoteIdentifier(targetAlias)}.{QuoteIdentifier(relationship.LookupFilterColumnName)} = {QuoteSqlLiteral(relationship.LookupFilterValue)}");
+        }
+
+        return string.Join(" AND ", predicates);
+    }
+
     private string BuildLookupAlias(TableSchemaRelationshipInfo relationship)
     {
         var aliasesInUse = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -1516,36 +1548,31 @@
             .ToList();
     }
 
-    private async Task<DatabaseLookupRelationshipDefinition> BuildLookupRelationshipDefinitionAsync(int databaseId, TableSchemaRelationshipInfo relationship)
+    private DatabaseRelationshipDefinition BuildLookupRelationshipDefinition(int databaseId, TableSchemaRelationshipInfo relationship)
     {
-        var column = relationship.Columns[0];
-        var lookupValues = string.IsNullOrWhiteSpace(relationship.DisplayColumnName)
-            ? BuildLookupValuesText(relationship)
-            : await TableSchemaRepository.GetLookupValuesTextAsync(
-                SelectedDatabaseName,
-                relationship.ReferencedSchemaName,
-                relationship.ReferencedTableName,
-                relationship.DisplayColumnName,
-                relationship.LookupFilterColumnName,
-                relationship.LookupFilterValue);
-
-        return new DatabaseLookupRelationshipDefinition
+        return new DatabaseRelationshipDefinition
         {
             DatabaseId = databaseId,
             SourceSchemaName = SelectedSchemaName,
             SourceTableName = SelectedTableName,
-            SourceColumnName = column.LocalColumnName,
-            LookupSchemaName = relationship.ReferencedSchemaName,
-            LookupTableName = relationship.ReferencedTableName,
-            LookupKeyColumnName = column.ReferencedColumnName,
-            LookupDisplayColumnName = relationship.DisplayColumnName,
-            LookupFilterColumnName = relationship.LookupFilterColumnName,
-            LookupFilterValue = relationship.LookupFilterValue,
-            LookupValues = lookupValues,
+            TargetSchemaName = relationship.ReferencedSchemaName,
+            TargetTableName = relationship.ReferencedTableName,
             JoinType = relationship.SelectedJoinType,
-            RelationshipRole = "Lookup",
-            RelationshipName = relationship.ForeignKeyName,
-            Active = true
+            JoinExpression = BuildRegistryJoinExpression(relationship),
+            DiscoverySource = IsTemplateDiscoveredLookupRelationship(relationship) ? "SchemaLookup" : "Manual",
+            SourceConstraintName = relationship.ForeignKeyName,
+            IncludeLookupByDefault = relationship.Include && !string.IsNullOrWhiteSpace(relationship.DisplayColumnName),
+            DisplayColumnName = relationship.DisplayColumnName,
+            FilterColumnName = relationship.LookupFilterColumnName,
+            FilterValue = relationship.LookupFilterValue,
+            Columns = relationship.Columns
+                .Select((column, index) => new DatabaseRelationshipColumnDefinition
+                {
+                    OrdinalPosition = index + 1,
+                    SourceColumnName = column.LocalColumnName,
+                    TargetColumnName = column.ReferencedColumnName
+                })
+                .ToList()
         };
     }
 
@@ -1568,16 +1595,19 @@
             relationship.LookupFilterValue);
     }
 
-    private static string BuildRelationshipRegistryKey(DatabaseLookupRelationshipDefinition relationship) =>
-        BuildRelationshipRegistryKey(
+    private static string BuildRelationshipRegistryKey(DatabaseRelationshipDefinition relationship)
+    {
+        var column = relationship.Columns.OrderBy(column => column.OrdinalPosition).FirstOrDefault();
+        return BuildRelationshipRegistryKey(
             relationship.SourceSchemaName,
             relationship.SourceTableName,
-            relationship.SourceColumnName,
-            relationship.LookupSchemaName,
-            relationship.LookupTableName,
-            relationship.LookupKeyColumnName,
-            relationship.LookupFilterColumnName,
-            relationship.LookupFilterValue);
+            column?.SourceColumnName ?? "",
+            relationship.TargetSchemaName,
+            relationship.TargetTableName,
+            column?.TargetColumnName ?? "",
+            relationship.FilterColumnName,
+            relationship.FilterValue);
+    }
 
     private static string BuildRelationshipRegistryKey(
         string sourceSchemaName,
