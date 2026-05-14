@@ -176,6 +176,7 @@
                 else
                 {
                     <RadzenTemplateForm TItem="DatabaseRelationshipDefinition"
+                                        class="relationship-editor-form"
                                         Data="@editRelationship"
                                         Submit="@SaveRelationshipAsync">
                         <DataAnnotationsValidator />
@@ -919,7 +920,7 @@
             return "Join Only";
         }
 
-        return relationship.IncludeLookupByDefault ? "Default Lookup" : "Known Lookup";
+        return relationship.IncludeLookupByDefault ? "Default Lookup" : "Join Only";
     }
 
     private static string RelationshipStatusChipClass(DatabaseRelationshipDefinition relationship) =>

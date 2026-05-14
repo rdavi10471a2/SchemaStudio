@@ -233,10 +233,13 @@
     font-size: 0.78rem;
 }
 
+.relationship-edit-pane .relationship-editor-form,
 .relationship-edit-pane form {
     display: flex;
     flex-direction: column;
     flex: 1 1 auto;
+    height: 100%;
+    max-height: 100%;
     min-height: 0;
     overflow: auto;
 }
@@ -372,12 +375,16 @@
 
 .relationship-actions {
     align-items: center;
+    background: #fff;
     border-top: 1px solid #edf0f4;
     display: flex;
     flex: 0 0 auto;
     gap: 0.6rem;
     justify-content: flex-end;
     padding: 0.55rem 0.75rem;
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
 }
 
 .relationship-empty {
