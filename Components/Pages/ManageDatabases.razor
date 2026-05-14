@@ -10,7 +10,7 @@
 @inject TooltipService TooltipService
 @inject AttributeService Attr
 
-@attribute [FileVersion("2.5")]
+@attribute [FileVersion("2.6")]
 @attribute [AIChange(
     "1.6",
     "2026-05-01 09:59 AM CDT kept Business Name on its own row and paired Business Description with Developer Notes as equal-height metadata fields.",
@@ -224,18 +224,8 @@
                             </RadzenTabsItem>
 
                             <RadzenTabsItem Text="Relationships" Icon="account_tree">
-                                @if (selectedTabIndex == RelationshipsTabIndex)
-                                {
-                                    <DatabaseRelationshipsPanel Database="@selectedDatabase" />
-                                }
-                                else
-                                {
-                                    <div class="rz-p-4">
-                                        <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat">
-                                            Open the Relationships tab to load relationship metadata for the selected database.
-                                        </RadzenAlert>
-                                    </div>
-                                }
+                                <DatabaseRelationshipsPanel @key="selectedDatabase.DatabaseId"
+                                                            Database="@selectedDatabase" />
                             </RadzenTabsItem>
                         </Tabs>
                     </RadzenTabs>
