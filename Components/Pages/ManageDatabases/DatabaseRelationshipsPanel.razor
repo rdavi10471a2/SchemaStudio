@@ -9,7 +9,7 @@
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("2.8")]
+@attribute [FileVersion("2.9")]
 @attribute [AIFileContext("Components/Pages/ManageDatabases/DatabaseRelationshipsPanel.razor", "Manage Databases child panel for the curated database relationship registry.", Responsibilities = "Loads source tables, imports source-system foreign-key relationships into dbo.DatabaseRelationships, and displays the registry rows that touch the selected table.", Nuances = "The panel does not create metadata tables; database DDL stays in human-run scripts.", LastReviewed = "2026-05-13")]
 
 <RadzenStack Gap="0.75rem"
@@ -120,7 +120,7 @@
                     <button type="button"
                             class="@RelationshipListTabClass(SourceListMode)"
                             @onclick="@(() => SetRelationshipListMode(SourceListMode))">
-                        Outbound <span>@relationships.Count</span>
+                        Child Of <span>@relationships.Count</span>
                     </button>
                     <button type="button"
                             class="@RelationshipListTabClass(ChildrenListMode)"
@@ -383,12 +383,12 @@
     private string RelationshipCountLabel =>
         relationshipListMode.Equals(ChildrenListMode, StringComparison.OrdinalIgnoreCase)
             ? $"{childRelationships.Count} children referencing {selectedTableName}"
-            : $"{relationships.Count} from {selectedTableName}";
+            : $"{relationships.Count} parent/lookup relationship(s) for {selectedTableName}";
 
     private string EmptyRelationshipListText =>
         relationshipListMode.Equals(ChildrenListMode, StringComparison.OrdinalIgnoreCase)
             ? "No child tables reference this table."
-            : "No outbound relationships loaded for this table.";
+            : "No parent or lookup relationships loaded for this table.";
 
     private bool CanImport =>
         Database is not null &&
@@ -755,7 +755,9 @@
     private string RelationshipEditorSubtitle =>
         editRelationship is not null && IsUnsavedRelationship(editRelationship)
             ? "Unsaved staged relationship. Fill the target table and ON clause, then save it."
-            : "Captured M-to-1 join metadata for the selected table.";
+            : IsChildRelationship(editRelationship)
+                ? "Captured 1-to-M child join metadata under the selected table."
+                : "Captured M-to-1 parent/lookup join metadata for the selected table.";
 
     private async Task DeleteRelationshipAsync()
     {
