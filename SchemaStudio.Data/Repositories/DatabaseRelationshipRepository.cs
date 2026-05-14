@@ -306,13 +306,11 @@ ORDER BY DatabaseRelationshipId, OrdinalPosition;
                 .GroupBy(column => column.DatabaseRelationshipId)
                 .ToDictionary(group => group.Key, group => group.ToList());
 
-            var expectedColumns = relationship.Columns
-                .OrderBy(column => column.OrdinalPosition)
-                .ToList();
+            var expectedColumns = NormalizeColumnPairs(relationship.Columns);
 
             foreach (var candidateId in candidateIds)
             {
-                var actualColumns = candidateColumns.GetValueOrDefault(candidateId) ?? new List<DatabaseRelationshipColumnDefinition>();
+                var actualColumns = NormalizeColumnPairs(candidateColumns.GetValueOrDefault(candidateId) ?? new List<DatabaseRelationshipColumnDefinition>());
                 if (ColumnsMatch(expectedColumns, actualColumns))
                 {
                     return candidateId;
@@ -361,6 +359,12 @@ WHERE DatabaseId = @DatabaseId
 
         return true;
     }
+
+    private static List<DatabaseRelationshipColumnDefinition> NormalizeColumnPairs(IEnumerable<DatabaseRelationshipColumnDefinition> columns) =>
+        columns
+            .OrderBy(column => column.SourceColumnName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(column => column.TargetColumnName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
     private static async Task<int> InsertAsync(
         SqlConnection connection,

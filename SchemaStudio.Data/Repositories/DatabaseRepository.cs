@@ -5,7 +5,7 @@ using SchemaStudio.Data.Models;
 
 namespace SchemaStudio.Data.Repositories;
 
-[FileVersion("1.3")]
+[FileVersion("1.4")]
 [AIFileContext("SchemaStudio.Data/Repositories/DatabaseRepository.cs", "Read/write repository for Schema Studio database metadata records.", Responsibilities = "Loads and maintains dbo.Databases rows for maintenance screens and downstream schema tools.", Nuances = "Applies small additive metadata table upgrades before database reads and writes so UI fields can roll out without a separate migration step.", LastReviewed = "2026-05-11")]
 public sealed class DatabaseRepository
 {
@@ -159,18 +159,32 @@ END;
 public sealed class DatabaseLookupRelationshipRepository
 {
     private readonly string _connectionString;
+    private readonly string _metadataDatabaseName;
 
     public DatabaseLookupRelationshipRepository(string connectionString)
     {
         _connectionString = connectionString;
+        _metadataDatabaseName = new SqlConnectionStringBuilder(connectionString).InitialCatalog;
     }
+
+    private string LookupRelationshipsTable => $"{QuoteSqlIdentifier(_metadataDatabaseName)}.dbo.DatabaseLookupRelationships";
 
     public async Task<IReadOnlyList<DatabaseLookupRelationshipDefinition>> GetBySourceAsync(int databaseId, string sourceSchemaName, string sourceTableName)
     {
         await using var connection = new SqlConnection(_connectionString);
-        await EnsureLookupRelationshipColumnsAsync(connection);
+        if (!await HasTableAsync(connection, "DatabaseLookupRelationships"))
+        {
+            return [];
+        }
 
-        const string sql = """
+        var lookupValuesProjection = await HasColumnAsync(connection, "DatabaseLookupRelationships", "LookupValues")
+            ? "LookupValues,"
+            : "CAST(NULL AS nvarchar(1500)) AS LookupValues,";
+        var relationshipRoleProjection = await HasColumnAsync(connection, "DatabaseLookupRelationships", "RelationshipRole")
+            ? "RelationshipRole,"
+            : "CAST(N'Lookup' AS nvarchar(32)) AS RelationshipRole,";
+
+        var sql = $"""
 SELECT
     DatabaseLookupRelationshipId,
     DatabaseId,
@@ -183,12 +197,12 @@ SELECT
     LookupDisplayColumnName,
     LookupFilterColumnName,
     LookupFilterValue,
-    LookupValues,
+    {lookupValuesProjection}
     JoinType,
-    RelationshipRole,
+    {relationshipRoleProjection}
     RelationshipName,
     Active
-FROM dbo.DatabaseLookupRelationships
+FROM {LookupRelationshipsTable}
 WHERE DatabaseId = @databaseId
     AND SourceSchemaName = @sourceSchemaName
     AND SourceTableName = @sourceTableName
@@ -206,14 +220,14 @@ ORDER BY SourceColumnName, LookupSchemaName, LookupTableName, LookupFilterValue;
         Normalize(relationship);
 
         await using var connection = new SqlConnection(_connectionString);
-        await EnsureLookupRelationshipColumnsAsync(connection);
+        await EnsureLookupRelationshipTableExistsAsync(connection);
 
-        const string sql = """
+        var sql = $"""
 DECLARE @ExistingId int;
 
 SELECT TOP (1)
     @ExistingId = DatabaseLookupRelationshipId
-FROM dbo.DatabaseLookupRelationships
+FROM {LookupRelationshipsTable}
 WHERE DatabaseId = @DatabaseId
     AND SourceSchemaName = @SourceSchemaName
     AND SourceTableName = @SourceTableName
@@ -230,7 +244,7 @@ BEGIN
     RETURN;
 END;
 
-INSERT INTO dbo.DatabaseLookupRelationships
+INSERT INTO {LookupRelationshipsTable}
 (
     DatabaseId,
     SourceSchemaName,
@@ -279,14 +293,14 @@ VALUES
         Normalize(relationship);
 
         await using var connection = new SqlConnection(_connectionString);
-        await EnsureLookupRelationshipColumnsAsync(connection);
+        await EnsureLookupRelationshipTableExistsAsync(connection);
 
-        const string sql = """
+        var sql = $"""
 DECLARE @ExistingId int;
 
 SELECT TOP (1)
     @ExistingId = DatabaseLookupRelationshipId
-FROM dbo.DatabaseLookupRelationships
+FROM {LookupRelationshipsTable}
 WHERE DatabaseId = @DatabaseId
     AND SourceSchemaName = @SourceSchemaName
     AND SourceTableName = @SourceTableName
@@ -299,7 +313,7 @@ WHERE DatabaseId = @DatabaseId
 
 IF @ExistingId IS NOT NULL
 BEGIN
-    UPDATE dbo.DatabaseLookupRelationships
+    UPDATE {LookupRelationshipsTable}
     SET LookupDisplayColumnName = @LookupDisplayColumnName,
         LookupValues = @LookupValues,
         JoinType = @JoinType,
@@ -312,7 +326,7 @@ BEGIN
     RETURN;
 END;
 
-INSERT INTO dbo.DatabaseLookupRelationships
+INSERT INTO {LookupRelationshipsTable}
 (
     DatabaseId,
     SourceSchemaName,
@@ -404,25 +418,45 @@ VALUES
         };
     }
 
-    private static async Task EnsureLookupRelationshipColumnsAsync(SqlConnection connection)
+    private async Task EnsureLookupRelationshipTableExistsAsync(SqlConnection connection)
     {
-        const string sql = """
-IF OBJECT_ID('dbo.DatabaseLookupRelationships', 'U') IS NOT NULL
-    AND COL_LENGTH('dbo.DatabaseLookupRelationships', 'LookupValues') IS NULL
-BEGIN
-    ALTER TABLE dbo.DatabaseLookupRelationships
-        ADD LookupValues nvarchar(1500) NULL;
-END;
+        if (!await HasTableAsync(connection, "DatabaseLookupRelationships"))
+        {
+            throw new InvalidOperationException($"{_metadataDatabaseName}.dbo.DatabaseLookupRelationships was not found. Legacy lookup relationships have been replaced by DatabaseRelationships.");
+        }
+    }
 
-IF OBJECT_ID('dbo.DatabaseLookupRelationships', 'U') IS NOT NULL
-    AND COL_LENGTH('dbo.DatabaseLookupRelationships', 'RelationshipRole') IS NULL
-BEGIN
-    ALTER TABLE dbo.DatabaseLookupRelationships
-        ADD RelationshipRole nvarchar(32) NOT NULL
-            CONSTRAINT DF_DatabaseLookupRelationships_RelationshipRole DEFAULT (N'Lookup');
-END;
+    private async Task<bool> HasTableAsync(SqlConnection connection, string tableName)
+    {
+        var sql = $"""
+SELECT COUNT(1)
+FROM {QuoteSqlIdentifier(_metadataDatabaseName)}.sys.objects AS o
+JOIN {QuoteSqlIdentifier(_metadataDatabaseName)}.sys.schemas AS s
+    ON s.schema_id = o.schema_id
+WHERE s.name = N'dbo'
+    AND o.name = @tableName
+    AND o.type = N'U';
 """;
 
-        await connection.ExecuteAsync(sql);
+        return await connection.ExecuteScalarAsync<int>(sql, new { tableName }) > 0;
     }
+
+    private async Task<bool> HasColumnAsync(SqlConnection connection, string tableName, string columnName)
+    {
+        var sql = $"""
+SELECT COUNT(1)
+FROM {QuoteSqlIdentifier(_metadataDatabaseName)}.sys.columns AS c
+JOIN {QuoteSqlIdentifier(_metadataDatabaseName)}.sys.objects AS o
+    ON o.object_id = c.object_id
+JOIN {QuoteSqlIdentifier(_metadataDatabaseName)}.sys.schemas AS s
+    ON s.schema_id = o.schema_id
+WHERE s.name = N'dbo'
+    AND o.name = @tableName
+    AND c.name = @columnName;
+""";
+
+        return await connection.ExecuteScalarAsync<int>(sql, new { tableName, columnName }) > 0;
+    }
+
+    private static string QuoteSqlIdentifier(string value) => $"[{value.Replace("]", "]]", StringComparison.Ordinal)}]";
 }
