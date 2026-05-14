@@ -9,7 +9,7 @@
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("2.10")]
+@attribute [FileVersion("2.11")]
 @attribute [AIFileContext("Components/Pages/ManageDatabases/DatabaseRelationshipsPanel.razor", "Manage Databases child panel for the curated database relationship registry.", Responsibilities = "Loads source tables, imports source-system foreign-key relationships into dbo.DatabaseRelationships, and displays the registry rows that touch the selected table.", Nuances = "The panel does not create metadata tables; database DDL stays in human-run scripts.", LastReviewed = "2026-05-13")]
 
 <RadzenStack Gap="0.75rem"
@@ -33,7 +33,7 @@
             <RadzenStack Gap="0.2rem">
                 <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-m-0">@Database.DatabaseName Relationships</RadzenText>
                 <RadzenText TextStyle="TextStyle.Body2" Style="color:#495057;">
-                    Curate physical FKs, lookup joins, detail joins, and soft relationships from one place.
+                    Curate known join paths. Lookup display defaults are optional metadata on parent/lookup joins.
                 </RadzenText>
                 <RadzenText TextStyle="TextStyle.Caption" Style="color:#667085;">
                     Registry: @($"{RelationshipRepository.MetadataDatabaseName}.dbo.DatabaseRelationships"); source tables: @Database.DatabaseName.
@@ -78,7 +78,7 @@
                                       Click="@LoadTablesAsync"
                                       Disabled="@isLoading" />
                         <RadzenButton Icon="account_tree"
-                                      Text="Preview Source Lookups"
+                                      Text="Preview Detected Joins"
                                       ButtonStyle="ButtonStyle.Primary"
                                       Click="@ImportForeignKeysAsync"
                                       Disabled="@(!CanImport)" />
@@ -195,26 +195,32 @@
                                                MaxLength="128" />
                             </label>
                             <label class="relationship-compact-field">
-                                <span class="relationship-field-label">Base View Action</span>
-                                <RadzenDropDown TValue="string"
-                                                Data="@baseViewActions"
-                                                Value="@BaseViewActionFor(editRelationship)"
-                                                Change="@SetBaseViewAction"
-                                                Style="width:100%;" />
+                                @if (CanEditLookupDefaults(editRelationship))
+                                {
+                                    <span class="relationship-field-label">Lookup Default</span>
+                                    <RadzenDropDown TValue="string"
+                                                    Data="@baseViewActions"
+                                                    Value="@BaseViewActionFor(editRelationship)"
+                                                    Change="@SetBaseViewAction"
+                                                    Style="width:100%;" />
+                                }
                             </label>
-                            <label class="relationship-compact-field">
-                                <span class="relationship-field-label">Display Column</span>
-                                <RadzenDropDown TValue="string"
-                                                Data="@targetColumnOptions"
-                                                @bind-Value="@editRelationship.DisplayColumnName"
-                                                Change="@OnDisplayColumnChanged"
-                                                Open="@LoadTargetColumnOptionsAsync"
-                                                AllowClear="true"
-                                                AllowFiltering="true"
-                                                FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
-                                                Placeholder="Load on open"
-                                                Style="width:100%;" />
-                            </label>
+                            @if (CanEditLookupDefaults(editRelationship))
+                            {
+                                <label class="relationship-compact-field">
+                                    <span class="relationship-field-label">Display Column</span>
+                                    <RadzenDropDown TValue="string"
+                                                    Data="@targetColumnOptions"
+                                                    @bind-Value="@editRelationship.DisplayColumnName"
+                                                    Change="@OnDisplayColumnChanged"
+                                                    Open="@LoadTargetColumnOptionsAsync"
+                                                    AllowClear="true"
+                                                    AllowFiltering="true"
+                                                    FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                                                    Placeholder="Load on open"
+                                                    Style="width:100%;" />
+                                </label>
+                            }
 
                             <div class="relationship-wide relationship-statement">
                                 <div class="relationship-statement-line">
@@ -237,7 +243,7 @@
                                                 MaxLength="2000" />
                             </label>
 
-                            @if (IsConstrainedLookupTarget(editRelationship))
+                            @if (CanEditLookupDefaults(editRelationship) && IsConstrainedLookupTarget(editRelationship))
                             {
                                 <label class="relationship-compact-field">
                                     <span class="relationship-field-label">Filter Column</span>
@@ -261,14 +267,7 @@
                         </div>
 
                         <details class="relationship-advanced">
-                            <summary>Advanced record fields</summary>
-                            <div class="relationship-switches">
-                                <label title="Human has reviewed this relationship."><RadzenCheckBox @bind-Value="@editRelationship.UserConfirmed" /> User confirmed</label>
-                                <label title="Base View Creator may include this lookup display by default. Use Base View Action for the normal path."><RadzenCheckBox @bind-Value="@editRelationship.DefaultIncludeInBaseView" /> Include in base view by default</label>
-                                <label title="Domain Object Modeler may use this relationship when inferring joins."><RadzenCheckBox @bind-Value="@editRelationship.UseInDomainObjectModeler" /> Use in modeler</label>
-                                <label title="Future query builders may use this relationship as an allowed path."><RadzenCheckBox @bind-Value="@editRelationship.UseInQueryBuilder" /> Use in query builder</label>
-                                <label title="Inactive relationships stay saved but are ignored by generators."><RadzenCheckBox @bind-Value="@editRelationship.Active" /> Active</label>
-                            </div>
+                            <summary>Record details</summary>
                             <div class="relationship-edit-grid">
                                 <label>
                                     <span class="relationship-field-label">Source Schema</span>
@@ -300,13 +299,6 @@
                                                     Style="width:100%;"
                                                     Rows="3"
                                                     MaxLength="1000" />
-                                </label>
-                                <label class="relationship-wide">
-                                    <span class="relationship-field-label">Legal Values</span>
-                                    <RadzenTextArea @bind-Value="@editRelationship.LegalValues"
-                                                    Style="width:100%;"
-                                                    Rows="3"
-                                                    MaxLength="1500" />
                                 </label>
                             </div>
                         </details>
@@ -363,7 +355,7 @@
     private const int RelationshipListMaxWidth = 560;
     private const string SourceListMode = "source";
     private const string ChildrenListMode = "children";
-    private const string BaseViewActionUseLookup = "Include join by default";
+    private const string BaseViewActionUseLookup = "Include lookup by default";
     private const string BaseViewActionIgnore = "Do not include by default";
     private static readonly string[] joinTypes = ["LEFT JOIN", "INNER JOIN", "LEFT OUTER JOIN", "JOIN"];
     private static readonly string[] baseViewActions = [BaseViewActionUseLookup, BaseViewActionIgnore];
@@ -934,6 +926,9 @@
     private static bool IsChildRelationship(DatabaseRelationshipDefinition? relationship) =>
         relationship is not null &&
         string.Equals(relationship.SourceToTargetRole ?? "", "Child", StringComparison.OrdinalIgnoreCase);
+
+    private static bool CanEditLookupDefaults(DatabaseRelationshipDefinition? relationship) =>
+        relationship is not null && !IsChildRelationship(relationship);
 
     private static bool IsIgnoredForBaseView(DatabaseRelationshipDefinition relationship) =>
         !relationship.DefaultIncludeInBaseView;
