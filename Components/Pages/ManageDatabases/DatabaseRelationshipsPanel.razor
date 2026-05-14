@@ -508,10 +508,6 @@
                 Database.DatabaseId,
                 schemaName.Trim(),
                 selectedTableName.Trim())).ToList();
-            foreach (var relationship in relationships)
-            {
-                relationship.JoinExpression = NormalizeJoinExpressionAliases(relationship);
-            }
 
             selectedRelationship = relationships.FirstOrDefault();
             selectedRelationships = selectedRelationship is null
@@ -655,7 +651,7 @@
         try
         {
             editRelationship.DatabaseId = Database.DatabaseId;
-            editRelationship.JoinExpression = NormalizeJoinExpressionAliases(editRelationship);
+            editRelationship.JoinExpression = EnsureJoinExpression(editRelationship);
             await RelationshipRepository.UpsertAsync(editRelationship);
             await LoadRelationshipsAsync(setLoading: false);
             selectedRelationship = relationships.FirstOrDefault(relationship =>
@@ -851,7 +847,7 @@
             TargetSchemaName = source.TargetSchemaName,
             TargetTableName = source.TargetTableName,
             JoinType = source.JoinType,
-            JoinExpression = NormalizeJoinExpressionAliases(source),
+            JoinExpression = source.JoinExpression,
             RelationshipRole = source.RelationshipRole,
             SourceToTargetRole = string.IsNullOrWhiteSpace(source.SourceToTargetRole) ? source.RelationshipRole : source.SourceToTargetRole,
             TargetToSourceRole = string.IsNullOrWhiteSpace(source.TargetToSourceRole) ? "ReferencedBy" : source.TargetToSourceRole,
@@ -1024,48 +1020,12 @@
             relationship.LookupFilterValue ?? "");
     }
 
-    private static string NormalizeJoinExpressionAliases(DatabaseRelationshipDefinition relationship)
+    private static string EnsureJoinExpression(DatabaseRelationshipDefinition relationship)
     {
         var joinExpression = relationship.JoinExpression?.Trim() ?? "";
-        if (relationship.Columns.Count == 0)
-        {
-            return joinExpression;
-        }
-
-        if (string.IsNullOrWhiteSpace(joinExpression))
-        {
-            return BuildJoinExpression(
-                relationship.SourceTableName,
-                relationship.TargetTableName,
-                relationship.Columns);
-        }
-
-        var normalized = joinExpression;
-        foreach (var column in relationship.Columns.OrderBy(column => column.OrdinalPosition))
-        {
-            var qualifiedSource = $"{QuoteIdentifier(relationship.SourceTableName)}.{QuoteIdentifier(column.SourceColumnName)}";
-            var qualifiedTarget = $"{QuoteIdentifier(relationship.TargetTableName)}.{QuoteIdentifier(column.TargetColumnName)}";
-            var unqualifiedSource = QuoteIdentifier(column.SourceColumnName);
-
-            normalized = CollapseDuplicateQualifier(normalized, relationship.SourceTableName, column.SourceColumnName);
-            normalized = CollapseDuplicateQualifier(normalized, relationship.TargetTableName, column.TargetColumnName);
-
-            var pattern = $@"(?<!\.){System.Text.RegularExpressions.Regex.Escape(unqualifiedSource)}\s*=\s*{System.Text.RegularExpressions.Regex.Escape(qualifiedTarget)}";
-            normalized = System.Text.RegularExpressions.Regex.Replace(
-                normalized,
-                pattern,
-                _ => $"{qualifiedSource} = {qualifiedTarget}",
-                System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
-        }
-
-        return normalized;
-    }
-
-    private static string CollapseDuplicateQualifier(string expression, string tableName, string columnName)
-    {
-        var qualifiedColumn = $"{QuoteIdentifier(tableName)}.{QuoteIdentifier(columnName)}";
-        var duplicateColumn = $"{QuoteIdentifier(tableName)}.{qualifiedColumn}";
-        return expression.Replace(duplicateColumn, qualifiedColumn, StringComparison.OrdinalIgnoreCase);
+        return string.IsNullOrWhiteSpace(joinExpression) && relationship.Columns.Count > 0
+            ? BuildJoinExpression(relationship.SourceTableName, relationship.TargetTableName, relationship.Columns)
+            : joinExpression;
     }
 
     private static string BuildJoinExpression(string sourceTableName, TableSchemaRelationshipInfo relationship) =>
