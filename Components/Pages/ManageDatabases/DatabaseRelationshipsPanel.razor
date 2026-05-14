@@ -9,7 +9,7 @@
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("2.5")]
+@attribute [FileVersion("2.6")]
 @attribute [AIFileContext("Components/Pages/ManageDatabases/DatabaseRelationshipsPanel.razor", "Manage Databases child panel for the curated database relationship registry.", Responsibilities = "Loads source tables, imports source-system foreign-key relationships into dbo.DatabaseRelationships, and displays the registry rows that touch the selected table.", Nuances = "The panel does not create metadata tables; database DDL stays in human-run scripts.", LastReviewed = "2026-05-13")]
 
 <RadzenStack Gap="0.75rem"
@@ -163,9 +163,9 @@
                         <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0">Relationship Detail</RadzenText>
                         <RadzenText TextStyle="TextStyle.Caption" Style="color:#667085;">Captured M-to-1 join metadata for the selected table.</RadzenText>
                     </div>
-                    @if (selectedRelationship is not null)
+                    @if (editRelationship is not null)
                     {
-                        <span class="@RelationshipStatusChipClass(selectedRelationship)">@RelationshipStatusText(selectedRelationship)</span>
+                        <span class="@RelationshipStatusChipClass(editRelationship)">@RelationshipStatusText(editRelationship)</span>
                     }
                 </div>
 
@@ -927,11 +927,13 @@
         {
             editRelationship.DefaultIncludeInBaseView = false;
             ApplyInferredRelationshipRole(editRelationship);
+            SyncSelectedRelationshipStatus();
             return;
         }
 
         editRelationship.DefaultIncludeInBaseView = true;
         ApplyInferredRelationshipRole(editRelationship);
+        SyncSelectedRelationshipStatus();
     }
 
     private void OnDisplayColumnChanged(object? value)
@@ -943,6 +945,23 @@
 
         editRelationship.DisplayColumnName = value?.ToString();
         ApplyInferredRelationshipRole(editRelationship);
+        SyncSelectedRelationshipStatus();
+    }
+
+    private void SyncSelectedRelationshipStatus()
+    {
+        if (selectedRelationship is null || editRelationship is null)
+        {
+            return;
+        }
+
+        selectedRelationship.DefaultIncludeInBaseView = editRelationship.DefaultIncludeInBaseView;
+        selectedRelationship.DisplayColumnName = editRelationship.DisplayColumnName;
+        selectedRelationship.FilterColumnName = editRelationship.FilterColumnName;
+        selectedRelationship.FilterValue = editRelationship.FilterValue;
+        selectedRelationship.RelationshipRole = editRelationship.RelationshipRole;
+        selectedRelationship.SourceToTargetRole = editRelationship.SourceToTargetRole;
+        selectedRelationship.TargetToSourceRole = editRelationship.TargetToSourceRole;
     }
 
     private static string RelationshipTitle(DatabaseRelationshipDefinition relationship)
