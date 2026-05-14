@@ -21,7 +21,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("2.1")]
+@attribute [FileVersion("2.2")]
 @attribute [AIFileContext("Components/Pages/BaseViewCreator/BaseViewCreator.razor", "Forked base-view creator page that preserves the proven Base View Generator UI while allowing different internal plumbing to evolve safely.", Responsibilities = "Keep the base-view creation workflow visually familiar while isolating experimental model and engine changes from the production Base View Generator page.", Nuances = "This page intentionally starts as a UI-preserving fork. Lookup discovery and the proven base-view workflow remain available in BaseViewGenerator while new plumbing is validated here first.", RelatedFiles = "Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", LastReviewed = "2026-05-12")]
 
 <PageTitle>Base View Creator</PageTitle>
@@ -809,7 +809,8 @@
         SavedLookupRelationships = (await RelationshipRepository.GetForDatabaseAsync(selectedDatabase.DatabaseId))
             .Where(relationship =>
                 string.Equals(relationship.SourceSchemaName, SelectedSchemaName, StringComparison.OrdinalIgnoreCase) &&
-                string.Equals(relationship.SourceTableName, SelectedTableName, StringComparison.OrdinalIgnoreCase))
+                string.Equals(relationship.SourceTableName, SelectedTableName, StringComparison.OrdinalIgnoreCase) &&
+                !IsChildRelationship(relationship))
             .ToList();
         SavedLookupRelationshipKeys = SavedLookupRelationships
             .Select(BuildRelationshipRegistryKey)
@@ -1514,6 +1515,9 @@
 
     private bool IsRegisteredLookupRelationship(TableSchemaRelationshipInfo relationship) =>
         SavedLookupRelationshipKeys.Contains(BuildRelationshipRegistryKey(relationship));
+
+    private static bool IsChildRelationship(DatabaseRelationshipDefinition relationship) =>
+        relationship.DiscoverySource.Contains("Child", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsTemplateDiscoveredLookupRelationship(TableSchemaRelationshipInfo relationship) =>
         !string.IsNullOrWhiteSpace(relationship.LookupFilterColumnName) ||
