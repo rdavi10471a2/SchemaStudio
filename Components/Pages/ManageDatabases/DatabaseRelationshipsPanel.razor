@@ -9,7 +9,7 @@
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("2.17")]
+@attribute [FileVersion("2.18")]
 @attribute [AIFileContext("Components/Pages/ManageDatabases/DatabaseRelationshipsPanel.razor", "Manage Databases child panel for the curated database relationship registry.", Responsibilities = "Loads source tables, imports source-system foreign-key relationships into dbo.DatabaseRelationships, and displays the registry rows that touch the selected table.", Nuances = "The panel does not create metadata tables; database DDL stays in human-run scripts.", LastReviewed = "2026-05-13")]
 
 <RadzenStack Gap="0.75rem"
@@ -41,9 +41,9 @@
             </RadzenStack>
 
             <RadzenButton Icon="sync"
-                          Text="Refresh Relationships"
+                          Text="Refresh Existing"
                           ButtonStyle="ButtonStyle.Light"
-                          title="Reload saved relationships for the selected table."
+                          title="Reload existing stored relationships for the selected table."
                           Click="@LoadRelationshipsAsync"
                           Disabled="@(!CanLoadRelationships)" />
         </RadzenStack>
@@ -74,15 +74,15 @@
                 <RadzenColumn Size="12" SizeMD="6">
                     <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.5rem" class="relationship-action-bar">
                         <RadzenButton Icon="sync"
-                                      Text="Load Relationships"
-                                      ButtonStyle="ButtonStyle.Primary"
-                                      title="Load saved relationships for the selected table."
+                                      Text="Load Existing"
+                                      ButtonStyle="ButtonStyle.Light"
+                                      title="Load existing stored relationships for the selected table."
                                       Click="@LoadRelationshipsAsync"
                                       Disabled="@(!CanLoadRelationships)" />
                         <RadzenButton Icon="account_tree"
-                                      Text="Preview Detected Joins"
-                                      ButtonStyle="ButtonStyle.Secondary"
-                                      title="Preview source-system joins for this table before saving them."
+                                      Text="Load From Source"
+                                      ButtonStyle="ButtonStyle.Primary"
+                                      title="Load relationships detected from the source system for review before saving."
                                       Click="@ImportForeignKeysAsync"
                                       Disabled="@(!CanImport)" />
                         <RadzenButton Icon="save"
@@ -404,13 +404,13 @@
 
     private string RelationshipCountLabel =>
         relationshipListMode.Equals(ChildrenListMode, StringComparison.OrdinalIgnoreCase)
-            ? $"{childRelationships.Count} children referencing {selectedTableName}"
-            : $"{relationships.Count} parent/lookup target(s) for {selectedTableName}";
+            ? $"{childRelationships.Count} existing children referencing {selectedTableName}"
+            : $"{relationships.Count} existing parent/lookup target(s) for {selectedTableName}";
 
     private string EmptyRelationshipListText =>
         relationshipListMode.Equals(ChildrenListMode, StringComparison.OrdinalIgnoreCase)
-            ? "No child tables reference this table."
-            : "No parent or lookup targets loaded for this table.";
+            ? "No existing child relationships are stored for this table."
+            : "No existing parent or lookup relationships are stored for this table.";
 
     private bool CanImport =>
         Database is not null &&
@@ -497,7 +497,6 @@
 
             await LoadRelationshipsAsync(setLoading: false);
             CacheState();
-            SetStatus($"Loaded {tables.Count} table(s) for {Database.DatabaseName}.{schemaName}. Use Load Relationships for the selected table.", AlertStyle.Info);
         }
         catch (Exception ex)
         {
@@ -571,7 +570,7 @@
 
             if (setLoading)
             {
-                SetStatus($"Loaded {relationships.Count} parent/lookup relationship(s) and {childRelationships.Count} child relationship(s) for {selectedTableName}.", AlertStyle.Info);
+                SetStatus(ExistingRelationshipStatusMessage(selectedTableName), AlertStyle.Info);
             }
             CacheState();
         }
@@ -1038,6 +1037,9 @@
         string selectedTable) =>
         relationship.TargetSchemaName.Equals(selectedSchema, StringComparison.OrdinalIgnoreCase) &&
         relationship.TargetTableName.Equals(selectedTable, StringComparison.OrdinalIgnoreCase);
+
+    private string ExistingRelationshipStatusMessage(string tableName) =>
+        $"Found {relationships.Count} existing parent/lookup relationship(s) and {childRelationships.Count} existing child relationship(s) for {tableName}. Use Load From Source to preview relationships detected in the source system, then Save All to store them.";
 
     private static string RelationshipStatusText(DatabaseRelationshipDefinition relationship)
     {
