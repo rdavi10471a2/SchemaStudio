@@ -9,7 +9,7 @@
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("2.9")]
+@attribute [FileVersion("2.10")]
 @attribute [AIFileContext("Components/Pages/ManageDatabases/DatabaseRelationshipsPanel.razor", "Manage Databases child panel for the curated database relationship registry.", Responsibilities = "Loads source tables, imports source-system foreign-key relationships into dbo.DatabaseRelationships, and displays the registry rows that touch the selected table.", Nuances = "The panel does not create metadata tables; database DDL stays in human-run scripts.", LastReviewed = "2026-05-13")]
 
 <RadzenStack Gap="0.75rem"
@@ -930,7 +930,7 @@
         relationship.DatabaseRelationshipId == 0 && !relationship.SourceSystemDetected;
 
     private static bool IsChildRelationship(DatabaseRelationshipDefinition relationship) =>
-        string.Equals(relationship.SourceToTargetRole, "Child", StringComparison.OrdinalIgnoreCase);
+        string.Equals(relationship.SourceToTargetRole ?? "", "Child", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsIgnoredForBaseView(DatabaseRelationshipDefinition relationship) =>
         !relationship.DefaultIncludeInBaseView;
