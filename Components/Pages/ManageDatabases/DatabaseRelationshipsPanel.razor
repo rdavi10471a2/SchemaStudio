@@ -885,7 +885,7 @@
             string.Equals(candidate.TargetSchemaName, relationship.TargetSchemaName, StringComparison.OrdinalIgnoreCase) &&
             string.Equals(candidate.TargetTableName, relationship.TargetTableName, StringComparison.OrdinalIgnoreCase) &&
             string.Equals(candidate.DiscoverySource, relationship.DiscoverySource, StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(candidate.RelationshipName, relationship.RelationshipName, StringComparison.OrdinalIgnoreCase));
+            string.Equals(candidate.SourceConstraintName, relationship.SourceConstraintName, StringComparison.OrdinalIgnoreCase));
 
         if (existing is null)
         {
@@ -998,9 +998,9 @@
 
     private static string RelationshipTitle(DatabaseRelationshipDefinition relationship)
     {
-        if (!string.IsNullOrWhiteSpace(relationship.RelationshipName))
+        if (!string.IsNullOrWhiteSpace(relationship.SourceConstraintName))
         {
-            return relationship.RelationshipName;
+            return relationship.SourceConstraintName;
         }
 
         return $"{relationship.SourceTableName} to {relationship.TargetTableName}";
@@ -1036,7 +1036,6 @@
             TargetTableName = source.TargetTableName,
             JoinType = source.JoinType,
             JoinExpression = source.JoinExpression,
-            RelationshipName = source.RelationshipName,
             DiscoverySource = source.DiscoverySource,
             SourceConstraintName = source.SourceConstraintName,
             IncludeLookupByDefault = source.IncludeLookupByDefault,
@@ -1113,7 +1112,6 @@
             TargetSchemaName = sourceRelationship.ReferencedSchemaName,
             TargetTableName = sourceRelationship.ReferencedTableName,
             JoinType = sourceRelationship.SelectedJoinType,
-            RelationshipName = Truncate(sourceRelationship.ForeignKeyName, 128),
             DiscoverySource = DiscoverySchemaLookup,
             SourceConstraintName = Truncate(sourceRelationship.ForeignKeyName, 128),
             JoinExpression = BuildJoinExpression(details.TableName, sourceRelationship),
@@ -1150,7 +1148,6 @@
             TargetSchemaName = childRelationship.ChildSchemaName,
             TargetTableName = childRelationship.ChildTableName,
             JoinType = "LEFT JOIN",
-            RelationshipName = Truncate(childRelationship.ForeignKeyName, 128),
             DiscoverySource = DiscoverySchemaChild,
             SourceConstraintName = Truncate(childRelationship.ForeignKeyName, 128),
             JoinExpression = BuildChildJoinExpression(details.TableName, childRelationship),

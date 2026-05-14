@@ -50,11 +50,6 @@ public sealed class DatabaseRelationshipDefinition
     [Description("The ON-clause expression that joins the source table to the target table.")]
     public string JoinExpression { get; set; } = "";
 
-    [StringLength(128)]
-    [Display(Name = "Relationship Name", Order = 70)]
-    [Description("Human or source-system name for this relationship.")]
-    public string? RelationshipName { get; set; }
-
     [Required]
     [StringLength(32)]
     [Display(Name = "Discovery Source", Order = 80)]

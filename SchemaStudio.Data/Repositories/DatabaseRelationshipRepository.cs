@@ -132,7 +132,6 @@ SELECT
     TargetTableName,
     JoinType,
     JoinExpression,
-    RelationshipName,
     DiscoverySource,
     SourceConstraintName,
     IncludeLookupByDefault,
@@ -144,7 +143,7 @@ SELECT
     UpdatedOn
 FROM {RelationshipsTable}
 WHERE {whereClause}
-ORDER BY SourceSchemaName, SourceTableName, TargetSchemaName, TargetTableName, RelationshipName;
+ORDER BY SourceSchemaName, SourceTableName, TargetSchemaName, TargetTableName, SourceConstraintName;
 """;
 
     private static async Task LoadColumnsAsync(
@@ -218,8 +217,7 @@ WHERE DatabaseId = @DatabaseId
     AND TargetSchemaName = @TargetSchemaName
     AND TargetTableName = @TargetTableName
     AND JoinType = @JoinType
-    AND JoinExpression = @JoinExpression
-    AND ISNULL(RelationshipName, N'') = ISNULL(@RelationshipName, N'');
+    AND JoinExpression = @JoinExpression;
 """,
             relationship,
             transaction) ?? 0;
@@ -242,7 +240,6 @@ INSERT INTO {relationshipsTable}
     TargetTableName,
     JoinType,
     JoinExpression,
-    RelationshipName,
     DiscoverySource,
     SourceConstraintName,
     IncludeLookupByDefault,
@@ -262,7 +259,6 @@ VALUES
     @TargetTableName,
     @JoinType,
     @JoinExpression,
-    @RelationshipName,
     @DiscoverySource,
     @SourceConstraintName,
     @IncludeLookupByDefault,
@@ -293,7 +289,6 @@ SET
     TargetTableName = @TargetTableName,
     JoinType = @JoinType,
     JoinExpression = @JoinExpression,
-    RelationshipName = @RelationshipName,
     DiscoverySource = @DiscoverySource,
     SourceConstraintName = @SourceConstraintName,
     IncludeLookupByDefault = @IncludeLookupByDefault,
@@ -370,7 +365,6 @@ VALUES
         relationship.TargetTableName = NormalizeName(relationship.TargetTableName, "");
         relationship.JoinType = NormalizeName(relationship.JoinType, "LEFT JOIN");
         relationship.JoinExpression = NormalizeName(relationship.JoinExpression, "");
-        relationship.RelationshipName = NormalizeOptional(relationship.RelationshipName);
         relationship.DiscoverySource = NormalizeName(relationship.DiscoverySource, "Manual");
         relationship.SourceConstraintName = NormalizeOptional(relationship.SourceConstraintName);
         relationship.DisplayColumnName = NormalizeOptional(relationship.DisplayColumnName);

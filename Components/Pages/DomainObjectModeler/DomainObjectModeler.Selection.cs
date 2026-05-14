@@ -401,7 +401,7 @@ public partial class DomainObjectModeler
 
     private static SchemaStudioWebViewer.Data.TableSchemaForeignKeyEdge ToForeignKeyEdge(DatabaseRelationshipDefinition relationship) =>
         new(
-            relationship.RelationshipName ?? $"{relationship.SourceTableName}_{relationship.TargetTableName}",
+            relationship.SourceConstraintName ?? $"{relationship.SourceTableName}_{relationship.TargetTableName}",
             relationship.SourceSchemaName,
             relationship.SourceTableName,
             relationship.TargetSchemaName,
