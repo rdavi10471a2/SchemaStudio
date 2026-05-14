@@ -5,7 +5,7 @@ using SchemaStudio.Data.Models;
 
 namespace SchemaStudio.Data.Repositories;
 
-    [FileVersion("1.8")]
+    [FileVersion("1.9")]
 [AIFileContext("SchemaStudio.Data/Repositories/DatabaseRelationshipRepository.cs", "Read/write repository for the curated database relationship registry.", Responsibilities = "Loads relationship headers with ordered column pairs and saves imported or user-curated relationships without creating or altering database objects.", Nuances = "This repository intentionally assumes dbo.DatabaseRelationships and dbo.DatabaseRelationshipColumns already exist; table creation remains a human-run script.", LastReviewed = "2026-05-13")]
 public sealed class DatabaseRelationshipRepository
 {
@@ -121,6 +121,64 @@ FROM {RelationshipsTable}
 WHERE DatabaseId = @databaseId
     AND SourceSchemaName = @schemaName
     AND SourceTableName = @tableName
+ORDER BY SourceSchemaName, SourceTableName, TargetSchemaName, TargetTableName, RelationshipName;
+""";
+
+        var relationships = (await connection.QueryAsync<DatabaseRelationshipDefinition>(
+            sql,
+            new { databaseId, schemaName, tableName })).ToList();
+
+        await LoadColumnsAsync(connection, relationships, RelationshipColumnsTable);
+        return relationships;
+    }
+
+    public async Task<IReadOnlyList<DatabaseRelationshipDefinition>> GetReferencingTableAsync(
+        int databaseId,
+        string schemaName,
+        string tableName)
+    {
+        await using var connection = new SqlConnection(_connectionString);
+        var joinExpressionProjection = await HasColumnAsync(connection, "DatabaseRelationships", "JoinExpression")
+            ? "JoinExpression,"
+            : "CAST(N'' AS nvarchar(2000)) AS JoinExpression,";
+        var sourceToTargetRoleProjection = await HasColumnAsync(connection, "DatabaseRelationships", "SourceToTargetRole")
+            ? "SourceToTargetRole,"
+            : "RelationshipRole AS SourceToTargetRole,";
+        var targetToSourceRoleProjection = await HasColumnAsync(connection, "DatabaseRelationships", "TargetToSourceRole")
+            ? "TargetToSourceRole,"
+            : "CAST(N'ReferencedBy' AS nvarchar(32)) AS TargetToSourceRole,";
+
+        var sql = $"""
+SELECT
+    DatabaseRelationshipId,
+    DatabaseId,
+    SourceSchemaName,
+    SourceTableName,
+    TargetSchemaName,
+    TargetTableName,
+    JoinType,
+    {joinExpressionProjection}
+    RelationshipRole,
+    {sourceToTargetRoleProjection}
+    {targetToSourceRoleProjection}
+    RelationshipName,
+    SourceSystemDetected,
+    UserConfirmed,
+    DefaultIncludeInBaseView,
+    UseInDomainObjectModeler,
+    UseInQueryBuilder,
+    DisplayColumnName,
+    FilterColumnName,
+    FilterValue,
+    LegalValues,
+    DeveloperNotes,
+    Active,
+    CreatedOn,
+    UpdatedOn
+FROM {RelationshipsTable}
+WHERE DatabaseId = @databaseId
+    AND TargetSchemaName = @schemaName
+    AND TargetTableName = @tableName
 ORDER BY SourceSchemaName, SourceTableName, TargetSchemaName, TargetTableName, RelationshipName;
 """;
 

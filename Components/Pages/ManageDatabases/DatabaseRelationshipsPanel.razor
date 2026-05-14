@@ -9,7 +9,7 @@
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("1.7")]
+@attribute [FileVersion("1.8")]
 @attribute [AIFileContext("Components/Pages/ManageDatabases/DatabaseRelationshipsPanel.razor", "Manage Databases child panel for the curated database relationship registry.", Responsibilities = "Loads source tables, imports source-system foreign-key relationships into dbo.DatabaseRelationships, and displays the registry rows that touch the selected table.", Nuances = "The panel does not create metadata tables; database DDL stays in human-run scripts.", LastReviewed = "2026-05-13")]
 
 <RadzenStack Gap="0.75rem"
@@ -104,7 +104,7 @@
                 <div class="relationship-pane-header">
                     <div>
                         <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0">Relationships</RadzenText>
-                        <RadzenText TextStyle="TextStyle.Caption" Style="color:#667085;">@relationships.Count from @selectedTableName</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Caption" Style="color:#667085;">@RelationshipCountLabel</RadzenText>
                     </div>
                     <RadzenButton Icon="add"
                                   Text="New"
@@ -113,15 +113,27 @@
                                   Click="@NewRelationship"
                                   Disabled="@(Database is null || string.IsNullOrWhiteSpace(selectedTableName))" />
                 </div>
+                <div class="relationship-list-tabs">
+                    <button type="button"
+                            class="@RelationshipListTabClass(SourceListMode)"
+                            @onclick="@(() => SetRelationshipListMode(SourceListMode))">
+                        Outbound <span>@relationships.Count</span>
+                    </button>
+                    <button type="button"
+                            class="@RelationshipListTabClass(ChildrenListMode)"
+                            @onclick="@(() => SetRelationshipListMode(ChildrenListMode))">
+                        Children <span>@childRelationships.Count</span>
+                    </button>
+                </div>
 
                 <div class="relationship-list">
-                    @if (relationships.Count == 0)
+                    @if (VisibleRelationships.Count == 0)
                     {
-                        <div class="relationship-empty">No relationships loaded for this table.</div>
+                        <div class="relationship-empty">@EmptyRelationshipListText</div>
                     }
                     else
                     {
-                        @foreach (var relationship in relationships)
+                        @foreach (var relationship in VisibleRelationships)
                         {
                             <button type="button"
                                     class="@RelationshipRowClass(relationship)"
@@ -326,6 +338,7 @@
     private string selectedTableName = "";
     private List<TableSchemaTableInfo> tables = new();
     private List<DatabaseRelationshipDefinition> relationships = new();
+    private List<DatabaseRelationshipDefinition> childRelationships = new();
     private IList<DatabaseRelationshipDefinition> selectedRelationships = new List<DatabaseRelationshipDefinition>();
     private DatabaseRelationshipDefinition? selectedRelationship;
     private DatabaseRelationshipDefinition? editRelationship;
@@ -338,10 +351,13 @@
     private double resizeStartX;
     private int resizeStartWidth;
     private int relationshipListWidth = RelationshipListDefaultWidth;
+    private string relationshipListMode = SourceListMode;
 
     private const int RelationshipListDefaultWidth = 340;
     private const int RelationshipListMinWidth = 260;
     private const int RelationshipListMaxWidth = 560;
+    private const string SourceListMode = "source";
+    private const string ChildrenListMode = "children";
     private static readonly string[] relationshipRoles = ["Lookup", "ParentReference", "Detail", "DomainJoin", "ReferencedBy", "Ignore"];
     private static readonly string[] joinTypes = ["LEFT JOIN", "INNER JOIN", "LEFT OUTER JOIN", "JOIN"];
     private static readonly Dictionary<int, RelationshipPanelState> stateByDatabaseId = new();
@@ -351,6 +367,21 @@
 
     private string RelationshipsPanelStyle =>
         $"--relationship-list-width: {relationshipListWidth}px;";
+
+    private List<DatabaseRelationshipDefinition> VisibleRelationships =>
+        relationshipListMode.Equals(ChildrenListMode, StringComparison.OrdinalIgnoreCase)
+            ? childRelationships
+            : relationships;
+
+    private string RelationshipCountLabel =>
+        relationshipListMode.Equals(ChildrenListMode, StringComparison.OrdinalIgnoreCase)
+            ? $"{childRelationships.Count} children referencing {selectedTableName}"
+            : $"{relationships.Count} from {selectedTableName}";
+
+    private string EmptyRelationshipListText =>
+        relationshipListMode.Equals(ChildrenListMode, StringComparison.OrdinalIgnoreCase)
+            ? "No child tables reference this table."
+            : "No outbound relationships loaded for this table.";
 
     private bool CanImport =>
         Database is not null &&
@@ -396,6 +427,7 @@
             loadedDatabaseId = null;
             tables.Clear();
             relationships.Clear();
+            childRelationships.Clear();
             selectedTableName = "";
             selectedRelationship = null;
             selectedRelationships.Clear();
@@ -411,11 +443,12 @@
         loadedDatabaseId = Database.DatabaseId;
         schemaName = string.IsNullOrWhiteSpace(Database.DefaultSchema) ? "dbo" : Database.DefaultSchema;
         selectedTableName = "";
-        selectedRelationship = null;
-        selectedRelationships.Clear();
-        editRelationship = null;
-        targetColumnOptions.Clear();
-        targetColumnOptionsKey = "";
+            selectedRelationship = null;
+            selectedRelationships.Clear();
+            editRelationship = null;
+            targetColumnOptions.Clear();
+            targetColumnOptionsKey = "";
+            relationshipListMode = SourceListMode;
 
         if (stateByDatabaseId.TryGetValue(Database.DatabaseId, out var cachedState))
         {
@@ -469,6 +502,7 @@
         {
             tables.Clear();
             relationships.Clear();
+            childRelationships.Clear();
             selectedRelationship = null;
             selectedRelationships.Clear();
             editRelationship = null;
@@ -490,6 +524,7 @@
         if (Database is null || string.IsNullOrWhiteSpace(schemaName) || string.IsNullOrWhiteSpace(selectedTableName))
         {
             relationships.Clear();
+            childRelationships.Clear();
             selectedRelationship = null;
             selectedRelationships.Clear();
             editRelationship = null;
@@ -510,8 +545,12 @@
                 Database.DatabaseId,
                 schemaName.Trim(),
                 selectedTableName.Trim())).ToList();
+            childRelationships = (await RelationshipRepository.GetReferencingTableAsync(
+                Database.DatabaseId,
+                schemaName.Trim(),
+                selectedTableName.Trim())).ToList();
 
-            selectedRelationship = relationships.FirstOrDefault();
+            selectedRelationship = VisibleRelationships.FirstOrDefault();
             selectedRelationships = selectedRelationship is null
                 ? new List<DatabaseRelationshipDefinition>()
                 : new List<DatabaseRelationshipDefinition> { selectedRelationship };
@@ -528,6 +567,7 @@
         catch (Exception ex)
         {
             relationships.Clear();
+            childRelationships.Clear();
             selectedRelationship = null;
             selectedRelationships.Clear();
             editRelationship = null;
@@ -623,6 +663,7 @@
 
         selectedRelationship = null;
         selectedRelationships.Clear();
+        relationshipListMode = SourceListMode;
         editRelationship = new DatabaseRelationshipDefinition
         {
             DatabaseId = Database.DatabaseId,
@@ -659,7 +700,9 @@
             await LoadRelationshipsAsync(setLoading: false);
             selectedRelationship = relationships.FirstOrDefault(relationship =>
                 relationship.DatabaseRelationshipId == editRelationship.DatabaseRelationshipId);
-            selectedRelationship ??= relationships.FirstOrDefault(relationship =>
+            selectedRelationship ??= childRelationships.FirstOrDefault(relationship =>
+                relationship.DatabaseRelationshipId == editRelationship.DatabaseRelationshipId);
+            selectedRelationship ??= relationships.Concat(childRelationships).FirstOrDefault(relationship =>
                 string.Equals(relationship.SourceSchemaName, editRelationship.SourceSchemaName, StringComparison.OrdinalIgnoreCase) &&
                 string.Equals(relationship.SourceTableName, editRelationship.SourceTableName, StringComparison.OrdinalIgnoreCase) &&
                 string.Equals(relationship.TargetSchemaName, editRelationship.TargetSchemaName, StringComparison.OrdinalIgnoreCase) &&
@@ -681,6 +724,24 @@
             Notify(NotificationSeverity.Error, FriendlyError(ex));
         }
     }
+
+    private void SetRelationshipListMode(string mode)
+    {
+        relationshipListMode = mode;
+        selectedRelationship = VisibleRelationships.FirstOrDefault();
+        selectedRelationships = selectedRelationship is null
+            ? new List<DatabaseRelationshipDefinition>()
+            : new List<DatabaseRelationshipDefinition> { selectedRelationship };
+        editRelationship = selectedRelationship is null ? null : CloneRelationship(selectedRelationship);
+        targetColumnOptions.Clear();
+        targetColumnOptionsKey = "";
+        CacheState();
+    }
+
+    private string RelationshipListTabClass(string mode) =>
+        relationshipListMode.Equals(mode, StringComparison.OrdinalIgnoreCase)
+            ? "relationship-list-tab active"
+            : "relationship-list-tab";
 
     private async Task DeleteRelationshipAsync()
     {
@@ -892,7 +953,9 @@
             selectedTableName,
             tables.ToList(),
             relationships.ToList(),
+            childRelationships.ToList(),
             selectedRelationship?.DatabaseRelationshipId ?? 0,
+            relationshipListMode,
             statusText,
             statusStyle);
     }
@@ -903,7 +966,9 @@
         selectedTableName = state.SelectedTableName;
         tables = state.Tables.ToList();
         relationships = state.Relationships.ToList();
-        selectedRelationship = relationships.FirstOrDefault(relationship =>
+        childRelationships = state.ChildRelationships.ToList();
+        relationshipListMode = state.RelationshipListMode;
+        selectedRelationship = relationships.Concat(childRelationships).FirstOrDefault(relationship =>
             relationship.DatabaseRelationshipId == state.SelectedRelationshipId);
         selectedRelationships = selectedRelationship is null
             ? new List<DatabaseRelationshipDefinition>()
@@ -922,17 +987,6 @@
         {
             throw new InvalidOperationException($"Relationship {sourceRelationship.ForeignKeyName} has no source-to-target column pairs.");
         }
-
-        var lookupValues = string.IsNullOrWhiteSpace(sourceRelationship.DisplayColumnName)
-            ? null
-            : await TableSchemaRepository.GetLookupValuesTextAsync(
-                details.DatabaseName,
-                sourceRelationship.ReferencedSchemaName,
-                sourceRelationship.ReferencedTableName,
-                sourceRelationship.DisplayColumnName,
-                sourceRelationship.LookupFilterColumnName,
-                sourceRelationship.LookupFilterValue);
-        lookupValues = Truncate(lookupValues, 1500);
 
         return new DatabaseRelationshipDefinition
         {
@@ -955,7 +1009,7 @@
             DisplayColumnName = Truncate(sourceRelationship.DisplayColumnName, 128),
             FilterColumnName = Truncate(sourceRelationship.LookupFilterColumnName, 128),
             FilterValue = Truncate(sourceRelationship.LookupFilterValue, 128),
-            LegalValues = lookupValues,
+            LegalValues = null,
             Active = true,
             Columns = sourceRelationship.Columns
                 .Select((column, index) => new DatabaseRelationshipColumnDefinition
@@ -1097,7 +1151,9 @@
         string SelectedTableName,
         List<TableSchemaTableInfo> Tables,
         List<DatabaseRelationshipDefinition> Relationships,
+        List<DatabaseRelationshipDefinition> ChildRelationships,
         int SelectedRelationshipId,
+        string RelationshipListMode,
         string StatusText,
         AlertStyle StatusStyle);
 }
