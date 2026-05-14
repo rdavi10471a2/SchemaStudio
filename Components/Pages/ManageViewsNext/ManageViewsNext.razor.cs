@@ -223,6 +223,20 @@ public partial class ManageViewsNext
         IsLeftPanelHidden = !IsLeftPanelHidden;
     }
 
+    private void OnBaseObjectChanged(bool value)
+    {
+        if (EditableObject == null)
+        {
+            return;
+        }
+
+        EditableObject.IsBaseObject = value;
+        if (!value)
+        {
+            EditableObject.SourceTableName = null;
+        }
+    }
+
     private void BeginPaneResize(ResizeTarget target, PointerEventArgs args)
     {
         ActiveResizeTarget = target;
@@ -283,7 +297,9 @@ public partial class ManageViewsNext
 
         EditableObject.DatabaseId = SelectedDatabaseId.Value;
         EditableObject.SourceDatabaseName ??= SelectedViewItem?.SourceDatabaseName;
-        EditableObject.SourceTableName = NormalizeOptionalString(EditableObject.SourceTableName);
+        EditableObject.SourceTableName = EditableObject.IsBaseObject
+            ? NormalizeOptionalString(EditableObject.SourceTableName)
+            : null;
 
         var validationMessage = await ValidateEditableObjectAsync(EditableObject);
         if (!string.IsNullOrWhiteSpace(validationMessage))

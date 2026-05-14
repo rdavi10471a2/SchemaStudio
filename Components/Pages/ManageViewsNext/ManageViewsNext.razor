@@ -24,7 +24,7 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("1.48")]
+@attribute [FileVersion("1.49")]
 @attribute [AIChange(
     "1.36",
     "2026-04-30 11:59 PM CDT disabled selector controls during busy operations and rebuilt the column synchronization summary after merge choices are staged.",
@@ -409,20 +409,18 @@
 
                             <label class="mvn-check-field">
                                 @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.IsBaseObject))
-                                <RadzenCheckBox @bind-Value="@EditableObject.IsBaseObject" TValue="bool" />
+                                <RadzenCheckBox Value="@EditableObject.IsBaseObject" Change="@OnBaseObjectChanged" TValue="bool" />
                             </label>
                         </div>
 
-                        @if (EditableObject.IsBaseObject)
-                        {
-                            <div class="mvn-field">
-                                @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.SourceTableName))
-                                <RadzenTextBox @bind-Value="@EditableObject.SourceTableName"
-                                               Style="width:100%;"
-                                               Placeholder="Physical source table"
-                                               MaxLength="128" />
-                            </div>
-                        }
+                        <div class="mvn-field">
+                            @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.SourceTableName))
+                            <RadzenTextBox @bind-Value="@EditableObject.SourceTableName"
+                                           Style="width:100%;"
+                                           Placeholder="Required for base objects"
+                                           Disabled="@(!EditableObject.IsBaseObject)"
+                                           MaxLength="128" />
+                        </div>
 
                         <div class="mvn-field">
                             @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.BusinessDescription))
