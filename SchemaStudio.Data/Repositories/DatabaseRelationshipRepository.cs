@@ -146,8 +146,8 @@ ORDER BY SourceSchemaName, SourceTableName, TargetSchemaName, TargetTableName, R
 
         try
         {
-            var hasDirectionalRoles = await HasColumnAsync(connection, "DatabaseRelationships", "SourceToTargetRole") &&
-                await HasColumnAsync(connection, "DatabaseRelationships", "TargetToSourceRole");
+            var hasDirectionalRoles = await HasColumnAsync(connection, "DatabaseRelationships", "SourceToTargetRole", transaction) &&
+                await HasColumnAsync(connection, "DatabaseRelationships", "TargetToSourceRole", transaction);
             var databaseRelationshipId = relationship.DatabaseRelationshipId;
 
             if (databaseRelationshipId == 0)
@@ -242,7 +242,11 @@ ORDER BY DatabaseRelationshipId, OrdinalPosition;
         }
     }
 
-    private async Task<bool> HasColumnAsync(SqlConnection connection, string tableName, string columnName)
+    private async Task<bool> HasColumnAsync(
+        SqlConnection connection,
+        string tableName,
+        string columnName,
+        SqlTransaction? transaction = null)
     {
         var sql = $"""
 SELECT COUNT(1)
@@ -256,7 +260,7 @@ WHERE s.name = N'dbo'
     AND c.name = @columnName;
 """;
 
-        return await connection.ExecuteScalarAsync<int>(sql, new { tableName, columnName }) > 0;
+        return await connection.ExecuteScalarAsync<int>(sql, new { tableName, columnName }, transaction) > 0;
     }
 
     private static async Task<int> FindExistingIdAsync(
