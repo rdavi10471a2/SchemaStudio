@@ -9,7 +9,7 @@
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("2.14")]
+@attribute [FileVersion("2.15")]
 @attribute [AIFileContext("Components/Pages/ManageDatabases/DatabaseRelationshipsPanel.razor", "Manage Databases child panel for the curated database relationship registry.", Responsibilities = "Loads source tables, imports source-system foreign-key relationships into dbo.DatabaseRelationships, and displays the registry rows that touch the selected table.", Nuances = "The panel does not create metadata tables; database DDL stays in human-run scripts.", LastReviewed = "2026-05-13")]
 
 <RadzenStack Gap="0.75rem"
@@ -425,14 +425,15 @@
         loadedDatabaseId = Database.DatabaseId;
         schemaName = string.IsNullOrWhiteSpace(Database.DefaultSchema) ? "dbo" : Database.DefaultSchema;
         selectedTableName = "";
-            selectedRelationship = null;
-            selectedRelationships.Clear();
-            editRelationship = null;
-            targetColumnOptions.Clear();
-            targetColumnOptionsKey = "";
-            relationshipListMode = SourceListMode;
+        selectedRelationship = null;
+        selectedRelationships.Clear();
+        editRelationship = null;
+        targetColumnOptions.Clear();
+        targetColumnOptionsKey = "";
+        relationshipListMode = SourceListMode;
 
-        if (stateByDatabaseId.TryGetValue(Database.DatabaseId, out var cachedState))
+        if (stateByDatabaseId.TryGetValue(Database.DatabaseId, out var cachedState) &&
+            HasUsableCachedState(cachedState))
         {
             RestoreState(cachedState);
             return;
@@ -1215,6 +1216,10 @@
         statusText = state.StatusText;
         statusStyle = state.StatusStyle;
     }
+
+    private static bool HasUsableCachedState(RelationshipPanelState state) =>
+        !string.IsNullOrWhiteSpace(state.SelectedTableName) &&
+        state.Tables.Count > 0;
 
     private async Task<DatabaseRelationshipDefinition> FromSourceLookupAsync(
         int databaseId,
