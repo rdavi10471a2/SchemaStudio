@@ -9,7 +9,7 @@
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("2.13")]
+@attribute [FileVersion("2.14")]
 @attribute [AIFileContext("Components/Pages/ManageDatabases/DatabaseRelationshipsPanel.razor", "Manage Databases child panel for the curated database relationship registry.", Responsibilities = "Loads source tables, imports source-system foreign-key relationships into dbo.DatabaseRelationships, and displays the registry rows that touch the selected table.", Nuances = "The panel does not create metadata tables; database DDL stays in human-run scripts.", LastReviewed = "2026-05-13")]
 
 <RadzenStack Gap="0.75rem"
@@ -125,7 +125,7 @@
                     <button type="button"
                             class="@RelationshipListTabClass(SourceListMode)"
                             @onclick="@(() => SetRelationshipListMode(SourceListMode))">
-                        Child Of <span>@relationships.Count</span>
+                        Parents / Lookups <span>@relationships.Count</span>
                     </button>
                     <button type="button"
                             class="@RelationshipListTabClass(ChildrenListMode)"
@@ -385,12 +385,12 @@
     private string RelationshipCountLabel =>
         relationshipListMode.Equals(ChildrenListMode, StringComparison.OrdinalIgnoreCase)
             ? $"{childRelationships.Count} children referencing {selectedTableName}"
-            : $"{relationships.Count} parent/lookup relationship(s) for {selectedTableName}";
+            : $"{relationships.Count} parent/lookup target(s) for {selectedTableName}";
 
     private string EmptyRelationshipListText =>
         relationshipListMode.Equals(ChildrenListMode, StringComparison.OrdinalIgnoreCase)
             ? "No child tables reference this table."
-            : "No parent or lookup relationships loaded for this table.";
+            : "No parent or lookup targets loaded for this table.";
 
     private bool CanImport =>
         Database is not null &&

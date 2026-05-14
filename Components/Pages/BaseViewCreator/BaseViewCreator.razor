@@ -21,7 +21,7 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("2.2")]
+@attribute [FileVersion("2.4")]
 @attribute [AIFileContext("Components/Pages/BaseViewCreator/BaseViewCreator.razor", "Forked base-view creator page that preserves the proven Base View Generator UI while allowing different internal plumbing to evolve safely.", Responsibilities = "Keep the base-view creation workflow visually familiar while isolating experimental model and engine changes from the production Base View Generator page.", Nuances = "This page intentionally starts as a UI-preserving fork. Lookup discovery and the proven base-view workflow remain available in BaseViewGenerator while new plumbing is validated here first.", RelatedFiles = "Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", LastReviewed = "2026-05-12")]
 
 <PageTitle>Base View Creator</PageTitle>
@@ -773,7 +773,8 @@
 
     private void ApplyRelationshipFilters()
     {
-        var filteredRelationships = AllRelationships.AsEnumerable();
+        var filteredRelationships = AllRelationships
+            .Where(ShouldShowLookupRelationship);
 
         if (IgnoreSelfJoins)
         {
@@ -821,15 +822,18 @@
     {
         foreach (var savedRelationship in SavedLookupRelationships)
         {
-            var key = BuildRelationshipRegistryKey(savedRelationship);
-            var existing = AllRelationships.FirstOrDefault(relationship => string.Equals(BuildRelationshipRegistryKey(relationship), key, StringComparison.OrdinalIgnoreCase));
+            var existing = AllRelationships.FirstOrDefault(relationship => IsSameRelationship(relationship, savedRelationship));
 
             if (existing is not null)
             {
-                existing.DisplayColumnName = savedRelationship.DisplayColumnName;
+                if (!string.IsNullOrWhiteSpace(savedRelationship.DisplayColumnName))
+                {
+                    existing.DisplayColumnName = savedRelationship.DisplayColumnName;
+                }
+
                 existing.SelectedJoinType = savedRelationship.JoinType;
                 existing.Include = savedRelationship.IncludeLookupByDefault &&
-                    !string.IsNullOrWhiteSpace(savedRelationship.DisplayColumnName);
+                    !string.IsNullOrWhiteSpace(existing.DisplayColumnName);
                 existing.IncludeDisplayColumn = existing.Include;
                 continue;
             }
@@ -1118,7 +1122,7 @@
         !HasDisplayColumn(relationship);
 
     private bool IsSuppressedRelationshipColumn(TableSchemaColumnInfo column) =>
-        Relationships
+        AllRelationships
             .Where(IsJoinSuppressed)
             .SelectMany(relationship => relationship.Columns)
             .Any(pair => string.Equals(pair.LocalColumnName, column.ColumnName, StringComparison.OrdinalIgnoreCase));
@@ -1130,6 +1134,9 @@
         CurrentSelectionPlan.RelationshipHasLookupDisplayProjection(relationship);
 
     private bool CanUseRelationship(TableSchemaRelationshipInfo relationship) =>
+        HasDisplayColumn(relationship);
+
+    private static bool ShouldShowLookupRelationship(TableSchemaRelationshipInfo relationship) =>
         HasDisplayColumn(relationship);
 
     private string RelationshipStatusText(TableSchemaRelationshipInfo relationship)
@@ -1514,7 +1521,51 @@
     }
 
     private bool IsRegisteredLookupRelationship(TableSchemaRelationshipInfo relationship) =>
-        SavedLookupRelationshipKeys.Contains(BuildRelationshipRegistryKey(relationship));
+        SavedLookupRelationships.Any(savedRelationship => IsSameRelationship(relationship, savedRelationship));
+
+    private static bool IsSameRelationship(
+        TableSchemaRelationshipInfo relationship,
+        DatabaseRelationshipDefinition savedRelationship)
+    {
+        if (!string.IsNullOrWhiteSpace(savedRelationship.SourceConstraintName) &&
+            string.Equals(relationship.ForeignKeyName, savedRelationship.SourceConstraintName, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (!string.Equals(relationship.ReferencedSchemaName, savedRelationship.TargetSchemaName, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(relationship.ReferencedTableName, savedRelationship.TargetTableName, StringComparison.OrdinalIgnoreCase) ||
+            relationship.Columns.Count != savedRelationship.Columns.Count)
+        {
+            return false;
+        }
+
+        var relationshipColumns = relationship.Columns
+            .Select(column => $"{BareRelationshipColumnName(column.LocalColumnName)}={BareRelationshipColumnName(column.ReferencedColumnName)}")
+            .OrderBy(value => value, StringComparer.OrdinalIgnoreCase);
+        var savedColumns = savedRelationship.Columns
+            .Select(column => $"{BareRelationshipColumnName(column.SourceColumnName)}={BareRelationshipColumnName(column.TargetColumnName)}")
+            .OrderBy(value => value, StringComparer.OrdinalIgnoreCase);
+
+        return relationshipColumns.SequenceEqual(savedColumns, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static string BareRelationshipColumnName(string? columnName)
+    {
+        if (string.IsNullOrWhiteSpace(columnName))
+        {
+            return "";
+        }
+
+        var value = columnName.Trim();
+        var dotIndex = value.LastIndexOf('.');
+        if (dotIndex >= 0 && dotIndex < value.Length - 1)
+        {
+            value = value[(dotIndex + 1)..];
+        }
+
+        return value.Trim().Trim('[', ']');
+    }
 
     private static bool IsChildRelationship(DatabaseRelationshipDefinition relationship) =>
         relationship.DiscoverySource.Contains("Child", StringComparison.OrdinalIgnoreCase);
