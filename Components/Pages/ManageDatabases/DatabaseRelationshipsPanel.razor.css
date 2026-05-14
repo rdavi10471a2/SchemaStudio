@@ -260,6 +260,12 @@
     color: #9a3412;
 }
 
+.relationship-chip-unsaved {
+    background: #f5f3ff;
+    border-color: #ddd6fe;
+    color: #5b21b6;
+}
+
 .relationship-edit-grid {
     display: grid;
     gap: 0.55rem;

@@ -9,7 +9,7 @@
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("2.6")]
+@attribute [FileVersion("2.7")]
 @attribute [AIFileContext("Components/Pages/ManageDatabases/DatabaseRelationshipsPanel.razor", "Manage Databases child panel for the curated database relationship registry.", Responsibilities = "Loads source tables, imports source-system foreign-key relationships into dbo.DatabaseRelationships, and displays the registry rows that touch the selected table.", Nuances = "The panel does not create metadata tables; database DDL stays in human-run scripts.", LastReviewed = "2026-05-13")]
 
 <RadzenStack Gap="0.75rem"
@@ -160,8 +160,8 @@
             <section class="relationship-edit-pane">
                 <div class="relationship-pane-header">
                     <div>
-                        <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0">Relationship Detail</RadzenText>
-                        <RadzenText TextStyle="TextStyle.Caption" Style="color:#667085;">Captured M-to-1 join metadata for the selected table.</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0">@RelationshipEditorTitle</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Caption" Style="color:#667085;">@RelationshipEditorSubtitle</RadzenText>
                     </div>
                     @if (editRelationship is not null)
                     {
@@ -656,10 +656,8 @@
             return;
         }
 
-        selectedRelationship = null;
-        selectedRelationships.Clear();
         relationshipListMode = SourceListMode;
-        editRelationship = new DatabaseRelationshipDefinition
+        var relationship = new DatabaseRelationshipDefinition
         {
             DatabaseId = Database.DatabaseId,
             SourceSchemaName = schemaName.Trim(),
@@ -675,9 +673,14 @@
             UseInQueryBuilder = true,
             Active = true
         };
+        relationships.Insert(0, relationship);
+        selectedRelationship = relationship;
+        selectedRelationships = new List<DatabaseRelationshipDefinition> { relationship };
+        editRelationship = relationship;
         targetColumnOptions.Clear();
         targetColumnOptionsKey = "";
         SetStatus("New relationship started. Fill the target table and ON clause, then save.", AlertStyle.Info);
+        CacheState();
     }
 
     private async Task SaveRelationshipAsync()
@@ -743,6 +746,16 @@
         relationshipListMode.Equals(mode, StringComparison.OrdinalIgnoreCase)
             ? "relationship-list-tab active"
             : "relationship-list-tab";
+
+    private string RelationshipEditorTitle =>
+        editRelationship is not null && IsUnsavedRelationship(editRelationship)
+            ? "New Relationship"
+            : "Relationship Detail";
+
+    private string RelationshipEditorSubtitle =>
+        editRelationship is not null && IsUnsavedRelationship(editRelationship)
+            ? "Unsaved staged relationship. Fill the target table and ON clause, then save it."
+            : "Captured M-to-1 join metadata for the selected table.";
 
     private async Task DeleteRelationshipAsync()
     {
@@ -885,6 +898,11 @@
 
     private static string RelationshipStatusText(DatabaseRelationshipDefinition relationship)
     {
+        if (IsUnsavedRelationship(relationship))
+        {
+            return "Unsaved";
+        }
+
         if (IsChildRelationship(relationship))
         {
             return "Child";
@@ -899,9 +917,15 @@
     }
 
     private static string RelationshipStatusChipClass(DatabaseRelationshipDefinition relationship) =>
+        IsUnsavedRelationship(relationship)
+            ? "relationship-chip relationship-chip-unsaved"
+            :
         IsChildRelationship(relationship) || !relationship.DefaultIncludeInBaseView
             ? "relationship-chip relationship-chip-warning"
             : "relationship-chip";
+
+    private static bool IsUnsavedRelationship(DatabaseRelationshipDefinition relationship) =>
+        relationship.DatabaseRelationshipId == 0;
 
     private static bool IsChildRelationship(DatabaseRelationshipDefinition relationship) =>
         string.Equals(relationship.SourceToTargetRole, "Child", StringComparison.OrdinalIgnoreCase);
@@ -978,12 +1002,16 @@
     {
         if (relationship.SourceTableName.Equals(selectedTableName, StringComparison.OrdinalIgnoreCase))
         {
-            return relationship.TargetTableName;
+            return string.IsNullOrWhiteSpace(relationship.TargetTableName)
+                ? "New relationship"
+                : relationship.TargetTableName;
         }
 
         if (relationship.TargetTableName.Equals(selectedTableName, StringComparison.OrdinalIgnoreCase))
         {
-            return relationship.SourceTableName;
+            return string.IsNullOrWhiteSpace(relationship.SourceTableName)
+                ? "New relationship"
+                : relationship.SourceTableName;
         }
 
         return RelationshipTitle(relationship);
