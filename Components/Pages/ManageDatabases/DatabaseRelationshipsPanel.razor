@@ -82,6 +82,11 @@
                                       ButtonStyle="ButtonStyle.Primary"
                                       Click="@ImportForeignKeysAsync"
                                       Disabled="@(!CanImport)" />
+                        <RadzenButton Icon="save"
+                                      Text="Save Previewed"
+                                      ButtonStyle="ButtonStyle.Secondary"
+                                      Click="@SavePreviewedRelationshipsAsync"
+                                      Disabled="@(!CanSavePreviewedRelationships)" />
                     </RadzenStack>
                 </RadzenColumn>
             </RadzenRow>
@@ -391,6 +396,11 @@
         Database is not null &&
         !isLoading &&
         !string.IsNullOrWhiteSpace(selectedTableName);
+
+    private bool CanSavePreviewedRelationships =>
+        Database is not null &&
+        !isLoading &&
+        relationships.Concat(childRelationships).Any(IsPersistablePreviewRelationship);
 
     protected override async Task OnParametersSetAsync()
     {
@@ -740,6 +750,61 @@
         }
     }
 
+    private async Task SavePreviewedRelationshipsAsync()
+    {
+        if (Database is null)
+        {
+            return;
+        }
+
+        var previewedRelationships = relationships
+            .Concat(childRelationships)
+            .Where(IsPersistablePreviewRelationship)
+            .Select(CloneRelationship)
+            .ToList();
+
+        if (previewedRelationships.Count == 0)
+        {
+            SetStatus("No previewed relationships are ready to save.", AlertStyle.Info);
+            return;
+        }
+
+        isLoading = true;
+        SetStatus("", AlertStyle.Info);
+        await InvokeAsync(StateHasChanged);
+
+        var savedCount = 0;
+        var failedCount = 0;
+        string? firstFailure = null;
+
+        foreach (var relationship in previewedRelationships)
+        {
+            try
+            {
+                relationship.DatabaseId = Database.DatabaseId;
+                relationship.JoinExpression = relationship.JoinExpression?.Trim() ?? "";
+                SynchronizeColumnPairsFromJoinExpression(relationship);
+                NormalizeRelationshipForSave(relationship);
+                await RelationshipRepository.UpsertAsync(relationship);
+                savedCount++;
+            }
+            catch (Exception ex)
+            {
+                failedCount++;
+                firstFailure ??= FriendlyError(ex);
+            }
+        }
+
+        await LoadRelationshipsAsync(setLoading: false);
+        isLoading = false;
+
+        var message = failedCount == 0
+            ? $"Saved {savedCount} previewed relationship(s)."
+            : $"Saved {savedCount} previewed relationship(s); {failedCount} failed. First failure: {firstFailure}";
+        SetStatus(message, failedCount == 0 ? AlertStyle.Success : AlertStyle.Warning);
+        Notify(failedCount == 0 ? NotificationSeverity.Success : NotificationSeverity.Warning, message);
+    }
+
     private void SetRelationshipListMode(string mode)
     {
         relationshipListMode = mode;
@@ -955,7 +1020,14 @@
             : "relationship-chip";
 
     private static bool IsUnsavedRelationship(DatabaseRelationshipDefinition relationship) =>
-        relationship.DatabaseRelationshipId == 0 && IsManualDiscoverySource(relationship.DiscoverySource);
+        relationship.DatabaseRelationshipId == 0;
+
+    private static bool IsPersistablePreviewRelationship(DatabaseRelationshipDefinition relationship) =>
+        relationship.DatabaseRelationshipId == 0 &&
+        !IsManualDiscoverySource(relationship.DiscoverySource) &&
+        !string.IsNullOrWhiteSpace(relationship.SourceTableName) &&
+        !string.IsNullOrWhiteSpace(relationship.TargetTableName) &&
+        !string.IsNullOrWhiteSpace(relationship.JoinExpression);
 
     private static bool IsChildRelationship(DatabaseRelationshipDefinition? relationship) =>
         relationship is not null &&
