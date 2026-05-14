@@ -651,7 +651,7 @@
         try
         {
             editRelationship.DatabaseId = Database.DatabaseId;
-            editRelationship.JoinExpression = EnsureJoinExpression(editRelationship);
+            editRelationship.JoinExpression = editRelationship.JoinExpression?.Trim() ?? "";
             await RelationshipRepository.UpsertAsync(editRelationship);
             await LoadRelationshipsAsync(setLoading: false);
             selectedRelationship = relationships.FirstOrDefault(relationship =>
@@ -1018,14 +1018,6 @@
             firstColumn?.ReferencedColumnName ?? "",
             relationship.LookupFilterColumnName ?? "",
             relationship.LookupFilterValue ?? "");
-    }
-
-    private static string EnsureJoinExpression(DatabaseRelationshipDefinition relationship)
-    {
-        var joinExpression = relationship.JoinExpression?.Trim() ?? "";
-        return string.IsNullOrWhiteSpace(joinExpression) && relationship.Columns.Count > 0
-            ? BuildJoinExpression(relationship.SourceTableName, relationship.TargetTableName, relationship.Columns)
-            : joinExpression;
     }
 
     private static string BuildJoinExpression(string sourceTableName, TableSchemaRelationshipInfo relationship) =>
