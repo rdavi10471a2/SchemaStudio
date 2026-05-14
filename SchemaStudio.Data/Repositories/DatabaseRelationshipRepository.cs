@@ -5,7 +5,7 @@ using SchemaStudio.Data.Models;
 
 namespace SchemaStudio.Data.Repositories;
 
-[FileVersion("2.0")]
+[FileVersion("2.1")]
 [AIFileContext("SchemaStudio.Data/Repositories/DatabaseRelationshipRepository.cs", "Read/write repository for the curated database relationship registry.", Responsibilities = "Loads relationship headers with ordered column pairs and saves imported or user-curated relationships without creating or altering database objects.", Nuances = "This repository intentionally assumes dbo.DatabaseRelationships and dbo.DatabaseRelationshipColumns already exist; table creation remains a human-run script.", LastReviewed = "2026-05-13")]
 public sealed class DatabaseRelationshipRepository
 {
@@ -370,7 +370,7 @@ VALUES
         relationship.FilterValue = NormalizeOptional(relationship.FilterValue);
         relationship.DeveloperNotes = NormalizeOptional(relationship.DeveloperNotes);
 
-        if (IsChildDiscoverySource(relationship.DiscoverySource) || string.IsNullOrWhiteSpace(relationship.DisplayColumnName))
+        if (IsChildDiscoverySource(relationship.DiscoverySource))
         {
             relationship.IncludeLookupByDefault = false;
         }

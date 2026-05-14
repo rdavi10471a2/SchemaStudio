@@ -9,7 +9,7 @@
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("2.12")]
+@attribute [FileVersion("2.13")]
 @attribute [AIFileContext("Components/Pages/ManageDatabases/DatabaseRelationshipsPanel.razor", "Manage Databases child panel for the curated database relationship registry.", Responsibilities = "Loads source tables, imports source-system foreign-key relationships into dbo.DatabaseRelationships, and displays the registry rows that touch the selected table.", Nuances = "The panel does not create metadata tables; database DDL stays in human-run scripts.", LastReviewed = "2026-05-13")]
 
 <RadzenStack Gap="0.75rem"
@@ -83,10 +83,10 @@
                                       Click="@ImportForeignKeysAsync"
                                       Disabled="@(!CanImport)" />
                         <RadzenButton Icon="save"
-                                      Text="Save Previewed"
+                                      Text="Save All"
                                       ButtonStyle="ButtonStyle.Secondary"
-                                      Click="@SavePreviewedRelationshipsAsync"
-                                      Disabled="@(!CanSavePreviewedRelationships)" />
+                                      Click="@SaveAllRelationshipsAsync"
+                                      Disabled="@(!CanSaveAllRelationships)" />
                     </RadzenStack>
                 </RadzenColumn>
             </RadzenRow>
@@ -207,7 +207,7 @@
                                     <RadzenDropDown TValue="string"
                                                     Data="@baseViewActions"
                                                     Value="@BaseViewActionFor(editRelationship)"
-                                                    Change="@SetBaseViewAction"
+                                                    Change="@(value => SetBaseViewAction(value))"
                                                     Style="width:100%;" />
                                 }
                             </label>
@@ -397,10 +397,10 @@
         !isLoading &&
         !string.IsNullOrWhiteSpace(selectedTableName);
 
-    private bool CanSavePreviewedRelationships =>
+    private bool CanSaveAllRelationships =>
         Database is not null &&
         !isLoading &&
-        relationships.Concat(childRelationships).Any(IsPersistablePreviewRelationship);
+        relationships.Concat(childRelationships).Any(IsPersistableRelationship);
 
     protected override async Task OnParametersSetAsync()
     {
@@ -750,22 +750,24 @@
         }
     }
 
-    private async Task SavePreviewedRelationshipsAsync()
+    private async Task SaveAllRelationshipsAsync()
     {
         if (Database is null)
         {
             return;
         }
 
-        var previewedRelationships = relationships
+        SyncEditedRelationshipIntoList();
+
+        var relationshipsToSave = relationships
             .Concat(childRelationships)
-            .Where(IsPersistablePreviewRelationship)
+            .Where(IsPersistableRelationship)
             .Select(CloneRelationship)
             .ToList();
 
-        if (previewedRelationships.Count == 0)
+        if (relationshipsToSave.Count == 0)
         {
-            SetStatus("No previewed relationships are ready to save.", AlertStyle.Info);
+            SetStatus("No relationships are ready to save.", AlertStyle.Info);
             return;
         }
 
@@ -777,7 +779,7 @@
         var failedCount = 0;
         string? firstFailure = null;
 
-        foreach (var relationship in previewedRelationships)
+        foreach (var relationship in relationshipsToSave)
         {
             try
             {
@@ -799,10 +801,37 @@
         isLoading = false;
 
         var message = failedCount == 0
-            ? $"Saved {savedCount} previewed relationship(s)."
-            : $"Saved {savedCount} previewed relationship(s); {failedCount} failed. First failure: {firstFailure}";
+            ? $"Saved {savedCount} relationship(s)."
+            : $"Saved {savedCount} relationship(s); {failedCount} failed. First failure: {firstFailure}";
         SetStatus(message, failedCount == 0 ? AlertStyle.Success : AlertStyle.Warning);
         Notify(failedCount == 0 ? NotificationSeverity.Success : NotificationSeverity.Warning, message);
+    }
+
+    private void SyncEditedRelationshipIntoList()
+    {
+        if (editRelationship is null)
+        {
+            return;
+        }
+
+        var list = IsChildRelationship(editRelationship) ? childRelationships : relationships;
+        var index = list.FindIndex(relationship =>
+            ReferenceEquals(relationship, selectedRelationship) ||
+            (relationship.DatabaseRelationshipId != 0 &&
+                relationship.DatabaseRelationshipId == editRelationship.DatabaseRelationshipId) ||
+            (
+                relationship.DatabaseRelationshipId == 0 &&
+                string.Equals(relationship.SourceSchemaName, editRelationship.SourceSchemaName, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(relationship.SourceTableName, editRelationship.SourceTableName, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(relationship.TargetSchemaName, editRelationship.TargetSchemaName, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(relationship.TargetTableName, editRelationship.TargetTableName, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(relationship.SourceConstraintName, editRelationship.SourceConstraintName, StringComparison.OrdinalIgnoreCase)
+            ));
+
+        if (index >= 0)
+        {
+            list[index] = CloneRelationship(editRelationship);
+        }
     }
 
     private void SetRelationshipListMode(string mode)
@@ -1022,9 +1051,7 @@
     private static bool IsUnsavedRelationship(DatabaseRelationshipDefinition relationship) =>
         relationship.DatabaseRelationshipId == 0;
 
-    private static bool IsPersistablePreviewRelationship(DatabaseRelationshipDefinition relationship) =>
-        relationship.DatabaseRelationshipId == 0 &&
-        !IsManualDiscoverySource(relationship.DiscoverySource) &&
+    private static bool IsPersistableRelationship(DatabaseRelationshipDefinition relationship) =>
         !string.IsNullOrWhiteSpace(relationship.SourceTableName) &&
         !string.IsNullOrWhiteSpace(relationship.TargetTableName) &&
         !string.IsNullOrWhiteSpace(relationship.JoinExpression);
@@ -1062,7 +1089,6 @@
         }
 
         editRelationship.IncludeLookupByDefault = true;
-        NormalizeRelationshipForSave(editRelationship);
         SyncSelectedRelationshipStatus();
     }
 
@@ -1445,9 +1471,6 @@
         relationship.DiscoverySource = string.IsNullOrWhiteSpace(relationship.DiscoverySource)
             ? DiscoveryManual
             : relationship.DiscoverySource;
-        relationship.IncludeLookupByDefault =
-            relationship.IncludeLookupByDefault &&
-            !string.IsNullOrWhiteSpace(relationship.DisplayColumnName);
     }
 
     private void SetStatus(string message, AlertStyle style)
