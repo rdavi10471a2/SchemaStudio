@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace SchemaStudio.Data.Models;
 
-[FileVersion("1.2")]
+[FileVersion("1.3")]
 [AIFileContext("SchemaStudio.Data/Models/DatabaseRelationshipDefinition.cs", "Defines curated database relationship metadata used by base-view creation, domain object modeling, and future query-building tools.", Responsibilities = "Carries relationship headers and ordered column pairs for physical foreign keys, lookup joins, soft/domain joins, and user-confirmed relationship hints.", Nuances = "Relationship meaning is contextual: the same physical relationship may be a lookup from one screen and a one-to-many path from another.", LastReviewed = "2026-05-13")]
 public sealed class DatabaseRelationshipDefinition
 {
@@ -50,48 +50,25 @@ public sealed class DatabaseRelationshipDefinition
     [Description("The ON-clause expression that joins the source table to the target table.")]
     public string JoinExpression { get; set; } = "";
 
-    [Required]
-    [StringLength(32)]
-    [Display(Name = "Relationship Role", Order = 60)]
-    [Description("Semantic role, such as Lookup, ParentReference, Detail, DomainJoin, or Ignore.")]
-    public string RelationshipRole { get; set; } = "Lookup";
-
-    [Required]
-    [StringLength(32)]
-    [Display(Name = "Source To Target Role", Order = 61)]
-    [Description("Semantic role when traversing from SourceTableName to TargetTableName.")]
-    public string SourceToTargetRole { get; set; } = "Lookup";
-
-    [Required]
-    [StringLength(32)]
-    [Display(Name = "Target To Source Role", Order = 62)]
-    [Description("Semantic role when traversing from TargetTableName back to SourceTableName.")]
-    public string TargetToSourceRole { get; set; } = "ReferencedBy";
-
     [StringLength(128)]
     [Display(Name = "Relationship Name", Order = 70)]
     [Description("Human or source-system name for this relationship.")]
     public string? RelationshipName { get; set; }
 
-    [Display(Name = "Source System Detected", Order = 90)]
-    [Description("This relationship was imported from source database metadata.")]
-    public bool SourceSystemDetected { get; set; }
+    [Required]
+    [StringLength(32)]
+    [Display(Name = "Discovery Source", Order = 80)]
+    [Description("Where this relationship came from, such as Manual, SchemaLookup, or SchemaChild.")]
+    public string DiscoverySource { get; set; } = "Manual";
 
-    [Display(Name = "User Confirmed", Order = 100)]
-    [Description("A human has reviewed and confirmed this relationship.")]
-    public bool UserConfirmed { get; set; }
+    [StringLength(128)]
+    [Display(Name = "Source Constraint", Order = 90)]
+    [Description("Optional source-system constraint name used to refresh detected relationships.")]
+    public string? SourceConstraintName { get; set; }
 
-    [Display(Name = "Default Include In Base View", Order = 110)]
+    [Display(Name = "Include Lookup By Default", Order = 110)]
     [Description("Base View Creator should include this lookup by default.")]
-    public bool DefaultIncludeInBaseView { get; set; }
-
-    [Display(Name = "Use In Domain Object Modeler", Order = 120)]
-    [Description("Domain Object Modeler may use this relationship when inferring joins.")]
-    public bool UseInDomainObjectModeler { get; set; } = true;
-
-    [Display(Name = "Use In Query Builder", Order = 130)]
-    [Description("Query builder tools may use this relationship when constructing legal query paths.")]
-    public bool UseInQueryBuilder { get; set; } = true;
+    public bool IncludeLookupByDefault { get; set; }
 
     [StringLength(128)]
     [Display(Name = "Display Column", Order = 140)]
@@ -108,18 +85,10 @@ public sealed class DatabaseRelationshipDefinition
     [Description("Optional target filter value used with Filter Column.")]
     public string? FilterValue { get; set; }
 
-    [StringLength(1500)]
-    [Display(Name = "Legal Values", Order = 170)]
-    [Description("Optional newline-delimited values or notes for constrained lookup relationships.")]
-    public string? LegalValues { get; set; }
-
     [StringLength(1000)]
     [Display(Name = "Developer Notes", Order = 180)]
     [Description("Technical notes about why this relationship exists or how it should be used.")]
     public string? DeveloperNotes { get; set; }
-
-    [Display(Name = "Active", Order = 190)]
-    public bool Active { get; set; } = true;
 
     [Display(AutoGenerateField = false)]
     public DateTime CreatedOn { get; set; }

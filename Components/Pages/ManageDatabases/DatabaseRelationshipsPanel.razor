@@ -9,7 +9,7 @@
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("2.11")]
+@attribute [FileVersion("2.12")]
 @attribute [AIFileContext("Components/Pages/ManageDatabases/DatabaseRelationshipsPanel.razor", "Manage Databases child panel for the curated database relationship registry.", Responsibilities = "Loads source tables, imports source-system foreign-key relationships into dbo.DatabaseRelationships, and displays the registry rows that touch the selected table.", Nuances = "The panel does not create metadata tables; database DDL stays in human-run scripts.", LastReviewed = "2026-05-13")]
 
 <RadzenStack Gap="0.75rem"
@@ -357,6 +357,10 @@
     private const string ChildrenListMode = "children";
     private const string BaseViewActionUseLookup = "Include lookup by default";
     private const string BaseViewActionIgnore = "Do not include by default";
+    private const string DiscoveryManual = "Manual";
+    private const string DiscoveryManualChild = "ManualChild";
+    private const string DiscoverySchemaLookup = "SchemaLookup";
+    private const string DiscoverySchemaChild = "SchemaChild";
     private static readonly string[] joinTypes = ["LEFT JOIN", "INNER JOIN", "LEFT OUTER JOIN", "JOIN"];
     private static readonly string[] baseViewActions = [BaseViewActionUseLookup, BaseViewActionIgnore];
     private static readonly Dictionary<int, RelationshipPanelState> stateByDatabaseId = new();
@@ -508,14 +512,16 @@
 
         try
         {
-            relationships = (await RelationshipRepository.GetByTableAsync(
+            var sourceRelationships = (await RelationshipRepository.GetByTableAsync(
                 Database.DatabaseId,
                 schemaName.Trim(),
                 selectedTableName.Trim())).ToList();
-            childRelationships = (await RelationshipRepository.GetReferencingTableAsync(
-                Database.DatabaseId,
-                schemaName.Trim(),
-                selectedTableName.Trim())).ToList();
+            relationships = sourceRelationships
+                .Where(relationship => !IsChildRelationship(relationship))
+                .ToList();
+            childRelationships = sourceRelationships
+                .Where(IsChildRelationship)
+                .ToList();
 
             selectedRelationship = VisibleRelationships.FirstOrDefault();
             selectedRelationships = selectedRelationship is null
@@ -648,7 +654,7 @@
             return;
         }
 
-        relationshipListMode = SourceListMode;
+        var isChildMode = relationshipListMode.Equals(ChildrenListMode, StringComparison.OrdinalIgnoreCase);
         var relationship = new DatabaseRelationshipDefinition
         {
             DatabaseId = Database.DatabaseId,
@@ -657,15 +663,18 @@
             TargetSchemaName = schemaName.Trim(),
             TargetTableName = "",
             JoinType = "LEFT JOIN",
-            RelationshipRole = "Lookup",
-            SourceToTargetRole = "Lookup",
-            TargetToSourceRole = "ReferencedBy",
             JoinExpression = "",
-            UseInDomainObjectModeler = true,
-            UseInQueryBuilder = true,
-            Active = true
+            DiscoverySource = isChildMode ? DiscoveryManualChild : DiscoveryManual,
+            IncludeLookupByDefault = false
         };
-        relationships.Insert(0, relationship);
+        if (isChildMode)
+        {
+            childRelationships.Insert(0, relationship);
+        }
+        else
+        {
+            relationships.Insert(0, relationship);
+        }
         selectedRelationship = relationship;
         selectedRelationships = new List<DatabaseRelationshipDefinition> { relationship };
         editRelationship = relationship;
@@ -691,7 +700,7 @@
                 editRelationship.FilterColumnName = null;
                 editRelationship.FilterValue = null;
             }
-            ApplyInferredRelationshipRole(editRelationship);
+            NormalizeRelationshipForSave(editRelationship);
             editRelationship.DatabaseRelationshipId = await RelationshipRepository.UpsertAsync(editRelationship);
             await LoadRelationshipsAsync(setLoading: false);
             selectedRelationship = relationships.FirstOrDefault(relationship =>
@@ -875,6 +884,7 @@
             string.Equals(candidate.SourceTableName, relationship.SourceTableName, StringComparison.OrdinalIgnoreCase) &&
             string.Equals(candidate.TargetSchemaName, relationship.TargetSchemaName, StringComparison.OrdinalIgnoreCase) &&
             string.Equals(candidate.TargetTableName, relationship.TargetTableName, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(candidate.DiscoverySource, relationship.DiscoverySource, StringComparison.OrdinalIgnoreCase) &&
             string.Equals(candidate.RelationshipName, relationship.RelationshipName, StringComparison.OrdinalIgnoreCase));
 
         if (existing is null)
@@ -909,29 +919,29 @@
             return "Join Only";
         }
 
-        return relationship.DefaultIncludeInBaseView ? "Default Lookup" : "Known Lookup";
+        return relationship.IncludeLookupByDefault ? "Default Lookup" : "Known Lookup";
     }
 
     private static string RelationshipStatusChipClass(DatabaseRelationshipDefinition relationship) =>
         IsUnsavedRelationship(relationship)
             ? "relationship-chip relationship-chip-unsaved"
             :
-        IsChildRelationship(relationship) || !relationship.DefaultIncludeInBaseView
+        IsChildRelationship(relationship) || !relationship.IncludeLookupByDefault
             ? "relationship-chip relationship-chip-warning"
             : "relationship-chip";
 
     private static bool IsUnsavedRelationship(DatabaseRelationshipDefinition relationship) =>
-        relationship.DatabaseRelationshipId == 0 && !relationship.SourceSystemDetected;
+        relationship.DatabaseRelationshipId == 0 && IsManualDiscoverySource(relationship.DiscoverySource);
 
     private static bool IsChildRelationship(DatabaseRelationshipDefinition? relationship) =>
         relationship is not null &&
-        string.Equals(relationship.SourceToTargetRole ?? "", "Child", StringComparison.OrdinalIgnoreCase);
+        relationship.DiscoverySource.Contains("Child", StringComparison.OrdinalIgnoreCase);
 
     private static bool CanEditLookupDefaults(DatabaseRelationshipDefinition? relationship) =>
         relationship is not null && !IsChildRelationship(relationship);
 
     private static bool IsIgnoredForBaseView(DatabaseRelationshipDefinition relationship) =>
-        !relationship.DefaultIncludeInBaseView;
+        !relationship.IncludeLookupByDefault;
 
     private static bool IsConstrainedLookupTarget(DatabaseRelationshipDefinition relationship) =>
         relationship.TargetTableName.Equals("COLOOKUP", StringComparison.OrdinalIgnoreCase);
@@ -949,14 +959,14 @@
         var action = value?.ToString();
         if (string.Equals(action, BaseViewActionIgnore, StringComparison.OrdinalIgnoreCase))
         {
-            editRelationship.DefaultIncludeInBaseView = false;
-            ApplyInferredRelationshipRole(editRelationship);
+            editRelationship.IncludeLookupByDefault = false;
+            NormalizeRelationshipForSave(editRelationship);
             SyncSelectedRelationshipStatus();
             return;
         }
 
-        editRelationship.DefaultIncludeInBaseView = true;
-        ApplyInferredRelationshipRole(editRelationship);
+        editRelationship.IncludeLookupByDefault = true;
+        NormalizeRelationshipForSave(editRelationship);
         SyncSelectedRelationshipStatus();
     }
 
@@ -968,7 +978,7 @@
         }
 
         editRelationship.DisplayColumnName = value?.ToString();
-        ApplyInferredRelationshipRole(editRelationship);
+        NormalizeRelationshipForSave(editRelationship);
         SyncSelectedRelationshipStatus();
     }
 
@@ -979,13 +989,11 @@
             return;
         }
 
-        selectedRelationship.DefaultIncludeInBaseView = editRelationship.DefaultIncludeInBaseView;
+        selectedRelationship.IncludeLookupByDefault = editRelationship.IncludeLookupByDefault;
         selectedRelationship.DisplayColumnName = editRelationship.DisplayColumnName;
         selectedRelationship.FilterColumnName = editRelationship.FilterColumnName;
         selectedRelationship.FilterValue = editRelationship.FilterValue;
-        selectedRelationship.RelationshipRole = editRelationship.RelationshipRole;
-        selectedRelationship.SourceToTargetRole = editRelationship.SourceToTargetRole;
-        selectedRelationship.TargetToSourceRole = editRelationship.TargetToSourceRole;
+        selectedRelationship.DiscoverySource = editRelationship.DiscoverySource;
     }
 
     private static string RelationshipTitle(DatabaseRelationshipDefinition relationship)
@@ -1028,21 +1036,14 @@
             TargetTableName = source.TargetTableName,
             JoinType = source.JoinType,
             JoinExpression = source.JoinExpression,
-            RelationshipRole = RelationshipRoleForDisplayColumn(source.DisplayColumnName),
-            SourceToTargetRole = RelationshipRoleForDisplayColumn(source.DisplayColumnName),
-            TargetToSourceRole = string.IsNullOrWhiteSpace(source.TargetToSourceRole) ? "ReferencedBy" : source.TargetToSourceRole,
             RelationshipName = source.RelationshipName,
-            SourceSystemDetected = source.SourceSystemDetected,
-            UserConfirmed = source.UserConfirmed,
-            DefaultIncludeInBaseView = source.DefaultIncludeInBaseView,
-            UseInDomainObjectModeler = source.UseInDomainObjectModeler,
-            UseInQueryBuilder = source.UseInQueryBuilder,
+            DiscoverySource = source.DiscoverySource,
+            SourceConstraintName = source.SourceConstraintName,
+            IncludeLookupByDefault = source.IncludeLookupByDefault,
             DisplayColumnName = source.DisplayColumnName,
             FilterColumnName = source.FilterColumnName,
             FilterValue = source.FilterValue,
-            LegalValues = source.LegalValues,
             DeveloperNotes = source.DeveloperNotes,
-            Active = source.Active,
             CreatedOn = source.CreatedOn,
             UpdatedOn = source.UpdatedOn,
             Columns = source.Columns
@@ -1112,21 +1113,14 @@
             TargetSchemaName = sourceRelationship.ReferencedSchemaName,
             TargetTableName = sourceRelationship.ReferencedTableName,
             JoinType = sourceRelationship.SelectedJoinType,
-            RelationshipRole = RelationshipRoleForDisplayColumn(sourceRelationship.DisplayColumnName),
-            SourceToTargetRole = RelationshipRoleForDisplayColumn(sourceRelationship.DisplayColumnName),
-            TargetToSourceRole = "ReferencedBy",
             RelationshipName = Truncate(sourceRelationship.ForeignKeyName, 128),
+            DiscoverySource = DiscoverySchemaLookup,
+            SourceConstraintName = Truncate(sourceRelationship.ForeignKeyName, 128),
             JoinExpression = BuildJoinExpression(details.TableName, sourceRelationship),
-            SourceSystemDetected = true,
-            UserConfirmed = false,
-            DefaultIncludeInBaseView = sourceRelationship.Include && !string.IsNullOrWhiteSpace(sourceRelationship.DisplayColumnName),
-            UseInDomainObjectModeler = true,
-            UseInQueryBuilder = true,
+            IncludeLookupByDefault = sourceRelationship.Include && !string.IsNullOrWhiteSpace(sourceRelationship.DisplayColumnName),
             DisplayColumnName = Truncate(sourceRelationship.DisplayColumnName, 128),
             FilterColumnName = Truncate(sourceRelationship.LookupFilterColumnName, 128),
             FilterValue = Truncate(sourceRelationship.LookupFilterValue, 128),
-            LegalValues = null,
-            Active = true,
             Columns = sourceRelationship.Columns
                 .Select((column, index) => new DatabaseRelationshipColumnDefinition
                 {
@@ -1156,21 +1150,14 @@
             TargetSchemaName = childRelationship.ChildSchemaName,
             TargetTableName = childRelationship.ChildTableName,
             JoinType = "LEFT JOIN",
-            RelationshipRole = "Detail",
-            SourceToTargetRole = "Child",
-            TargetToSourceRole = "Parent",
             RelationshipName = Truncate(childRelationship.ForeignKeyName, 128),
+            DiscoverySource = DiscoverySchemaChild,
+            SourceConstraintName = Truncate(childRelationship.ForeignKeyName, 128),
             JoinExpression = BuildChildJoinExpression(details.TableName, childRelationship),
-            SourceSystemDetected = true,
-            UserConfirmed = false,
-            DefaultIncludeInBaseView = false,
-            UseInDomainObjectModeler = true,
-            UseInQueryBuilder = true,
+            IncludeLookupByDefault = false,
             DisplayColumnName = null,
             FilterColumnName = null,
             FilterValue = null,
-            LegalValues = null,
-            Active = true,
             Columns = childRelationship.Columns
                 .Select((column, index) => new DatabaseRelationshipColumnDefinition
                 {
@@ -1249,28 +1236,30 @@
             ? value
             : value[..maxLength];
 
-    private static string RelationshipRoleForDisplayColumn(string? displayColumnName) =>
-        string.IsNullOrWhiteSpace(displayColumnName) ? "Ignore" : "Lookup";
+    private static bool IsManualDiscoverySource(string? discoverySource) =>
+        string.IsNullOrWhiteSpace(discoverySource) ||
+        discoverySource.StartsWith(DiscoveryManual, StringComparison.OrdinalIgnoreCase);
 
-    private static void ApplyInferredRelationshipRole(DatabaseRelationshipDefinition relationship)
+    private static void NormalizeRelationshipForSave(DatabaseRelationshipDefinition relationship)
     {
         if (IsChildRelationship(relationship))
         {
-            relationship.RelationshipRole = "Detail";
-            relationship.SourceToTargetRole = "Child";
-            relationship.TargetToSourceRole = "Parent";
-            relationship.DefaultIncludeInBaseView = false;
+            relationship.DiscoverySource = string.IsNullOrWhiteSpace(relationship.DiscoverySource)
+                ? DiscoveryManualChild
+                : relationship.DiscoverySource;
+            relationship.IncludeLookupByDefault = false;
             relationship.DisplayColumnName = null;
             relationship.FilterColumnName = null;
             relationship.FilterValue = null;
             return;
         }
 
-        var role = RelationshipRoleForDisplayColumn(relationship.DisplayColumnName);
-        relationship.RelationshipRole = role;
-        relationship.SourceToTargetRole = role;
-        relationship.TargetToSourceRole = "ReferencedBy";
-        relationship.DefaultIncludeInBaseView = role == "Lookup" && relationship.DefaultIncludeInBaseView;
+        relationship.DiscoverySource = string.IsNullOrWhiteSpace(relationship.DiscoverySource)
+            ? DiscoveryManual
+            : relationship.DiscoverySource;
+        relationship.IncludeLookupByDefault =
+            relationship.IncludeLookupByDefault &&
+            !string.IsNullOrWhiteSpace(relationship.DisplayColumnName);
     }
 
     private void SetStatus(string message, AlertStyle style)

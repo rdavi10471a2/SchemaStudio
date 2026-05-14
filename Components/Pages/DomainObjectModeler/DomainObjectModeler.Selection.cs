@@ -293,8 +293,6 @@ public partial class DomainObjectModeler
 
         var registryRelationships = (await DatabaseRelationshipRepository.GetForDatabaseAsync(SelectedDatabaseId.Value))
             .Where(relationship =>
-                relationship.Active &&
-                relationship.UseInDomainObjectModeler &&
                 relationship.Columns.Count > 0 &&
                 selectedTableNames.Contains(relationship.SourceTableName) &&
                 selectedTableNames.Contains(relationship.TargetTableName))
