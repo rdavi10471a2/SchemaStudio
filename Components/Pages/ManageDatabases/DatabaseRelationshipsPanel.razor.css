@@ -255,6 +255,12 @@
     text-transform: uppercase;
 }
 
+.relationship-chip-warning {
+    background: #fff7ed;
+    border-color: #fed7aa;
+    color: #9a3412;
+}
+
 .relationship-edit-grid {
     display: grid;
     gap: 0.55rem;

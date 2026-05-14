@@ -9,7 +9,7 @@
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("2.1")]
+@attribute [FileVersion("2.2")]
 @attribute [AIFileContext("Components/Pages/ManageDatabases/DatabaseRelationshipsPanel.razor", "Manage Databases child panel for the curated database relationship registry.", Responsibilities = "Loads source tables, imports source-system foreign-key relationships into dbo.DatabaseRelationships, and displays the registry rows that touch the selected table.", Nuances = "The panel does not create metadata tables; database DDL stays in human-run scripts.", LastReviewed = "2026-05-13")]
 
 <RadzenStack Gap="0.75rem"
@@ -141,7 +141,7 @@
                             <button type="button"
                                     class="@RelationshipRowClass(relationship)"
                                     @onclick="@(() => SelectRelationship(relationship))">
-                                <span class="relationship-chip">@CurrentRoleFor(relationship)</span>
+                                <span class="@RelationshipStatusChipClass(relationship)">@RelationshipStatusText(relationship)</span>
                                 <strong>@RelationshipOtherTable(relationship)</strong>
                                 <code>@relationship.JoinType</code>
                                 <span>@relationship.ColumnSummary</span>
@@ -165,7 +165,7 @@
                     </div>
                     @if (selectedRelationship is not null)
                     {
-                        <span class="relationship-chip">@CurrentRoleFor(selectedRelationship)</span>
+                        <span class="@RelationshipStatusChipClass(selectedRelationship)">@RelationshipStatusText(selectedRelationship)</span>
                     }
                 </div>
 
@@ -260,13 +260,6 @@
                             <summary>Advanced record fields</summary>
                             <div class="relationship-edit-grid">
                                 <label>
-                                    <span class="relationship-field-label">Role</span>
-                                    <RadzenDropDown TValue="string"
-                                                    Data="@relationshipRoles"
-                                                    @bind-Value="@CurrentDirectionRole"
-                                                    Style="width:100%;" />
-                                </label>
-                                <label>
                                     <span class="relationship-field-label">Source Schema</span>
                                     <RadzenTextBox @bind-Value="@editRelationship.SourceSchemaName"
                                                    Style="width:100%;"
@@ -359,7 +352,6 @@
     private const int RelationshipListMaxWidth = 560;
     private const string SourceListMode = "source";
     private const string ChildrenListMode = "children";
-    private static readonly string[] relationshipRoles = ["Lookup", "ParentReference", "Detail", "DomainJoin", "ReferencedBy", "Ignore"];
     private static readonly string[] joinTypes = ["LEFT JOIN", "INNER JOIN", "LEFT OUTER JOIN", "JOIN"];
     private static readonly Dictionary<int, RelationshipPanelState> stateByDatabaseId = new();
 
@@ -388,38 +380,6 @@
         Database is not null &&
         !isLoading &&
         !string.IsNullOrWhiteSpace(selectedTableName);
-
-    private string CurrentDirectionRole
-    {
-        get
-        {
-            if (editRelationship is null)
-            {
-                return "Lookup";
-            }
-
-            return IsEditingFromSelectedTable()
-                ? editRelationship.SourceToTargetRole
-                : editRelationship.TargetToSourceRole;
-        }
-        set
-        {
-            if (editRelationship is null)
-            {
-                return;
-            }
-
-            if (IsEditingFromSelectedTable())
-            {
-                editRelationship.SourceToTargetRole = value;
-                editRelationship.RelationshipRole = value;
-            }
-            else
-            {
-                editRelationship.TargetToSourceRole = value;
-            }
-        }
-    }
 
     protected override async Task OnParametersSetAsync()
     {
@@ -701,6 +661,7 @@
         {
             editRelationship.DatabaseId = Database.DatabaseId;
             editRelationship.JoinExpression = editRelationship.JoinExpression?.Trim() ?? "";
+            ApplyInferredRelationshipRole(editRelationship);
             editRelationship.DatabaseRelationshipId = await RelationshipRepository.UpsertAsync(editRelationship);
             await LoadRelationshipsAsync(setLoading: false);
             selectedRelationship = relationships.FirstOrDefault(relationship =>
@@ -887,15 +848,13 @@
         editRelationship is null ||
         editRelationship.SourceTableName.Equals(selectedTableName, StringComparison.OrdinalIgnoreCase);
 
-    private string CurrentRoleFor(DatabaseRelationshipDefinition relationship) =>
-        relationship.SourceTableName.Equals(selectedTableName, StringComparison.OrdinalIgnoreCase)
-            ? CoalesceRole(relationship.SourceToTargetRole, relationship.RelationshipRole)
-            : relationship.TargetTableName.Equals(selectedTableName, StringComparison.OrdinalIgnoreCase)
-                ? CoalesceRole(relationship.TargetToSourceRole, "ReferencedBy")
-                : CoalesceRole(relationship.RelationshipRole, "Related");
+    private static string RelationshipStatusText(DatabaseRelationshipDefinition relationship) =>
+        string.IsNullOrWhiteSpace(relationship.DisplayColumnName) ? "Ignore" : "Lookup";
 
-    private static string CoalesceRole(string? value, string fallback) =>
-        string.IsNullOrWhiteSpace(value) ? fallback : value;
+    private static string RelationshipStatusChipClass(DatabaseRelationshipDefinition relationship) =>
+        string.IsNullOrWhiteSpace(relationship.DisplayColumnName)
+            ? "relationship-chip relationship-chip-warning"
+            : "relationship-chip";
 
     private static string RelationshipTitle(DatabaseRelationshipDefinition relationship)
     {
@@ -922,18 +881,6 @@
         return RelationshipTitle(relationship);
     }
 
-    private static string RoleHelpText(string? role) =>
-        role switch
-        {
-            "Lookup" => "Adds descriptive fields for a many-to-one reference.",
-            "ParentReference" => "Points from this row back to a parent/header row.",
-            "Detail" => "Moves from this row to child/detail rows.",
-            "DomainJoin" => "Allowed when composing domain objects.",
-            "ReferencedBy" => "Inverse side of a lookup or parent reference.",
-            "Ignore" => "Kept for documentation but skipped by generators.",
-            _ => "Choose how tools should treat this relationship."
-        };
-
     private static DatabaseRelationshipDefinition CloneRelationship(DatabaseRelationshipDefinition source) =>
         new()
         {
@@ -945,8 +892,8 @@
             TargetTableName = source.TargetTableName,
             JoinType = source.JoinType,
             JoinExpression = source.JoinExpression,
-            RelationshipRole = source.RelationshipRole,
-            SourceToTargetRole = string.IsNullOrWhiteSpace(source.SourceToTargetRole) ? source.RelationshipRole : source.SourceToTargetRole,
+            RelationshipRole = RelationshipRoleForDisplayColumn(source.DisplayColumnName),
+            SourceToTargetRole = RelationshipRoleForDisplayColumn(source.DisplayColumnName),
             TargetToSourceRole = string.IsNullOrWhiteSpace(source.TargetToSourceRole) ? "ReferencedBy" : source.TargetToSourceRole,
             RelationshipName = source.RelationshipName,
             SourceSystemDetected = source.SourceSystemDetected,
@@ -1029,14 +976,14 @@
             TargetSchemaName = sourceRelationship.ReferencedSchemaName,
             TargetTableName = sourceRelationship.ReferencedTableName,
             JoinType = sourceRelationship.SelectedJoinType,
-            RelationshipRole = "Lookup",
-            SourceToTargetRole = "Lookup",
+            RelationshipRole = RelationshipRoleForDisplayColumn(sourceRelationship.DisplayColumnName),
+            SourceToTargetRole = RelationshipRoleForDisplayColumn(sourceRelationship.DisplayColumnName),
             TargetToSourceRole = "ReferencedBy",
             RelationshipName = Truncate(sourceRelationship.ForeignKeyName, 128),
             JoinExpression = BuildJoinExpression(details.TableName, sourceRelationship),
             SourceSystemDetected = true,
             UserConfirmed = false,
-            DefaultIncludeInBaseView = sourceRelationship.Include,
+            DefaultIncludeInBaseView = sourceRelationship.Include && !string.IsNullOrWhiteSpace(sourceRelationship.DisplayColumnName),
             UseInDomainObjectModeler = true,
             UseInQueryBuilder = true,
             DisplayColumnName = Truncate(sourceRelationship.DisplayColumnName, 128),
@@ -1115,6 +1062,18 @@
         string.IsNullOrEmpty(value) || value.Length <= maxLength
             ? value
             : value[..maxLength];
+
+    private static string RelationshipRoleForDisplayColumn(string? displayColumnName) =>
+        string.IsNullOrWhiteSpace(displayColumnName) ? "Ignore" : "Lookup";
+
+    private static void ApplyInferredRelationshipRole(DatabaseRelationshipDefinition relationship)
+    {
+        var role = RelationshipRoleForDisplayColumn(relationship.DisplayColumnName);
+        relationship.RelationshipRole = role;
+        relationship.SourceToTargetRole = role;
+        relationship.TargetToSourceRole = "ReferencedBy";
+        relationship.DefaultIncludeInBaseView = role == "Lookup" && relationship.DefaultIncludeInBaseView;
+    }
 
     private void SetStatus(string message, AlertStyle style)
     {
