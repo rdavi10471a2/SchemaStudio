@@ -10,7 +10,7 @@
 @inject TooltipService TooltipService
 @inject AttributeService Attr
 
-@attribute [FileVersion("1.9")]
+@attribute [FileVersion("2.0")]
 @attribute [AIChange(
     "1.6",
     "2026-05-01 09:59 AM CDT kept Business Name on its own row and paired Business Description with Developer Notes as equal-height metadata fields.",
@@ -337,11 +337,34 @@
     .mdb-detail-panel {
         height: calc(100vh - 170px);
         max-height: calc(100vh - 170px);
-        overflow-y: auto;
+        overflow: hidden;
     }
 
     .mdb-detail-tabs {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
         min-height: 0;
+    }
+
+    .mdb-detail-tabs.rz-tabview,
+    .mdb-detail-tabs .rz-tabview,
+    .mdb-detail-tabs .rz-tabview-panels {
+        display: flex;
+        flex: 1 1 auto;
+        flex-direction: column;
+        min-height: 0;
+    }
+
+    .mdb-detail-tabs .rz-tabview-panels {
+        overflow: hidden;
+    }
+
+    .mdb-detail-tabs .rz-tabview-panel {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: auto;
+        padding: 0;
     }
 
     .mdb-detail-panel textarea {

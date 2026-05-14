@@ -9,7 +9,7 @@
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject NotificationService NotificationService
 
-@attribute [FileVersion("1.8")]
+@attribute [FileVersion("1.9")]
 @attribute [AIFileContext("Components/Pages/ManageDatabases/DatabaseRelationshipsPanel.razor", "Manage Databases child panel for the curated database relationship registry.", Responsibilities = "Loads source tables, imports source-system foreign-key relationships into dbo.DatabaseRelationships, and displays the registry rows that touch the selected table.", Nuances = "The panel does not create metadata tables; database DDL stays in human-run scripts.", LastReviewed = "2026-05-13")]
 
 <RadzenStack Gap="0.75rem"
@@ -602,8 +602,6 @@
                 selectedTableName.Trim(),
                 Database.SQLLookupString);
 
-            await ImportSavedLookupRelationshipsAsync(details);
-
             var imported = 0;
             var failed = 0;
             string? firstFailure = null;
@@ -1020,48 +1018,6 @@
                 })
                 .ToList()
         };
-    }
-
-    private async Task ImportSavedLookupRelationshipsAsync(TableSchemaDetails details)
-    {
-        if (Database is null)
-        {
-            return;
-        }
-
-        var savedLookups = await LookupRelationshipRepository.GetBySourceAsync(
-            Database.DatabaseId,
-            details.SchemaName,
-            details.TableName);
-        var existingKeys = details.Relationships
-            .Select(BuildSourceRelationshipKey)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var lookup in savedLookups.Where(lookup => lookup.Active))
-        {
-            var relationship = new TableSchemaRelationshipInfo(
-                string.IsNullOrWhiteSpace(lookup.RelationshipName)
-                    ? $"REGISTERED_{lookup.SourceTableName}_{lookup.SourceColumnName}_{lookup.LookupTableName}"
-                    : lookup.RelationshipName,
-                lookup.LookupSchemaName,
-                lookup.LookupTableName,
-                lookup.LookupDisplayColumnName,
-                false,
-                lookup.JoinType,
-                [new TableSchemaForeignKeyColumnInfo(lookup.SourceColumnName, lookup.LookupKeyColumnName)],
-                lookup.LookupFilterColumnName,
-                lookup.LookupFilterValue);
-
-            if (!existingKeys.Add(BuildSourceRelationshipKey(relationship)))
-            {
-                continue;
-            }
-
-            var definition = await FromSourceLookupAsync(Database.DatabaseId, details, relationship);
-            definition.RelationshipName = Truncate(lookup.RelationshipName, 128);
-            definition.LegalValues = Truncate(lookup.LookupValues, 1500);
-            await RelationshipRepository.UpsertAsync(definition);
-        }
     }
 
     private static string BuildSourceRelationshipKey(TableSchemaRelationshipInfo relationship)
