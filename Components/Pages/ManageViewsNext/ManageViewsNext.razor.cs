@@ -281,7 +281,11 @@ public partial class ManageViewsNext
             return;
         }
 
-        var validationMessage = ValidateEditableObject(EditableObject);
+        EditableObject.DatabaseId = SelectedDatabaseId.Value;
+        EditableObject.SourceDatabaseName ??= SelectedViewItem?.SourceDatabaseName;
+        EditableObject.SourceTableName = NormalizeOptionalString(EditableObject.SourceTableName);
+
+        var validationMessage = await ValidateEditableObjectAsync(EditableObject);
         if (!string.IsNullOrWhiteSpace(validationMessage))
         {
             NotificationService.Notify(NotificationSeverity.Warning, "Save blocked", validationMessage, 4000);
@@ -319,8 +323,6 @@ public partial class ManageViewsNext
 
         try
         {
-            EditableObject.DatabaseId = SelectedDatabaseId.Value;
-            EditableObject.SourceDatabaseName ??= SelectedViewItem?.SourceDatabaseName;
             EditableObject.IsActive = true;
 
             if (EditableObject.SchemaObjectId == 0)
@@ -488,6 +490,7 @@ public partial class ManageViewsNext
             DatabaseId = SelectedDatabaseId ?? 0,
             SourceDatabaseName = item.SourceDatabaseName,
             SourceSchemaName = item.SourceSchemaName,
+            SourceTableName = item.SourceTableName,
             SourceObjectName = item.SourceObjectName,
             Domain = GetPreferredDomain(),
             IsActive = true
@@ -505,6 +508,7 @@ public partial class ManageViewsNext
             DatabaseId = source.DatabaseId,
             SourceDatabaseName = source.SourceDatabaseName,
             SourceSchemaName = source.SourceSchemaName,
+            SourceTableName = source.SourceTableName,
             SourceObjectName = source.SourceObjectName,
             IsBaseObject = source.IsBaseObject,
             Domain = source.Domain,
@@ -520,7 +524,7 @@ public partial class ManageViewsNext
         return clone;
     }
 
-    private static string? ValidateEditableObject(SchemaObjectDefinition model)
+    private async Task<string?> ValidateEditableObjectAsync(SchemaObjectDefinition model)
     {
         if (string.IsNullOrWhiteSpace(model.SourceSchemaName) || string.IsNullOrWhiteSpace(model.SourceObjectName))
         {
@@ -535,6 +539,24 @@ public partial class ManageViewsNext
         if (string.IsNullOrWhiteSpace(model.Domain))
         {
             return "Select a domain for the view.";
+        }
+
+        if (model.IsBaseObject)
+        {
+            if (string.IsNullOrWhiteSpace(model.SourceTableName))
+            {
+                return "Source Table is required when Base Object is checked.";
+            }
+
+            var duplicate = await SchemaObjectRepository.GetBaseObjectBySourceTableAsync(
+                model.DatabaseId,
+                model.SourceTableName,
+                model.SchemaObjectId > 0 ? model.SchemaObjectId : null);
+
+            if (duplicate != null)
+            {
+                return $"Source Table '{model.SourceTableName}' is already assigned to {duplicate.SourceObjectName}.";
+            }
         }
 
         return null;
@@ -603,6 +625,9 @@ public partial class ManageViewsNext
 
     private static string NormalizeDomain(string? domain) =>
         string.IsNullOrWhiteSpace(domain) ? UnknownDomain : domain.Trim();
+
+    private static string? NormalizeOptionalString(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static bool IsUnknownDomain(string? domain) =>
         string.Equals(NormalizeDomain(domain), UnknownDomain, StringComparison.OrdinalIgnoreCase);
@@ -682,6 +707,7 @@ public partial class ManageViewsNext
         public bool IsBaseObject { get; set; }
         public string SourceDatabaseName { get; set; } = string.Empty;
         public string SourceSchemaName { get; set; } = string.Empty;
+        public string? SourceTableName { get; set; }
         public string SourceObjectName { get; set; } = string.Empty;
         public string? Domain { get; set; }
         public string DisplayName { get; set; } = string.Empty;

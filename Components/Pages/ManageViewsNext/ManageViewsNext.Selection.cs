@@ -200,6 +200,7 @@ public partial class ManageViewsNext
                     IsBaseObject = x.IsBaseObject,
                     SourceDatabaseName = x.SourceDatabaseName ?? SelectedDatabase?.DatabaseName ?? string.Empty,
                     SourceSchemaName = x.SourceSchemaName,
+                    SourceTableName = x.SourceTableName,
                     SourceObjectName = x.SourceObjectName,
                     Domain = NormalizeDomain(x.Domain),
                     DisplayName = string.IsNullOrWhiteSpace(x.BusinessName) ? x.SourceObjectName : x.BusinessName!,

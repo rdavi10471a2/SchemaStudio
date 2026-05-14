@@ -1,9 +1,12 @@
 using Dapper;
 using Microsoft.Data.SqlClient;
+using SchemaStudio.AIHelpers;
 using SchemaStudio.Data.Models;
 
 namespace SchemaStudio.Data.Repositories;
 
+[FileVersion("1.0")]
+[AIFileContext("SchemaStudio.Data/Repositories/SchemaObjectRepository.cs", "Read/write repository for Schema Studio managed source object metadata.", Responsibilities = "Loads, creates, updates, deletes, and validates SchemaObject records used by Manage Views and domain-object composition workflows.", Nuances = "SourceTableName is a base-view grain hint used for relationship lookup; uniqueness checks intentionally ignore IsActive because only one base view may claim a physical source table per database.", RelatedFiles = "SchemaStudio.Data/Models/SchemaObjectDefinition.cs; Components/Pages/ManageViewsNext", LastReviewed = "2026-05-14")]
 public sealed class SchemaObjectRepository
 {
     private readonly string _connectionString;
@@ -23,6 +26,7 @@ SELECT
     DatabaseId,
     SourceDatabaseName,
     SourceSchemaName,
+    SourceTableName,
     SourceObjectName,
     IsBaseObject,
     Domain,
@@ -54,6 +58,7 @@ SELECT
     DatabaseId,
     SourceDatabaseName,
     SourceSchemaName,
+    SourceTableName,
     SourceObjectName,
     IsBaseObject,
     Domain,
@@ -93,6 +98,7 @@ SELECT
     DatabaseId,
     SourceDatabaseName,
     SourceSchemaName,
+    SourceTableName,
     SourceObjectName,
     IsBaseObject,
     Domain,
@@ -126,6 +132,7 @@ SELECT TOP (1)
     DatabaseId,
     SourceDatabaseName,
     SourceSchemaName,
+    SourceTableName,
     SourceObjectName,
     IsBaseObject,
     Domain,
@@ -157,6 +164,51 @@ WHERE DatabaseId = @databaseId
         }
     }
 
+    public async Task<SchemaObjectDefinition?> GetBaseObjectBySourceTableAsync(
+        int databaseId,
+        string sourceTableName,
+        int? excludingSchemaObjectId = null)
+    {
+        await using (var connection = new SqlConnection(_connectionString))
+        {
+            const string sql = """
+SELECT TOP (1)
+    SchemaObjectId,
+    DatabaseId,
+    SourceDatabaseName,
+    SourceSchemaName,
+    SourceTableName,
+    SourceObjectName,
+    IsBaseObject,
+    Domain,
+    BusinessName,
+    BusinessDescription,
+    DeveloperNotes,
+    CompositionDefinitionJson,
+    IsActive,
+    LastSynced
+FROM dbo.SchemaObject
+WHERE DatabaseId = @databaseId
+  AND IsBaseObject = 1
+  AND SourceTableName = @sourceTableName
+  AND (@excludingSchemaObjectId IS NULL OR SchemaObjectId <> @excludingSchemaObjectId)
+ORDER BY SchemaObjectId;
+""";
+
+            var item = await connection.QueryFirstOrDefaultAsync<SchemaObjectDefinition>(
+                sql,
+                new
+                {
+                    databaseId,
+                    sourceTableName = sourceTableName.Trim(),
+                    excludingSchemaObjectId
+                });
+
+            item?.ClearDirty();
+            return item;
+        }
+    }
+
     public async Task<int> CreateAsync(SchemaObjectDefinition model)
     {
         await using (var connection = new SqlConnection(_connectionString))
@@ -167,6 +219,7 @@ INSERT INTO dbo.SchemaObject
     DatabaseId,
     SourceDatabaseName,
     SourceSchemaName,
+    SourceTableName,
     SourceObjectName,
     IsBaseObject,
     Domain,
@@ -183,6 +236,7 @@ VALUES
     @DatabaseId,
     @SourceDatabaseName,
     @SourceSchemaName,
+    @SourceTableName,
     @SourceObjectName,
     @IsBaseObject,
     @Domain,
@@ -212,6 +266,7 @@ SET
     DatabaseId = @DatabaseId,
     SourceDatabaseName = @SourceDatabaseName,
     SourceSchemaName = @SourceSchemaName,
+    SourceTableName = @SourceTableName,
     SourceObjectName = @SourceObjectName,
     IsBaseObject = @IsBaseObject,
     Domain = @Domain,

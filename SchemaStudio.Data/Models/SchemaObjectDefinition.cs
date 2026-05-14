@@ -1,15 +1,19 @@
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Runtime.CompilerServices;
+using SchemaStudio.AIHelpers;
 
 namespace SchemaStudio.Data.Models;
 
+[FileVersion("1.0")]
+[AIFileContext("SchemaStudio.Data/Models/SchemaObjectDefinition.cs", "Defines the saved Schema Studio object/view metadata record used by manage-views, base-view composition, and domain-object modeling workflows.", Responsibilities = "Carries the managed source object identity, base-view grain hint, business/domain metadata, composition definition JSON, and saved column collection.", Nuances = "SourceObjectName is the managed view/object name; SourceTableName is the physical table grain for base views and is intentionally required only when IsBaseObject is true.", LastReviewed = "2026-05-14")]
 public sealed class SchemaObjectDefinition
 {
     private int _schemaObjectId;
     private int _databaseId;
     private string? _sourceDatabaseName;
     private string _sourceSchemaName = "";
+    private string? _sourceTableName;
     private string _sourceObjectName = "";
     private bool _isBaseObject;
     private string? _domain;
@@ -55,6 +59,15 @@ public sealed class SchemaObjectDefinition
     {
         get => _sourceSchemaName;
         set => SetField(ref _sourceSchemaName, value);
+    }
+
+    [StringLength(128)]
+    [Display(Name = "Source Table", Order = 25)]
+    [Description("Required for base views. Physical table whose grain this managed base view represents; only one base view can claim a table per database.")]
+    public string? SourceTableName
+    {
+        get => _sourceTableName;
+        set => SetField(ref _sourceTableName, value);
     }
 
     [Required]

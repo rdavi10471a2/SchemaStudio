@@ -118,7 +118,7 @@ public partial class DomainObjectModeler
             BaseViews = rows
                 .Select(source =>
                 {
-                    var relationshipTableName = StripConfiguredViewPrefix(source.SourceObjectName, SelectedDatabase?.ViewNameFilter);
+                    var relationshipTableName = ResolveRelationshipTableName(source, SelectedDatabase?.ViewNameFilter);
                     return new DomainBaseViewItem
                     {
                         Source = source,
@@ -431,6 +431,16 @@ public partial class DomainObjectModeler
             .ToArray();
 
         return chars.Length == 0 ? "Object" : new string(chars);
+    }
+
+    private static string ResolveRelationshipTableName(SchemaObjectDefinition source, string? viewNameFilter)
+    {
+        if (!string.IsNullOrWhiteSpace(source.SourceTableName))
+        {
+            return source.SourceTableName.Trim();
+        }
+
+        return StripConfiguredViewPrefix(source.SourceObjectName, viewNameFilter);
     }
 
     private static string StripConfiguredViewPrefix(string sourceObjectName, string? viewNameFilter)

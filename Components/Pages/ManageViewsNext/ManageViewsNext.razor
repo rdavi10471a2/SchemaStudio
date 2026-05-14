@@ -413,6 +413,17 @@
                             </label>
                         </div>
 
+                        @if (EditableObject.IsBaseObject)
+                        {
+                            <div class="mvn-field">
+                                @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.SourceTableName))
+                                <RadzenTextBox @bind-Value="@EditableObject.SourceTableName"
+                                               Style="width:100%;"
+                                               Placeholder="Physical source table"
+                                               MaxLength="128" />
+                            </div>
+                        }
+
                         <div class="mvn-field">
                             @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.BusinessDescription))
                             <RadzenTextArea @bind-Value="@EditableObject.BusinessDescription"
