@@ -6,6 +6,7 @@ using Radzen;
 using Radzen.Blazor;
 using SchemaStudio.AIHelpers;
 using SchemaStudio.Data.Models;
+using SchemaStudioWebViewer.Components.ColumnReconciliation;
 using SchemaStudioWebViewer.Components.Dialogs;
 using SchemaStudioWebViewer.Components.Pages.ManageViews;
 using SchemaStudioWebViewer.Utils;
@@ -156,12 +157,35 @@ public partial class ManageViewsNext
     {
         get
         {
-            var added = ReviewRows.Count(x => x.Status == "Added");
-            var changed = ReviewRows.Count(x => x.Status == "Changed");
-            var removed = ReviewRows.Count(x => x.Status == "Removed");
-            var unchanged = ReviewRows.Count(x => x.Status == "Unchanged");
+            var parsedColumns = CurrentParsedView?.Columns ?? (IReadOnlyList<ViewSourcedColumnDefinition>)Array.Empty<ViewSourcedColumnDefinition>();
+            var isBaseView = EditableObject?.IsBaseObject == true;
+
+            var parsedByName = parsedColumns
+                .Where(x => !string.IsNullOrWhiteSpace(x.ColumnName))
+                .GroupBy(x => x.ColumnName, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            var savedByName = SavedColumns
+                .Where(x => !string.IsNullOrWhiteSpace(x.SourceColumnName))
+                .GroupBy(x => x.SourceColumnName, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            int needsReview = 0, added = 0, removed = 0, unchanged = 0;
+            foreach (var name in parsedByName.Keys.Union(savedByName.Keys, StringComparer.OrdinalIgnoreCase))
+            {
+                parsedByName.TryGetValue(name, out var parsed);
+                savedByName.TryGetValue(name, out var saved);
+                switch (ReconciliationStatusEvaluator.DetermineStatus(parsed, saved, isBaseView))
+                {
+                    case ReconciliationStatus.NeedsReview: needsReview++; break;
+                    case ReconciliationStatus.Added: added++; break;
+                    case ReconciliationStatus.Removed: removed++; break;
+                    default: unchanged++; break;
+                }
+            }
+
             var addedLabel = SelectedViewItem?.IsExisting == false ? "available" : "added";
-            return $"{changed} changed, {added} {addedLabel}, {removed} removed, {unchanged} unchanged";
+            return $"{needsReview} needs review, {added} {addedLabel}, {removed} removed, {unchanged} unchanged";
         }
     }
 

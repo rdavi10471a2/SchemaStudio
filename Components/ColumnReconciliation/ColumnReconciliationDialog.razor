@@ -8,7 +8,7 @@
 @inject DialogService DialogService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("1.11")]
+@attribute [FileVersion("1.12")]
 @attribute [AIFileContext("Components/ColumnReconciliation/ColumnReconciliationDialog.razor", "Focused Manage Views column reconciliation dialog that combines decision-first column reconciliation with optional View Details-style selector navigation.", Responsibilities = "Owns filtered candidate navigation, source mapping comparison, parser-owned structure refresh staging, business-value choice staging, explicit DisableInheritance result staging, saved-value origin labeling, and selected-column reconciliation detail for Manage Views Next.", Nuances = "Selector navigation is hidden by default so the dialog opens as a decision surface; Show Selector remains available for broader review. Changed and conflict-style differences are intentionally collapsed into Needs Review because inherited meaning, blank local declarations, and parser drift do not have a clean user-facing semantic split. Source mapping is informational and parser-owned; Apply Merge refreshes parser structure for existing parsed columns. BusinessName and BusinessDescription follow the selected business-value choice. DisableInheritance is staged explicitly from the merge result dropdown. Saved business values are labeled as declared, inherited, or local override from IsBaseView, IsBaseDefinition, and DisableInheritance without adding database fields. DeveloperNotes are outside this reconciliation surface.", RelatedFiles = "Components/Pages/ManageViewsNext/ManageViewsNext.razor; Components/Pages/ManageViewsNext/ManageViewsNext.Columns.cs; WEBSemanticModel/Model/ViewSourcedColumnDefinition.cs; wwwroot/Data/help.json", LastReviewed = "2026-05-03")]
 
 <div class="column-reconciliation">
@@ -735,14 +735,6 @@
     private static string GetSourceKindLabel(SourceTable source) =>
         source.Kind == SourceKind.DerivedQuery ? "Query" : "Table";
 
-    private enum ReconciliationStatus
-    {
-        Added,
-        Removed,
-        NeedsReview,
-        Unchanged
-    }
-
     private enum BusinessValueChoice
     {
         KeepSaved,
@@ -781,7 +773,7 @@
             Parsed = parsed;
             Saved = saved;
             IsBaseView = isBaseView;
-            Status = DetermineStatus(parsed, saved, isBaseView);
+            Status = ReconciliationStatusEvaluator.DetermineStatus(parsed, saved, isBaseView);
             Choice = Status == ReconciliationStatus.Added
                 ? BusinessValueChoice.AcceptParsed
                 : BusinessValueChoice.KeepSaved;
@@ -940,58 +932,6 @@
             SavedBusinessValuesAreInherited
             && string.IsNullOrWhiteSpace(parsedValue)
             && !string.IsNullOrWhiteSpace(savedValue);
-
-        private static ReconciliationStatus DetermineStatus(ViewSourcedColumnDefinition? parsed, SchemaObjectColumnDefinition? saved, bool isBaseView)
-        {
-            if (saved?.MergeState is SchemaObjectColumnMergeState.DetectedAdd or SchemaObjectColumnMergeState.PendingAdd)
-            {
-                return ReconciliationStatus.Added;
-            }
-
-            if (saved?.MergeState is SchemaObjectColumnMergeState.DetectedRemove or SchemaObjectColumnMergeState.PendingRemove)
-            {
-                return ReconciliationStatus.Removed;
-            }
-
-            if (parsed != null && saved == null)
-            {
-                return ReconciliationStatus.Added;
-            }
-
-            if (parsed == null && saved != null)
-            {
-                return ReconciliationStatus.Removed;
-            }
-
-            if (parsed == null || saved == null)
-            {
-                return ReconciliationStatus.Unchanged;
-            }
-
-            if (!SourceRowsMatch(parsed, saved))
-            {
-                return ReconciliationStatus.NeedsReview;
-            }
-
-            if (!isBaseView)
-            {
-                return ReconciliationStatus.Unchanged;
-            }
-
-            var nameChanged = !string.Equals(NormalizeNullableText(parsed.BusinessName), NormalizeNullableText(saved.BusinessName), StringComparison.Ordinal);
-            var descriptionChanged = !string.Equals(NormalizeNullableText(parsed.BusinessDescription), NormalizeNullableText(saved.BusinessDescription), StringComparison.Ordinal);
-            var inheritanceChanged = parsed.DisableInheritance != saved.DisableInheritance;
-
-            return nameChanged || descriptionChanged || inheritanceChanged
-                ? ReconciliationStatus.NeedsReview
-                : ReconciliationStatus.Unchanged;
-        }
-
-        private static bool SourceRowsMatch(ViewSourcedColumnDefinition parsed, SchemaObjectColumnDefinition saved) =>
-            parsed.OrdinalPosition == saved.OrdinalPosition
-            && string.Equals(NormalizeNullableText(parsed.ColumnKind.ToString()), NormalizeNullableText(saved.SourceColumnKind), StringComparison.Ordinal)
-            && string.Equals(FormatQualifiedName(parsed.BaseDatabase, parsed.BaseSchema, parsed.BaseTable, parsed.BaseColumn), FormatQualifiedName(saved.BaseDatabaseName, saved.BaseSchemaName, saved.BaseObjectName, saved.BaseColumnName), StringComparison.Ordinal)
-            && string.Equals(FormatQualifiedName(parsed.SemanticDatabase, parsed.SemanticSchema, parsed.SemanticObject, parsed.SemanticColumn), FormatQualifiedName(saved.SemanticDatabase, saved.SemanticSchema, saved.SemanticObject, saved.SemanticColumn), StringComparison.Ordinal);
 
         private static string? FormatQualifiedName(string? database, string? schema, string? objectName, string? columnName)
         {
