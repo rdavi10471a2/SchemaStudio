@@ -2,7 +2,6 @@ using Radzen;
 using SchemaStudio.AIHelpers;
 using SchemaStudio.Data.Models;
 using SchemaStudioWebViewer.Components.Dialogs;
-using SchemaStudioWebViewer.Components.Pages.ManageViews;
 using SchemaStudioWebViewer.WEBSemanticModel.Model;
 
 namespace SchemaStudioWebViewer.Components.Pages.ManageViewsNext;
@@ -11,12 +10,11 @@ namespace SchemaStudioWebViewer.Components.Pages.ManageViewsNext;
 public partial class ManageViewsNext
 {
     // 2026-04-30 03:37 PM CDT AI v1.0 manage-views-next marker: parser actions mirror ManageViews while keeping the prototype page separately testable.
-    private async Task ParseAndBuildReviewAsync(IEnumerable<SchemaObjectColumnDefinition> existingColumns)
+    private async Task ParseAndBuildReviewAsync()
     {
         if (EditableObject == null)
         {
             CurrentParsedView = null;
-            ReviewRows.Clear();
             return;
         }
 
@@ -25,8 +23,7 @@ public partial class ManageViewsNext
             EditableObject.SourceSchemaName,
             EditableObject.SourceObjectName);
 
-        var parsedColumns = CurrentParsedView?.Columns.ToViewColumnDtos() ?? new List<ViewColumnDto>();
-        ReviewRows = BuildColumnReviewRows(parsedColumns, existingColumns, EditableObject.IsBaseObject).ToList();
+        var parsedColumns = CurrentParsedView?.Columns ?? new List<ViewSourcedColumnDefinition>();
         ApplyDetectedColumnStates(parsedColumns);
         await InvokeAsync(StateHasChanged);
     }
@@ -47,8 +44,7 @@ public partial class ManageViewsNext
                 EditableObject.SourceSchemaName,
                 EditableObject.SourceObjectName);
 
-            var parsedColumns = CurrentParsedView?.Columns.ToViewColumnDtos() ?? new List<ViewColumnDto>();
-            ReviewRows = BuildColumnReviewRows(parsedColumns, SavedColumns, EditableObject.IsBaseObject).ToList();
+            var parsedColumns = CurrentParsedView?.Columns ?? new List<ViewSourcedColumnDefinition>();
             ApplyDetectedColumnStates(parsedColumns);
             NotificationService.Notify(NotificationSeverity.Success, "View refreshed", "The selected view SQL and parser review state were refreshed.", 2500);
             await InvokeAsync(StateHasChanged);
@@ -171,7 +167,7 @@ public partial class ManageViewsNext
         }
     }
 
-    private void ApplyDetectedColumnStates(IReadOnlyList<ViewColumnDto> parsedColumns)
+    private void ApplyDetectedColumnStates(IReadOnlyList<ViewSourcedColumnDefinition> parsedColumns)
     {
         if (EditableObject == null)
         {
@@ -215,7 +211,7 @@ public partial class ManageViewsNext
         }
     }
 
-    private SchemaObjectColumnDefinition CreateDetectedColumn(ViewColumnDto parsed)
+    private SchemaObjectColumnDefinition CreateDetectedColumn(ViewSourcedColumnDefinition parsed)
     {
         var column = new SchemaObjectColumnDefinition
         {
@@ -223,7 +219,7 @@ public partial class ManageViewsNext
             SchemaObjectId = EditableObject?.SchemaObjectId ?? 0,
             OrdinalPosition = parsed.OrdinalPosition,
             SourceColumnName = parsed.ColumnName ?? string.Empty,
-            SourceColumnKind = NormalizeNullableText(parsed.ColumnKind),
+            SourceColumnKind = NormalizeNullableText(parsed.ColumnKind.ToString()),
             BaseDatabaseName = NormalizeNullableText(parsed.BaseDatabase),
             BaseSchemaName = NormalizeNullableText(parsed.BaseSchema),
             BaseObjectName = NormalizeNullableText(parsed.BaseTable),
@@ -233,7 +229,7 @@ public partial class ManageViewsNext
             SemanticObject = NormalizeNullableText(parsed.SemanticObject),
             SemanticColumn = NormalizeNullableText(parsed.SemanticColumn),
             IsBaseDefinition = EditableObject?.IsBaseObject == true,
-            DisableInheritance = GetParsedDisableInheritance(parsed),
+            DisableInheritance = parsed.DisableInheritance,
             BusinessName = NormalizeNullableText(parsed.BusinessName),
             BusinessDescription = NormalizeNullableText(parsed.BusinessDescription),
             DeveloperNotes = null,
@@ -242,17 +238,5 @@ public partial class ManageViewsNext
 
         column.ClearDirty();
         return column;
-    }
-
-    private bool GetParsedDisableInheritance(ViewColumnDto parsed)
-    {
-        if (CurrentParsedView == null || string.IsNullOrWhiteSpace(parsed.ColumnName))
-        {
-            return false;
-        }
-
-        return CurrentParsedView.Columns
-            .FirstOrDefault(column => string.Equals(column.ColumnName, parsed.ColumnName, StringComparison.OrdinalIgnoreCase))
-            ?.DisableInheritance == true;
     }
 }

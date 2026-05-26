@@ -8,7 +8,6 @@ using SchemaStudio.AIHelpers;
 using SchemaStudio.Data.Models;
 using SchemaStudioWebViewer.Components.ColumnReconciliation;
 using SchemaStudioWebViewer.Components.Dialogs;
-using SchemaStudioWebViewer.Components.Pages.ManageViews;
 using SchemaStudioWebViewer.Utils;
 using SchemaStudioWebViewer.WEBSemanticModel.Model;
 
@@ -47,7 +46,6 @@ public partial class ManageViewsNext
     private List<ViewWorkspaceItem> AvailableViewItems = new();
     private List<SchemaObjectColumnDefinition> SavedColumns = new();
     private List<SchemaObjectColumnDefinition> OriginalSavedColumns = new();
-    private List<ManageViewsColumnReviewRow> ReviewRows = new();
 
     private int? SelectedDatabaseId;
     private string? SelectedViewKey;
@@ -157,36 +155,41 @@ public partial class ManageViewsNext
     {
         get
         {
-            var parsedColumns = CurrentParsedView?.Columns ?? (IReadOnlyList<ViewSourcedColumnDefinition>)Array.Empty<ViewSourcedColumnDefinition>();
-            var isBaseView = EditableObject?.IsBaseObject == true;
-
-            var parsedByName = parsedColumns
-                .Where(x => !string.IsNullOrWhiteSpace(x.ColumnName))
-                .GroupBy(x => x.ColumnName, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
-
-            var savedByName = SavedColumns
-                .Where(x => !string.IsNullOrWhiteSpace(x.SourceColumnName))
-                .GroupBy(x => x.SourceColumnName, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
-
-            int needsReview = 0, added = 0, removed = 0, unchanged = 0;
-            foreach (var name in parsedByName.Keys.Union(savedByName.Keys, StringComparer.OrdinalIgnoreCase))
-            {
-                parsedByName.TryGetValue(name, out var parsed);
-                savedByName.TryGetValue(name, out var saved);
-                switch (ReconciliationStatusEvaluator.DetermineStatus(parsed, saved, isBaseView))
-                {
-                    case ReconciliationStatus.NeedsReview: needsReview++; break;
-                    case ReconciliationStatus.Added: added++; break;
-                    case ReconciliationStatus.Removed: removed++; break;
-                    default: unchanged++; break;
-                }
-            }
-
+            var counts = ComputeReconciliationCounts();
             var addedLabel = SelectedViewItem?.IsExisting == false ? "available" : "added";
-            return $"{needsReview} needs review, {added} {addedLabel}, {removed} removed, {unchanged} unchanged";
+            return $"{counts.NeedsReview} needs review, {counts.Added} {addedLabel}, {counts.Removed} removed, {counts.Unchanged} unchanged";
         }
+    }
+
+    private (int NeedsReview, int Added, int Removed, int Unchanged) ComputeReconciliationCounts()
+    {
+        var parsedColumns = CurrentParsedView?.Columns ?? (IReadOnlyList<ViewSourcedColumnDefinition>)Array.Empty<ViewSourcedColumnDefinition>();
+        var isBaseView = EditableObject?.IsBaseObject == true;
+
+        var parsedByName = parsedColumns
+            .Where(x => !string.IsNullOrWhiteSpace(x.ColumnName))
+            .GroupBy(x => x.ColumnName, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+        var savedByName = SavedColumns
+            .Where(x => !string.IsNullOrWhiteSpace(x.SourceColumnName))
+            .GroupBy(x => x.SourceColumnName, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+        int needsReview = 0, added = 0, removed = 0, unchanged = 0;
+        foreach (var name in parsedByName.Keys.Union(savedByName.Keys, StringComparer.OrdinalIgnoreCase))
+        {
+            parsedByName.TryGetValue(name, out var parsed);
+            savedByName.TryGetValue(name, out var saved);
+            switch (ReconciliationStatusEvaluator.DetermineStatus(parsed, saved, isBaseView))
+            {
+                case ReconciliationStatus.NeedsReview: needsReview++; break;
+                case ReconciliationStatus.Added: added++; break;
+                case ReconciliationStatus.Removed: removed++; break;
+                default: unchanged++; break;
+            }
+        }
+        return (needsReview, added, removed, unchanged);
     }
 
     private List<DatabaseDomainDefinition> LeftFilterDomains =>
@@ -437,7 +440,6 @@ public partial class ManageViewsNext
         }
 
         return CurrentParsedView.Columns
-            .ToViewColumnDtos()
             .Where(column => !string.IsNullOrWhiteSpace(column.ColumnName))
             .OrderBy(column => column.OrdinalPosition)
             .Select(column =>
@@ -452,11 +454,12 @@ public partial class ManageViewsNext
 
     private async Task<bool> ConfirmSaveWithUnmergedParserChangesAsync()
     {
+        var counts = ComputeReconciliationCounts();
         var unmergedAdded = ShouldSaveDetectedAddsAsInitialSnapshot() || ShouldSaveInitialParserColumnSnapshot(Array.Empty<SchemaObjectColumnDefinition>())
             ? 0
-            : ReviewRows.Count(row => row.Status == "Added");
-        var unmergedChanged = ReviewRows.Count(row => row.Status == "Changed");
-        var unmergedRemoved = ReviewRows.Count(row => row.Status == "Removed");
+            : counts.Added;
+        var unmergedChanged = counts.NeedsReview;
+        var unmergedRemoved = counts.Removed;
 
         if (unmergedAdded == 0 && unmergedChanged == 0 && unmergedRemoved == 0)
         {

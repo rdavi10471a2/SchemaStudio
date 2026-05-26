@@ -286,14 +286,14 @@ public partial class ManageViewsNext
 
                 SavedColumns = CloneColumns(existingColumns);
                 OriginalSavedColumns = CloneColumns(existingColumns);
-                await ParseAndBuildReviewAsync(existingColumns);
+                await ParseAndBuildReviewAsync();
             }
             else
             {
                 EditableObject = CreateNewObjectDraft(SelectedViewItem);
                 SavedColumns.Clear();
                 OriginalSavedColumns.Clear();
-                await ParseAndBuildReviewAsync(Array.Empty<SchemaObjectColumnDefinition>());
+                await ParseAndBuildReviewAsync();
             }
 
             if (EditableObject != null &&
@@ -334,7 +334,6 @@ public partial class ManageViewsNext
         CurrentParsedView = null;
         SavedColumns.Clear();
         OriginalSavedColumns.Clear();
-        ReviewRows.Clear();
         SelectedColumnId = null;
 
         if (level == WorkspaceResetLevel.Workspace)
