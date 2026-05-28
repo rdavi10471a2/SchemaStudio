@@ -1,6 +1,7 @@
 using Radzen;
 using SchemaStudio.AIHelpers;
 using SchemaStudio.Data.Models;
+using SchemaStudioWebViewer.Components.ColumnReconciliation;
 using SchemaStudioWebViewer.WEBSemanticModel.Model;
 
 namespace SchemaStudioWebViewer.Components.Pages.ManageViewsNext;
@@ -85,6 +86,53 @@ public partial class ManageViewsNext
         SelectedColumn.DisableInheritance = original.DisableInheritance;
         SelectedColumn.ClearDirty();
         await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task OpenColumnMergeReviewAsync()
+    {
+        if (EditableObject == null || SelectedViewItem == null)
+        {
+            return;
+        }
+
+        if (EditableObject.SchemaObjectId <= 0)
+        {
+            NotificationService.Notify(NotificationSeverity.Warning, "Save view first", "Save the view definition before reviewing column metadata merge choices.", 3500);
+            return;
+        }
+
+        if (CurrentParsedView == null)
+        {
+            NotificationService.Notify(NotificationSeverity.Info, "No parser result", "Refresh the parsed view before reviewing column metadata merge choices.", 3000);
+            return;
+        }
+
+        var result = await DialogService.OpenAsync<ColumnReconciliationDialog>(
+            $"{SelectedViewItem.DisplayName} - Column Merge Review",
+            new Dictionary<string, object?>
+            {
+                { "ViewDisplayName", SelectedViewItem.DisplayName },
+                { "IsBaseView", EditableObject.IsBaseObject },
+                { "SchemaObjectId", EditableObject.SchemaObjectId },
+                { "ParsedView", CurrentParsedView },
+                { "ParsedColumns", CurrentParsedView.Columns },
+                { "SavedColumns", SavedColumns }
+            },
+            new DialogOptions
+            {
+                Width = "90vw",
+                Height = "90vh",
+                Resizable = true,
+                Draggable = false,
+                CloseDialogOnOverlayClick = false
+            });
+
+        if (result is true)
+        {
+            EnsureSelectedColumn();
+            NotificationService.Notify(NotificationSeverity.Success, "Merge applied", "Column merge choices were staged. Use Save All Changes to commit them.", 3000);
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
     private string GetColumnSelectorClass(SchemaObjectColumnDefinition column) =>
