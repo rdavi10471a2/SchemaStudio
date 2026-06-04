@@ -25,7 +25,8 @@
 @inject IJSRuntime JSRuntime
 @inject NavigationManager NavigationManager
 
-@attribute [FileVersion("1.13")]
+@attribute [FileVersion("1.14")]
+@attribute [AIChange("1.14", "2026-06-04 09:01 AM CDT gated the DERIVED VIEWS dropdown section behind login so kiosk / not-authenticated users see base objects only.", AICommandStatus.Pending)]
 @attribute [AIChange("1.11", "2026-05-01 10:07 AM CDT delayed normal Home auth gating until session auth is loaded so menu navigation to Schema Explorer does not briefly render the login state.", AICommandStatus.Pending)]
 @attribute [AIChange("1.10", "2026-05-01 09:06 AM CDT notified the shared layout when simple login state changes so the top menu appears and hides immediately.", AICommandStatus.Pending)]
 @attribute [AIChange("1.9", "2026-04-23 10:10 AM CDT skipped the duplicate first-render database load on Home when startup already attempted it and no databases were loaded.", AICommandStatus.Pending)]
@@ -107,6 +108,7 @@
     }
 </style>
 
+@* 2026-06-04 09:01 AM CDT AI v1.14 login-gate marker: the DERIVED VIEWS section of the view dropdown is only added when IsAuthenticated, so kiosk / logged-out users see base objects only. *@
 @* 2026-04-23 10:10 AM CDT AI v1.9 startup-retry marker: first render now skips the duplicate database load when startup already tried and failed to populate the database list. *@
 @* 2026-04-23 10:00 AM CDT AI v1.8 inline-error marker: Home now keeps a visible load-error alert on the page so failed database calls are obvious even after the toast fades. *@
 @* 2026-04-23 09:51 AM CDT AI v1.7 startup-error marker: catch initial repository failures on Home and always unwind loading state so broken DB connections show a toast instead of hanging the page. *@
@@ -611,7 +613,7 @@
                 IsBaseObject = true
             }));
 
-            if (derivedItems.Any())
+            if (IsAuthenticated && derivedItems.Any())
             {
                 DisplayObjects.Add(new DisplaySchemaObject
                 {
@@ -808,7 +810,7 @@
                     IsBaseObject = true
                 }));
 
-                if (derivedItems.Any())
+                if (IsAuthenticated && derivedItems.Any())
                 {
                     DisplayObjects.Add(new DisplaySchemaObject
                     {
