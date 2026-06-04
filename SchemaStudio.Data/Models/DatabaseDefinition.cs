@@ -6,8 +6,6 @@ namespace SchemaStudio.Data.Models;
 
 [FileVersion("1.3")]
 [AIFileContext("SchemaStudio.Data/Models/DatabaseDefinition.cs", "Defines the editable database metadata model used by the web data layer and maintenance forms.", LastReviewed = "2026-04-23")]
-[AIChange("1.0", "2026-04-23 12:56 PM CDT added ViewNameFilter metadata so databases can define a view-name include pattern for integration view selection.", AICommandStatus.Pending)]
-// 2026-04-23 12:56 PM CDT AI v1.0 database-filter marker: database metadata now includes a view-name filter value for integration view list trimming.
 public sealed class DatabaseDefinition
 {
     [Display(AutoGenerateField = false)]

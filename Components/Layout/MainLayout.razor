@@ -11,46 +11,7 @@
 @inject IJSRuntime JSRuntime
 
 @attribute [FileVersion("1.28")]
-@attribute [AIChange(
-    "1.14",
-    "2026-05-01 09:20 AM CDT replaced native details menus with explicit Blazor menu state so commands close dropdowns and navigate without route flicker.",
-    AICommandStatus.Pending)]
-@attribute [AIChange(
-    "1.13",
-    "2026-05-01 09:14 AM CDT changed the authenticated top menu to a two-row header with Radzen icons instead of letter glyphs.",
-    AICommandStatus.Pending)]
-@attribute [AIChange(
-    "1.12",
-    "2026-05-01 09:03 AM CDT made the top menu react to simple-auth changes so it appears after login without depending on route timing.",
-    AICommandStatus.Pending)]
-@attribute [AIChange(
-    "1.11",
-    "2026-05-01 08:47 AM CDT made the app header and top menu plain CSS-owned markup so navigation chrome does not depend on Radzen stack/icon styling during initial load.",
-    AICommandStatus.Pending)]
-@attribute [AIChange(
-    "1.10",
-    "2026-05-01 08:38 AM CDT made the top application menu depend only on kiosk chrome suppression so login state no longer leaves normal pages without navigation.",
-    AICommandStatus.Pending)]
-@attribute [AIChange(
-    "1.9",
-    "2026-05-01 08:33 AM CDT replaced the hamburger/sidebar navigation with a kiosk-aware top menu for Schema Explorer, Maintenance, and Help actions.",
-    AICommandStatus.Pending)]
-@attribute [AIChange(
-    "1.8",
-    "2026-04-30 11:10 PM CDT collapsed the duplicated shared body gutters so page surfaces start closer to the app chrome while preserving the bounded scroll host.",
-    AICommandStatus.Pending)]
-@attribute [AIChange(
-    "1.7",
-    "2026-04-30 10:58 PM CDT flattened the shared body wrapper and tightened the application header so pages do not inherit an extra framed shell or oversized app bar.",
-    AICommandStatus.Pending)]
-@attribute [AIChange("1.6", "2026-04-30 03:09 PM CDT restored scrolling on the bounded content card so pages can grow internally while still staying inside the viewport shell.", AICommandStatus.Pending)]
-@attribute [AIChange("1.5", "2026-04-30 02:49 PM CDT tightened the shared Radzen body shell so page content stays inside the viewport card and feature pages own their internal scroll regions.", AICommandStatus.Pending)]
-@attribute [AIChange("1.4", "2026-04-30 04:17 PM CDT bounded the shared layout body to viewport-relative height so pages can use internal scrolling instead of growing past the visible app shell.", AICommandStatus.Pending)]
-@attribute [AIChange("1.3", "2026-04-27 11:36 AM CDT added a login-required toast when the guarded hamburger is clicked before the temporary session login is complete.", AICommandStatus.Pending)]
-@attribute [AIChange("1.2", "2026-04-27 11:32 AM CDT gated the layout hamburger and sidebar menu behind the temporary session auth flag so direct Home navigation cannot expose navigation before login.", AICommandStatus.Pending)]
 @attribute [AIFileContext("Components/Layout/MainLayout.razor", "Hosts the shared Radzen application shell, top menu chrome, dialog providers, and kiosk chrome suppression while Home owns temporary simple-auth content gating.")]
-@attribute [AIChange("1.1", "2026-04-22 06:04 PM CDT kept Radzen dialog providers in the page circuit so DialogService calls render shared dialogs.", AICommandStatus.Pending)]
-@attribute [AIChange("1.0", "2026-04-22 11:06 AM CDT added config-driven kiosk chrome suppression for the /kiosk route.", AICommandStatus.Pending)]
 
 <RadzenComponents />
 
@@ -234,11 +195,6 @@
 </style>
 
 <RadzenLayout Class="@LayoutClass" Style="@LayoutStyle">
-    @* 2026-04-30 03:09 PM CDT AI v1.6 layout-height marker: the bounded white content card scrolls again when a page legitimately grows inside the viewport. *@
-    @* 2026-04-30 02:49 PM CDT AI v1.5 layout-height marker: Radzen body scrolling is suppressed so bounded pages do not escape the viewport card. *@
-    @* 2026-04-30 04:17 PM CDT AI v1.4 layout-height marker: page content is viewport-bounded so feature pages can own local scroll regions. *@
-    @* 2026-04-22 06:04 PM CDT AI v1.1 dialog-provider marker: RadzenComponents stays in the active page circuit so dialogs, notifications, tooltips, and context menus share the caller's services. *@
-    @* 2026-04-22 11:06 AM CDT AI v1.0 kiosk layout marker: config can hide navigation chrome for /kiosk while Home remains the shared content surface. *@
     @if (!HideNavigationChrome)
     {
         <RadzenHeader>

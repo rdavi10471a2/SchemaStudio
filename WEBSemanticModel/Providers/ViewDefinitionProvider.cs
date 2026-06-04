@@ -10,7 +10,6 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Providers
     // IMPLEMENT INTERFACE
     //-----------------------------------------
     [FileVersion("1.0")]
-    [AIInstructions("2026-03-30 15:53 preserve inherited schema context when collecting view dependencies for cache invalidation and nested resolution.", AICommandStatus.Pending)]
     public class ViewDefinitionProvider : IViewDefinitionProvider
     {
         private readonly string _connectionString;

@@ -6,10 +6,8 @@ using SchemaStudioWebViewer.WEBSemanticModel.Model;
 
 namespace SchemaStudioWebViewer.Components.Pages.ManageViewsNext;
 
-[AIChange("1.0", "2026-04-30 03:37 PM CDT added parser refresh, SQL, view-details, and where-used actions for the Manage Views Next prototype.", AICommandStatus.Pending)]
 public partial class ManageViewsNext
 {
-    // 2026-04-30 03:37 PM CDT AI v1.0 manage-views-next marker: parser actions mirror ManageViews while keeping the prototype page separately testable.
     private async Task ParseAndBuildReviewAsync()
     {
         if (EditableObject == null)

@@ -23,10 +23,6 @@
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
 @attribute [FileVersion("1.3")]
-@attribute [AIChange("1.3", "2026-04-28 10:26 PM CDT restored ParserLab grid sizing to Radzen's normal layout after the wide inspection layout made the workspace unusable.", AICommandStatus.Pending)]
-@attribute [AIChange("1.2", "2026-04-28 10:18 PM CDT improved ParserLab grid scrolling and column sizing so physical and semantic lineage fields have enough room to be inspected.", AICommandStatus.Pending)]
-@attribute [AIChange("1.1", "2026-04-28 09:50 PM CDT added parser grid sizing for the reflected semantic source column so semantic lookup targets surface cleanly in ParserLab.", AICommandStatus.Pending)]
-@attribute [AIChange("1.0", "2026-04-23 10:00 AM CDT added a visible parser load-error alert and removed the unused async state from the parser refresh path.", AICommandStatus.Pending)]
 @attribute [AIFileContext("Components/Pages/ParserLab.razor", "Hosts the parser playground for browsing schema objects, running parser previews, and inspecting parser-derived dependencies and where-used details.")]
 
 <style>
@@ -229,10 +225,6 @@
 
 <PageTitle>Parser Test Area</PageTitle>
 
-@* 2026-04-23 10:00 AM CDT AI v1.0 parser-inline-error marker: ParserLab now keeps a visible load-error alert and the parser refresh path no longer advertises async work it never awaited. *@
-@* 2026-04-28 10:26 PM CDT AI v1.3 parser grid marker: restored Radzen's normal grid width handling after the wide overflow layout made the page unusable. *@
-@* 2026-04-28 10:18 PM CDT AI v1.2 parser grid marker: parser grids now use horizontal overflow and wider lineage/metadata columns for inspection-heavy parsing sessions. *@
-@* 2026-04-28 09:50 PM CDT AI v1.1 parser semantic-source marker: reflected parser columns reserve width for the new Semantic Source display field. *@
 @* 2026-04-15 04:19 PM CDT AI parser lab marker: make the tab workspace full height and remove shadow-heavy card styling from the parser page. *@
 
 <RadzenStack Gap="1rem">

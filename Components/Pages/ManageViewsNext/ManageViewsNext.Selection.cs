@@ -4,14 +4,8 @@ using SchemaStudio.Data.Models;
 
 namespace SchemaStudioWebViewer.Components.Pages.ManageViewsNext;
 
-[AIChange(
-    "1.1",
-    "2026-04-30 11:52 PM CDT blocked external selector and reload interactions while Manage Views Next is busy so async view loads cannot overlap or apply out of order.",
-    AICommandStatus.Pending)]
-[AIChange("1.0", "2026-04-30 03:37 PM CDT added database reload, domain tree loading, selection, dirty navigation guard, and reset handling for the Manage Views Next prototype.", AICommandStatus.Pending)]
 public partial class ManageViewsNext
 {
-    // 2026-04-30 03:37 PM CDT AI v1.0 manage-views-next marker: selector flow reloads databases plus the selected workspace while keeping the prototype isolated from ManageViews.
     private async Task LoadDatabasesAsync(string? preferredSelectionKey)
     {
         await EnterBusyAsync();

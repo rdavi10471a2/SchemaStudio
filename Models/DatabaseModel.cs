@@ -6,8 +6,6 @@ namespace SchemaStudioWebViewer.Models
 {
     [FileVersion("1.0")]
     [AIFileContext("Models/DatabaseModel.cs", "Defines the web-facing database metadata model used by read-only pages and UI-bound forms.", LastReviewed = "2026-04-23")]
-    [AIChange("1.0", "2026-04-23 12:58 PM CDT added ViewNameFilter so the web model can carry per-database view-name filtering metadata.", AICommandStatus.Pending)]
-    // 2026-04-23 12:58 PM CDT AI v1.0 database-web-filter marker: web database metadata now carries the view-name filter field for UI selection rules.
     public class DatabaseModel
     {
         [Display(AutoGenerateField = false)]

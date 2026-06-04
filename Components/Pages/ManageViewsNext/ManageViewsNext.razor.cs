@@ -13,18 +13,8 @@ using SchemaStudioWebViewer.WEBSemanticModel.Model;
 
 namespace SchemaStudioWebViewer.Components.Pages.ManageViewsNext;
 
-[AIChange("1.5", "2026-05-04 04:53 PM CDT allowed a new view's first parser column snapshot to save without requiring the merge dialog.", AICommandStatus.Pending)]
-[AIChange("1.4", "2026-05-01 09:20 PM CDT allowed staged column synchronization rows to persist for any saved view instead of tying Save All Changes to the base-view manual metadata editor permission.", AICommandStatus.Pending)]
-[AIChange("1.3", "2026-04-30 03:37 PM CDT added an Unknown-domain helper so the selector can render unclassified objects as flat items regardless of source casing.", AICommandStatus.Pending)]
-[AIChange("1.2", "2026-04-30 03:31 PM CDT made Manage Views Next honor StringLength metadata for column edit limits and validate persisted text lengths before saving.", AICommandStatus.Pending)]
-[AIChange("1.1", "2026-04-30 03:19 PM CDT extended the domain grouping model with Unknown detection and a flattened all-views collection for unclassified selector rendering.", AICommandStatus.Pending)]
-[AIChange("1.0", "2026-04-30 03:37 PM CDT added shared state, labels, grouping, and save/delete helpers for the Manage Views Next prototype shell.", AICommandStatus.Pending)]
 public partial class ManageViewsNext
 {
-    // 2026-04-30 03:37 PM CDT AI v1.3 manage-views-next marker: Unknown domain checks are centralized so unclassified objects never get base/composed subfolders.
-    // 2026-04-30 03:31 PM CDT AI v1.2 manage-views-next marker: column edit controls and save validation now read StringLength limits from the persisted models.
-    // 2026-04-30 03:19 PM CDT AI v1.1 manage-views-next marker: Unknown is a flat unclassified bucket, so the grouping model exposes AllViews and IsUnknown for the selector.
-    // 2026-04-30 03:37 PM CDT AI v1.0 manage-views-next marker: shared prototype state is kept in a code-behind partial to preserve the split-file page pattern.
     private const string DefaultSourceCatalogDatabase = "VVGBI_Integrations";
     private const string UnknownDomain = "Unknown";
     private const int SelectorPanelDefaultWidth = 380;

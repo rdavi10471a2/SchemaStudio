@@ -8,8 +8,6 @@ namespace SchemaStudio.Data.Models;
 
 [FileVersion("1.1")]
 [AIFileContext("SchemaStudio.Data/Models/SchemaObjectColumnDefinition.cs", "Defines the saved Schema Studio column record used by repositories and the Blazor maintenance grids. Display and description metadata on the user-facing fields are the source of truth for grid headers and tooltip help indicators.", Responsibilities = "Carries persisted physical lineage, semantic source identity, business metadata, and inheritance flags for SchemaObjectColumn read/write workflows.", Nuances = "Base* fields describe physical lineage; Semantic* fields describe the semantic source/pass-through target that parser output resolved for the saved column.", RelatedFiles = "SchemaObjectColumnRepository, ManageViews.Columns, ViewSourcedColumnDefinition", LastReviewed = "2026-04-28")]
-[AIChange("1.1", "2026-04-28 10:55 PM CDT added persisted Semantic* source fields to the writable SchemaObjectColumn model so parser semantic-source output can be saved with column metadata.", AICommandStatus.Pending)]
-[AIChange("1.0", "2026-04-24 10:56 AM CDT added AI file metadata and completed the display/description attributes for the user-facing saved-column fields so UI grids can use model metadata directly without fallback help text.", AICommandStatus.Pending)]
 public sealed class SchemaObjectColumnDefinition
 {
     private int _schemaObjectColumnId;
@@ -49,8 +47,6 @@ public sealed class SchemaObjectColumnDefinition
         set => SetField(ref _schemaObjectId, value);
     }
 
-    // 2026-04-28 10:55 PM CDT AI v1.1 marker: saved columns now persist Semantic* source identity alongside physical Base* lineage.
-    // 2026-04-24 10:56 AM CDT AI v1.0 marker: the visible saved-column grid fields now have explicit display and description metadata so Razor headers can follow the parser-grid pattern without fallback text.
     [Required]
     [Display(Name = "Ordinal", Order = 10)]
     [Description("Ordinal position of the saved column within the current view definition.")]

@@ -12,20 +12,6 @@
 @inject TooltipService TooltipService
 
 @attribute [FileVersion("1.12")]
-@attribute [AIChange(
-    "1.6",
-    "2026-04-30 07:21 PM CDT kept Business Name, Business Description, and Developer Notes visible as multiline detail fields even when values are blank.",    AICommandStatus.Pending)]
-@attribute [AIChange(
-    "1.5",
-    "2026-04-30 07:03 PM CDT rendered Business Name and Business Description details as multiline readonly text fields in the View Details panel.",    AICommandStatus.Pending)]
-@attribute [AIChange(
-    "1.4",
-    "2026-04-30 06:58 PM CDT stabilized the View Details dialog layout by making panels own their height and restoring single wrapper scrolling for tree content.",
-    AICommandStatus.Pending)]
-@attribute [AIChange("1.3", "2026-04-30 05:43 PM CDT removed the wrapper scrollbar from View Details tree panels so RadzenTree remains the single scroll owner without changing the tree shape.", AICommandStatus.Pending)]
-@attribute [AIChange("1.2", "2026-04-30 05:34 PM CDT restored RadzenTree fill styling and wrapped FROM/JOIN sources under the selected view so base-table source trees use the same hierarchy as composed views.", AICommandStatus.Pending)]
-@attribute [AIChange("1.1", "2026-04-30 05:20 PM CDT made the View Details dialog panels use wrapper-owned scrolling so RadzenTree content no longer creates duplicate scrollbars.", AICommandStatus.Pending)]
-@attribute [AIChange("1.0", "2026-04-30 03:57 PM CDT moved the View Details help launcher from the dialog footer to the top-right utility row while leaving the standard dialog close affordances intact.", AICommandStatus.Pending)]
 
 <div class="resolved-chain-dialog-root">
     <div class="chain-dialog-top-actions">

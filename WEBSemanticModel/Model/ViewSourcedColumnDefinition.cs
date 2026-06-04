@@ -15,12 +15,8 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Model
     [DefaultProperty("ColumnName")]
     [SchemaStudio.AIHelpers.FileVersion("1.1")]
     [SchemaStudio.AIHelpers.AIFileContext("WEBSemanticModel/Model/ViewSourcedColumnDefinition.cs", "Represents a parsed view column after projection resolution, including physical lineage, semantic source identity, and parser-carried business metadata before it is saved.", Responsibilities = "Carries DisableInheritance and Semantic* so semantic lookup overrides and lookup targets stay attached to parsed columns before later save flows materialize them into SchemaObjectColumnDefinition rows.", Nuances = "Preserve the distinction between physical Base* lineage and semantic Semantic* lookup identity; this model can carry parser flags without making all business metadata parser authoritative.", RelatedFiles = "ParsedQuery, ViewMetadataBinder, ManageViews.razor", LastReviewed = "2026-04-28")]
-    [SchemaStudio.AIHelpers.AIChange("1.1", "2026-04-28 09:48 PM CDT added SemanticDatabase, SemanticSchema, SemanticObject, and SemanticColumn to parsed view columns so parser output can surface semantic lookup targets.", SchemaStudio.AIHelpers.AICommandStatus.Pending)]
-    [SchemaStudio.AIHelpers.AIChange("1.0", "2026-04-25 12:18 PM CDT added DisableInheritance to the parsed view column model so the web save flow can initialize semantic override flags from parser metadata.", SchemaStudio.AIHelpers.AICommandStatus.Pending)]
     public class ViewSourcedColumnDefinition : INotifyPropertyChanged, IDataErrorInfo
     {
-        // 2026-04-28 09:48 PM CDT AI v1.1 marker: parsed view columns now carry Semantic* lookup identity separately from Base* lineage.
-        // 2026-04-25 12:18 PM CDT AI v1.0 marker: parsed view columns now carry DisableInheritance into the web save flow.
         public event PropertyChangedEventHandler PropertyChanged;
 
         private int _columnId;

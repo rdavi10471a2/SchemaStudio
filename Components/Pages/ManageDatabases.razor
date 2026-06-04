@@ -11,28 +11,6 @@
 @inject AttributeService Attr
 
 @attribute [FileVersion("2.6")]
-@attribute [AIChange(
-    "1.6",
-    "2026-05-01 09:59 AM CDT kept Business Name on its own row and paired Business Description with Developer Notes as equal-height metadata fields.",
-    AICommandStatus.Pending)]
-@attribute [AIChange(
-    "1.5",
-    "2026-05-01 09:55 AM CDT tightened the database edit form by putting the identity fields on one logical row and compacting the action strip.",
-    AICommandStatus.Pending)]
-@attribute [AIChange(
-    "1.4",
-    "2026-05-01 09:36 AM CDT escaped the Manage Databases inline media query so Razor treats it as CSS instead of C#.",
-    AICommandStatus.Pending)]
-@attribute [AIChange(
-    "1.3",
-    "2026-05-01 09:33 AM CDT bounded Manage Databases to a Manage Views style viewport shell with a narrower database rail and locally scrolling detail panel.",
-    AICommandStatus.Pending)]
-@attribute [AIChange(
-    "1.2",
-    "2026-04-29 02:56 PM CDT added domain deletion that reassigns saved schema objects to Unknown before removing the selected domain.",
-    AICommandStatus.Pending)]
-@attribute [AIChange("1.1", "2026-04-23 01:03 PM CDT added the ViewNameFilter field to Manage Databases so per-database integration view filtering can be maintained in the UI.", AICommandStatus.Pending)]
-@attribute [AIChange("1.0", "2026-04-22 06:31 PM CDT added help links and field-level info icons to database and domain maintenance forms.", AICommandStatus.Pending)]
 
 <PageTitle>Manage Databases</PageTitle>
 
@@ -209,7 +187,6 @@
                                             @DomainFormFields(editDomain)
 
                                             <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.75rem">
-                                                @* 2026-04-29 02:56 PM CDT AI v1.2 domain-delete marker: deleting a domain reassigns saved schema objects to Unknown instead of leaving stale domain strings. *@
                                                 <RadzenButton Icon="refresh" Text="Reset" ButtonStyle="ButtonStyle.Light" Click="@ResetDomainEdit" />
                                                 <RadzenButton Icon="delete"
                                                               Text="Delete Domain"
@@ -794,8 +771,6 @@
     }
 
     private RenderFragment DatabaseFormFields(DatabaseDefinition database) => @<RadzenStack Gap="0.75rem" class="mdb-form-fields">
-        @* 2026-04-23 01:03 PM CDT AI v1.1 database-filter marker: Manage Databases now exposes the ViewNameFilter field for trimming integration view lists per database. *@
-        @* 2026-04-22 06:31 PM CDT AI v1.0 manage-database-help marker: field labels use model Display/Description metadata for consistent help tooltips. *@
         <RadzenRow Gap="0.75rem">
             <RadzenColumn Size="12" SizeMD="6">
                 @FieldLabel(typeof(DatabaseDefinition), nameof(DatabaseDefinition.DatabaseName))

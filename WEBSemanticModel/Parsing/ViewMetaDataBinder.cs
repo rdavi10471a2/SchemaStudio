@@ -6,10 +6,8 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Parsing
 {
     [FileVersion("1.0")]
     [AIFileContext("WEBSemanticModel/Parsing/ViewMetaDataBinder.cs", "Extracts parser-owned metadata tags from SQL comments and applies them to parsed select items before export.", Responsibilities = "Owns BusinessName, BusinessDescription, and DisableInheritance parser tags while intentionally leaving developer notes user-owned in the web workflow.", Nuances = "Do not reintroduce parser ownership for user-owned metadata such as DeveloperNotes without an explicit workflow change.", RelatedFiles = "ParsedQuery, SelectItem, ViewSourcedColumnDefinition", LastReviewed = "2026-04-25")]
-    [AIChange("1.0", "2026-04-25 04:28 PM CDT added parser binding for @DisableInheritance so semantic lookup overrides can flow through the parsed column pipeline without bringing DeveloperNotes back under parser ownership.", AICommandStatus.Pending)]
     public static class ViewMetadataBinder
     {
-        // 2026-04-25 04:28 PM CDT AI v1.0 marker: parser comments can now opt a column out of inherited metadata by emitting @DisableInheritance.
         // Singleline allows the dot (.) to match newlines within the comment block
         private const RegexOptions CommonOptions = RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline;
 

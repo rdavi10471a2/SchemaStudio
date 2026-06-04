@@ -9,8 +9,6 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Orchestration
 {
     [FileVersion("1.1")]
     [AIFileContext("WEBSemanticModel/Orchestration/QueryOrchestrator.cs", "Coordinates full SQL view parsing, dependency expansion, column binding, view ownership assignment, and parser metadata binding before projection.", Responsibilities = "Owns the final expression ownership pass so composed columns are attributed to the view that defines them while pass-through upstream expressions keep their upstream expression owner.", Nuances = "ViewOwnershipBinder is the semantic boundary for non-simple select items; keep Base* physical/simple lineage and Semantic* lookup targets synchronized there.", RelatedFiles = "QueryBinder, ColumnBinder, ParsedQuery, SelectItem", LastReviewed = "2026-04-28")]
-    [AIChange("1.1", "2026-04-28 10:00 PM CDT made ViewOwnershipBinder explicitly assign composed expression ownership to the defining view while preserving upstream expression ownership when QueryBinder identified a pass-through projected expression.", AICommandStatus.Pending)]
-    [AIInstructions("2026-03-30 15:53 preserve inherited database/schema context when resolving nested view dependencies and avoid forced dbo fallback.", AICommandStatus.Pending)]
     public static class QueryOrchestrator
     {
         //-----------------------------------------
@@ -128,7 +126,6 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Orchestration
                     return;
                 }
 
-                // 2026-04-28 10:00 PM CDT AI v1.1 marker: composed select items are owned by the view that defines the expression, not by any one input column.
                 AssignLineageAndSemantic(item, db, schema, objectName, item.Alias);
             }
 

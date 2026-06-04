@@ -6,8 +6,6 @@ namespace SchemaStudio.Data.Models;
 
 [FileVersion("1.0")]
 [AIFileContext("SchemaStudio.Data/Models/SourceViewDefinition.cs", "Represents a source SQL view discovered from a selected database so the web workspace can list available import candidates.", LastReviewed = "2026-04-23")]
-[AIChange("1.0", "2026-04-23 01:29 PM CDT added a source-view discovery model so the new manage-views workspace can list available views outside the imported metadata tables.", AICommandStatus.Pending)]
-// 2026-04-23 01:29 PM CDT AI v1.0 source-view marker: available import candidates now have a typed model instead of being anonymous SQL rows.
 public sealed class SourceViewDefinition
 {
     [Display(Name = "Database", Order = 10)]

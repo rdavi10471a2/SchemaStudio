@@ -6,10 +6,8 @@ using SchemaStudioWebViewer.WEBSemanticModel.Model;
 
 namespace SchemaStudioWebViewer.Components.Pages.ManageViewsNext;
 
-[AIChange("1.0", "2026-04-30 03:37 PM CDT added column selector, selected-column reset, merge review, and parser-to-column mapping helpers for the Manage Views Next prototype.", AICommandStatus.Pending)]
 public partial class ManageViewsNext
 {
-    // 2026-04-30 03:37 PM CDT AI v1.0 manage-views-next marker: column editor behavior stays in a dedicated partial so the prototype page shell remains readable.
     private int? SelectedColumnId;
     private string ColumnFilter = string.Empty;
 
