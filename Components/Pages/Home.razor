@@ -25,7 +25,7 @@
 @inject IJSRuntime JSRuntime
 @inject NavigationManager NavigationManager
 
-@attribute [FileVersion("1.15")]
+@attribute [FileVersion("1.17")]
 @attribute [AIFileContext("Components/Pages/Home.razor", "Hosts the shared kiosk and normal home selection workflow, simple login state, persisted selection restoration, and the main schema object detail surface.")]
 
 <style>
@@ -115,7 +115,8 @@
                          Gap="0.5rem">
                 @if (!IsWaitingForAuthState)
                 {
-                    <RadzenButton Size="ButtonSize.Small"
+                    <RadzenButton Visible="@AppConfig.Current.Auth.ShowAuthButton"
+                                  Size="ButtonSize.Small"
                                   Variant="Variant.Text"
                                   Icon="@(IsAuthenticated ? "logout" : "login")"
                                   Text="@(IsAuthenticated ? "Logout" : "Login")"

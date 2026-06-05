@@ -3,7 +3,7 @@ using SchemaStudio.AIHelpers;
 
 namespace SchemaStudioWebViewer.Configuration
 {
-    [FileVersion("1.3")]
+    [FileVersion("1.4")]
     [AIFileContext("AppConfig/AppConfig.cs", "Loads strongly typed application settings for database, MCP, kiosk, and simple-auth policy switches.")]
     public class AppConfig
     {
@@ -45,7 +45,8 @@ namespace SchemaStudioWebViewer.Configuration
                     InDebug = ReadBool(configuration, "Auth:InDebug", false),
                     RequireLoginForHome = ReadBool(configuration, "Auth:RequireLoginForHome", false),
                     RequireLoginForAdmin = ReadBool(configuration, "Auth:RequireLoginForAdmin", true),
-                    LoginPath = ReadString(configuration, "Auth:LoginPath", "/login")
+                    LoginPath = ReadString(configuration, "Auth:LoginPath", "/login"),
+                    ShowAuthButton = ReadBool(configuration, "Auth:ShowAuthButton", true)
                 }
             };
         }
@@ -113,5 +114,7 @@ namespace SchemaStudioWebViewer.Configuration
         public bool RequireLoginForAdmin { get; set; } = true;
 
         public string LoginPath { get; set; } = "/login";
+
+        public bool ShowAuthButton { get; set; } = true;
     }
 }
