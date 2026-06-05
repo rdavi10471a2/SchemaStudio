@@ -25,7 +25,7 @@
 @inject IJSRuntime JSRuntime
 @inject NavigationManager NavigationManager
 
-@attribute [FileVersion("1.17")]
+@attribute [FileVersion("1.18")]
 @attribute [AIFileContext("Components/Pages/Home.razor", "Hosts the shared kiosk and normal home selection workflow, simple login state, persisted selection restoration, and the main schema object detail surface.")]
 
 <style>
@@ -511,6 +511,12 @@
         try
         {
             await LoadAuthStateAsync();
+
+            if (ShouldBlockNormalHome && !AppConfig.Current.Auth.ShowAuthButton)
+            {
+                NavigationManager.NavigateTo(AppConfig.Current.Kiosk.Route);
+                return;
+            }
 
             if (!CanShowHomeContent)
             {
