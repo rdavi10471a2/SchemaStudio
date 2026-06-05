@@ -21,6 +21,10 @@ public sealed class SchemaObjectDefinition
     private string? _businessDescription;
     private string? _developerNotes;
     private string? _compositionDefinitionJson;
+
+    private string? _etlPopulationJobName;
+
+    private string? _etlMergeTemplateName;
     private bool _isActive = true;
     private DateTime _lastSynced = DateTime.Now;
     private bool _isDirty;
@@ -131,6 +135,24 @@ public sealed class SchemaObjectDefinition
     {
         get => _compositionDefinitionJson;
         set => SetField(ref _compositionDefinitionJson, value);
+    }
+
+    [StringLength(250)]
+    [Display(Name = "ETL Population Job Name", Order = 92)]
+    [Description("ETL job that populates this base view's physical table. Editable on base views; will become required once existing rows are backfilled.")]
+    public string? ETLPopulationJobName
+    {
+        get => _etlPopulationJobName;
+        set => SetField(ref _etlPopulationJobName, value);
+    }
+
+    [StringLength(250)]
+    [Display(Name = "ETL Merge Template Name", Order = 94)]
+    [Description("ETL merge template used for this base view's physical table. Editable on base views; will become required once existing rows are backfilled.")]
+    public string? ETLMergeTemplateName
+    {
+        get => _etlMergeTemplateName;
+        set => SetField(ref _etlMergeTemplateName, value);
     }
 
     [Display(Name = "Active", Order = 100)]

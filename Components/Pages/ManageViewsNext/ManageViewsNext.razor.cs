@@ -251,6 +251,8 @@ public partial class ManageViewsNext
         if (!value)
         {
             EditableObject.SourceTableName = null;
+            EditableObject.ETLPopulationJobName = null;
+            EditableObject.ETLMergeTemplateName = null;
         }
     }
 
@@ -316,6 +318,12 @@ public partial class ManageViewsNext
         EditableObject.SourceDatabaseName ??= SelectedViewItem?.SourceDatabaseName;
         EditableObject.SourceTableName = EditableObject.IsBaseObject
             ? NormalizeOptionalString(EditableObject.SourceTableName)
+            : null;
+        EditableObject.ETLPopulationJobName = EditableObject.IsBaseObject
+            ? NormalizeOptionalString(EditableObject.ETLPopulationJobName)
+            : null;
+        EditableObject.ETLMergeTemplateName = EditableObject.IsBaseObject
+            ? NormalizeOptionalString(EditableObject.ETLMergeTemplateName)
             : null;
 
         var validationMessage = await ValidateEditableObjectAsync(EditableObject);
@@ -549,6 +557,8 @@ public partial class ManageViewsNext
             BusinessDescription = source.BusinessDescription,
             DeveloperNotes = source.DeveloperNotes,
             CompositionDefinitionJson = source.CompositionDefinitionJson,
+            ETLPopulationJobName = source.ETLPopulationJobName,
+            ETLMergeTemplateName = source.ETLMergeTemplateName,
             IsActive = source.IsActive,
             LastSynced = source.LastSynced
         };
@@ -580,6 +590,9 @@ public partial class ManageViewsNext
             {
                 return "Source Table is required when Base Object is checked.";
             }
+
+            // TODO: Once existing base views are backfilled, also require
+            // ETLPopulationJobName and ETLMergeTemplateName here when IsBaseObject is true.
 
             var duplicate = await SchemaObjectRepository.GetBaseObjectBySourceTableAsync(
                 model.DatabaseId,

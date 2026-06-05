@@ -34,6 +34,8 @@ SELECT
     BusinessDescription,
     DeveloperNotes,
     CompositionDefinitionJson,
+    ETLPopulationJobName,
+    ETLMergeTemplateName,
     IsActive,
     LastSynced
 FROM dbo.SchemaObject
@@ -66,6 +68,8 @@ SELECT
     BusinessDescription,
     DeveloperNotes,
     CompositionDefinitionJson,
+    ETLPopulationJobName,
+    ETLMergeTemplateName,
     IsActive,
     LastSynced
 FROM dbo.SchemaObject
@@ -106,6 +110,8 @@ SELECT
     BusinessDescription,
     DeveloperNotes,
     CompositionDefinitionJson,
+    ETLPopulationJobName,
+    ETLMergeTemplateName,
     IsActive,
     LastSynced
 FROM dbo.SchemaObject
@@ -140,6 +146,8 @@ SELECT TOP (1)
     BusinessDescription,
     DeveloperNotes,
     CompositionDefinitionJson,
+    ETLPopulationJobName,
+    ETLMergeTemplateName,
     IsActive,
     LastSynced
 FROM dbo.SchemaObject
@@ -185,6 +193,8 @@ SELECT TOP (1)
     BusinessDescription,
     DeveloperNotes,
     CompositionDefinitionJson,
+    ETLPopulationJobName,
+    ETLMergeTemplateName,
     IsActive,
     LastSynced
 FROM dbo.SchemaObject
@@ -227,6 +237,8 @@ INSERT INTO dbo.SchemaObject
     BusinessDescription,
     DeveloperNotes,
     CompositionDefinitionJson,
+    ETLPopulationJobName,
+    ETLMergeTemplateName,
     IsActive,
     LastSynced
 )
@@ -244,6 +256,8 @@ VALUES
     @BusinessDescription,
     @DeveloperNotes,
     @CompositionDefinitionJson,
+    @ETLPopulationJobName,
+    @ETLMergeTemplateName,
     @IsActive,
     SYSDATETIME()
 );
@@ -274,6 +288,8 @@ SET
     BusinessDescription = @BusinessDescription,
     DeveloperNotes = @DeveloperNotes,
     CompositionDefinitionJson = @CompositionDefinitionJson,
+    ETLPopulationJobName = @ETLPopulationJobName,
+    ETLMergeTemplateName = @ETLMergeTemplateName,
     IsActive = @IsActive,
     LastSynced = SYSDATETIME()
 WHERE SchemaObjectId = @SchemaObjectId;
