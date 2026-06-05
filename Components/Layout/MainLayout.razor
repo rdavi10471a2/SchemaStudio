@@ -204,6 +204,15 @@
                          alt=""
                          class="app-logo-mark" />
                     <div class="app-title">SUSStudio -- Schema Understanding Service</div>
+                    @if (CanShowAuthControl)
+                    {
+                        <RadzenButton Size="ButtonSize.Small"
+                                      Variant="Variant.Text"
+                                      Icon="logout"
+                                      Text="Logout"
+                                      Click="@LogoutAsync"
+                                      Style="margin-left:auto;" />
+                    }
                 </div>
                 @if (CanShowNavigationMenu)
                 {
@@ -298,7 +307,14 @@
 
     <RadzenBody>
         <div class="rz-p-4">
-            @Body
+            @if (NeedsAuthRedirect)
+            {
+                <RadzenText TextStyle="TextStyle.Body1" Class="rz-p-4">Redirecting to sign in�</RadzenText>
+            }
+            else
+            {
+                @Body
+            }
         </div>
     </RadzenBody>
 </RadzenLayout>
@@ -328,6 +344,28 @@
         !HideNavigationChrome &&
         (!ShouldGateNavigationMenu || isNavigationAuthenticated);
 
+    // Home.razor serves these routes and manages their own auth UX (kiosk is the public
+    // default; explore is the post-login home with an inline login panel). Every OTHER
+    // route is gated by the shell and bounced to the kiosk landing when not signed in.
+    private bool IsHomeServedRoute =>
+        string.IsNullOrWhiteSpace(CurrentRelativePath) ||
+        string.Equals(CurrentRelativePath, AppConfig.Current.Kiosk.Route.Trim('/'), StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(CurrentRelativePath, "explore", StringComparison.OrdinalIgnoreCase);
+
+    private bool NeedsAuthRedirect =>
+        ShouldGateNavigationMenu &&
+        !isNavigationAuthenticated &&
+        !IsHomeServedRoute &&
+        !HideNavigationChrome;
+
+    private bool CanShowAuthControl =>
+        !HideNavigationChrome &&
+        ShouldGateNavigationMenu &&
+        isNavigationAuthenticated &&
+        !IsHomeServedRoute;
+
+    private string LandingRoute => AppConfig.Current.Kiosk.Route;
+
     private string LayoutClass => HideNavigationChrome ? "kiosk-shell" : string.Empty;
 
     private string LayoutStyle => HideNavigationChrome
@@ -356,6 +394,11 @@
             return;
 
         await RefreshNavigationAuthStateAsync();
+        if (RedirectIfUnauthorized())
+        {
+            return;
+        }
+
         await InvokeAsync(StateHasChanged);
     }
 
@@ -365,6 +408,11 @@
         {
             openMenu = null;
             await RefreshNavigationAuthStateAsync();
+            if (RedirectIfUnauthorized())
+            {
+                return;
+            }
+
             StateHasChanged();
         });
     }
@@ -441,6 +489,26 @@
     private void ToggleMenu(string menuName)
     {
         openMenu = openMenu == menuName ? null : menuName;
+    }
+
+    private async Task LogoutAsync()
+    {
+        openMenu = null;
+        await JSRuntime.InvokeVoidAsync("authStateManager.clear", AuthStorageKey);
+        isNavigationAuthenticated = false;
+        await NotifyAuthenticationChangedAsync();
+        NavigationManager.NavigateTo(LandingRoute);
+    }
+
+    private bool RedirectIfUnauthorized()
+    {
+        if (!NeedsAuthRedirect)
+        {
+            return false;
+        }
+
+        NavigationManager.NavigateTo(LandingRoute);
+        return true;
     }
 
     public void Dispose()
