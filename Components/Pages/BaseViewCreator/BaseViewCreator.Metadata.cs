@@ -83,11 +83,8 @@ public partial class BaseViewCreator
 
     private string BuildMetadataPlaceholder(string prefix, string projection, string outputColumnName, string businessName = "", string businessDescription = "", bool disableInheritance = false)
     {
-        if (disableInheritance)
-        {
-            businessName = string.IsNullOrWhiteSpace(businessName) ? outputColumnName : businessName;
-            businessDescription = string.IsNullOrWhiteSpace(businessDescription) ? outputColumnName : businessDescription;
-        }
+        businessName = string.IsNullOrWhiteSpace(businessName) ? "--Not Specified--" : businessName;
+        businessDescription = string.IsNullOrWhiteSpace(businessDescription) ? "--Not Specified--" : businessDescription;
 
         var parts = new List<string>();
 
