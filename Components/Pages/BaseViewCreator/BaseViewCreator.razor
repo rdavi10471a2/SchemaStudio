@@ -1491,11 +1491,7 @@
     private static string BuildLookupProjectionAlias(TableSchemaRelationshipInfo relationship)
     {
         var localColumn = relationship.Columns.FirstOrDefault()?.LocalColumnName ?? relationship.ReferencedTableName;
-        var cleaned = localColumn.EndsWith("Id", StringComparison.OrdinalIgnoreCase)
-            ? localColumn[..^2]
-            : localColumn;
-
-        return $"{cleaned}Description";
+        return $"{localColumn}_FK_Description";
     }
 
     private static bool CanReviewLookupRelationship(TableSchemaRelationshipInfo relationship) =>

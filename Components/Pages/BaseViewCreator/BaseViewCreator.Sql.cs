@@ -203,9 +203,10 @@ public partial class BaseViewCreator
                     continue;
                 }
 
-                var projection = $"{QuoteIdentifier(BaseAlias)}.{QuoteIdentifier(pair.LocalColumnName)}";
+                var fkOutputName = $"{pair.LocalColumnName}_FK";
+                var projection = $"{QuoteIdentifier(BaseAlias)}.{QuoteIdentifier(pair.LocalColumnName)} AS {QuoteIdentifier(fkOutputName)}";
                 var column = Columns.FirstOrDefault(column => string.Equals(column.ColumnName, pair.LocalColumnName, StringComparison.OrdinalIgnoreCase));
-                yield return new ProjectionSpec(projection, pair.LocalColumnName, column?.BusinessName ?? "", column?.BusinessDescription ?? "", true, startsRelationshipGroup, null);
+                yield return new ProjectionSpec(projection, fkOutputName, column?.BusinessName ?? "", column?.BusinessDescription ?? "", true, startsRelationshipGroup, null);
                 startsRelationshipGroup = false;
             }
 
@@ -253,7 +254,7 @@ public partial class BaseViewCreator
                     continue;
                 }
 
-                yield return pair.LocalColumnName;
+                yield return $"{pair.LocalColumnName}_FK";
             }
 
             if (relationship.IncludeDisplayColumn &&
