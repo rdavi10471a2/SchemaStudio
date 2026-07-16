@@ -9,7 +9,7 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Providers
     //-----------------------------------------
     // IMPLEMENT INTERFACE
     //-----------------------------------------
-    [FileVersion("1.0")]
+    [FileVersion("1.1")]
     public class ViewDefinitionProvider : IViewDefinitionProvider
     {
         private readonly string _connectionString;
@@ -186,9 +186,30 @@ WHERE o.name = @viewName
                         return null;
                     }
 
-                    return result as string;
+                    return NormalizeLineEndings(result as string);
                 }
             }
+        }
+
+        //-----------------------------------------
+        // LINE-ENDING NORMALIZATION
+        //-----------------------------------------
+        // View definitions can be stored with LF-only or mixed line endings (deployment
+        // scripts, cross-platform tooling). Downstream formatting and comment handling key
+        // off CRLF, so normalize every fetched definition to CRLF on read. This keeps
+        // single-line ("--") comments intact and prevents their contents from leaking into
+        // the parsed SQL.
+        private static string NormalizeLineEndings(string sql)
+        {
+            if (string.IsNullOrEmpty(sql))
+            {
+                return sql;
+            }
+
+            return sql
+                .Replace("\r\n", "\n")
+                .Replace("\r", "\n")
+                .Replace("\n", "\r\n");
         }
 
         //-----------------------------------------
@@ -224,7 +245,7 @@ WHERE o.name = @viewName
             }
 
             //-----------------------------------------
-            // MISS → FETCH
+            // MISS ? FETCH
             //-----------------------------------------
             _logger.Info($"CACHE MISS: {cacheKey}");
 
@@ -334,4 +355,3 @@ ORDER BY o.name";
         }
     }
 }
-

@@ -57,8 +57,9 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Parsing
 
                 if (errors.Count > 0)
                 {
-                    Log.Error("SQL Parse Error: " + errors[0].Message);
-                    throw new Exception("SQL Parse Error: " + errors[0].Message);
+                    var parseErrorMessage = BuildParseErrorMessage(errors, workingSql);
+                    Log.Error(parseErrorMessage);
+                    throw new Exception(parseErrorMessage);
                 }
 
                 //-----------------------------------------
@@ -101,6 +102,55 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Parsing
 
                 return result;
             }
+        }
+
+        //-----------------------------------------
+        // PARSE ERROR DETAIL
+        //-----------------------------------------
+        // Surfaces the full ScriptDom parse-error detail (error number, line, column) for
+        // every reported error, plus the offending SQL line with a caret under the column,
+        // instead of collapsing to the first error's bare message.
+        private static string BuildParseErrorMessage(IList<ParseError> errors, string sql)
+        {
+            var sqlLines = (sql ?? string.Empty)
+                .Replace("\r\n", "\n")
+                .Replace("\r", "\n")
+                .Split('\n');
+
+            var builder = new System.Text.StringBuilder();
+            builder.Append("SQL Parse Error");
+
+            if (errors.Count > 1)
+            {
+                builder.Append(" (").Append(errors.Count).Append(" errors)");
+            }
+
+            builder.Append(':');
+
+            foreach (var error in errors)
+            {
+                builder.Append(System.Environment.NewLine);
+                builder.Append("  [Msg ").Append(error.Number)
+                    .Append(", Line ").Append(error.Line)
+                    .Append(", Col ").Append(error.Column)
+                    .Append("] ").Append(error.Message);
+
+                if (error.Line >= 1 && error.Line <= sqlLines.Length)
+                {
+                    var offendingLine = sqlLines[error.Line - 1].TrimEnd();
+
+                    builder.Append(System.Environment.NewLine);
+                    builder.Append("    ").Append(offendingLine);
+
+                    if (error.Column >= 1 && error.Column <= offendingLine.Length + 1)
+                    {
+                        builder.Append(System.Environment.NewLine);
+                        builder.Append("    ").Append(new string(' ', error.Column - 1)).Append('^');
+                    }
+                }
+            }
+
+            return builder.ToString();
         }
 
         private Dictionary<string, ParsedQuery> ParseCommonTableExpressions(
