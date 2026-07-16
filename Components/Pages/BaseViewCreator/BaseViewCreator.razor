@@ -196,6 +196,7 @@
             <header class="bvg-tabs" role="tablist" aria-label="Base view generator workspace">
                 <button type="button" class="@TabClass("tree")" @onclick='() => SetWorkspaceTab("tree")'>Select Projection</button>
                 <button type="button" class="@TabClass("sql")" @onclick='() => SetWorkspaceTab("sql")'>Generated SQL</button>
+                <button type="button" class="@TabClass("table")" @onclick='() => SetWorkspaceTab("table")'>CREATE TABLE</button>
                 <button type="button" class="bvg-tab bvg-source-toggle-tab" @onclick="ToggleSourcePanel">@(SourcePanelCollapsed ? "Show Source View" : "Hide Source View")</button>
             </header>
 
@@ -204,6 +205,19 @@
                 {
                     <div @key="SqlRenderVersion" class="sql-code-container bvg-sql-output" style="--sql-keyword-color: #0000ff; --sql-comment-color: #008000; --sql-string-color: #a31515;">
                         <pre class="language-sql"><code class="language-sql">@GeneratedSql</code></pre>
+                    </div>
+                }
+                else if (ActiveWorkspaceTab == "table")
+                {
+                    <div class="bvg-create-table-controls">
+                        <label>
+                            @HelpLabel("Target Table", "Physical table created from the view output schema. Defaults to the view name when left blank.")
+                            <input value="@TargetTableName" @oninput="OnTargetTableNameChanged" placeholder="@(string.IsNullOrWhiteSpace(TargetViewName) ? "Target table name" : TargetViewName)" />
+                        </label>
+                        <button type="button" class="bvg-button primary" @onclick="CopyCreateTableSqlAsync" disabled="@string.IsNullOrWhiteSpace(GeneratedCreateTableSql)">Copy CREATE TABLE</button>
+                    </div>
+                    <div @key="SqlRenderVersion" class="sql-code-container bvg-sql-output" style="--sql-keyword-color: #0000ff; --sql-comment-color: #008000; --sql-string-color: #a31515;">
+                        <pre class="language-sql"><code class="language-sql">@GeneratedCreateTableSql</code></pre>
                     </div>
                 }
                 else
@@ -404,6 +418,9 @@
     private string TargetViewName = "";
     private string ColumnFilter = "";
     private string GeneratedSql = "";
+    private string GeneratedCreateTableSql = "";
+    private string TargetTableName = "";
+    private Dictionary<string, (string DataType, bool IsNullable)> DisplayColumnTypeCache = new(StringComparer.OrdinalIgnoreCase);
     private string ActiveWorkspaceTab = "tree";
     private string ActiveSourceInfoTab = "options";
     private bool HighlightSqlPending;
@@ -477,6 +494,18 @@
 
     private string TargetViewNameSql =>
         QualifiedName(TargetSchemaName, TargetViewName);
+
+    private string TargetTableNameSql =>
+        QualifiedName(TargetSchemaName, string.IsNullOrWhiteSpace(TargetTableName) ? TargetViewName : TargetTableName);
+
+    private static string DisplayColumnCacheKey(TableSchemaRelationshipInfo relationship) =>
+        $"{relationship.ReferencedSchemaName}.{relationship.ReferencedTableName}.{relationship.DisplayColumnName}";
+
+    private string GetDisplayColumnDataType(TableSchemaRelationshipInfo relationship) =>
+        DisplayColumnTypeCache.TryGetValue(DisplayColumnCacheKey(relationship), out var cached) ? cached.DataType : "";
+
+    private bool GetDisplayColumnIsNullable(TableSchemaRelationshipInfo relationship) =>
+        !DisplayColumnTypeCache.TryGetValue(DisplayColumnCacheKey(relationship), out var cached) || cached.IsNullable;
 
     private string SelectedTableDisplayName =>
         string.IsNullOrWhiteSpace(SelectedTableName)
@@ -552,10 +581,60 @@
         }
     }
 
-    private void SetWorkspaceTab(string tabName)
+    private async Task SetWorkspaceTab(string tabName)
     {
         ActiveWorkspaceTab = tabName == "projection" ? "tree" : tabName;
+
+        if (ActiveWorkspaceTab == "table")
+        {
+            await EnsureDisplayColumnTypesAsync();
+        }
+
         QueueSqlHighlight();
+    }
+
+    private async Task EnsureDisplayColumnTypesAsync()
+    {
+        if (string.IsNullOrWhiteSpace(SelectedDatabaseName))
+        {
+            return;
+        }
+
+        var pending = Relationships
+            .Where(relationship => relationship.Include &&
+                relationship.IncludeDisplayColumn &&
+                !string.IsNullOrWhiteSpace(relationship.DisplayColumnName) &&
+                !DisplayColumnTypeCache.ContainsKey(DisplayColumnCacheKey(relationship)))
+            .ToList();
+
+        if (pending.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var relationship in pending)
+        {
+            try
+            {
+                var details = await TableSchemaRepository.GetTableDetailsAsync(
+                    SelectedDatabaseName,
+                    relationship.ReferencedSchemaName,
+                    relationship.ReferencedTableName,
+                    null);
+                var column = details.Columns.FirstOrDefault(candidate =>
+                    string.Equals(candidate.ColumnName, relationship.DisplayColumnName, StringComparison.OrdinalIgnoreCase));
+                if (column is not null)
+                {
+                    DisplayColumnTypeCache[DisplayColumnCacheKey(relationship)] = (UdtTypeResolver.ResolveByName(column.DataType), column.IsNullable);
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        RegenerateSql();
+        await InvokeAsync(StateHasChanged);
     }
 
     private void SetSourceInfoTab(string tabName)
@@ -766,7 +845,9 @@
             ApplySavedLookupRelationships();
             ApplyRelationshipFilters();
             CollapseJoinGroups();
+            DisplayColumnTypeCache.Clear();
             RegenerateSql();
+            await EnsureDisplayColumnTypesAsync();
             StatusMessage = BuildLoadedStatusMessage();
         }, $"Failed to load table details from [{SelectedDatabaseName}].[{SelectedSchemaName}].[{SelectedTableName}].");
     }
@@ -1021,6 +1102,12 @@
         MarkSqlDirty();
     }
 
+    private void OnTargetTableNameChanged(ChangeEventArgs args)
+    {
+        TargetTableName = args.Value?.ToString() ?? "";
+        MarkSqlDirty();
+    }
+
     private void OnRelationshipDisplayColumnChanged(TableSchemaRelationshipInfo relationship, ChangeEventArgs args)
     {
         relationship.DisplayColumnName = args.Value?.ToString();
@@ -1179,6 +1266,7 @@
         if (!CanRegenerateSql)
         {
             GeneratedSql = "";
+            GeneratedCreateTableSql = "";
             SqlRenderVersion++;
             SqlDirty = false;
             return;
@@ -1189,7 +1277,9 @@
 
     private void QueueSqlHighlight()
     {
-        HighlightSqlPending = ActiveWorkspaceTab == "sql" && !string.IsNullOrWhiteSpace(GeneratedSql);
+        HighlightSqlPending =
+            (ActiveWorkspaceTab == "sql" && !string.IsNullOrWhiteSpace(GeneratedSql)) ||
+            (ActiveWorkspaceTab == "table" && !string.IsNullOrWhiteSpace(GeneratedCreateTableSql));
     }
 
     private string ProjectionColumnRowClass(TableSchemaColumnInfo column) =>
@@ -1821,6 +1911,15 @@
         {
             await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", GeneratedSql);
             NotificationService.Notify(NotificationSeverity.Success, "SQL copied.", "", 3000);
+        }
+    }
+
+    private async Task CopyCreateTableSqlAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(GeneratedCreateTableSql))
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", GeneratedCreateTableSql);
+            NotificationService.Notify(NotificationSeverity.Success, "CREATE TABLE copied.", "", 3000);
         }
     }
 

@@ -1,13 +1,13 @@
 using SchemaStudioWebViewer.Data;
 
-[module: SchemaStudio.AIHelpers.FileVersion("1.1")]
+[module: SchemaStudio.AIHelpers.FileVersion("1.2")]
 [module: SchemaStudio.AIHelpers.AIFileContext(
     "Components/Pages/BaseViewCreator/BaseViewCreator.Sql.cs",
     "Partial class slice for Base View Creator SQL and projection generation.",
-    Responsibilities = "Owns generated SQL assembly, projection-spec construction, output column enumeration, and join dependency emission for the Base View Creator fork.",
+    Responsibilities = "Owns generated SQL assembly, projection-spec construction, output column enumeration, CREATE TABLE emission, and join dependency emission for the Base View Creator fork.",
     Nuances = "This file deliberately depends on state and UI helpers still housed in BaseViewCreator.razor; it is the first mechanical split toward a smaller Razor surface.",
-    RelatedFiles = "Components/Pages/BaseViewCreator/BaseViewCreator.razor; Components/Pages/BaseViewCreator/BaseViewCreatorSelectionEngine.cs",
-    LastReviewed = "2026-05-12")]
+    RelatedFiles = "Components/Pages/BaseViewCreator/BaseViewCreator.razor; Components/Pages/BaseViewCreator/BaseViewCreatorSelectionEngine.cs; Components/Pages/BaseViewCreator/UdtTypeResolver.cs",
+    LastReviewed = "2026-07-16")]
 
 namespace SchemaStudioWebViewer.Components.Pages.BaseViewCreator;
 
@@ -24,6 +24,7 @@ public partial class BaseViewCreator
             string.IsNullOrWhiteSpace(TargetViewName))
         {
             GeneratedSql = "";
+            GeneratedCreateTableSql = "";
             SqlRenderVersion++;
             SqlDirty = false;
             return;
@@ -35,6 +36,7 @@ public partial class BaseViewCreator
             : BuildCteSql(projectionSpecs);
 
         GeneratedSql = string.Join(Environment.NewLine, lines);
+        GeneratedCreateTableSql = string.Join(Environment.NewLine, BuildCreateTableSql(projectionSpecs));
         SqlRenderVersion++;
         SqlDirty = false;
         QueueSqlHighlight();
@@ -87,6 +89,36 @@ public partial class BaseViewCreator
         }
 
         lines.Add($"FROM {QuoteIdentifier(sourceCteName)};");
+        return lines;
+    }
+
+    private List<string> BuildCreateTableSql(IReadOnlyList<ProjectionSpec> projectionSpecs)
+    {
+        var lines = new List<string>
+        {
+            $"CREATE TABLE {TargetTableNameSql}",
+            "("
+        };
+
+        if (projectionSpecs.Count == 0)
+        {
+            lines.Add("      -- Select at least one column.");
+        }
+        else
+        {
+            var first = true;
+            foreach (var projection in projectionSpecs)
+            {
+                var dataType = string.IsNullOrWhiteSpace(projection.SqlDataType)
+                    ? "nvarchar(255)"
+                    : projection.SqlDataType;
+                var nullability = projection.IsNullable ? "NULL" : "NOT NULL";
+                lines.Add($"{ProjectionPrefix(first)}{QuoteIdentifier(projection.OutputColumnName)} {dataType} {nullability}");
+                first = false;
+            }
+        }
+
+        lines.Add(");");
         return lines;
     }
 
@@ -189,7 +221,7 @@ public partial class BaseViewCreator
         foreach (var column in plan.BaseColumns)
         {
             var projection = $"{QuoteIdentifier(BaseAlias)}.{QuoteIdentifier(column.ColumnName)}";
-            yield return new ProjectionSpec(projection, column.ColumnName, column.BusinessName, column.BusinessDescription, false, false, null);
+            yield return new ProjectionSpec(projection, column.ColumnName, column.BusinessName, column.BusinessDescription, false, false, null, UdtTypeResolver.ResolveByName(column.DataType), column.IsNullable);
         }
 
         foreach (var state in plan.JoinDependencies)
@@ -206,7 +238,7 @@ public partial class BaseViewCreator
                 var fkOutputName = $"{pair.LocalColumnName}_FK";
                 var projection = $"{QuoteIdentifier(BaseAlias)}.{QuoteIdentifier(pair.LocalColumnName)} AS {QuoteIdentifier(fkOutputName)}";
                 var column = Columns.FirstOrDefault(column => string.Equals(column.ColumnName, pair.LocalColumnName, StringComparison.OrdinalIgnoreCase));
-                yield return new ProjectionSpec(projection, fkOutputName, column?.BusinessName ?? "", column?.BusinessDescription ?? "", true, startsRelationshipGroup, null);
+                yield return new ProjectionSpec(projection, fkOutputName, column?.BusinessName ?? "", column?.BusinessDescription ?? "", true, startsRelationshipGroup, null, UdtTypeResolver.ResolveByName(column?.DataType ?? ""), column?.IsNullable ?? true);
                 startsRelationshipGroup = false;
             }
 
@@ -219,7 +251,8 @@ public partial class BaseViewCreator
             var alias = BuildLookupAlias(relationship);
             var columnAlias = BuildLookupProjectionAlias(relationship);
             var lookupProjection = $"{QuoteIdentifier(alias)}.{QuoteIdentifier(relationship.DisplayColumnName!)} AS {QuoteIdentifier(columnAlias)}";
-            yield return new ProjectionSpec(lookupProjection, columnAlias, relationship.DisplayBusinessName, relationship.DisplayBusinessDescription, true, false, relationship);
+            var displayNullable = string.Equals(relationship.SelectedJoinType, "LEFT JOIN", StringComparison.OrdinalIgnoreCase) || GetDisplayColumnIsNullable(relationship);
+            yield return new ProjectionSpec(lookupProjection, columnAlias, relationship.DisplayBusinessName, relationship.DisplayBusinessDescription, true, false, relationship, GetDisplayColumnDataType(relationship), displayNullable);
         }
     }
 
@@ -272,5 +305,7 @@ public partial class BaseViewCreator
         string BusinessDescription,
         bool DisableInheritance,
         bool StartsRelationshipGroup,
-        TableSchemaRelationshipInfo? LookupJoinRelationship);
+        TableSchemaRelationshipInfo? LookupJoinRelationship,
+        string SqlDataType,
+        bool IsNullable);
 }
