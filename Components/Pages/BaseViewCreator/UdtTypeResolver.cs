@@ -79,6 +79,12 @@ public static class UdtTypeResolver
             return $"varchar({match.Groups["len"].Value})";
         }
 
+        if (string.Equals(declaredType, "timestamp", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(declaredType, "rowversion", StringComparison.OrdinalIgnoreCase))
+        {
+            return "bigint";
+        }
+
         return declaredType;
     }
 }

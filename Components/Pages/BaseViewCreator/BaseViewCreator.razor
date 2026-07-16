@@ -111,8 +111,13 @@
                         @HelpLabel("View Name", "Generated or overridden base view name. This is the object created by the copied SQL.")
                         <input value="@TargetViewName" @oninput="OnTargetViewNameChanged" />
                     </label>
+                    <label class="bvg-wide">
+                        @HelpLabel("Output Table Name", "Physical output table used by the CREATE TABLE and MERGE tabs. Defaults to the view name when blank.")
+                        <input value="@TargetTableName" @oninput="OnTargetTableNameChanged" placeholder="@(string.IsNullOrWhiteSpace(TargetViewName) ? "Output table name" : TargetViewName)" />
+                    </label>
                 </div>
                 <div class="bvg-preview-line">@TargetViewPreview</div>
+                <div class="bvg-preview-line">@TargetTablePreview</div>
             </div>
 
             <section class="bvg-source-info">
@@ -197,6 +202,7 @@
                 <button type="button" class="@TabClass("tree")" @onclick='() => SetWorkspaceTab("tree")'>Select Projection</button>
                 <button type="button" class="@TabClass("sql")" @onclick='() => SetWorkspaceTab("sql")'>Generated SQL</button>
                 <button type="button" class="@TabClass("table")" @onclick='() => SetWorkspaceTab("table")'>CREATE TABLE</button>
+                <button type="button" class="@TabClass("merge")" @onclick='() => SetWorkspaceTab("merge")'>MERGE</button>
                 <button type="button" class="bvg-tab bvg-source-toggle-tab" @onclick="ToggleSourcePanel">@(SourcePanelCollapsed ? "Show Source View" : "Hide Source View")</button>
             </header>
 
@@ -210,15 +216,39 @@
                 else if (ActiveWorkspaceTab == "table")
                 {
                     <div class="bvg-create-table-controls">
-                        <label>
-                            @HelpLabel("Target Table", "Physical table created from the view output schema. Defaults to the view name when left blank.")
-                            <input value="@TargetTableName" @oninput="OnTargetTableNameChanged" placeholder="@(string.IsNullOrWhiteSpace(TargetViewName) ? "Target table name" : TargetViewName)" />
-                        </label>
                         <button type="button" class="bvg-button primary" @onclick="CopyCreateTableSqlAsync" disabled="@string.IsNullOrWhiteSpace(GeneratedCreateTableSql)">Copy CREATE TABLE</button>
                     </div>
                     <div @key="SqlRenderVersion" class="sql-code-container bvg-sql-output" style="--sql-keyword-color: #0000ff; --sql-comment-color: #008000; --sql-string-color: #a31515;">
                         <pre class="language-sql"><code class="language-sql">@GeneratedCreateTableSql</code></pre>
                     </div>
+                }
+                else if (ActiveWorkspaceTab == "merge")
+                {
+                    <div class="bvg-create-table-controls bvg-merge-controls">
+                        <span class="bvg-field-label">Source databases (one MERGE per database)</span>
+                        @for (var index = 0; index < MergeSourceDatabases.Count; index++)
+                        {
+                            var dbIndex = index;
+                            <div class="bvg-merge-source-row">
+                                <input value="@MergeSourceDatabases[dbIndex]" @oninput="args => OnMergeSourceDbChanged(dbIndex, args)" placeholder="Source database name" />
+                                <button type="button" class="bvg-button secondary" @onclick="() => RemoveMergeSourceDb(dbIndex)" disabled="@(MergeSourceDatabases.Count <= 1)">Remove</button>
+                            </div>
+                        }
+                        <div class="bvg-merge-source-actions">
+                            <button type="button" class="bvg-button secondary" @onclick="AddMergeSourceDb">Add Source DB</button>
+                            <button type="button" class="bvg-button primary" @onclick="CopyMergeSqlAsync" disabled="@(!string.IsNullOrWhiteSpace(MergeUnavailableReason) || string.IsNullOrWhiteSpace(GeneratedMergeSql))">Copy MERGE</button>
+                        </div>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(MergeUnavailableReason))
+                    {
+                        <RadzenAlert AlertStyle="AlertStyle.Danger" Variant="Variant.Flat">@MergeUnavailableReason</RadzenAlert>
+                    }
+                    else
+                    {
+                        <div @key="SqlRenderVersion" class="sql-code-container bvg-sql-output" style="--sql-keyword-color: #0000ff; --sql-comment-color: #008000; --sql-string-color: #a31515;">
+                            <pre class="language-sql"><code class="language-sql">@GeneratedMergeSql</code></pre>
+                        </div>
+                    }
                 }
                 else
                 {
@@ -421,6 +451,9 @@
     private string GeneratedCreateTableSql = "";
     private string TargetTableName = "";
     private Dictionary<string, (string DataType, bool IsNullable)> DisplayColumnTypeCache = new(StringComparer.OrdinalIgnoreCase);
+    private string GeneratedMergeSql = "";
+    private string MergeUnavailableReason = "";
+    private List<string> MergeSourceDatabases = new();
     private string ActiveWorkspaceTab = "tree";
     private string ActiveSourceInfoTab = "options";
     private bool HighlightSqlPending;
@@ -497,6 +530,11 @@
 
     private string TargetTableNameSql =>
         QualifiedName(TargetSchemaName, string.IsNullOrWhiteSpace(TargetTableName) ? TargetViewName : TargetTableName);
+
+    private string TargetTablePreview =>
+        string.IsNullOrWhiteSpace(TargetViewName) && string.IsNullOrWhiteSpace(TargetTableName)
+            ? ""
+            : $"CREATE TABLE {TargetTableNameSql}";
 
     private static string DisplayColumnCacheKey(TableSchemaRelationshipInfo relationship) =>
         $"{relationship.ReferencedSchemaName}.{relationship.ReferencedTableName}.{relationship.DisplayColumnName}";
@@ -585,7 +623,7 @@
     {
         ActiveWorkspaceTab = tabName == "projection" ? "tree" : tabName;
 
-        if (ActiveWorkspaceTab == "table")
+        if (ActiveWorkspaceTab == "table" || ActiveWorkspaceTab == "merge")
         {
             await EnsureDisplayColumnTypesAsync();
         }
@@ -846,6 +884,7 @@
             ApplyRelationshipFilters();
             CollapseJoinGroups();
             DisplayColumnTypeCache.Clear();
+            MergeSourceDatabases = new List<string> { SelectedDatabaseName };
             RegenerateSql();
             await EnsureDisplayColumnTypesAsync();
             StatusMessage = BuildLoadedStatusMessage();
@@ -1267,6 +1306,8 @@
         {
             GeneratedSql = "";
             GeneratedCreateTableSql = "";
+            GeneratedMergeSql = "";
+            MergeUnavailableReason = "";
             SqlRenderVersion++;
             SqlDirty = false;
             return;
@@ -1279,7 +1320,8 @@
     {
         HighlightSqlPending =
             (ActiveWorkspaceTab == "sql" && !string.IsNullOrWhiteSpace(GeneratedSql)) ||
-            (ActiveWorkspaceTab == "table" && !string.IsNullOrWhiteSpace(GeneratedCreateTableSql));
+            (ActiveWorkspaceTab == "table" && !string.IsNullOrWhiteSpace(GeneratedCreateTableSql)) ||
+            (ActiveWorkspaceTab == "merge" && string.IsNullOrWhiteSpace(MergeUnavailableReason) && !string.IsNullOrWhiteSpace(GeneratedMergeSql));
     }
 
     private string ProjectionColumnRowClass(TableSchemaColumnInfo column) =>
@@ -1921,6 +1963,43 @@
             await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", GeneratedCreateTableSql);
             NotificationService.Notify(NotificationSeverity.Success, "CREATE TABLE copied.", "", 3000);
         }
+    }
+
+    private async Task CopyMergeSqlAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(GeneratedMergeSql))
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", GeneratedMergeSql);
+            NotificationService.Notify(NotificationSeverity.Success, "MERGE copied.", "", 3000);
+        }
+    }
+
+    private void OnMergeSourceDbChanged(int index, ChangeEventArgs args)
+    {
+        if (index < 0 || index >= MergeSourceDatabases.Count)
+        {
+            return;
+        }
+
+        MergeSourceDatabases[index] = args.Value?.ToString() ?? "";
+        RegenerateSql();
+    }
+
+    private void AddMergeSourceDb()
+    {
+        MergeSourceDatabases.Add("");
+        RegenerateSql();
+    }
+
+    private void RemoveMergeSourceDb(int index)
+    {
+        if (index < 0 || index >= MergeSourceDatabases.Count || MergeSourceDatabases.Count <= 1)
+        {
+            return;
+        }
+
+        MergeSourceDatabases.RemoveAt(index);
+        RegenerateSql();
     }
 
     private async Task RunPageOperationAsync(Func<Task> operation, string failureMessage)
