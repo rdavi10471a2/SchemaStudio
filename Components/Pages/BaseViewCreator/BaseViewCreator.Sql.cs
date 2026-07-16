@@ -1,6 +1,6 @@
 using SchemaStudioWebViewer.Data;
 
-[module: SchemaStudio.AIHelpers.FileVersion("1.3")]
+[module: SchemaStudio.AIHelpers.FileVersion("1.4")]
 [module: SchemaStudio.AIHelpers.AIFileContext(
     "Components/Pages/BaseViewCreator/BaseViewCreator.Sql.cs",
     "Partial class slice for Base View Creator SQL and projection generation.",
@@ -43,10 +43,17 @@ public partial class BaseViewCreator
 
         GeneratedSql = string.Join(Environment.NewLine, lines);
         GeneratedCreateTableSql = string.Join(Environment.NewLine, BuildCreateTableSql(projectionSpecs));
-        GeneratedMergeSql = string.Join(Environment.NewLine, BuildMergeSql(projectionSpecs, out var mergeReason));
-        MergeUnavailableReason = mergeReason;
         SqlRenderVersion++;
         SqlDirty = false;
+        QueueSqlHighlight();
+    }
+
+    private void RegenerateMerge()
+    {
+        var projectionSpecs = BuildProjectionSpecs().ToList();
+        GeneratedMergeSql = string.Join(Environment.NewLine, BuildMergeSql(projectionSpecs, out var reason));
+        MergeUnavailableReason = reason;
+        SqlRenderVersion++;
         QueueSqlHighlight();
     }
 
@@ -163,46 +170,21 @@ public partial class BaseViewCreator
             return new List<string>();
         }
 
-        var sourceDatabases = MergeSourceDatabases
-            .Select(name => name?.Trim() ?? "")
-            .Where(name => !string.IsNullOrWhiteSpace(name))
-            .ToList();
-        if (sourceDatabases.Count == 0)
+        var countryDatabase = string.IsNullOrWhiteSpace(MergeCountryDb) ? SelectedDatabaseName : MergeCountryDb.Trim();
+        var sourceView = QualifiedName(MergeSourceDb, MergeSourceSchema, TargetViewName);
+        var destinationTable = QualifiedName(MergeDestinationDb, MergeDestinationSchema, string.IsNullOrWhiteSpace(MergeDestinationTable) ? TargetViewName : MergeDestinationTable);
+
+        var lines = new List<string>
         {
-            sourceDatabases.Add(SelectedDatabaseName);
-        }
-
-        var lines = new List<string>();
-        var firstBlock = true;
-        foreach (var sourceDatabase in sourceDatabases)
-        {
-            if (!firstBlock)
-            {
-                lines.Add("");
-            }
-
-            firstBlock = false;
-            AppendMergeBlock(lines, projectionSpecs, keySpecs, tsSpec, sourceDatabase);
-        }
-
-        return lines;
-    }
-
-    private void AppendMergeBlock(
-        List<string> lines,
-        IReadOnlyList<ProjectionSpec> projectionSpecs,
-        IReadOnlyList<ProjectionSpec> keySpecs,
-        ProjectionSpec tsSpec,
-        string sourceDatabase)
-    {
-        lines.Add($"MERGE INTO {TargetTableNameSql} AS tgt");
-        lines.Add("USING");
-        lines.Add("(");
-        lines.Add("    SELECT");
-        lines.Add("          src0.*");
-        lines.Add($"        , {QuoteSqlLiteral(sourceDatabase)} AS {QuoteIdentifier(CountryDbColumnName)}");
-        lines.Add($"    FROM {BuildMergeSourceViewName(sourceDatabase)} AS src0");
-        lines.Add(") AS src");
+            $"MERGE INTO {destinationTable} AS tgt",
+            "USING",
+            "(",
+            "    SELECT",
+            "          src0.*",
+            $"        , {QuoteSqlLiteral(countryDatabase)} AS {QuoteIdentifier(CountryDbColumnName)}",
+            $"    FROM {sourceView} AS src0",
+            ") AS src"
+        };
 
         var keyConditions = new List<string>
         {
@@ -249,15 +231,8 @@ public partial class BaseViewCreator
         }
 
         lines.Add("    );");
-    }
 
-    private string BuildMergeSourceViewName(string sourceDatabase)
-    {
-        var prefix = $"SS_{SelectedDatabaseName}_";
-        var token = TargetViewName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
-            ? TargetViewName.Substring(prefix.Length)
-            : (string.IsNullOrWhiteSpace(BaseAlias) ? SelectedTableName : BaseAlias);
-        return QualifiedName(TargetSchemaName, $"SS_{sourceDatabase}_{token}");
+        return lines;
     }
 
     private static string MergeSourceValue(ProjectionSpec spec)
