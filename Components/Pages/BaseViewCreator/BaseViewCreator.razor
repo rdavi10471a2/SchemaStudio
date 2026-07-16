@@ -225,17 +225,17 @@
                 else if (ActiveWorkspaceTab == "merge")
                 {
                     <div class="bvg-create-table-controls bvg-merge-controls">
-                        <div class="bvg-form-grid">
+                        <div class="bvg-form-grid" style="grid-template-columns: repeat(3, minmax(0, 1fr));">
                             <label>
-                                @HelpLabel("Country DB", "Value written to the CountryDB discriminator column for this load.")
+                                @HelpLabel("Country DB", "Literal written to the CountryDB column in the inlined source select and matched in the merge join.")
                                 <input @bind="MergeCountryDb" placeholder="Country DB" />
                             </label>
                             <label>
-                                @HelpLabel("Source DB", "Database that hosts the input view the merge reads from.")
+                                @HelpLabel("Source DB", "Database the inlined source select reads from.")
                                 <input @bind="MergeSourceDb" placeholder="Source database" />
                             </label>
                             <label>
-                                @HelpLabel("Source Schema", "Schema of the input view.")
+                                @HelpLabel("Source Schema", "Schema of the source table in the inlined select.")
                                 <input @bind="MergeSourceSchema" placeholder="Source schema" />
                             </label>
                             <label>

@@ -171,7 +171,8 @@ public partial class BaseViewCreator
         }
 
         var countryDatabase = string.IsNullOrWhiteSpace(MergeCountryDb) ? SelectedDatabaseName : MergeCountryDb.Trim();
-        var sourceView = QualifiedName(MergeSourceDb, MergeSourceSchema, TargetViewName);
+        var sourceDatabase = string.IsNullOrWhiteSpace(MergeSourceDb) ? SelectedDatabaseName : MergeSourceDb.Trim();
+        var sourceSchema = string.IsNullOrWhiteSpace(MergeSourceSchema) ? SelectedSchemaName : MergeSourceSchema.Trim();
         var destinationTable = QualifiedName(MergeDestinationDb, MergeDestinationSchema, string.IsNullOrWhiteSpace(MergeDestinationTable) ? TargetViewName : MergeDestinationTable);
 
         var lines = new List<string>
@@ -179,12 +180,27 @@ public partial class BaseViewCreator
             $"MERGE INTO {destinationTable} AS tgt",
             "USING",
             "(",
-            "    SELECT",
-            "          src0.*",
-            $"        , {QuoteSqlLiteral(countryDatabase)} AS {QuoteIdentifier(CountryDbColumnName)}",
-            $"    FROM {sourceView} AS src0",
-            ") AS src"
+            "    SELECT"
         };
+
+        var firstSourceColumn = true;
+        foreach (var projection in projectionSpecs)
+        {
+            lines.Add($"    {ProjectionPrefix(firstSourceColumn)}{projection.SourceProjection}");
+            firstSourceColumn = false;
+        }
+
+        lines.Add($"    {ProjectionPrefix(false)}{QuoteSqlLiteral(countryDatabase)} AS {QuoteIdentifier(CountryDbColumnName)}");
+        lines.Add($"    FROM {QualifiedName(sourceDatabase, sourceSchema, SelectedTableName)} AS {QuoteIdentifier(BaseAlias)}");
+        foreach (var relationship in GetProjectionJoinDependencies(projectionSpecs))
+        {
+            foreach (var joinLine in BuildMergeJoinLines(relationship, sourceDatabase))
+            {
+                lines.Add($"    {joinLine}");
+            }
+        }
+
+        lines.Add(") AS src");
 
         var keyConditions = new List<string>
         {
@@ -243,6 +259,20 @@ public partial class BaseViewCreator
         }
 
         return $"src.{QuoteIdentifier(spec.OutputColumnName)}";
+    }
+
+    private IEnumerable<string> BuildMergeJoinLines(TableSchemaRelationshipInfo relationship, string sourceDatabase)
+    {
+        var alias = BuildLookupAlias(relationship);
+        var predicates = relationship.Columns
+            .Select(pair => $"{QuoteIdentifier(alias)}.{QuoteIdentifier(pair.ReferencedColumnName)} = {QuoteIdentifier(BaseAlias)}.{QuoteIdentifier(pair.LocalColumnName)}");
+        if (!string.IsNullOrWhiteSpace(relationship.LookupFilterColumnName) &&
+            !string.IsNullOrWhiteSpace(relationship.LookupFilterValue))
+        {
+            predicates = predicates.Append($"{QuoteIdentifier(alias)}.{QuoteIdentifier(relationship.LookupFilterColumnName)} = {QuoteSqlLiteral(relationship.LookupFilterValue)}");
+        }
+
+        yield return $"{relationship.SelectedJoinType} {QualifiedName(sourceDatabase, relationship.ReferencedSchemaName, relationship.ReferencedTableName)} AS {QuoteIdentifier(alias)} ON {string.Join(" AND ", predicates)}";
     }
 
     private void AddProjectionLines(ICollection<string> lines, IReadOnlyList<string> projectionLines, string emptyProjectionLine, string linePrefix = "")
