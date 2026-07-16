@@ -16,6 +16,7 @@ public partial class BaseViewCreator
     private const string CountryDbColumnName = "CountryDB";
     private const string CountryDbColumnType = "varchar(128)";
     private const string RowVersionColumnName = "TS";
+    private const string SourceTsColumnName = "SourceTS";
 
     private void RegenerateSql()
     {
@@ -118,16 +119,25 @@ public partial class BaseViewCreator
         if (projectionSpecs.Count == 0)
         {
             lines.Add("      -- Select at least one column.");
+            lines.Add(");");
+            return lines;
         }
-        else
+
+        lines.Add($"{ProjectionPrefix(true)}{QuoteIdentifier(CountryDbColumnName)} {CountryDbColumnType} NOT NULL");
+        foreach (var projection in projectionSpecs)
         {
-            lines.Add($"{ProjectionPrefix(true)}{QuoteIdentifier(CountryDbColumnName)} {CountryDbColumnType} NOT NULL");
-            foreach (var projection in projectionSpecs)
-            {
-                var dataType = ResolveCreateTableType(projection);
-                var nullability = projection.IsNullable ? "NULL" : "NOT NULL";
-                lines.Add($"{ProjectionPrefix(false)}{QuoteIdentifier(projection.OutputColumnName)} {dataType} {nullability}");
-            }
+            var dataType = ResolveCreateTableType(projection);
+            var nullability = projection.IsNullable ? "NULL" : "NOT NULL";
+            lines.Add($"{ProjectionPrefix(false)}{QuoteIdentifier(DestColumnName(projection))} {dataType} {nullability}");
+        }
+
+        var keySpecs = projectionSpecs.Where(spec => spec.IsPrimaryKey).ToList();
+        if (keySpecs.Count > 0)
+        {
+            var keyColumns = new List<string> { QuoteIdentifier(CountryDbColumnName) };
+            keyColumns.AddRange(keySpecs.Select(spec => QuoteIdentifier(DestColumnName(spec))));
+            var tableToken = SanitizeAliasToken(string.IsNullOrWhiteSpace(TargetTableName) ? TargetViewName : TargetTableName);
+            lines.Add($"{ProjectionPrefix(false)}CONSTRAINT {QuoteIdentifier($"PK_{tableToken}")} PRIMARY KEY CLUSTERED ({string.Join(", ", keyColumns)})");
         }
 
         lines.Add(");");
@@ -145,6 +155,11 @@ public partial class BaseViewCreator
             ? "nvarchar(255)"
             : projection.SqlDataType;
     }
+
+    private static string DestColumnName(ProjectionSpec spec) =>
+        string.Equals(spec.OutputColumnName, RowVersionColumnName, StringComparison.OrdinalIgnoreCase)
+            ? SourceTsColumnName
+            : spec.OutputColumnName;
 
     private List<string> BuildMergeSql(IReadOnlyList<ProjectionSpec> projectionSpecs, out string unavailableReason)
     {
@@ -218,12 +233,12 @@ public partial class BaseViewCreator
         var updateSpecs = projectionSpecs.Where(spec => !spec.IsPrimaryKey).ToList();
         if (updateSpecs.Count > 0)
         {
-            lines.Add($"WHEN MATCHED AND tgt.{QuoteIdentifier(tsSpec.OutputColumnName)} <> {MergeSourceValue(tsSpec)} THEN");
+            lines.Add($"WHEN MATCHED AND {MergeSourceValue(tsSpec)} > tgt.{QuoteIdentifier(DestColumnName(tsSpec))} THEN");
             lines.Add("    UPDATE SET");
             var firstUpdate = true;
             foreach (var spec in updateSpecs)
             {
-                lines.Add($"{ProjectionPrefix(firstUpdate)}tgt.{QuoteIdentifier(spec.OutputColumnName)} = {MergeSourceValue(spec)}");
+                lines.Add($"{ProjectionPrefix(firstUpdate)}tgt.{QuoteIdentifier(DestColumnName(spec))} = {MergeSourceValue(spec)}");
                 firstUpdate = false;
             }
         }
@@ -234,7 +249,7 @@ public partial class BaseViewCreator
         lines.Add($"{ProjectionPrefix(true)}{QuoteIdentifier(CountryDbColumnName)}");
         foreach (var spec in projectionSpecs)
         {
-            lines.Add($"{ProjectionPrefix(false)}{QuoteIdentifier(spec.OutputColumnName)}");
+            lines.Add($"{ProjectionPrefix(false)}{QuoteIdentifier(DestColumnName(spec))}");
         }
 
         lines.Add("    )");
