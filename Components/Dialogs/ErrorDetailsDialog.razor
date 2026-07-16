@@ -1,0 +1,43 @@
+@using SchemaStudio.AIHelpers
+@inject IJSRuntime JSRuntime
+@inject DialogService DialogService
+
+@attribute [FileVersion("1.0")]
+@attribute [AIFileContext("Components/Dialogs/ErrorDetailsDialog.razor", "Read-only popup that shows the full error detail (exception message chain and stack trace) for a failed operation, with copy-to-clipboard. Used by Manage Views error reporting to surface why a SQL view failed to parse.")]
+
+<RadzenStack Gap="0.75rem" Style="padding: 10px; height: 100%; overflow: hidden;">
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween">
+        <RadzenText TextStyle="TextStyle.Subtitle2" Style="margin: 0;">@Summary</RadzenText>
+        <RadzenButton Text="Copy" Icon="content_copy" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="@CopyAsync" />
+    </RadzenStack>
+
+    <div style="flex-grow: 1; border: 1px solid #c9d1d9; border-radius: 4px; overflow: auto; background: #ffffff; color: #111827;">
+        <pre style="margin: 0; min-height: 100%; padding: 12px; white-space: pre-wrap; word-break: break-word; font-family: Consolas, 'Courier New', monospace; font-size: 12px; line-height: 1.45; background: #ffffff; color: #111827;">@Detail</pre>
+    </div>
+
+    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End">
+        <RadzenButton Text="Close" ButtonStyle="ButtonStyle.Primary" Click="@CloseDialog" />
+    </RadzenStack>
+</RadzenStack>
+
+@code {
+    [Parameter] public string Summary { get; set; } = string.Empty;
+    [Parameter] public string Detail { get; set; } = string.Empty;
+
+    private async Task CopyAsync()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", Detail ?? string.Empty);
+        }
+        catch
+        {
+            // Clipboard access can be blocked by the browser; the text remains selectable in the dialog.
+        }
+    }
+
+    private void CloseDialog()
+    {
+        DialogService.Close();
+    }
+}

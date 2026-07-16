@@ -741,8 +741,66 @@ public partial class ManageViewsNext
 
     private void NotifyFailure(string summary, Exception ex)
     {
-        LoadError = ex.Message;
-        NotificationService.Notify(NotificationSeverity.Error, summary, ex.Message, 5000);
+        var detail = BuildErrorDetail(ex);
+        LoadError = detail;
+
+        NotificationService.Notify(new NotificationMessage
+        {
+            Severity = NotificationSeverity.Error,
+            Summary = summary,
+            Detail = detail,
+            Duration = 60000,
+            CloseOnClick = true
+        });
+
+        _ = ShowErrorDetailsAsync(summary, ex);
+    }
+
+    private async Task ShowErrorDetailsAsync(string summary, Exception ex)
+    {
+        try
+        {
+            await DialogService.OpenAsync<ErrorDetailsDialog>(
+                summary,
+                new Dictionary<string, object?>
+                {
+                    ["Summary"] = summary,
+                    ["Detail"] = ex.ToString()
+                },
+                new DialogOptions
+                {
+                    Width = "900px",
+                    Height = "620px",
+                    Resizable = true,
+                    Draggable = true
+                });
+        }
+        catch
+        {
+            // The dialog host may not be available (for example during initial render);
+            // the error toast and inline banner still carry the full detail.
+        }
+    }
+
+    private static string BuildErrorDetail(Exception ex)
+    {
+        var builder = new System.Text.StringBuilder();
+        var current = ex;
+        var depth = 0;
+
+        while (current != null)
+        {
+            if (depth > 0)
+            {
+                builder.Append(System.Environment.NewLine).Append("-> ");
+            }
+
+            builder.Append(current.GetType().Name).Append(": ").Append(current.Message);
+            current = current.InnerException;
+            depth++;
+        }
+
+        return builder.ToString();
     }
 
     private sealed class ViewWorkspaceItem
