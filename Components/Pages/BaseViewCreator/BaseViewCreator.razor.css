@@ -1284,6 +1284,33 @@
     border-bottom: 1px solid #e7ebf0;
 }
 
+.bvg-merge-config {
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    border-bottom: 1px solid #e7ebf0;
+    background: #f8f9fb;
+}
+
+.bvg-merge-config-header {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.5rem 0.75rem;
+}
+
+.bvg-merge-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0 0.75rem 0.75rem;
+}
+
+.bvg-merge-source-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
 @media (max-width: 1200px) {
     .bvg-layout {
         grid-template-columns: minmax(0, 1fr);

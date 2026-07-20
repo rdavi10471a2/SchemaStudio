@@ -201,7 +201,7 @@
             <header class="bvg-tabs" role="tablist" aria-label="Base view generator workspace">
                 <button type="button" class="@TabClass("tree")" @onclick='() => SetWorkspaceTab("tree")'>Select Projection</button>
                 <button type="button" class="@TabClass("sql")" @onclick='() => SetWorkspaceTab("sql")'>Generated SQL</button>
-                <button type="button" class="@TabClass("table")" @onclick='() => SetWorkspaceTab("table")'>CREATE TABLE</button>
+                <button type="button" class="@TabClass("table")" @onclick='() => SetWorkspaceTab("table")'>Create Table</button>
                 <button type="button" class="@TabClass("merge")" @onclick='() => SetWorkspaceTab("merge")'>MERGE</button>
                 <button type="button" class="bvg-tab bvg-source-toggle-tab" @onclick="ToggleSourcePanel">@(SourcePanelCollapsed ? "Show Source View" : "Hide Source View")</button>
             </header>
@@ -224,38 +224,47 @@
                 }
                 else if (ActiveWorkspaceTab == "merge")
                 {
-                    <div class="bvg-create-table-controls bvg-merge-controls">
-                        <div class="bvg-form-grid" style="grid-template-columns: repeat(3, minmax(0, 1fr));">
-                            <label>
-                                @HelpLabel("Country DB", "Literal written to the CountryDB column in the inlined source select and matched in the merge join.")
-                                <input @bind="MergeCountryDb" placeholder="Country DB" />
-                            </label>
-                            <label>
-                                @HelpLabel("Source DB", "Database the inlined source select reads from.")
-                                <input @bind="MergeSourceDb" placeholder="Source database" />
-                            </label>
-                            <label>
-                                @HelpLabel("Source Schema", "Schema of the source table in the inlined select.")
-                                <input @bind="MergeSourceSchema" placeholder="Source schema" />
-                            </label>
-                            <label>
-                                @HelpLabel("Destination DB", "Database that hosts the output table.")
-                                <input @bind="MergeDestinationDb" placeholder="Destination database" />
-                            </label>
-                            <label>
-                                @HelpLabel("Destination Schema", "Schema of the output table.")
-                                <input @bind="MergeDestinationSchema" placeholder="Destination schema" />
-                            </label>
-                            <label>
-                                @HelpLabel("Destination Table", "Output table the merge writes into.")
-                                <input @bind="MergeDestinationTable" placeholder="Destination table" />
-                            </label>
-                        </div>
-                        <div class="bvg-merge-source-actions">
-                            <button type="button" class="bvg-button primary" @onclick="RegenerateMerge">Regenerate MERGE</button>
-                            <button type="button" class="bvg-button secondary" @onclick="CopyMergeSqlAsync" disabled="@(!string.IsNullOrWhiteSpace(MergeUnavailableReason) || string.IsNullOrWhiteSpace(GeneratedMergeSql))">Copy MERGE</button>
-                        </div>
-                    </div>
+                    <section class="bvg-merge-config">
+                        <header class="bvg-merge-config-header">
+                            <button type="button" class="bvg-group-toggle" @onclick="ToggleMergeControls">@(MergeControlsExpanded ? "-" : "+")</button>
+                            <span class="bvg-group-label">Merge Settings</span>
+                        </header>
+                        @if (MergeControlsExpanded)
+                        {
+                            <div class="bvg-create-table-controls bvg-merge-controls">
+                                <div class="bvg-form-grid bvg-merge-grid" style="grid-template-columns: repeat(3, minmax(0, 1fr));">
+                                    <label>
+                                        @HelpLabel("Country DB", "Literal written to the CountryDB column in the inlined source select and matched in the merge join.")
+                                        <input @bind="MergeCountryDb" placeholder="Country DB" />
+                                    </label>
+                                    <label style="grid-column: 1;">
+                                        @HelpLabel("Source DB", "Database the inlined source select reads from.")
+                                        <input @bind="MergeSourceDb" placeholder="Source database" />
+                                    </label>
+                                    <label>
+                                        @HelpLabel("Source Schema", "Schema of the source table in the inlined select.")
+                                        <input @bind="MergeSourceSchema" placeholder="Source schema" />
+                                    </label>
+                                    <label style="grid-column: 1;">
+                                        @HelpLabel("Destination DB", "Database that hosts the output table.")
+                                        <input @bind="MergeDestinationDb" placeholder="Destination database" />
+                                    </label>
+                                    <label>
+                                        @HelpLabel("Destination Schema", "Schema of the output table.")
+                                        <input @bind="MergeDestinationSchema" placeholder="Destination schema" />
+                                    </label>
+                                    <label>
+                                        @HelpLabel("Destination Table", "Output table the merge writes into.")
+                                        <input @bind="MergeDestinationTable" placeholder="Destination table" />
+                                    </label>
+                                </div>
+                                <div class="bvg-merge-source-actions">
+                                    <button type="button" class="bvg-button primary" @onclick="RegenerateMerge">Regenerate MERGE</button>
+                                    <button type="button" class="bvg-button secondary" @onclick="CopyMergeSqlAsync" disabled="@(!string.IsNullOrWhiteSpace(MergeUnavailableReason) || string.IsNullOrWhiteSpace(GeneratedMergeSql))">Copy MERGE</button>
+                                </div>
+                            </div>
+                        }
+                    </section>
                     @if (!string.IsNullOrWhiteSpace(MergeUnavailableReason))
                     {
                         <RadzenAlert AlertStyle="AlertStyle.Danger" Variant="Variant.Flat">@MergeUnavailableReason</RadzenAlert>
@@ -478,6 +487,7 @@
     private string MergeDestinationTable = "";
     private string ActiveWorkspaceTab = "tree";
     private string ActiveSourceInfoTab = "options";
+    private bool MergeControlsExpanded = true;
     private bool HighlightSqlPending;
     private bool SourceGroupExpanded = true;
     private bool SourcePanelCollapsed;
@@ -705,6 +715,11 @@
     private void ToggleSourcePanel()
     {
         SourcePanelCollapsed = !SourcePanelCollapsed;
+    }
+
+    private void ToggleMergeControls()
+    {
+        MergeControlsExpanded = !MergeControlsExpanded;
     }
 
     private void BeginSourcePaneResize(PointerEventArgs args)
