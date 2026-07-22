@@ -54,8 +54,6 @@ namespace SchemaStudioWebViewer
             builder.Services.AddScoped(_ =>
                 new DatabaseRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
             builder.Services.AddScoped(_ =>
-                new DatabaseLookupRelationshipRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
-            builder.Services.AddScoped(_ =>
                 new DatabaseRelationshipRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
             builder.Services.AddScoped(_ =>
                 new DatabaseDomainRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
@@ -70,6 +68,9 @@ namespace SchemaStudioWebViewer
                 new SchemaObjectColumnRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
             builder.Services.AddScoped(_ =>
                 new SqlObjectDependencyRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
+
+            // Circuit-scoped state so the Base View Creator page retains work across navigation.
+            builder.Services.AddScoped<SchemaStudioWebViewer.Components.Pages.BaseViewCreator.BaseViewCreatorState>();
 
             var app = builder.Build();
 

@@ -5,7 +5,7 @@ using System.ComponentModel;
 
 namespace SchemaStudioWebViewer.Data;
 
-[FileVersion("1.8")]
+[FileVersion("1.10")]
 [AIFileContext("Repositories/TableSchemaSmoRepository.cs", "Reads SQL Server table metadata for the Base View Generator page.", Responsibilities = "Provides schema, table, column, and many-to-one foreign-key metadata from a selected source database without changing the configured connection string.", Nuances = "The class name is retained from the first SMO implementation, but the metadata reads use targeted sys catalog queries because SMO object hydration was too slow for interactive use.", LastReviewed = "2026-05-07")]
 public sealed class TableSchemaSmoRepository
 {
@@ -62,7 +62,7 @@ ORDER BY t.name;
         return tables.ToList();
     }
 
-    public async Task<TableSchemaDetails> GetTableDetailsAsync(string databaseName, string schemaName, string tableName, string? lookupDiscoverySqlTemplate = null)
+    public async Task<TableSchemaDetails> GetTableDetailsAsync(string databaseName, string schemaName, string tableName)
     {
         ValidateDatabaseName(databaseName);
         var database = QuoteSqlIdentifier(databaseName);
@@ -119,15 +119,8 @@ ORDER BY t.name;
                 pairs));
         }
 
-        relationships.AddRange(await GetTemplateLookupRelationshipsAsync(
-            connection,
-            database,
-            databaseName,
-            schemaName,
-            tableName,
-            columnByName,
-            relationships,
-            lookupDiscoverySqlTemplate));
+        // COLOOKUP lookups are no longer synthesized here (the hardcoded discovery hack was removed);
+        // they are curated in the relationship registry via DatabaseRelationshipsPanel and loaded from there.
 
         var childRelationshipRows = (await connection.QueryAsync<TableSchemaChildRelationshipRow>(BuildChildRelationshipsSql(database), new { tableObjectId })).ToList();
         var childRelationships = childRelationshipRows
@@ -456,16 +449,20 @@ ORDER BY ps.name, pt.name, fk.name, fkc.constraint_column_id;
 """;
     }
 
-    private async Task<IReadOnlyList<TableSchemaRelationshipInfo>> GetTemplateLookupRelationshipsAsync(
-        SqlConnection connection,
-        string database,
+    /// <summary>
+    /// Runs the database's configured lookup-discovery SQL template for one source table and returns
+    /// the raw candidate names it yields (e.g. the COLOOKUP.Name values). This is a pure retrieve: it
+    /// substitutes the [database]/[schema]/[table] tokens and executes the query, but does not build
+    /// or hardcode any lookup relationships. Callers decide how to turn the names into records.
+    /// </summary>
+    public async Task<IReadOnlyList<string>> GetLookupCandidateNamesAsync(
         string databaseName,
         string schemaName,
         string tableName,
-        IReadOnlyDictionary<string, TableSchemaColumnInfo> columnByName,
-        IReadOnlyList<TableSchemaRelationshipInfo> existingRelationships,
         string? lookupDiscoverySqlTemplate)
     {
+        ValidateDatabaseName(databaseName);
+
         if (string.IsNullOrWhiteSpace(lookupDiscoverySqlTemplate))
         {
             return [];
@@ -477,64 +474,13 @@ ORDER BY ps.name, pt.name, fk.name, fkc.constraint_column_id;
             return [];
         }
 
-        var lookupNames = (await connection.QueryAsync<string>(discoverySql))
+        await using var connection = new SqlConnection(connectionString);
+        await EnsureDatabaseExistsAsync(connection, databaseName);
+
+        return (await connection.QueryAsync<string>(discoverySql))
             .Where(name => !string.IsNullOrWhiteSpace(name))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
-
-        if (lookupNames.Count == 0)
-        {
-            return [];
-        }
-
-        var displayColumnName = await GetPreferredColumnNameAsync(
-            connection,
-            database,
-            "dbo",
-            "COLOOKUP",
-            displayColumnPolicy.GetPreferredDisplayColumns(databaseName, "dbo", "COLOOKUP"));
-        var lookupKeyColumnName = await GetPreferredColumnNameAsync(connection, database, "dbo", "COLOOKUP", ["Id"]);
-
-        if (string.IsNullOrWhiteSpace(lookupKeyColumnName))
-        {
-            return [];
-        }
-
-        var tablePrefix = $"{tableName}_";
-        var relationships = new List<TableSchemaRelationshipInfo>();
-        var existingLocalColumns = existingRelationships
-            .SelectMany(relationship => relationship.Columns.Select(column => column.LocalColumnName))
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var lookupName in lookupNames)
-        {
-            if (!lookupName.StartsWith(tablePrefix, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            var localColumnName = lookupName[tablePrefix.Length..];
-            if (!columnByName.TryGetValue(localColumnName, out var localColumn) ||
-                !existingLocalColumns.Add(localColumnName))
-            {
-                continue;
-            }
-
-            localColumn.IsForeignKey = true;
-
-            relationships.Add(new TableSchemaRelationshipInfo(
-                $"LOOKUP_COLOOKUP_{tableName}_{localColumnName}",
-                "dbo",
-                "COLOOKUP",
-                displayColumnName,
-                !localColumn.IsNullable,
-                localColumn.IsNullable ? "LEFT JOIN" : "INNER JOIN",
-                [new TableSchemaForeignKeyColumnInfo(localColumnName, lookupKeyColumnName)],
-                "Name",
-                lookupName));
-        }
-
-        return relationships;
     }
 
     private static string BuildLookupDiscoverySql(string template, string databaseName, string schemaName, string tableName, string columnName)
@@ -552,37 +498,6 @@ ORDER BY ps.name, pt.name, fk.name, fkc.constraint_column_id;
         }
 
         return sql;
-    }
-
-    private static async Task<string?> GetPreferredColumnNameAsync(
-        SqlConnection connection,
-        string database,
-        string schemaName,
-        string tableName,
-        IReadOnlyList<string> preferredColumnNames)
-    {
-        if (preferredColumnNames.Count == 0)
-        {
-            return null;
-        }
-
-        var sql = $"""
-SELECT
-    c.name
-FROM {database}.sys.tables AS t
-JOIN {database}.sys.schemas AS s
-    ON s.schema_id = t.schema_id
-JOIN {database}.sys.columns AS c
-    ON c.object_id = t.object_id
-WHERE s.name = @schemaName
-    AND t.name = @tableName
-    AND c.name IN @preferredColumnNames;
-""";
-
-        var availableColumns = (await connection.QueryAsync<string>(sql, new { schemaName, tableName, preferredColumnNames }))
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        return preferredColumnNames.FirstOrDefault(availableColumns.Contains);
     }
 
     private static void ValidateDatabaseName(string databaseName)

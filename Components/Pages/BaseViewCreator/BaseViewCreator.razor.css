@@ -1158,6 +1158,10 @@
 }
 
 .bvg-sql-output {
+    /* SQL syntax-highlight colours, moved here from inline styles on the tab markup. */
+    --sql-keyword-color: #0000ff;
+    --sql-comment-color: #008000;
+    --sql-string-color: #a31515;
     flex: 1;
     min-height: 0;
     overflow: auto;
@@ -1309,6 +1313,14 @@
 .bvg-merge-source-actions {
     display: flex;
     gap: 0.5rem;
+}
+
+.bvg-merge-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.bvg-merge-grid .bvg-merge-row-start {
+    grid-column: 1;
 }
 
 @media (max-width: 1200px) {

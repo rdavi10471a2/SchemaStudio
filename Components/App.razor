@@ -1,6 +1,6 @@
-﻿@using SchemaStudio.AIHelpers
+@using SchemaStudio.AIHelpers
 
-@attribute [FileVersion("1.7")]
+@attribute [FileVersion("1.8")]
 @attribute [AIFileContext("Components/App.razor", "Defines the root HTML shell, shared browser-side state helpers, script references, and global client behaviors for the Blazor app.")]
 
 <!DOCTYPE html>
@@ -58,17 +58,21 @@
                 if (!window.Prism) return;
 
                 for (let i = 0; i < maxRetries; i++) {
-                    const codeBlock = document.querySelector('.sql-code-container code');
+                    // Highlight every SQL block currently in the DOM, not just the document's first
+                    // match. A keyed re-render (e.g. the Base View Creator SQL/Create Table/Merge
+                    // tabs) swaps in a fresh <code> node, so re-running highlighting on each attempt
+                    // keeps the newest node coloured instead of leaving Prism's dark theme showing.
+                    const codeBlocks = document.querySelectorAll('.sql-code-container code');
 
-                    if (codeBlock) {
-                        window.Prism.highlightElement(codeBlock);
+                    if (codeBlocks.length > 0) {
+                        codeBlocks.forEach(codeBlock => window.Prism.highlightElement(codeBlock));
                         return;
                     }
 
-                    await new Promise(resolve => setTimeout(resolve, 100));
+                    await new Promise(resolve => setTimeout(resolve, 50));
                 }
 
-                console.warn("Prism highlight failed: Element not found after 30 attempts.");
+                console.warn("Prism highlight failed: no .sql-code-container code element found.");
             };
 
             window.domModeler = {

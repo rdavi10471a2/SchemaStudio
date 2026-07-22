@@ -5,12 +5,11 @@
 @using SchemaStudio.Data.Repositories
 @using SchemaStudioWebViewer.Data
 @inject DatabaseRelationshipRepository RelationshipRepository
-@inject DatabaseLookupRelationshipRepository LookupRelationshipRepository
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("2.18")]
+@attribute [FileVersion("2.21")]
 @attribute [AIFileContext("Components/Pages/ManageDatabases/DatabaseRelationshipsPanel.razor", "Manage Databases child panel for the curated database relationship registry.", Responsibilities = "Loads source tables, imports source-system foreign-key relationships into dbo.DatabaseRelationships, and displays the registry rows that touch the selected table.", Nuances = "The panel does not create metadata tables; database DDL stays in human-run scripts.", LastReviewed = "2026-05-13")]
 
 <RadzenStack Gap="0.75rem"
@@ -132,6 +131,18 @@
                                       ButtonStyle="ButtonStyle.Primary"
                                       title="Load relationships detected from the source system for review before saving."
                                       Click="@ImportForeignKeysAsync"
+                                      Disabled="@(!CanImport)" />
+                        <RadzenButton Icon="visibility"
+                                      Text="Preview Lookups"
+                                      ButtonStyle="ButtonStyle.Light"
+                                      title="Preview the COLOOKUP lookups this database's query would create for the selected table, before staging them."
+                                      Click="@PreviewLookupCandidatesAsync"
+                                      Disabled="@(!CanImport)" />
+                        <RadzenButton Icon="search"
+                                      Text="Load Lookups"
+                                      ButtonStyle="ButtonStyle.Primary"
+                                      title="Run this database's lookup query for the selected table and stage the discovered COLOOKUP lookups (mapped to DES1) for review before Save All."
+                                      Click="@ImportLookupCandidatesAsync"
                                       Disabled="@(!CanImport)" />
                         <RadzenButton Icon="save"
                                       Text="Save All"
@@ -397,6 +408,57 @@
     }
 </RadzenStack>
 
+@if (showLookupPreview)
+{
+    <div class="lookup-preview-backdrop" @onclick="CloseLookupPreview">
+        <div class="lookup-preview-dialog" @onclick:stopPropagation="true">
+            <div class="lookup-preview-header">
+                <span>Lookup preview@(string.IsNullOrWhiteSpace(selectedTableName) ? "" : $" for {selectedTableName.Trim()}") — @lookupPreview.Count candidate(s)</span>
+                <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="@CloseLookupPreview" title="Close" />
+            </div>
+            <div class="lookup-preview-body">
+                @if (lookupPreview.Count == 0)
+                {
+                    <p class="lookup-preview-empty">No COLOOKUP lookup candidates were returned for this table.</p>
+                }
+                else
+                {
+                    <table class="lookup-preview-table">
+                        <thead>
+                            <tr>
+                                <th>Source Column</th>
+                                <th>Lookup Target</th>
+                                <th>Display</th>
+                                <th>Filter</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var preview in lookupPreview)
+                            {
+                                <tr>
+                                    <td>@(preview.Columns.FirstOrDefault()?.SourceColumnName)</td>
+                                    <td>@($"{preview.TargetSchemaName}.{preview.TargetTableName}")</td>
+                                    <td>@preview.DisplayColumnName</td>
+                                    <td>@($"{preview.FilterColumnName} = '{preview.FilterValue}'")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+            <div class="lookup-preview-footer">
+                <RadzenButton Icon="playlist_add"
+                              Text="Load These"
+                              ButtonStyle="ButtonStyle.Primary"
+                              Click="@StageLookupPreviewFromPopup"
+                              Disabled="@(lookupPreview.Count == 0)"
+                              title="Stage these lookups into the list, then use Save All to write them back." />
+                <RadzenButton Icon="close" Text="Close" ButtonStyle="ButtonStyle.Light" Click="@CloseLookupPreview" />
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     [Parameter]
     public DatabaseDefinition? Database { get; set; }
@@ -421,6 +483,8 @@
     private int resizeStartWidth;
     private int relationshipListWidth = RelationshipListDefaultWidth;
     private string relationshipListMode = SourceListMode;
+    private bool showLookupPreview;
+    private List<DatabaseRelationshipDefinition> lookupPreview = new();
 
     private const int RelationshipListDefaultWidth = 340;
     private const int RelationshipListMinWidth = 260;
@@ -433,6 +497,12 @@
     private const string DiscoveryManualChild = "ManualChild";
     private const string DiscoverySchemaLookup = "SchemaLookup";
     private const string DiscoverySchemaChild = "SchemaChild";
+    // COLOOKUP is the shared code/lookup table; its lookups always project the DES1 description column.
+    private const string ColookupTargetSchema = "dbo";
+    private const string ColookupTargetTable = "COLOOKUP";
+    private const string ColookupKeyColumn = "Id";
+    private const string ColookupFilterColumn = "Name";
+    private const string ColookupDisplayColumn = "DES1";
     private static readonly string[] joinTypes = ["LEFT JOIN", "INNER JOIN", "LEFT OUTER JOIN", "JOIN"];
     private static readonly string[] baseViewActions = [BaseViewActionUseLookup, BaseViewActionIgnore];
     private static readonly Dictionary<int, RelationshipPanelState> stateByDatabaseId = new();
@@ -705,8 +775,7 @@
             var details = await TableSchemaRepository.GetTableDetailsAsync(
                 Database.DatabaseName,
                 schemaName.Trim(),
-                selectedTableName.Trim(),
-                Database.SQLLookupString);
+                selectedTableName.Trim());
 
             var imported = 0;
             var childImported = 0;
@@ -768,6 +837,167 @@
         {
             isLoading = false;
         }
+    }
+
+    private async Task ImportLookupCandidatesAsync()
+    {
+        if (Database is null || string.IsNullOrWhiteSpace(selectedTableName))
+        {
+            return;
+        }
+
+        isLoading = true;
+        SetStatus("", AlertStyle.Info);
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            StageBuiltLookups(await BuildColookupLookupPreviewAsync());
+        }
+        catch (Exception ex)
+        {
+            SetStatus(FriendlyError(ex), AlertStyle.Danger);
+            Notify(NotificationSeverity.Error, FriendlyError(ex));
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task PreviewLookupCandidatesAsync()
+    {
+        if (Database is null || string.IsNullOrWhiteSpace(selectedTableName))
+        {
+            return;
+        }
+
+        isLoading = true;
+        SetStatus("", AlertStyle.Info);
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            lookupPreview = await BuildColookupLookupPreviewAsync();
+            showLookupPreview = true;
+
+            var message = lookupPreview.Count == 0
+                ? $"The lookup query returned no COLOOKUP candidates for {selectedTableName.Trim()}."
+                : $"Previewing {lookupPreview.Count} COLOOKUP lookup(s) for {selectedTableName.Trim()}. Use Load These to stage them.";
+            SetStatus(message, lookupPreview.Count == 0 ? AlertStyle.Info : AlertStyle.Success);
+        }
+        catch (Exception ex)
+        {
+            SetStatus(FriendlyError(ex), AlertStyle.Danger);
+            Notify(NotificationSeverity.Error, FriendlyError(ex));
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void CloseLookupPreview()
+    {
+        showLookupPreview = false;
+    }
+
+    private void StageLookupPreviewFromPopup()
+    {
+        showLookupPreview = false;
+        StageBuiltLookups(lookupPreview);
+    }
+
+    private async Task<List<DatabaseRelationshipDefinition>> BuildColookupLookupPreviewAsync()
+    {
+        var schema = schemaName.Trim();
+        var table = selectedTableName.Trim();
+        var candidateNames = await TableSchemaRepository.GetLookupCandidateNamesAsync(
+            Database!.DatabaseName,
+            schema,
+            table,
+            Database.SQLLookupString);
+
+        var prefix = $"{table}_";
+        var built = new List<DatabaseRelationshipDefinition>();
+        foreach (var name in candidateNames)
+        {
+            if (!name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var sourceColumn = name[prefix.Length..].Trim();
+            if (string.IsNullOrWhiteSpace(sourceColumn))
+            {
+                continue;
+            }
+
+            built.Add(BuildColookupLookupRelationship(Database.DatabaseId, schema, table, sourceColumn, name));
+        }
+
+        return built;
+    }
+
+    private void StageBuiltLookups(List<DatabaseRelationshipDefinition> built)
+    {
+        foreach (var relationship in built)
+        {
+            StageRelationship(relationships, CloneRelationship(relationship));
+        }
+
+        relationshipListMode = SourceListMode;
+        selectedRelationship = relationships.FirstOrDefault();
+        selectedRelationships = selectedRelationship is null
+            ? new List<DatabaseRelationshipDefinition>()
+            : new List<DatabaseRelationshipDefinition> { selectedRelationship };
+        editRelationship = selectedRelationship is null ? null : CloneRelationship(selectedRelationship);
+
+        var table = selectedTableName.Trim();
+        var message = built.Count == 0
+            ? (string.IsNullOrWhiteSpace(Database?.SQLLookupString)
+                ? $"No lookup query is configured for {Database?.DatabaseName}; nothing to discover."
+                : $"The lookup query returned no COLOOKUP candidates for {table}.")
+            : $"Staged {built.Count} COLOOKUP lookup(s) for {table}, each mapped to {ColookupDisplayColumn}. Review and Save All to write them back.";
+        SetStatus(message, built.Count == 0 ? AlertStyle.Info : AlertStyle.Success);
+        Notify(built.Count == 0 ? NotificationSeverity.Info : NotificationSeverity.Success, message);
+        CacheState();
+    }
+
+    private DatabaseRelationshipDefinition BuildColookupLookupRelationship(
+        int databaseId,
+        string sourceSchema,
+        string sourceTable,
+        string sourceColumn,
+        string lookupName)
+    {
+        var columns = new List<DatabaseRelationshipColumnDefinition>
+        {
+            new()
+            {
+                OrdinalPosition = 1,
+                SourceColumnName = Truncate(sourceColumn, 128) ?? "",
+                TargetColumnName = ColookupKeyColumn
+            }
+        };
+
+        return new DatabaseRelationshipDefinition
+        {
+            DatabaseId = databaseId,
+            SourceSchemaName = sourceSchema,
+            SourceTableName = sourceTable,
+            TargetSchemaName = ColookupTargetSchema,
+            TargetTableName = ColookupTargetTable,
+            JoinType = "LEFT JOIN",
+            DiscoverySource = DiscoverySchemaLookup,
+            SourceConstraintName = Truncate($"LOOKUP_{ColookupTargetTable}_{sourceTable}_{sourceColumn}", 128),
+            JoinExpression = BuildJoinExpression(sourceTable, ColookupTargetTable, columns),
+            IncludeLookupByDefault = true,
+            DisplayColumnName = ColookupDisplayColumn,
+            FilterColumnName = ColookupFilterColumn,
+            FilterValue = Truncate(lookupName, 128),
+            Columns = columns
+        };
     }
 
     private void SelectRelationship(DatabaseRelationshipDefinition relationship)
@@ -1054,8 +1284,7 @@
             var details = await TableSchemaRepository.GetTableDetailsAsync(
                 Database.DatabaseName,
                 editRelationship.TargetSchemaName.Trim(),
-                editRelationship.TargetTableName.Trim(),
-                Database.SQLLookupString);
+                editRelationship.TargetTableName.Trim());
             targetColumnOptions = details.Columns.Select(column => column.ColumnName).ToList();
             targetColumnOptionsKey = key;
         }
