@@ -56,10 +56,14 @@
         <RadzenProgressBar Mode="ProgressBarMode.Indeterminate" />
     }
 
-    <RadzenRow Gap="1rem" class="mdb-shell">
+    <div class="@ShellClass"
+         style="@ShellStyle"
+         @onpointermove="@ResizeDatabaseList"
+         @onpointerup="@EndDatabaseListResize"
+         @onpointerleave="@EndDatabaseListResize">
         @if (!isDatabaseListHidden)
         {
-            <RadzenColumn Size="12" SizeLG="4" class="mdb-list-column">
+            <div class="mdb-list-column">
                 <div class="mdb-list-panel">
                     @if (databases.Count == 0 && !isLoading)
                     {
@@ -91,10 +95,15 @@
                         </RadzenDataGrid>
                     }
                 </div>
-            </RadzenColumn>
+            </div>
+            <button type="button"
+                    class="mdb-resize-handle"
+                    title="Resize database list"
+                    aria-label="Resize database list"
+                    @onpointerdown="@BeginDatabaseListResize"></button>
         }
 
-        <RadzenColumn Size="12" SizeLG="@(isDatabaseListHidden ? 12 : 8)" class="mdb-detail-column">
+        <div class="mdb-detail-column">
             <div class="mdb-detail-panel">
                 @if (selectedDatabase is null)
                 {
@@ -113,9 +122,20 @@
                                                     Data="@editDatabase"
                                                     Submit="@SaveDatabase">
                                     <DataAnnotationsValidator />
-                                    <RadzenStack Gap="0.25rem" class="rz-px-4 rz-pt-4">
-                                        <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-m-0">Edit Selected Database</RadzenText>
-                                        <RadzenText TextStyle="TextStyle.Body2" Style="color:#495057;">@selectedDatabase.DatabaseName</RadzenText>
+                                    <RadzenStack Orientation="Orientation.Horizontal"
+                                                 AlignItems="AlignItems.Center"
+                                                 JustifyContent="JustifyContent.SpaceBetween"
+                                                 Gap="1rem"
+                                                 class="rz-px-4 rz-pt-4">
+                                        <RadzenStack Gap="0.25rem">
+                                            <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-m-0">Edit Selected Database</RadzenText>
+                                            <RadzenText TextStyle="TextStyle.Body2" Style="color:#495057;">@selectedDatabase.DatabaseName</RadzenText>
+                                        </RadzenStack>
+                                        <RadzenButton Icon="account_tree"
+                                                      Text="Relationships"
+                                                      ButtonStyle="ButtonStyle.Light"
+                                                      title="Open the relationship registry for this database."
+                                                      Click="@OpenRelationshipsDialog" />
                                     </RadzenStack>
                                     @DatabaseFormFields(editDatabase)
 
@@ -199,17 +219,12 @@
                                     }
                                 </RadzenStack>
                             </RadzenTabsItem>
-
-                            <RadzenTabsItem Text="Relationships" Icon="account_tree">
-                                <DatabaseRelationshipsPanel @key="selectedDatabase.DatabaseId"
-                                                            Database="@selectedDatabase" />
-                            </RadzenTabsItem>
                         </Tabs>
                     </RadzenTabs>
                 }
             </div>
-        </RadzenColumn>
-    </RadzenRow>
+        </div>
+    </div>
 </RadzenStack>
 
 @if (isNewDatabaseDialogOpen)
@@ -292,18 +307,65 @@
         display: flex;
         flex: 1 1 auto;
         flex-wrap: nowrap;
+        gap: 0;
         min-height: 0;
         align-items: stretch;
         overflow: hidden;
     }
 
-    .mdb-list-column,
+    .mdb-shell.mdb-list-resizing {
+        cursor: col-resize;
+        user-select: none;
+    }
+
+    .mdb-list-column {
+        display: flex;
+        flex-direction: column;
+        flex: 0 0 var(--mdb-list-width, 340px);
+        width: var(--mdb-list-width, 340px);
+        min-height: 0;
+        min-width: 0;
+    }
+
     .mdb-detail-column {
         display: flex;
         flex-direction: column;
         flex: 1 1 auto;
         min-height: 0;
         min-width: 0;
+    }
+
+    .mdb-resize-handle {
+        flex: 0 0 auto;
+        align-self: stretch;
+        width: 10px;
+        margin: 0 0.25rem;
+        padding: 0;
+        border: none;
+        border-radius: 6px;
+        background: transparent;
+        cursor: col-resize;
+        position: relative;
+        touch-action: none;
+    }
+
+    .mdb-resize-handle::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 50%;
+        width: 2px;
+        transform: translateX(-50%);
+        background: #dee2e6;
+        border-radius: 2px;
+        transition: background 0.15s ease, width 0.15s ease;
+    }
+
+    .mdb-resize-handle:hover::before,
+    .mdb-resize-handle:focus-visible::before {
+        background: var(--rz-primary);
+        width: 3px;
     }
 
     .mdb-list-panel,
@@ -428,6 +490,20 @@
     }
 
     @@media (max-width: 1320px) {
+        .mdb-shell {
+            flex-direction: column;
+            overflow: auto;
+        }
+
+        .mdb-list-column {
+            flex: 0 0 auto;
+            width: 100%;
+        }
+
+        .mdb-resize-handle {
+            display: none;
+        }
+
         .mdb-list-panel,
         .mdb-detail-panel {
             height: 100%;
@@ -463,7 +539,20 @@
     private bool isDatabaseListHidden;
     private int selectedTabIndex;
     private string loadError = "";
-    private const int RelationshipsTabIndex = 2;
+    private int databaseListWidth = DatabaseListDefaultWidth;
+    private bool isResizingDatabaseList;
+    private double databaseListResizeStartX;
+    private int databaseListResizeStartWidth;
+
+    private const int DatabaseListDefaultWidth = 340;
+    private const int DatabaseListMinWidth = 200;
+    private const int DatabaseListMaxWidth = 620;
+
+    private string ShellClass =>
+        isResizingDatabaseList ? "mdb-shell mdb-list-resizing" : "mdb-shell";
+
+    private string ShellStyle =>
+        $"--mdb-list-width: {databaseListWidth}px;";
 
     protected override async Task OnInitializedAsync()
     {
@@ -574,6 +663,52 @@
     private void ToggleDatabaseList()
     {
         isDatabaseListHidden = !isDatabaseListHidden;
+    }
+
+    private void BeginDatabaseListResize(PointerEventArgs args)
+    {
+        isResizingDatabaseList = true;
+        databaseListResizeStartX = args.ClientX;
+        databaseListResizeStartWidth = databaseListWidth;
+    }
+
+    private void ResizeDatabaseList(PointerEventArgs args)
+    {
+        if (!isResizingDatabaseList)
+        {
+            return;
+        }
+
+        var delta = (int)Math.Round(args.ClientX - databaseListResizeStartX);
+        databaseListWidth = Math.Clamp(databaseListResizeStartWidth + delta, DatabaseListMinWidth, DatabaseListMaxWidth);
+    }
+
+    private void EndDatabaseListResize()
+    {
+        isResizingDatabaseList = false;
+    }
+
+    private async Task OpenRelationshipsDialog()
+    {
+        if (selectedDatabase is null)
+        {
+            return;
+        }
+
+        await DialogService.OpenAsync<DatabaseRelationshipsPanel>(
+            $"{selectedDatabase.DatabaseName} Relationships",
+            new Dictionary<string, object?>
+            {
+                { "Database", selectedDatabase }
+            },
+            new DialogOptions
+            {
+                Width = "95vw",
+                Height = "95vh",
+                CssClass = "relationships-dialog",
+                Resizable = true,
+                Draggable = true
+            });
     }
 
     private void ResetDatabaseEdit()

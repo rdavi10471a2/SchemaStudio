@@ -8,6 +8,7 @@
 @inject DatabaseLookupRelationshipRepository LookupRelationshipRepository
 @inject TableSchemaSmoRepository TableSchemaRepository
 @inject NotificationService NotificationService
+@inject TooltipService TooltipService
 
 @attribute [FileVersion("2.18")]
 @attribute [AIFileContext("Components/Pages/ManageDatabases/DatabaseRelationshipsPanel.razor", "Manage Databases child panel for the curated database relationship registry.", Responsibilities = "Loads source tables, imports source-system foreign-key relationships into dbo.DatabaseRelationships, and displays the registry rows that touch the selected table.", Nuances = "The panel does not create metadata tables; database DDL stays in human-run scripts.", LastReviewed = "2026-05-13")]
@@ -25,33 +26,80 @@
     }
     else
     {
-        <RadzenStack Orientation="Orientation.Horizontal"
-                     AlignItems="AlignItems.Center"
-                     JustifyContent="JustifyContent.SpaceBetween"
-                     Gap="1rem"
-                     class="relationships-header">
-            <RadzenStack Gap="0.2rem">
-                <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-m-0">@Database.DatabaseName Relationships</RadzenText>
-                <RadzenText TextStyle="TextStyle.Body2" Style="color:#495057;">
-                    Curate known join paths. Lookup display defaults are optional metadata on parent/lookup joins.
-                </RadzenText>
-                <RadzenText TextStyle="TextStyle.Caption" Style="color:#667085;">
-                    Registry: @($"{RelationshipRepository.MetadataDatabaseName}.dbo.DatabaseRelationships"); source tables: @Database.DatabaseName.
-                </RadzenText>
-            </RadzenStack>
-
-            <RadzenButton Icon="sync"
-                          Text="Refresh Existing"
-                          ButtonStyle="ButtonStyle.Light"
-                          title="Reload existing stored relationships for the selected table."
-                          Click="@LoadRelationshipsAsync"
-                          Disabled="@(!CanLoadRelationships)" />
-        </RadzenStack>
+        <RadzenCard class="rz-p-3" Style="border:1px solid #dbe4f0;background:#f6f9fe;flex:0 0 auto;">
+            <div style="display:flex;gap:0.6rem;align-items:flex-start;">
+                <RadzenIcon Icon="tips_and_updates" Style="color:var(--rz-primary);font-size:1.35rem;margin-top:0.1rem;" />
+                <div style="min-width:0;flex:1 1 auto;">
+                    <div style="display:flex;align-items:center;gap:0.35rem;">
+                        <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0">Working with the relationship registry</RadzenText>
+                        @HelpIcon("Relationships stored here define the join paths the Base View tools use to assemble lookups and child collections for this database. They do not change your source database.")
+                        <RadzenButton Icon="@GuideToggleIcon"
+                                      Text="@GuideToggleText"
+                                      ButtonStyle="ButtonStyle.Primary"
+                                      Variant="Variant.Text"
+                                      Size="ButtonSize.Small"
+                                      Style="margin-left:auto;color:var(--rz-primary);"
+                                      title="Show or hide the workflow guide"
+                                      Click="@(() => isGuideExpanded = !isGuideExpanded)" />
+                    </div>
+                    @if (isGuideExpanded)
+                    {
+                        <div style="display:flex;gap:1.25rem;align-items:flex-start;margin-top:0.4rem;max-height:300px;overflow:auto;">
+                            <div style="flex:1 1 0;min-width:0;">
+                                <RadzenText TextStyle="TextStyle.Body2" Style="color:#495057;margin:0 0 0.35rem;">
+                                    Curate the join paths for a table, then persist them so Base View generation can reuse them.
+                                </RadzenText>
+                                <ol style="margin:0;padding-left:1.15rem;color:#495057;font-size:0.85rem;line-height:1.5;">
+                                    <li>Pick a <strong>Schema</strong> and <strong>Table</strong> below.</li>
+                                    <li><strong>Load Existing</strong> shows joins already stored for that table.</li>
+                                    <li><strong>Load From Source</strong> previews foreign keys detected in the source database.</li>
+                                    <li>Select a row to edit its join type, ON clause and lookup display defaults.</li>
+                                    <li><strong>Save Relationship</strong> stores the selected row; <strong>Save All</strong> stores every ready row.</li>
+                                </ol>
+                            </div>
+                            <div style="flex:1 1 0;min-width:0;border-left:1px solid #dbe4f0;padding-left:1.25rem;">
+                                <div style="font-weight:700;color:#344054;font-size:0.8rem;margin-bottom:0.25rem;">Parents / Lookups vs Children</div>
+                                <ul style="margin:0 0 0.5rem;padding-left:1.15rem;color:#495057;font-size:0.85rem;line-height:1.5;">
+                                    <li><strong>Parents / Lookups</strong> (many-to-one): tables the selected table points to &mdash; the selected table holds the foreign key, so the other table is a parent/lookup.</li>
+                                    <li><strong>Children</strong> (one-to-many): tables that point back to the selected table &mdash; they hold the foreign key, so they are child/detail collections.</li>
+                                </ul>
+                                <div style="font-weight:700;color:#344054;font-size:0.8rem;margin:0.35rem 0 0.35rem;">Status pills</div>
+                                <div style="display:flex;flex-direction:column;gap:0.3rem;font-size:0.85rem;color:#495057;">
+                                    <div style="display:flex;align-items:flex-start;gap:0.5rem;">
+                                        <span class="relationship-chip" style="flex:0 0 auto;">Default Lookup</span>
+                                        <span>Parent/lookup included by default in a generated base view (a display column was detected).</span>
+                                    </div>
+                                    <div style="display:flex;align-items:flex-start;gap:0.5rem;">
+                                        <span class="relationship-chip relationship-chip-warning" style="flex:0 0 auto;">Join Only</span>
+                                        <span>Known join not included by default &mdash; no display column, or set to not include.</span>
+                                    </div>
+                                    <div style="display:flex;align-items:flex-start;gap:0.5rem;">
+                                        <span class="relationship-chip relationship-chip-warning" style="flex:0 0 auto;">Child</span>
+                                        <span>A one-to-many child relationship: another table references the selected table.</span>
+                                    </div>
+                                    <div style="display:flex;align-items:flex-start;gap:0.5rem;">
+                                        <span class="relationship-chip relationship-chip-unsaved" style="flex:0 0 auto;">Unsaved</span>
+                                        <span>Staged row not yet persisted &mdash; use Save Relationship or Save All.</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(statusText))
+            {
+                <div role="status" aria-live="polite" style="@RelationshipStatusStyle">
+                    <RadzenIcon Icon="@RelationshipStatusIcon" Style="font-size:1.05rem;" />
+                    <span>@statusText</span>
+                </div>
+            }
+        </RadzenCard>
 
         <RadzenCard class="relationships-picker rz-p-3">
             <RadzenRow Gap="0.75rem" AlignItems="AlignItems.End">
                 <RadzenColumn Size="12" SizeMD="2">
-                    <div class="relationship-field-label">Schema</div>
+                    @FieldLabelWithHelp("Schema", "Database schema that owns the source table. Defaults to the database's default schema.")
                     <RadzenTextBox @bind-Value="@schemaName"
                                    Style="width:100%;"
                                    MaxLength="128"
@@ -59,7 +107,7 @@
                 </RadzenColumn>
 
                 <RadzenColumn Size="12" SizeMD="4">
-                    <div class="relationship-field-label">Table</div>
+                    @FieldLabelWithHelp("Table", "Source table whose parent/lookup and child relationships you are curating.")
                     <RadzenDropDown TValue="string"
                                     Data="@tables"
                                     TextProperty="TableName"
@@ -74,9 +122,9 @@
                 <RadzenColumn Size="12" SizeMD="6">
                     <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.5rem" class="relationship-action-bar">
                         <RadzenButton Icon="sync"
-                                      Text="Load Existing"
+                                      Text="@LoadRelationshipsButtonText"
                                       ButtonStyle="ButtonStyle.Light"
-                                      title="Load existing stored relationships for the selected table."
+                                      title="@LoadRelationshipsButtonTitle"
                                       Click="@LoadRelationshipsAsync"
                                       Disabled="@(!CanLoadRelationships)" />
                         <RadzenButton Icon="account_tree"
@@ -96,13 +144,6 @@
             </RadzenRow>
         </RadzenCard>
 
-        @if (!string.IsNullOrWhiteSpace(statusText))
-        {
-            <RadzenAlert AlertStyle="@statusStyle" Variant="Variant.Flat" class="relationships-status">
-                @statusText
-            </RadzenAlert>
-        }
-
         @if (isLoading)
         {
             <div class="relationship-busy" role="status" aria-live="polite">
@@ -111,11 +152,14 @@
             </div>
         }
 
-        <div class="relationships-workspace">
+        <div class="relationships-workspace" style="display:grid;grid-template-columns:var(--relationship-list-width,340px) 10px minmax(0,1fr);grid-template-rows:minmax(0,1fr);flex:1 1 auto;min-height:0;overflow:hidden;">
             <section class="relationship-list-pane">
                 <div class="relationship-pane-header">
                     <div>
-                        <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0">Relationships</RadzenText>
+                        <div style="display:flex;align-items:center;gap:0.35rem;">
+                            <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0">Relationships</RadzenText>
+                            @HelpIcon("Rows touching the selected table. Parents / Lookups are joins this table points to; Children are tables that point back to it.")
+                        </div>
                         <RadzenText TextStyle="TextStyle.Caption" Style="color:#667085;">@RelationshipCountLabel</RadzenText>
                     </div>
                     <RadzenButton Icon="add"
@@ -174,7 +218,7 @@
                     aria-label="Resize relationship browser"
                     @onpointerdown="@BeginPaneResize"></button>
 
-            <section class="relationship-edit-pane">
+            <section class="relationship-edit-pane" style="display:flex;flex-direction:column;min-height:0;min-width:0;overflow:hidden;">
                 <div class="relationship-pane-header">
                     <div>
                         <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0">@RelationshipEditorTitle</RadzenText>
@@ -202,20 +246,21 @@
                 {
                     <RadzenTemplateForm TItem="DatabaseRelationshipDefinition"
                                         class="relationship-editor-form"
+                                        style="display:flex;flex-direction:column;flex:1 1 auto;min-height:0;height:auto;overflow:auto;"
                                         Data="@editRelationship"
                                         Submit="@SaveRelationshipAsync">
                         <DataAnnotationsValidator />
 
                         <div class="relationship-edit-grid relationship-primary-grid">
                             <label>
-                                <span class="relationship-field-label">Join Type</span>
+                                @FieldLabelWithHelp("Join Type", "SQL join used when this relationship is emitted in a generated base view. LEFT JOIN keeps rows with no match; INNER JOIN drops them.")
                                 <RadzenDropDown TValue="string"
                                                 Data="@joinTypes"
                                                 @bind-Value="@editRelationship.JoinType"
                                                 Style="width:100%;" />
                             </label>
                             <label>
-                                <span class="relationship-field-label">Target Table</span>
+                                @FieldLabelWithHelp("Target Table", "The table this relationship joins to. For a parent/lookup row this is the referenced table.")
                                 <RadzenTextBox @bind-Value="@editRelationship.TargetTableName"
                                                Style="width:100%;"
                                                MaxLength="128" />
@@ -223,7 +268,7 @@
                             <label class="relationship-compact-field">
                                 @if (CanEditLookupDefaults(editRelationship))
                                 {
-                                    <span class="relationship-field-label">Lookup Default</span>
+                                    @FieldLabelWithHelp("Lookup Default", "Whether this lookup is included by default when a base view is generated. Auto-set to Include only when a display column was detected on the target table.")
                                     <RadzenDropDown TValue="string"
                                                     Data="@baseViewActions"
                                                     Value="@BaseViewActionFor(editRelationship)"
@@ -234,7 +279,7 @@
                             @if (CanEditLookupDefaults(editRelationship))
                             {
                                 <label class="relationship-compact-field">
-                                    <span class="relationship-field-label">Display Column</span>
+                                    @FieldLabelWithHelp("Display Column", "Column from the target table shown as the human-readable value for this lookup, e.g. Name or Des.")
                                     <RadzenDropDown TValue="string"
                                                     Data="@targetColumnOptions"
                                                     @bind-Value="@editRelationship.DisplayColumnName"
@@ -262,7 +307,7 @@
                             </div>
 
                             <label class="relationship-wide relationship-join-editor">
-                                <span class="relationship-field-label">ON Clause</span>
+                                @FieldLabelWithHelp("ON Clause", "The join predicate, written as SQL. Column pairs are parsed from this expression when the relationship is saved.")
                                 <RadzenTextArea @bind-Value="@editRelationship.JoinExpression"
                                                 Style="width:100%;"
                                                 Rows="5"
@@ -272,7 +317,7 @@
                             @if (CanEditLookupDefaults(editRelationship) && IsConstrainedLookupTarget(editRelationship))
                             {
                                 <label class="relationship-compact-field">
-                                    <span class="relationship-field-label">Filter Column</span>
+                                    @FieldLabelWithHelp("Filter Column", "Optional target column used to constrain a COLOOKUP-style lookup to a fixed value.")
                                     <RadzenDropDown TValue="string"
                                                     Data="@targetColumnOptions"
                                                     @bind-Value="@editRelationship.FilterColumnName"
@@ -284,7 +329,7 @@
                                                     Style="width:100%;" />
                                 </label>
                                 <label class="relationship-compact-field">
-                                    <span class="relationship-field-label">Filter Value</span>
+                                    @FieldLabelWithHelp("Filter Value", "Fixed value paired with the filter column to constrain the lookup.")
                                     <RadzenTextBox @bind-Value="@editRelationship.FilterValue"
                                                    Style="width:100%;"
                                                    MaxLength="128" />
@@ -368,6 +413,7 @@
     private List<string> targetColumnOptions = new();
     private string targetColumnOptionsKey = "";
     private bool isLoading;
+    private bool isGuideExpanded = true;
     private string statusText = "";
     private AlertStyle statusStyle = AlertStyle.Info;
     private bool isResizingRelationshipList;
@@ -395,7 +441,7 @@
         isResizingRelationshipList ? "relationships-panel relationship-resizing" : "relationships-panel";
 
     private string RelationshipsPanelStyle =>
-        $"--relationship-list-width: {relationshipListWidth}px;";
+        $"--relationship-list-width: {relationshipListWidth}px;display:flex;flex-direction:column;height:100%;max-height:calc(95vh - 4rem);min-height:0;overflow:hidden;padding:1rem;box-sizing:border-box;";
 
     private List<DatabaseRelationshipDefinition> VisibleRelationships =>
         relationshipListMode.Equals(ChildrenListMode, StringComparison.OrdinalIgnoreCase)
@@ -425,6 +471,54 @@
         Database is not null &&
         !isLoading &&
         relationships.Concat(childRelationships).Any(IsPersistableRelationship);
+
+    private bool HasStoredRelationships =>
+        relationships.Concat(childRelationships).Any(relationship => relationship.DatabaseRelationshipId != 0);
+
+    private string LoadRelationshipsButtonText =>
+        HasStoredRelationships ? "Refresh Existing" : "Load Existing";
+
+    private string LoadRelationshipsButtonTitle =>
+        HasStoredRelationships
+            ? "Reload the stored relationships for the selected table, discarding any unsaved preview rows."
+            : "Load the stored relationships for the selected table.";
+
+    private string RelationshipStatusIcon => statusStyle switch
+    {
+        AlertStyle.Success => "check_circle",
+        AlertStyle.Warning => "warning",
+        AlertStyle.Danger => "error",
+        _ => "info"
+    };
+
+    private string GuideToggleIcon => isGuideExpanded ? "expand_less" : "expand_more";
+
+    private string GuideToggleText => isGuideExpanded ? "Hide" : "Show";
+
+    private string RelationshipStatusStyle
+    {
+        get
+        {
+            var (background, border, color) = statusStyle switch
+            {
+                AlertStyle.Success => ("#e7f6ec", "#b7e0c4", "#1e7d43"),
+                AlertStyle.Warning => ("#fdf4e3", "#f3ddab", "#8a6100"),
+                AlertStyle.Danger => ("#fdecec", "#f3bcbc", "#b42318"),
+                _ => ("#eef4fd", "#c9dcf7", "#1c4f9c")
+            };
+
+            return $"display:flex;align-items:center;gap:0.5rem;margin-top:0.6rem;padding:0.5rem 0.7rem;border-radius:6px;font-size:0.85rem;background:{background};border:1px solid {border};color:{color};";
+        }
+    }
+
+    private RenderFragment HelpIcon(string help) =>@<RadzenIcon Icon="help_outline"
+                                                              Style="cursor:help;color:var(--rz-primary);font-size:0.95rem;opacity:0.8;"
+                                                              MouseEnter="@(args => TooltipService.Open(args, help))" />;
+
+    private RenderFragment FieldLabelWithHelp(string text, string help) =>@<span class="relationship-field-label" style="display:flex;align-items:center;gap:0.3rem;">
+        @text
+        @HelpIcon(help)
+    </span>;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -543,21 +637,23 @@
         {
             var selectedSchema = schemaName.Trim();
             var selectedTable = selectedTableName.Trim();
-            var touchingRelationships = (await RelationshipRepository.GetForDatabaseAsync(Database.DatabaseId))
-                .Where(relationship =>
-                    IsSelectedSource(relationship, selectedSchema, selectedTable) ||
-                    IsSelectedTarget(relationship, selectedSchema, selectedTable))
+            // Anchor classification to the selected table as the relationship Source only.
+            // Each table's own import stores both its parent/lookup rows (Source = this table,
+            // pointing to a referenced table) and its child rows (Source = this table, pointing
+            // to a table that references it), so Source == selected fully covers this table's
+            // relationships with the join oriented [thisTable] = [otherTable]. Rows where the
+            // selected table is only the Target belong to the other table's registration and are
+            // intentionally not shown here (they would otherwise appear with an inverted pill and
+            // a backwards ON clause).
+            var ownedRelationships = (await RelationshipRepository.GetForDatabaseAsync(Database.DatabaseId))
+                .Where(relationship => IsSelectedSource(relationship, selectedSchema, selectedTable))
                 .ToList();
 
-            relationships = touchingRelationships
-                .Where(relationship =>
-                    !IsChildRelationship(relationship) ||
-                    IsSelectedTarget(relationship, selectedSchema, selectedTable))
+            relationships = ownedRelationships
+                .Where(relationship => !IsChildRelationship(relationship))
                 .ToList();
-            childRelationships = touchingRelationships
-                .Where(relationship =>
-                    IsChildRelationship(relationship) &&
-                    IsSelectedSource(relationship, selectedSchema, selectedTable))
+            childRelationships = ownedRelationships
+                .Where(relationship => IsChildRelationship(relationship))
                 .ToList();
 
             selectedRelationship = VisibleRelationships.FirstOrDefault();
@@ -971,21 +1067,6 @@
         }
     }
 
-    private string DirectionFor(DatabaseRelationshipDefinition relationship)
-    {
-        if (relationship.SourceTableName.Equals(selectedTableName, StringComparison.OrdinalIgnoreCase))
-        {
-            return "source";
-        }
-
-        if (relationship.TargetTableName.Equals(selectedTableName, StringComparison.OrdinalIgnoreCase))
-        {
-            return "target";
-        }
-
-        return "related";
-    }
-
     private string RelationshipRowClass(DatabaseRelationshipDefinition relationship) =>
         IsSelectedRelationship(relationship)
             ? "relationship-row selected"
@@ -1020,23 +1101,12 @@
         relationshipList[index] = relationship;
     }
 
-    private bool IsEditingFromSelectedTable() =>
-        editRelationship is null ||
-        editRelationship.SourceTableName.Equals(selectedTableName, StringComparison.OrdinalIgnoreCase);
-
     private static bool IsSelectedSource(
         DatabaseRelationshipDefinition relationship,
         string selectedSchema,
         string selectedTable) =>
         relationship.SourceSchemaName.Equals(selectedSchema, StringComparison.OrdinalIgnoreCase) &&
         relationship.SourceTableName.Equals(selectedTable, StringComparison.OrdinalIgnoreCase);
-
-    private static bool IsSelectedTarget(
-        DatabaseRelationshipDefinition relationship,
-        string selectedSchema,
-        string selectedTable) =>
-        relationship.TargetSchemaName.Equals(selectedSchema, StringComparison.OrdinalIgnoreCase) &&
-        relationship.TargetTableName.Equals(selectedTable, StringComparison.OrdinalIgnoreCase);
 
     private string ExistingRelationshipStatusMessage(string tableName) =>
         $"Found {relationships.Count} existing parent/lookup relationship(s) and {childRelationships.Count} existing child relationship(s) for {tableName}. Use Load From Source to preview relationships detected in the source system, then Save All to store them.";

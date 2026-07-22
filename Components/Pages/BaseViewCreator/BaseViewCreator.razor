@@ -112,7 +112,7 @@
                         <input value="@TargetViewName" @oninput="OnTargetViewNameChanged" />
                     </label>
                     <label class="bvg-wide">
-                        @HelpLabel("Output Table Name", "Physical output table used by the CREATE TABLE and MERGE tabs. Defaults to the view name when blank.")
+                        @HelpLabel("Output Table Name", "Physical output table used by the Create Table and Merge tabs. Defaults to the view name when blank.")
                         <input value="@TargetTableName" @oninput="OnTargetTableNameChanged" placeholder="@(string.IsNullOrWhiteSpace(TargetViewName) ? "Output table name" : TargetViewName)" />
                     </label>
                 </div>
@@ -202,7 +202,7 @@
                 <button type="button" class="@TabClass("tree")" @onclick='() => SetWorkspaceTab("tree")'>Select Projection</button>
                 <button type="button" class="@TabClass("sql")" @onclick='() => SetWorkspaceTab("sql")'>Generated SQL</button>
                 <button type="button" class="@TabClass("table")" @onclick='() => SetWorkspaceTab("table")'>Create Table</button>
-                <button type="button" class="@TabClass("merge")" @onclick='() => SetWorkspaceTab("merge")'>MERGE</button>
+                <button type="button" class="@TabClass("merge")" @onclick='() => SetWorkspaceTab("merge")'>Merge</button>
                 <button type="button" class="bvg-tab bvg-source-toggle-tab" @onclick="ToggleSourcePanel">@(SourcePanelCollapsed ? "Show Source View" : "Hide Source View")</button>
             </header>
 
@@ -259,8 +259,8 @@
                                     </label>
                                 </div>
                                 <div class="bvg-merge-source-actions">
-                                    <button type="button" class="bvg-button primary" @onclick="RegenerateMerge">Regenerate MERGE</button>
-                                    <button type="button" class="bvg-button secondary" @onclick="CopyMergeSqlAsync" disabled="@(!string.IsNullOrWhiteSpace(MergeUnavailableReason) || string.IsNullOrWhiteSpace(GeneratedMergeSql))">Copy MERGE</button>
+                                    <button type="button" class="bvg-button primary" @onclick="RegenerateMerge">Regenerate Merge</button>
+                                    <button type="button" class="bvg-button secondary" @onclick="CopyMergeSqlAsync" disabled="@(!string.IsNullOrWhiteSpace(MergeUnavailableReason) || string.IsNullOrWhiteSpace(GeneratedMergeSql))">Copy Merge</button>
                                 </div>
                             </div>
                         }
@@ -451,6 +451,8 @@
 @code {
     private const string DefaultTargetDatabaseName = "VVGBI_Integrations";
     private const string DefaultTargetSchemaName = "dbo";
+    private const string DefaultMergeDestinationDatabaseName = "VVG_Silver";
+    private const string DefaultMergeSchemaName = "dbo";
     private const string OutputShapeCte = "CTE";
     private const string OutputShapeStandard = "Standard";
     private const int SourcePanelDefaultWidth = 400;
@@ -481,9 +483,9 @@
     private string MergeUnavailableReason = "";
     private string MergeCountryDb = "";
     private string MergeSourceDb = "";
-    private string MergeSourceSchema = "";
-    private string MergeDestinationDb = "";
-    private string MergeDestinationSchema = "";
+    private string MergeSourceSchema = DefaultMergeSchemaName;
+    private string MergeDestinationDb = DefaultMergeDestinationDatabaseName;
+    private string MergeDestinationSchema = DefaultMergeSchemaName;
     private string MergeDestinationTable = "";
     private string ActiveWorkspaceTab = "tree";
     private string ActiveSourceInfoTab = "options";
@@ -921,12 +923,12 @@
             ApplyRelationshipFilters();
             CollapseJoinGroups();
             DisplayColumnTypeCache.Clear();
-            MergeCountryDb = SelectedDatabaseName;
-            MergeSourceDb = TargetDatabaseName;
-            MergeSourceSchema = TargetSchemaName;
-            MergeDestinationDb = TargetDatabaseName;
-            MergeDestinationSchema = TargetSchemaName;
-            MergeDestinationTable = string.IsNullOrWhiteSpace(TargetTableName) ? TargetViewName : TargetTableName;
+            MergeCountryDb = "";
+            MergeSourceDb = "";
+            MergeSourceSchema = DefaultMergeSchemaName;
+            MergeDestinationDb = DefaultMergeDestinationDatabaseName;
+            MergeDestinationSchema = DefaultMergeSchemaName;
+            MergeDestinationTable = string.IsNullOrWhiteSpace(TargetTableName) ? "" : TargetTableName;
             GeneratedMergeSql = "";
             MergeUnavailableReason = "";
             RegenerateSql();
@@ -2014,7 +2016,7 @@
         if (!string.IsNullOrWhiteSpace(GeneratedMergeSql))
         {
             await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", GeneratedMergeSql);
-            NotificationService.Notify(NotificationSeverity.Success, "MERGE copied.", "", 3000);
+            NotificationService.Notify(NotificationSeverity.Success, "Merge copied.", "", 3000);
         }
     }
 

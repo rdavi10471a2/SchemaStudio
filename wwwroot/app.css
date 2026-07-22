@@ -63,6 +63,20 @@ h1:focus {
     overflow: hidden !important;
 }
 
+/* Relationships registry dialog: Radzen's .rz-dialog-content has no height/flex of its
+   own, so a height:100% child cannot resolve and the panel overflows the fixed-height
+   .rz-dialog (which clips with overflow:hidden), hiding the edit pane. Make the content
+   area a definite-height flex column so the list pane scrolls internally and the edit
+   pane stays fully visible. */
+.relationships-dialog .rz-dialog-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    padding: 0;
+}
+
 /* Domain Object Editor: Radzen tabs render outside Razor CSS isolation, so the
    scroll box for the referenced objects pane has to be applied globally. */
 .cte-inspector .rz-tabview.cte-with-tabs {

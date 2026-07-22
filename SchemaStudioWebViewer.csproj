@@ -46,9 +46,4 @@
     <None Remove="WEBSemanticModel\**\*" />
   </ItemGroup>
 
-  <!-- AI 2026-04-15 10:36: restored post-build Git checkpoint hook for build snapshots. -->
-  <Target Name="PostBuildGitCheckpoint" AfterTargets="Build">
-    <Exec WorkingDirectory="$(MSBuildProjectDirectory)" Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\post-build-git-checkpoint.ps1&quot; -CommitMessage &quot;Checkpoint successful build SchemaStudioWebViewer&quot;" />
-  </Target>
-
 </Project>
