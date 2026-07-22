@@ -17,7 +17,7 @@ Backed by `ConnectionStrings:DefaultConnection` (see the solution map / config r
   - `SchemaObjectDefinition`, `SchemaObjectColumnDefinition`, `SchemaObjectDtos`
   - `SourceViewDefinition`, `SqlObjectDependency`
 - **`Repositories/`** - one repository per aggregate, most with a **sync + `*AsyncRepository` pair**:
-  - Databases: `DatabaseRepository` / `DatabaseAsyncRepository`
+  - Databases: `DatabaseRepository`
   - Domains: `DatabaseDomainRepository` / `DatabaseDomainAsyncRepository`
   - Relationships: `DatabaseRelationshipRepository`
   - Schema objects: `SchemaObjectRepository`, `SchemaObjectColumnRepository`
