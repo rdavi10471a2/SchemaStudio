@@ -1,12 +1,5 @@
-﻿using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components;
 using SchemaStudio.Data.Models;
-
-[module: SchemaStudio.AIHelpers.AIFileContext(
-    "Components/Pages/DomainObjectModeler/DomainObjectModeler.Selection.cs",
-    "Selection and loading workflow for the Domain Object Modeler page.",
-    Responsibilities = "Load databases, domains, and domain-filtered base views, then keep selection, anchor, alias, and join-row state coherent.",
-    RelatedFiles = "Components/Pages/DomainObjectModeler/DomainObjectModeler.razor; SchemaStudio.Data/Repositories/SchemaObjectRepository.cs",
-    LastReviewed = "2026-05-13")]
 
 namespace SchemaStudioWebViewer.Components.Pages.DomainObjectModeler;
 

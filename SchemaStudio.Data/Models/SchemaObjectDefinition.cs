@@ -1,12 +1,9 @@
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Runtime.CompilerServices;
-using SchemaStudio.AIHelpers;
 
 namespace SchemaStudio.Data.Models;
 
-[FileVersion("1.0")]
-[AIFileContext("SchemaStudio.Data/Models/SchemaObjectDefinition.cs", "Defines the saved Schema Studio object/view metadata record used by manage-views, base-view composition, and domain-object modeling workflows.", Responsibilities = "Carries the managed source object identity, base-view grain hint, business/domain metadata, composition definition JSON, and saved column collection.", Nuances = "SourceObjectName is the managed view/object name; SourceTableName is the physical table grain for base views and is intentionally required only when IsBaseObject is true.", LastReviewed = "2026-05-14")]
 public sealed class SchemaObjectDefinition
 {
     private int _schemaObjectId;

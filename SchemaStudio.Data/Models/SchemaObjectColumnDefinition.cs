@@ -2,12 +2,9 @@ using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Runtime.CompilerServices;
 using System.Text;
-using SchemaStudio.AIHelpers;
 
 namespace SchemaStudio.Data.Models;
 
-[FileVersion("1.1")]
-[AIFileContext("SchemaStudio.Data/Models/SchemaObjectColumnDefinition.cs", "Defines the saved Schema Studio column record used by repositories and the Blazor maintenance grids. Display and description metadata on the user-facing fields are the source of truth for grid headers and tooltip help indicators.", Responsibilities = "Carries persisted physical lineage, semantic source identity, business metadata, and inheritance flags for SchemaObjectColumn read/write workflows.", Nuances = "Base* fields describe physical lineage; Semantic* fields describe the semantic source/pass-through target that parser output resolved for the saved column.", RelatedFiles = "SchemaObjectColumnRepository, ManageViews.Columns, ViewSourcedColumnDefinition", LastReviewed = "2026-04-28")]
 public sealed class SchemaObjectColumnDefinition
 {
     private int _schemaObjectColumnId;

@@ -2,13 +2,6 @@ using System.Text.Json;
 using Radzen;
 using SchemaStudio.Data.Models;
 
-[module: SchemaStudio.AIHelpers.AIFileContext(
-    "Components/Pages/DomainObjectModeler/DomainObjectModeler.Definition.cs",
-    "Composition-definition persistence slice for the Domain Object Modeler page.",
-    Responsibilities = "Build the domain object composition recipe JSON and save the managed SchemaObject header that Manage Views later reconciles against the physical SQL view.",
-    RelatedFiles = "Components/Pages/DomainObjectModeler/DomainObjectModeler.razor; SchemaStudio.Data/Models/SchemaObjectDefinition.cs; SchemaStudio.Data/Repositories/SchemaObjectRepository.cs",
-    LastReviewed = "2026-05-13")]
-
 namespace SchemaStudioWebViewer.Components.Pages.DomainObjectModeler;
 
 public partial class DomainObjectModeler

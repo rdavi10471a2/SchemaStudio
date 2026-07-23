@@ -1,11 +1,4 @@
-﻿using SchemaStudio.Data.Models;
-
-[module: SchemaStudio.AIHelpers.AIFileContext(
-    "Components/Pages/DomainObjectModeler/DomainObjectModeler.Models.cs",
-    "Page-local models for the Domain Object Modeler workflow.",
-    Responsibilities = "Carry selectable base-view state, CTE alias names, and structured join rows for the domain object modeling page.",
-    RelatedFiles = "Components/Pages/DomainObjectModeler/DomainObjectModeler.razor",
-    LastReviewed = "2026-05-13")]
+using SchemaStudio.Data.Models;
 
 namespace SchemaStudioWebViewer.Components.Pages.DomainObjectModeler;
 

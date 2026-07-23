@@ -1,5 +1,4 @@
 using Radzen;
-using SchemaStudio.AIHelpers;
 using SchemaStudio.Data.Models;
 
 namespace SchemaStudioWebViewer.Components.Pages.ManageViewsNext;

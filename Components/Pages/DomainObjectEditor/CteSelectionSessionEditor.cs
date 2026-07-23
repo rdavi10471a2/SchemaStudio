@@ -1,13 +1,6 @@
-using SchemaStudio.AIHelpers;
 
 namespace SchemaStudioWebViewer.Components.Pages.DomainObjectEditor;
 
-[FileVersion("1.4")]
-[AIFileContext(
-    "Services/CteSelectionSessionEditor.cs",
-    "Selectable CTE graph session used by the domain object editor candidate page.",
-    Responsibilities = "Apply construction-by-subtraction selection changes, preserve required dependency fields, keep the root object anchored, and expose render-ready row models.",
-    Nuances = "This is the graph rewrite engine over the parser model. Razor pages should render controls and dispatch commands, not duplicate these selection rules.")]
 public sealed class CteSelectionSessionEditor
 {
     private readonly CteFieldParser parser;

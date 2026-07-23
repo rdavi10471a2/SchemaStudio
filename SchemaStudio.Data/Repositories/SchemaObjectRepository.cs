@@ -1,12 +1,9 @@
 using Dapper;
 using Microsoft.Data.SqlClient;
-using SchemaStudio.AIHelpers;
 using SchemaStudio.Data.Models;
 
 namespace SchemaStudio.Data.Repositories;
 
-[FileVersion("1.0")]
-[AIFileContext("SchemaStudio.Data/Repositories/SchemaObjectRepository.cs", "Read/write repository for Schema Studio managed source object metadata.", Responsibilities = "Loads, creates, updates, deletes, and validates SchemaObject records used by Manage Views and domain-object composition workflows.", Nuances = "SourceTableName is a base-view grain hint used for relationship lookup; uniqueness checks intentionally ignore IsActive because only one base view may claim a physical source table per database.", RelatedFiles = "SchemaStudio.Data/Models/SchemaObjectDefinition.cs; Components/Pages/ManageViewsNext", LastReviewed = "2026-05-14")]
 public sealed class SchemaObjectRepository
 {
     private readonly string _connectionString;

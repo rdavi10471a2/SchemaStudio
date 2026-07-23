@@ -1,14 +1,5 @@
 using SchemaStudioWebViewer.Data;
 
-[module: SchemaStudio.AIHelpers.FileVersion("1.4")]
-[module: SchemaStudio.AIHelpers.AIFileContext(
-    "Components/Pages/BaseViewCreator/BaseViewCreator.Sql.cs",
-    "Partial class slice for Base View Creator SQL and projection generation.",
-    Responsibilities = "Owns generated SQL assembly, projection-spec construction, output column enumeration, CREATE TABLE and MERGE emission, and join dependency emission for the Base View Creator fork.",
-    Nuances = "This file deliberately depends on state and UI helpers still housed in BaseViewCreator.razor; it is the first mechanical split toward a smaller Razor surface.",
-    RelatedFiles = "Components/Pages/BaseViewCreator/BaseViewCreator.razor; Components/Pages/BaseViewCreator/BaseViewCreatorSelectionEngine.cs; Components/Pages/BaseViewCreator/UdtTypeResolver.cs",
-    LastReviewed = "2026-07-16")]
-
 namespace SchemaStudioWebViewer.Components.Pages.BaseViewCreator;
 
 public partial class BaseViewCreator

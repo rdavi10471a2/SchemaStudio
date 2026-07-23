@@ -2,7 +2,6 @@
 
 @using System.Reflection
 @using System.ComponentModel.DataAnnotations
-@using SchemaStudio.AIHelpers
 @using SchemaStudioWebViewer.Models
 @using SchemaStudioWebViewer.Components.Dialogs
 @using SchemaStudioWebViewer.Utils
@@ -22,8 +21,6 @@
 @inject SchemaObjectRepository SchemaObjectRepository
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("1.3")]
-@attribute [AIFileContext("Components/Pages/ParserLab.razor", "Hosts the parser playground for browsing schema objects, running parser previews, and inspecting parser-derived dependencies and where-used details.")]
 
 <style>
     .parser-page-shell {

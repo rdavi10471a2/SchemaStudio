@@ -1,17 +1,14 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 @implements IDisposable
 @using Microsoft.AspNetCore.Components.Routing
 @using Radzen
 @using Radzen.Blazor
-@using SchemaStudio.AIHelpers
 @using SchemaStudioWebViewer.Configuration
 @using SchemaStudioWebViewer.Components.HelpSystem
 @inject NavigationManager NavigationManager
 @inject DialogService DialogService
 @inject IJSRuntime JSRuntime
 
-@attribute [FileVersion("1.28")]
-@attribute [AIFileContext("Components/Layout/MainLayout.razor", "Hosts the shared Radzen application shell, top menu chrome, dialog providers, and kiosk chrome suppression while Home owns temporary simple-auth content gating.")]
 
 <RadzenComponents />
 

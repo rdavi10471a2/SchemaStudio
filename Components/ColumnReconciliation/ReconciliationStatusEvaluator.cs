@@ -1,4 +1,3 @@
-﻿using SchemaStudio.AIHelpers;
 using SchemaStudio.Data.Models;
 using SchemaStudioWebViewer.WEBSemanticModel.Model;
 
@@ -12,14 +11,6 @@ public enum ReconciliationStatus
     Unchanged
 }
 
-[FileVersion("1.0")]
-[AIFileContext(
-    "Components/ColumnReconciliation/ReconciliationStatusEvaluator.cs",
-    "Shared reconciliation classifier used by ColumnReconciliationDialog and the Manage Views Next outer Column Synchronization chip.",
-    Responsibilities = "Computes ReconciliationStatus from raw ViewSourcedColumnDefinition and SchemaObjectColumnDefinition pairs so dialog chips and outer page summaries stay in sync without routing through ViewColumnDto.",
-    Nuances = "Reads parsed values straight from ViewSourcedColumnDefinition (including DisableInheritance) to avoid the DTO-conversion gap that previously produced false 'changed' counts on freshly parsed base views.",
-    RelatedFiles = "Components/ColumnReconciliation/ColumnReconciliationDialog.razor; Components/Pages/ManageViewsNext/ManageViewsNext.razor.cs",
-    LastReviewed = "2026-05-26")]
 public static class ReconciliationStatusEvaluator
 {
     public static ReconciliationStatus DetermineStatus(

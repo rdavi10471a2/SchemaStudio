@@ -6,7 +6,6 @@
 @using Radzen.Blazor
 @using SchemaStudio.Data.Models
 @using SchemaStudio.Data.Repositories
-@using SchemaStudio.AIHelpers
 @using SchemaStudioWebViewer.Components.HelpSystem
 @using SchemaStudioWebViewer.Components.Pages.BaseViewCreator
 @using SchemaStudioWebViewer.Data
@@ -15,8 +14,6 @@
 
 @* Services are injected in the code-behind (BaseViewCreator.razor.cs) via [Inject]. *@
 
-@attribute [FileVersion("2.5")]
-@attribute [AIFileContext("Components/Pages/BaseViewCreator/BaseViewCreator.razor", "Forked base-view creator page that preserves the proven Base View Generator UI while allowing different internal plumbing to evolve safely.", Responsibilities = "Keep the base-view creation workflow visually familiar while isolating experimental model and engine changes from the production Base View Generator page.", Nuances = "This page intentionally starts as a UI-preserving fork. Lookup discovery and the proven base-view workflow remain available in BaseViewGenerator while new plumbing is validated here first.", RelatedFiles = "Components/Pages/BaseViewGenerator/BaseViewGenerator.razor", LastReviewed = "2026-05-12")]
 
 <PageTitle>Base View Creator</PageTitle>
 

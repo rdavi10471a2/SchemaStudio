@@ -1,11 +1,8 @@
-﻿using SchemaStudioWebViewer.WEBSemanticModel.Model;
-using SchemaStudio.AIHelpers;
+using SchemaStudioWebViewer.WEBSemanticModel.Model;
 using System.Text.RegularExpressions;
 
 namespace SchemaStudioWebViewer.WEBSemanticModel.Parsing
 {
-    [FileVersion("1.0")]
-    [AIFileContext("WEBSemanticModel/Parsing/ViewMetaDataBinder.cs", "Extracts parser-owned metadata tags from SQL comments and applies them to parsed select items before export.", Responsibilities = "Owns BusinessName, BusinessDescription, and DisableInheritance parser tags while intentionally leaving developer notes user-owned in the web workflow.", Nuances = "Do not reintroduce parser ownership for user-owned metadata such as DeveloperNotes without an explicit workflow change.", RelatedFiles = "ParsedQuery, SelectItem, ViewSourcedColumnDefinition", LastReviewed = "2026-04-25")]
     public static class ViewMetadataBinder
     {
         // Singleline allows the dot (.) to match newlines within the comment block

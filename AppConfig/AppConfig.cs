@@ -1,10 +1,7 @@
-﻿using Microsoft.Extensions.Configuration;
-using SchemaStudio.AIHelpers;
+using Microsoft.Extensions.Configuration;
 
 namespace SchemaStudioWebViewer.Configuration
 {
-    [FileVersion("1.4")]
-    [AIFileContext("AppConfig/AppConfig.cs", "Loads strongly typed application settings for database, MCP, kiosk, and simple-auth policy switches.")]
     public class AppConfig
     {
         public static AppConfig Current { get; private set; } = new AppConfig();

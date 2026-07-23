@@ -1,6 +1,5 @@
 @namespace SchemaStudioWebViewer.Components.Pages
 @using Microsoft.Data.SqlClient
-@using SchemaStudio.AIHelpers
 @using SchemaStudio.Data.Models
 @using SchemaStudio.Data.Repositories
 @using SchemaStudioWebViewer.Data
@@ -9,8 +8,6 @@
 @inject NotificationService NotificationService
 @inject TooltipService TooltipService
 
-@attribute [FileVersion("2.21")]
-@attribute [AIFileContext("Components/Pages/ManageDatabases/DatabaseRelationshipsPanel.razor", "Manage Databases child panel for the curated database relationship registry.", Responsibilities = "Loads source tables, imports source-system foreign-key relationships into dbo.DatabaseRelationships, and displays the registry rows that touch the selected table.", Nuances = "The panel does not create metadata tables; database DDL stays in human-run scripts.", LastReviewed = "2026-05-13")]
 
 <RadzenStack Gap="0.75rem"
              class="@RelationshipsPanelClass"

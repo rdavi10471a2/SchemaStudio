@@ -1,9 +1,6 @@
-using SchemaStudio.AIHelpers;
 
 namespace SchemaStudioWebViewer.Data;
 
-[FileVersion("1.0")]
-[AIFileContext("Repositories/TableDisplayColumnPolicy.cs", "Centralizes preferred lookup display-column choices for generated base-view joins.", Responsibilities = "Provides database-scoped display column preference order so table metadata queries can pick deterministic lookup text columns without burying business rules in SQL.", Nuances = "Preferences are intentionally hardcoded for now; database-specific entries override the generic fallback while still requiring the column to exist in the referenced table.", LastReviewed = "2026-05-07")]
 public sealed class TableDisplayColumnPolicy
 {
     private static readonly IReadOnlyList<string> GenericPreferenceOrder =

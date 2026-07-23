@@ -19,13 +19,6 @@ using SchemaStudioWebViewer.Utils;
 
 namespace SchemaStudioWebViewer.Components.Pages.BaseViewCreator;
 
-[SchemaStudio.AIHelpers.AIFileContext(
-    "Components/Pages/BaseViewCreator/BaseViewCreator.razor.cs",
-    "Code-behind for the Base View Creator page, split out of BaseViewCreator.razor.",
-    Responsibilities = "Owns the page lifecycle, event handlers, projection/lookup UI helpers, and the forwarding properties that bind the component to the circuit-scoped BaseViewCreatorState so work survives navigation.",
-    Nuances = "Persistable page state lives in BaseViewCreatorState (injected) and is surfaced here via forwarding properties so BaseViewCreator.Sql.cs and BaseViewCreator.Metadata.cs keep referencing the same member names unchanged. Only transient interaction flags (IsBusy, drag state, metadata-dialog edit buffers) remain as instance fields. OnInitializedAsync no-ops on return visits when state is already initialized.",
-    RelatedFiles = "Components/Pages/BaseViewCreator/BaseViewCreator.razor; Components/Pages/BaseViewCreator/BaseViewCreatorState.cs; Components/Pages/BaseViewCreator/BaseViewCreator.Sql.cs; Components/Pages/BaseViewCreator/BaseViewCreator.Metadata.cs",
-    LastReviewed = "2026-07-22")]
 public partial class BaseViewCreator : ComponentBase
 {
     private const string DefaultTargetDatabaseName = "VVGBI_Integrations";

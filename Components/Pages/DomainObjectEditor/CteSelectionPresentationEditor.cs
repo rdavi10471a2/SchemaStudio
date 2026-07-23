@@ -1,13 +1,6 @@
-using SchemaStudio.AIHelpers;
 
 namespace SchemaStudioWebViewer.Components.Pages.DomainObjectEditor;
 
-[FileVersion("1.7")]
-[AIFileContext(
-    "Services/CteSelectionPresentationEditor.cs",
-    "Presentation helpers for the domain object editor candidate page.",
-    Responsibilities = "Translate selection and SQL line state into CSS classes and display labels used by Razor markup.",
-    Nuances = "Keep this small; the real selection rules belong in CteSelectionSession while the Razor page owns actual controls.")]
 public static class CteSelectionPresentationEditor
 {
     public static string CteTabText(TrimmedCteDefinition cte)

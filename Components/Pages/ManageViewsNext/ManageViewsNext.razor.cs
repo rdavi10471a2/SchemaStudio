@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Radzen;
 using Radzen.Blazor;
-using SchemaStudio.AIHelpers;
 using SchemaStudio.Data.Models;
 using SchemaStudioWebViewer.Components.ColumnReconciliation;
 using SchemaStudioWebViewer.Components.Dialogs;

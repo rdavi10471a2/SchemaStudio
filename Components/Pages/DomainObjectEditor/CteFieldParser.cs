@@ -1,15 +1,8 @@
 using Microsoft.SqlServer.TransactSql.ScriptDom;
-using SchemaStudio.AIHelpers;
 using System.Text;
 
 namespace SchemaStudioWebViewer.Components.Pages.DomainObjectEditor;
 
-[FileVersion("2.20")]
-[AIFileContext(
-    "Services/CteFieldParser.cs",
-    "Parses visible SQL CTE definitions into a selectable object model for local construction-by-subtraction trimming.",
-    Responsibilities = "Use ScriptDom to capture the current CTE surface: fields, sources, joins, final select fields, and the visible alias dependencies needed to keep the trimmed SQL valid.",
-    Nuances = "This is a local validity-preserving object shaper, not a physical lineage engine. A view is treated as an already-valid table-shaped source unless its definition is inlined into the CTE being trimmed.")]
 public sealed class CteFieldParser
 {
     public CteParseResult Parse(string sql)

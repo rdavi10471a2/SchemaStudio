@@ -1,7 +1,5 @@
-﻿namespace SchemaStudioWebViewer.WEBSemanticModel.Model
+namespace SchemaStudioWebViewer.WEBSemanticModel.Model
 {
-    [SchemaStudio.AIHelpers.FileVersion("1.1")]
-    [SchemaStudio.AIHelpers.AIFileContext("WEBSemanticModel/Model/ParsedQuery.cs", "Owns the parser result graph, validates resolved lineage, and projects SelectItems into ViewSourcedColumnDefinition records for UI workflows.", Responsibilities = "Carries DisableInheritance and Semantic* through the parsed-query projection step so parser-tagged override flags and semantic lookup targets reach parser column output.", Nuances = "Keep physical Base* and semantic Semantic* projection explicit whenever new parser-owned fields need to survive into parsed columns.", RelatedFiles = "SelectItem, ViewMetadataBinder, ViewSourcedColumnDefinition", LastReviewed = "2026-04-28")]
     public class ParsedQuery
     {
         public string SourceQuery { get; set; }

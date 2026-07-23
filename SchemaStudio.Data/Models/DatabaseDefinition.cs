@@ -1,11 +1,8 @@
-using SchemaStudio.AIHelpers;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 
 namespace SchemaStudio.Data.Models;
 
-[FileVersion("1.3")]
-[AIFileContext("SchemaStudio.Data/Models/DatabaseDefinition.cs", "Defines the editable database metadata model used by the web data layer and maintenance forms.", LastReviewed = "2026-04-23")]
 public sealed class DatabaseDefinition
 {
     [Display(AutoGenerateField = false)]

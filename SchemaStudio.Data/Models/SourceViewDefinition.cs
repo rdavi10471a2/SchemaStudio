@@ -1,11 +1,8 @@
-using SchemaStudio.AIHelpers;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 
 namespace SchemaStudio.Data.Models;
 
-[FileVersion("1.0")]
-[AIFileContext("SchemaStudio.Data/Models/SourceViewDefinition.cs", "Represents a source SQL view discovered from a selected database so the web workspace can list available import candidates.", LastReviewed = "2026-04-23")]
 public sealed class SourceViewDefinition
 {
     [Display(Name = "Database", Order = 10)]

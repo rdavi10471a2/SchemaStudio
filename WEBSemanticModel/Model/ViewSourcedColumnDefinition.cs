@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
 namespace SchemaStudioWebViewer.WEBSemanticModel.Model
@@ -13,8 +13,6 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Model
     //}
 
     [DefaultProperty("ColumnName")]
-    [SchemaStudio.AIHelpers.FileVersion("1.1")]
-    [SchemaStudio.AIHelpers.AIFileContext("WEBSemanticModel/Model/ViewSourcedColumnDefinition.cs", "Represents a parsed view column after projection resolution, including physical lineage, semantic source identity, and parser-carried business metadata before it is saved.", Responsibilities = "Carries DisableInheritance and Semantic* so semantic lookup overrides and lookup targets stay attached to parsed columns before later save flows materialize them into SchemaObjectColumnDefinition rows.", Nuances = "Preserve the distinction between physical Base* lineage and semantic Semantic* lookup identity; this model can carry parser flags without making all business metadata parser authoritative.", RelatedFiles = "ParsedQuery, ViewMetadataBinder, ManageViews.razor", LastReviewed = "2026-04-28")]
     public class ViewSourcedColumnDefinition : INotifyPropertyChanged, IDataErrorInfo
     {
         public event PropertyChangedEventHandler PropertyChanged;

@@ -12,7 +12,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\SchemaStudio.AIHelpers\SchemaStudio.AIHelpers.csproj" />
     <ProjectReference Include="..\SchemaStudio.Data\SchemaStudio.Data.csproj" />
   </ItemGroup>
 

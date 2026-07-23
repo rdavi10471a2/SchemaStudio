@@ -1,11 +1,8 @@
-using SchemaStudio.AIHelpers;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 
 namespace SchemaStudio.Data.Models;
 
-[FileVersion("1.3")]
-[AIFileContext("SchemaStudio.Data/Models/DatabaseRelationshipDefinition.cs", "Defines curated database relationship metadata used by base-view creation, domain object modeling, and future query-building tools.", Responsibilities = "Carries relationship headers and ordered column pairs for physical foreign keys, lookup joins, soft/domain joins, and user-confirmed relationship hints.", Nuances = "Relationship meaning is contextual: the same physical relationship may be a lookup from one screen and a one-to-many path from another.", LastReviewed = "2026-05-13")]
 public sealed class DatabaseRelationshipDefinition
 {
     [Display(AutoGenerateField = false)]
@@ -108,8 +105,6 @@ public sealed class DatabaseRelationshipDefinition
                 .Select(column => $"{SourceTableName}.{column.SourceColumnName} = {TargetTableName}.{column.TargetColumnName}"));
 }
 
-[FileVersion("1.0")]
-[AIFileContext("SchemaStudio.Data/Models/DatabaseRelationshipDefinition.cs", "Defines an ordered column pair for a curated database relationship.", Responsibilities = "Stores source-to-target column mappings for one relationship header.", LastReviewed = "2026-05-13")]
 public sealed class DatabaseRelationshipColumnDefinition
 {
     [Display(AutoGenerateField = false)]

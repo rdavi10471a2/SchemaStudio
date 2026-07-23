@@ -1,12 +1,9 @@
 using Dapper;
 using Microsoft.Data.SqlClient;
-using SchemaStudio.AIHelpers;
 using System.ComponentModel;
 
 namespace SchemaStudioWebViewer.Data;
 
-[FileVersion("1.10")]
-[AIFileContext("Repositories/TableSchemaSmoRepository.cs", "Reads SQL Server table metadata for the Base View Generator page.", Responsibilities = "Provides schema, table, column, and many-to-one foreign-key metadata from a selected source database without changing the configured connection string.", Nuances = "The class name is retained from the first SMO implementation, but the metadata reads use targeted sys catalog queries because SMO object hydration was too slow for interactive use.", LastReviewed = "2026-05-07")]
 public sealed class TableSchemaSmoRepository
 {
     private readonly string connectionString;

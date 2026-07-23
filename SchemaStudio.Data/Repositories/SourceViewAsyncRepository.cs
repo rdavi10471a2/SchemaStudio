@@ -1,12 +1,9 @@
-﻿using Dapper;
+using Dapper;
 using Microsoft.Data.SqlClient;
-using SchemaStudio.AIHelpers;
 using SchemaStudio.Data.Models;
 
 namespace SchemaStudio.Data.Repositories;
 
-[FileVersion("1.0")]
-[AIFileContext("SchemaStudio.Data/Repositories/SourceViewAsyncRepository.cs", "Async-named companion to SourceViewRepository for read-only source SQL view discovery; same shape, no callers wired up. Created for workflow timing measurement.", LastReviewed = "2026-05-21")]
 public sealed class SourceViewAsyncRepository
 {
     private readonly string _connectionString;

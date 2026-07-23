@@ -1,11 +1,8 @@
-using SchemaStudio.AIHelpers;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 
 namespace SchemaStudioWebViewer.Models
 {
-    [FileVersion("1.0")]
-    [AIFileContext("Models/DatabaseModel.cs", "Defines the web-facing database metadata model used by read-only pages and UI-bound forms.", LastReviewed = "2026-04-23")]
     public class DatabaseModel
     {
         [Display(AutoGenerateField = false)]

@@ -1,14 +1,8 @@
-﻿using System.Text;
+using System.Text;
 using System.Text.RegularExpressions;
 using Radzen;
 using SchemaStudioWebViewer.WEBSemanticModel.Parsing;
 
-[module: SchemaStudio.AIHelpers.AIFileContext(
-    "Components/Pages/DomainObjectModeler/DomainObjectModeler.Sql.cs",
-    "SQL generation and validation slice for the Domain Object Modeler page.",
-    Responsibilities = "Fetch selected base-view SQL, optionally strip internal comments, assemble CREATE OR ALTER VIEW CTE SQL, validate parser compatibility, and quote identifiers.",
-    RelatedFiles = "Components/Pages/DomainObjectModeler/DomainObjectModeler.razor; Repositories/ReadOnlyViewDefinitionRepository.cs",
-    LastReviewed = "2026-05-13")]
 namespace SchemaStudioWebViewer.Components.Pages.DomainObjectModeler;
 
 public partial class DomainObjectModeler

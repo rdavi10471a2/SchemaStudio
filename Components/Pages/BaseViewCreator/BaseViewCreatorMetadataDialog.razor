@@ -1,15 +1,7 @@
 @using Radzen
-@using SchemaStudio.AIHelpers
 
 @namespace SchemaStudioWebViewer.Components.Pages.BaseViewCreator
 
-@attribute [FileVersion("1.0")]
-@attribute [AIFileContext(
-    "Components/Pages/BaseViewCreator/BaseViewCreatorMetadataDialog.razor",
-    "Small edit dialog for Base View Creator generated-column metadata.",
-    Responsibilities = "Render editable business name and description fields while the parent page owns the target column/relationship and validation outcome.",
-    RelatedFiles = "Components/Pages/BaseViewCreator/BaseViewCreator.razor; Components/Pages/BaseViewCreator/BaseViewCreator.Metadata.cs",
-    LastReviewed = "2026-05-12")]
 
 <div class="bvg-modal-backdrop">
     <section class="bvg-modal" role="dialog" aria-modal="true" aria-labelledby="bvg-metadata-dialog-title">

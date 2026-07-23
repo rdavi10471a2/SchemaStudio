@@ -1,4 +1,4 @@
-﻿@page "/"
+@page "/"
 
 @page "/kiosk"
 
@@ -6,7 +6,6 @@
 
 @implements IDisposable
 
-@using SchemaStudio.AIHelpers
 @using SchemaStudioWebViewer.Configuration
 @using SchemaStudioWebViewer.Data
 @using SchemaStudioWebViewer.Models
@@ -25,8 +24,6 @@
 @inject IJSRuntime JSRuntime
 @inject NavigationManager NavigationManager
 
-@attribute [FileVersion("1.18")]
-@attribute [AIFileContext("Components/Pages/Home.razor", "Hosts the shared kiosk and normal home selection workflow, simple login state, persisted selection restoration, and the main schema object detail surface.")]
 
 <style>
     .view-label-blue {

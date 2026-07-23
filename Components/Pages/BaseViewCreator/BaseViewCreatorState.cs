@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using SchemaStudio.AIHelpers;
 using SchemaStudio.Data.Models;
 using SchemaStudioWebViewer.Data;
 using SchemaStudioWebViewer.Models;
@@ -10,14 +9,6 @@ namespace SchemaStudioWebViewer.Components.Pages.BaseViewCreator;
 /// <summary>
 /// Scoped state container that lets the Base View Creator page retain its work across navigation.
 /// </summary>
-[FileVersion("1.0")]
-[AIFileContext(
-    "Components/Pages/BaseViewCreator/BaseViewCreatorState.cs",
-    "Circuit-scoped state container for the Base View Creator page.",
-    Responsibilities = "Holds the user's in-progress source/target selections, loaded schema (columns, relationships, child relationships, saved lookups), generated SQL, and workspace UI preferences so they survive navigation away from and back to /base-view-creator within the same session.",
-    Nuances = "Registered as a scoped service in Program.cs, so a single instance lives for the lifetime of the Blazor circuit. BaseViewCreator exposes each member here through forwarding properties; only truly transient interaction flags (IsBusy, drag state, dialog-edit buffers) stay on the component itself. Default seed values mirror the constants declared on the BaseViewCreator component.",
-    RelatedFiles = "Components/Pages/BaseViewCreator/BaseViewCreator.razor; Components/Pages/BaseViewCreator/BaseViewCreator.razor.cs; Program.cs",
-    LastReviewed = "2026-07-22")]
 public sealed class BaseViewCreatorState
 {
     /// <summary>True once the page has run its one-time initial load; guards against resetting restored state.</summary>

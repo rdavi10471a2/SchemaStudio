@@ -1,12 +1,9 @@
-﻿using Dapper;
+using Dapper;
 using Microsoft.Data.SqlClient;
-using SchemaStudio.AIHelpers;
 using SchemaStudioWebViewer.Models;
 
 namespace SchemaStudioWebViewer.Data
 {
-    [FileVersion("1.0")]
-    [AIFileContext("Repositories/ReadOnlyDatabaseRepository.cs", "Provides async read-only access to database metadata records for legacy web UI paths.", LastReviewed = "2026-04-23")]
     public class ReadOnlyDatabaseRepository
     {
         private readonly string _connectionString;

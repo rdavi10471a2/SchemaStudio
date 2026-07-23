@@ -1,9 +1,6 @@
-﻿@using SchemaStudioWebViewer.Models
-@using SchemaStudio.AIHelpers
+@using SchemaStudioWebViewer.Models
 @inject IJSRuntime JSRuntime
 
-@attribute [FileVersion("1.0")]
-@attribute [AIFileContext("Components/Dialogs/ViewSQLDialog.razor", "Displays parser or view SQL in a read-only Prism-highlighted dialog with local light-theme SQL token colors for SSMS-style readability.")]
 
 <RadzenStack Gap="0.75rem" Style="padding: 10px; height: 100%; overflow: hidden;">
     @if (IsMock)

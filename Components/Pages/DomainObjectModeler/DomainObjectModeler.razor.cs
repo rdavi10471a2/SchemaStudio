@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
@@ -7,13 +7,6 @@ using Radzen.Blazor;
 using SchemaStudio.Data.Models;
 using SchemaStudioWebViewer.Components.HelpSystem;
 using SchemaStudioWebViewer.Utils;
-
-[module: SchemaStudio.AIHelpers.AIFileContext(
-    "Components/Pages/DomainObjectModeler/DomainObjectModeler.razor.cs",
-    "Shared state and lifecycle for the Domain Object Modeler page.",
-    Responsibilities = "Own page-level state, lifecycle loading, help helpers, status notification, clipboard copy, and small UI helpers.",
-    RelatedFiles = "Components/Pages/DomainObjectModeler/DomainObjectModeler.razor",
-    LastReviewed = "2026-05-13")]
 
 namespace SchemaStudioWebViewer.Components.Pages.DomainObjectModeler;
 

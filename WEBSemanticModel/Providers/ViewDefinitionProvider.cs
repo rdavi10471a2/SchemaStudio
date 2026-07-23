@@ -1,15 +1,13 @@
-﻿using Microsoft.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using SchemaStudioWebViewer.WEBSemanticModel.Diagnostics;
 using SchemaStudioWebViewer.WEBSemanticModel.Model;
 using SchemaStudioWebViewer.WEBSemanticModel.Parsing;
-using SchemaStudio.AIHelpers;
 
 namespace SchemaStudioWebViewer.WEBSemanticModel.Providers
 {
     //-----------------------------------------
     // IMPLEMENT INTERFACE
     //-----------------------------------------
-    [FileVersion("1.1")]
     public class ViewDefinitionProvider : IViewDefinitionProvider
     {
         private readonly string _connectionString;

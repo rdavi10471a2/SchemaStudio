@@ -3,7 +3,6 @@
 
 @using Radzen
 @using Radzen.Blazor
-@using SchemaStudio.AIHelpers
 @using SchemaStudioWebViewer.Components.ColumnReconciliation
 @using SchemaStudio.Data.Models
 @using SchemaStudio.Data.Repositories
@@ -23,8 +22,6 @@
 @inject DialogService DialogService
 @inject SqlObjectDependencyRepository SqlObjectDependencyRepository
 
-@attribute [FileVersion("1.49")]
-@attribute [AIFileContext("Components/Pages/ManageViewsNext/ManageViewsNext.razor", "Prototype Manage Views replacement page that keeps the existing ManageViews page intact while testing the accepted one-screen domain/tree selector, combined view-definition and column-metadata editing layout, relocated selected-view toolbar actions, column reconciliation launch, and shared save/delete workflow.", Responsibilities = "Owns the /manage-views-next route, top-level markup, selector shell, view editor markup, column metadata editor markup, focused reconciliation dialog launch, and composition of the partial-class workflow helpers.", Nuances = "The class-level FileVersion lives here; other ManageViewsNext partial files should use AIChange and AIFileContext without duplicating FileVersion. Keep the old ManageViews folder as fallback until this surface is accepted.", RelatedFiles = "ManageViewsNext.razor.cs; ManageViewsNext.Selection.cs; ManageViewsNext.Columns.cs; ManageViewsNext.Parser.cs; ManageViewsNext.razor.css; Components/ColumnReconciliation/ColumnReconciliationDialog.razor; README.md", LastReviewed = "2026-05-03")]
 
 @* Fragment References:
    - Components/Pages/ManageViewsNext/ManageViewsNext.razor.cs

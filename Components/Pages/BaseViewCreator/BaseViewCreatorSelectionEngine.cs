@@ -1,16 +1,7 @@
-using SchemaStudio.AIHelpers;
 using SchemaStudioWebViewer.Data;
 
 namespace SchemaStudioWebViewer.Components.Pages.BaseViewCreator;
 
-[FileVersion("1.2")]
-[AIFileContext(
-    "Components/Pages/BaseViewCreator/BaseViewCreatorSelectionEngine.cs",
-    "Builds the isolated Base View Creator selection graph from source columns and lookup relationships.",
-    Responsibilities = "Keep user selection separate from derived join dependencies so lookup display projections can drive SQL generation without recursive page helpers.",
-    Nuances = "The engine intentionally owns graph state only. Razor still owns UI rendering and SQL text formatting while this fork proves the cleaner plumbing.",
-    RelatedFiles = "Components/Pages/BaseViewCreator/BaseViewCreator.razor; CTEEditorSample/SQLBuilderTest/Services/CteSelectionSessionEditor.cs",
-    LastReviewed = "2026-05-12")]
 public sealed class BaseViewCreatorSelectionEngine
 {
     public BaseViewCreatorSelectionPlan Build(

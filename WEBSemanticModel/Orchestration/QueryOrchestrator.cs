@@ -1,14 +1,11 @@
-﻿using SchemaStudioWebViewer.WEBSemanticModel.Binding;
+using SchemaStudioWebViewer.WEBSemanticModel.Binding;
 using SchemaStudioWebViewer.WEBSemanticModel.Diagnostics;
 using SchemaStudioWebViewer.WEBSemanticModel.Model;
 using SchemaStudioWebViewer.WEBSemanticModel.Parsing;
 using SchemaStudioWebViewer.WEBSemanticModel.Providers;
-using SchemaStudio.AIHelpers;
 
 namespace SchemaStudioWebViewer.WEBSemanticModel.Orchestration
 {
-    [FileVersion("1.1")]
-    [AIFileContext("WEBSemanticModel/Orchestration/QueryOrchestrator.cs", "Coordinates full SQL view parsing, dependency expansion, column binding, view ownership assignment, and parser metadata binding before projection.", Responsibilities = "Owns the final expression ownership pass so composed columns are attributed to the view that defines them while pass-through upstream expressions keep their upstream expression owner.", Nuances = "ViewOwnershipBinder is the semantic boundary for non-simple select items; keep Base* physical/simple lineage and Semantic* lookup targets synchronized there.", RelatedFiles = "QueryBinder, ColumnBinder, ParsedQuery, SelectItem", LastReviewed = "2026-04-28")]
     public static class QueryOrchestrator
     {
         //-----------------------------------------

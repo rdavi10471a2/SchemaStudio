@@ -1,14 +1,11 @@
 using System.ComponentModel;
 using ModelContextProtocol.Server;
-using SchemaStudio.AIHelpers;
 using SchemaStudioWebViewer.Data;
 using SchemaStudioWebViewer.Models;
 
 namespace SchemaStudioWebViewer.McpTools;
 
 [McpServerToolType]
-[FileVersion("1.5")]
-[AIFileContext("McpTools/SchemaCatalogMcpTools.cs", "MCP tool surface for read-only Schema Studio catalog discovery. Wraps SchemaMCPRepository calls in structured success/error objects for AI callers.", Responsibilities = "Exposes chainable MCP tools for listing databases, domains, schema objects, object fields, and focused object/field descriptions.", Nuances = "Keep repository exceptions contained here so MCP callers receive recoverable JSON instead of transport-level failures for normal lookup mistakes.", LastReviewed = "2026-05-07")]
 public sealed class SchemaCatalogMcpTools
 {
     private const int DefaultListLimit = 100;

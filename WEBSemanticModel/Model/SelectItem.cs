@@ -1,11 +1,8 @@
-﻿using Microsoft.SqlServer.TransactSql.ScriptDom;
+using Microsoft.SqlServer.TransactSql.ScriptDom;
 
-using SchemaStudio.AIHelpers;
 
 namespace SchemaStudioWebViewer.WEBSemanticModel.Model
 {
-    [FileVersion("1.1")]
-    [AIFileContext("WEBSemanticModel/Model/SelectItem.cs", "Carries parser-resolved select-item identity, physical lineage, semantic source identity, and parser-owned metadata while the SQL query is being analyzed.", Responsibilities = "Carries DisableInheritance and Semantic* fields so comment-bound semantic override flags and nearest non-physical source identity can survive later parser projection work.", Nuances = "Keep Base* as physical lineage; Semantic* is reserved for the nearest non-physical schema object/column encountered in the select chain.", RelatedFiles = "ViewMetadataBinder, ParsedQuery, ViewSourcedColumnDefinition, QueryBinder, ColumnBinder", LastReviewed = "2026-04-28")]
     public class SelectItem
     {
         //-----------------------------------------

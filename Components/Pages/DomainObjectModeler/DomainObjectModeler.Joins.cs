@@ -1,12 +1,5 @@
 using Microsoft.AspNetCore.Components;
 
-[module: SchemaStudio.AIHelpers.AIFileContext(
-    "Components/Pages/DomainObjectModeler/DomainObjectModeler.Joins.cs",
-    "Join editing helpers for the Domain Object Modeler page.",
-    Responsibilities = "Keep CTE target name edits, alias edits, join type changes, ON clause changes, and comment-stripping state coordinated with generated SQL invalidation.",
-    RelatedFiles = "Components/Pages/DomainObjectModeler/DomainObjectModeler.razor",
-    LastReviewed = "2026-05-13")]
-
 namespace SchemaStudioWebViewer.Components.Pages.DomainObjectModeler;
 
 public partial class DomainObjectModeler

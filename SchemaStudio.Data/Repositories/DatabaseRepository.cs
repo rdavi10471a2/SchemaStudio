@@ -1,12 +1,9 @@
 using Dapper;
 using Microsoft.Data.SqlClient;
-using SchemaStudio.AIHelpers;
 using SchemaStudio.Data.Models;
 
 namespace SchemaStudio.Data.Repositories;
 
-[FileVersion("1.5")]
-[AIFileContext("SchemaStudio.Data/Repositories/DatabaseRepository.cs", "Read/write repository for Schema Studio database metadata records.", Responsibilities = "Loads and maintains dbo.Databases rows for maintenance screens and downstream schema tools.", Nuances = "Applies small additive metadata table upgrades before database reads and writes so UI fields can roll out without a separate migration step.", LastReviewed = "2026-05-11")]
 public sealed class DatabaseRepository
 {
     private readonly string _connectionString;

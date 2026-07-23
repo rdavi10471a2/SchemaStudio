@@ -1,12 +1,9 @@
 using Dapper;
 using Microsoft.Data.SqlClient;
-using SchemaStudio.AIHelpers;
 using SchemaStudio.Data.Models;
 
 namespace SchemaStudio.Data.Repositories;
 
-[FileVersion("1.1")]
-[AIFileContext("SchemaStudio.Data/Repositories/SourceViewRepository.cs", "Reads source SQL view definitions from a selected database so the manage-views workspace can show available import candidates filtered by database-maintained rules.", LastReviewed = "2026-04-23")]
 public sealed class SourceViewRepository
 {
     private readonly string _connectionString;

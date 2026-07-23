@@ -1,7 +1,6 @@
 using Radzen;
 using SchemaStudio.Data.Repositories;
 using SchemaStudioWebViewer.Components;
-using SchemaStudio.AIHelpers;
 using SchemaStudioWebViewer.Configuration;
 using SchemaStudioWebViewer.Data;
 using SchemaStudioWebViewer.McpTools;
@@ -11,8 +10,6 @@ using System.Text.Json;
 
 namespace SchemaStudioWebViewer
 {
-    [FileVersion("1.15")]
-    [AIFileContext("Program.cs", "Bootstraps the SchemaStudioWebViewer web app, initializes configuration, registers services, and maps the Razor and MCP endpoints.")]
     public class Program
     {
         public static void Main(string[] args)
