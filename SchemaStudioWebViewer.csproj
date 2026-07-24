@@ -27,15 +27,19 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Remove="RelationshipLoader\**\*.cs" />
     <Compile Remove="SchemaStudio.Data\**\*.cs" />
     <Compile Remove="SourceBackups\**\*.cs" />
     <Compile Remove="WEBSemanticModel\**\*.cs" />
+    <Content Remove="RelationshipLoader\**\*" />
     <Content Remove="SchemaStudio.Data\**\*" />
     <Content Remove="SourceBackups\**\*" />
     <Content Remove="WEBSemanticModel\**\*" />
+    <EmbeddedResource Remove="RelationshipLoader\**\*" />
     <EmbeddedResource Remove="SchemaStudio.Data\**\*" />
     <EmbeddedResource Remove="SourceBackups\**\*" />
     <EmbeddedResource Remove="WEBSemanticModel\**\*" />
+    <None Remove="RelationshipLoader\**\*" />
     <None Remove="SchemaStudio.Data\**\*" />
     <None Remove="SourceBackups\**\*" />
     <None Remove="WEBSemanticModel\**\*" />

@@ -42,6 +42,7 @@ namespace SchemaStudioWebViewer
                 new SchemaMCPRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
             builder.Services.AddScoped<SchemaCatalogMcpTools>();
             builder.Services.AddSingleton<TableDisplayColumnPolicy>();
+            builder.Services.AddSingleton<SchemaStudioWebViewer.Services.RelationshipMetadataService>();
             builder.Services.AddScoped(sp =>
                 new TableSchemaSmoRepository(
                     AppConfig.Current.ConnectionStrings.DefaultConnection,

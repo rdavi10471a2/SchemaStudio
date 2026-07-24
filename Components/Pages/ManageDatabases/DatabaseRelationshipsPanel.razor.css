@@ -371,6 +371,12 @@
     color: #5b21b6;
 }
 
+.relationship-chip-colookup {
+    background: #ecfdf5;
+    border-color: #a7f3d0;
+    color: #047857;
+}
+
 .relationship-edit-grid {
     display: grid;
     gap: 0.55rem;

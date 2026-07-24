@@ -1,5 +1,6 @@
 using Dapper;
 using Microsoft.Data.SqlClient;
+using SchemaStudio.Data.Models;
 using System.ComponentModel;
 
 namespace SchemaStudioWebViewer.Data;
@@ -103,8 +104,11 @@ ORDER BY t.name;
                 })
                 .ToList();
 
-            var isRequired = pairs.Count > 0 &&
-                pairs.All(pair => columnByName.TryGetValue(pair.LocalColumnName, out var localColumn) && !localColumn.IsNullable);
+            // Shared rule with the RelationshipLoader (RelationshipJoinPolicy): a lookup is INNER JOIN
+            // only when every many-side FK column is non-nullable; a missing column counts as nullable.
+            var selectedJoinType = RelationshipJoinPolicy.ForLookup(pairs.Select(pair =>
+                !columnByName.TryGetValue(pair.LocalColumnName, out var localColumn) || localColumn.IsNullable));
+            var isRequired = selectedJoinType == RelationshipJoinPolicy.InnerJoin;
 
             relationships.Add(new TableSchemaRelationshipInfo(
                 group.Key.ForeignKeyName,
@@ -112,7 +116,7 @@ ORDER BY t.name;
                 group.Key.ReferencedTableName,
                 displayColumnsByObjectId.GetValueOrDefault(group.Key.ReferencedObjectId),
                 isRequired,
-                isRequired ? "INNER JOIN" : "LEFT JOIN",
+                selectedJoinType,
                 pairs));
         }
 

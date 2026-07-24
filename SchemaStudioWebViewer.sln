@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SchemaStudioWebViewer.WEBSe
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SchemaStudio.Data", "SchemaStudio.Data\SchemaStudio.Data.csproj", "{BAE41467-F099-45FE-A77E-22488096583B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RelationshipLoader", "RelationshipLoader\RelationshipLoader.csproj", "{D2E7F1A8-6B3C-4E9D-A5F2-8C1B4D7E9A02}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -57,6 +59,18 @@ Global
 		{BAE41467-F099-45FE-A77E-22488096583B}.Release|x64.Build.0 = Release|Any CPU
 		{BAE41467-F099-45FE-A77E-22488096583B}.Release|x86.ActiveCfg = Release|Any CPU
 		{BAE41467-F099-45FE-A77E-22488096583B}.Release|x86.Build.0 = Release|Any CPU
+		{D2E7F1A8-6B3C-4E9D-A5F2-8C1B4D7E9A02}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D2E7F1A8-6B3C-4E9D-A5F2-8C1B4D7E9A02}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D2E7F1A8-6B3C-4E9D-A5F2-8C1B4D7E9A02}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{D2E7F1A8-6B3C-4E9D-A5F2-8C1B4D7E9A02}.Debug|x64.Build.0 = Debug|Any CPU
+		{D2E7F1A8-6B3C-4E9D-A5F2-8C1B4D7E9A02}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{D2E7F1A8-6B3C-4E9D-A5F2-8C1B4D7E9A02}.Debug|x86.Build.0 = Debug|Any CPU
+		{D2E7F1A8-6B3C-4E9D-A5F2-8C1B4D7E9A02}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D2E7F1A8-6B3C-4E9D-A5F2-8C1B4D7E9A02}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D2E7F1A8-6B3C-4E9D-A5F2-8C1B4D7E9A02}.Release|x64.ActiveCfg = Release|Any CPU
+		{D2E7F1A8-6B3C-4E9D-A5F2-8C1B4D7E9A02}.Release|x64.Build.0 = Release|Any CPU
+		{D2E7F1A8-6B3C-4E9D-A5F2-8C1B4D7E9A02}.Release|x86.ActiveCfg = Release|Any CPU
+		{D2E7F1A8-6B3C-4E9D-A5F2-8C1B4D7E9A02}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

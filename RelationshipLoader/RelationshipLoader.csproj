@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>RelationshipLoader</RootNamespace>
+    <AssemblyName>RelationshipLoader</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Same versions SchemaStudio.Data pins, to avoid transitive conflicts. -->
+    <PackageReference Include="Dapper" Version="2.1.72" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Reuse the SchemaStudio models + DatabaseRepository (chooser) + DatabaseRelationshipRepository (upsert). -->
+    <ProjectReference Include="..\SchemaStudio.Data\SchemaStudio.Data.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>
