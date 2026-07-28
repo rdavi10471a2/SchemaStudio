@@ -38,6 +38,12 @@ public sealed class BaseViewCreatorState
     public string MergeDestinationDb { get; set; } = "VVG_Silver";
     public string MergeDestinationSchema { get; set; } = "dbo";
     public string MergeDestinationTable { get; set; } = "";
+    public string MergeDateFilterColumn { get; set; } = "";
+    public string MergeDateFilterRange { get; set; } = "priorMonthStart"; // matches BaseViewCreator.DateRangePriorMonth
+    public string GeneratedBatchMergeSql { get; set; } = "";
+    public string BatchMergeUnavailableReason { get; set; } = "";
+    // Error surfaced when the VVG_Silver control table (ReplicatedExcedeSources) fails to load.
+    public string ReplicatedSourcesError { get; set; } = "";
     public string ActiveWorkspaceTab { get; set; } = "tree";
     public string ActiveSourceInfoTab { get; set; } = "options";
     public bool MergeControlsExpanded { get; set; } = true;
@@ -50,6 +56,8 @@ public sealed class BaseViewCreatorState
     public HashSet<string> CollapsedRelationshipGroups { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
     public List<DatabaseDefinition> Databases { get; set; } = new();
+    // Control rows from VVG_Silver.dbo.ReplicatedExcedeSources, loaded once per circuit.
+    public List<ReplicatedExcedeSource> ReplicatedSources { get; set; } = new();
     public List<TableSchemaColumnInfo> Columns { get; set; } = new();
     public List<TableSchemaRelationshipInfo> AllRelationships { get; set; } = new();
     public List<TableSchemaRelationshipInfo> Relationships { get; set; } = new();

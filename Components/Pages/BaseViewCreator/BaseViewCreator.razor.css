@@ -304,6 +304,10 @@
     border-top: 1px solid #e7ebf0;
 }
 
+.bvg-target-actions {
+    margin-top: 0.6rem;
+}
+
 .bvg-target h2,
 .bvg-relationships h2 {
     margin: 0 0 0.55rem;
@@ -708,7 +712,7 @@
 }
 
 .bvg-tree-relationship-header {
-    grid-template-columns: 24px auto 24px minmax(360px, 1fr) minmax(340px, 0.55fr);
+    grid-template-columns: 24px 24px minmax(360px, 1fr) auto minmax(340px, 0.55fr);
     align-items: flex-start;
     min-height: 46px;
     background: #fbfcff;
@@ -1317,6 +1321,13 @@
 
 .bvg-merge-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+/* Highlights a required merge field that is still empty (e.g. no DateUpdate column to auto-select). */
+.bvg-field-attention {
+    border: 1px solid #dc2626;
+    background: #fef2f2;
+    outline: none;
 }
 
 .bvg-merge-grid .bvg-merge-row-start {

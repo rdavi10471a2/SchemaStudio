@@ -41,6 +41,8 @@ public partial class BaseViewCreator : ComponentBase
     [Inject] private DatabaseRepository DatabaseRepository { get; set; } = default!;
     [Inject] private DatabaseRelationshipRepository RelationshipRepository { get; set; } = default!;
     [Inject] private TableSchemaSmoRepository TableSchemaRepository { get; set; } = default!;
+    [Inject] private ReplicatedExcedeSourceRepository ReplicatedExcedeSourceRepository { get; set; } = default!;
+    [Inject] private SchemaObjectRepository SchemaObjectRepository { get; set; } = default!;
     [Inject] private IJSRuntime JSRuntime { get; set; } = default!;
     [Inject] private DialogService DialogService { get; set; } = default!;
     [Inject] private NotificationService NotificationService { get; set; } = default!;
@@ -92,6 +94,11 @@ public partial class BaseViewCreator : ComponentBase
     private string MergeDestinationDb { get => State.MergeDestinationDb; set => State.MergeDestinationDb = value; }
     private string MergeDestinationSchema { get => State.MergeDestinationSchema; set => State.MergeDestinationSchema = value; }
     private string MergeDestinationTable { get => State.MergeDestinationTable; set => State.MergeDestinationTable = value; }
+    private string MergeDateFilterColumn { get => State.MergeDateFilterColumn; set => State.MergeDateFilterColumn = value; }
+    private string MergeDateFilterRange { get => State.MergeDateFilterRange; set => State.MergeDateFilterRange = value; }
+    private string GeneratedBatchMergeSql { get => State.GeneratedBatchMergeSql; set => State.GeneratedBatchMergeSql = value; }
+    private string BatchMergeUnavailableReason { get => State.BatchMergeUnavailableReason; set => State.BatchMergeUnavailableReason = value; }
+    private string ReplicatedSourcesError { get => State.ReplicatedSourcesError; set => State.ReplicatedSourcesError = value; }
     private string ActiveWorkspaceTab { get => State.ActiveWorkspaceTab; set => State.ActiveWorkspaceTab = value; }
     private string ActiveSourceInfoTab { get => State.ActiveSourceInfoTab; set => State.ActiveSourceInfoTab = value; }
     private bool MergeControlsExpanded { get => State.MergeControlsExpanded; set => State.MergeControlsExpanded = value; }
@@ -103,6 +110,7 @@ public partial class BaseViewCreator : ComponentBase
     private bool SqlDirty { get => State.SqlDirty; set => State.SqlDirty = value; }
     private HashSet<string> CollapsedRelationshipGroups { get => State.CollapsedRelationshipGroups; set => State.CollapsedRelationshipGroups = value; }
     private List<DatabaseDefinition> Databases { get => State.Databases; set => State.Databases = value; }
+    private List<ReplicatedExcedeSource> ReplicatedSources { get => State.ReplicatedSources; set => State.ReplicatedSources = value; }
     private List<TableSchemaColumnInfo> Columns { get => State.Columns; set => State.Columns = value; }
     private List<TableSchemaRelationshipInfo> AllRelationships { get => State.AllRelationships; set => State.AllRelationships = value; }
     private List<TableSchemaRelationshipInfo> Relationships { get => State.Relationships; set => State.Relationships = value; }
@@ -188,7 +196,7 @@ public partial class BaseViewCreator : ComponentBase
         FilteredStandaloneColumns.Count() +
         FilteredRelationships.Sum(relationship =>
             (RelationshipOwnsEditorProjectionColumns(relationship) ? GetRelationshipColumns(relationship).Count() : 0) +
-            (HasDisplayColumn(relationship) ? 1 : 0));
+            1); // every relationship renders one lookup display row (placeholder when no display chosen)
 
     private BaseViewCreatorSelectionPlan CurrentSelectionPlan =>
         SelectionEngine.Build(Columns, Relationships);
@@ -240,7 +248,28 @@ public partial class BaseViewCreator : ComponentBase
             SelectDatabase(Databases[0].DatabaseName);
         }, "Failed to load databases.");
 
+        await LoadReplicatedSourcesAsync();
+
         State.IsInitialized = true;
+    }
+
+    // Loads the VVG_Silver control table (ReplicatedExcedeSources) that backs the merge Country/Source
+    // dropdowns and the batch loop. On failure the dropdowns stay empty and the error is surfaced in
+    // the app (there is no hardcoded fallback).
+    private async Task LoadReplicatedSourcesAsync()
+    {
+        try
+        {
+            ReplicatedSources = (await ReplicatedExcedeSourceRepository.GetAllAsync()).ToList();
+            ReplicatedSourcesError = ReplicatedSources.Count == 0
+                ? "No rows returned from VVG_Silver.dbo.ReplicatedExcedeSources."
+                : "";
+        }
+        catch (Exception ex)
+        {
+            ReplicatedSources = new List<ReplicatedExcedeSource>();
+            ReplicatedSourcesError = $"Failed to load VVG_Silver.dbo.ReplicatedExcedeSources: {ex.Message}";
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -477,7 +506,62 @@ public partial class BaseViewCreator : ComponentBase
 
     private async Task LoadSelectedTableAsync()
     {
+        if (!await ConfirmSourceTableNotAlreadyMappedAsync())
+        {
+            return;
+        }
+
         await LoadTableDetailsAsync();
+    }
+
+    // Before loading, check whether the source table is already claimed by a base schema object
+    // (only one base view can claim a table per database). If it is, ask the user to confirm they
+    // want to load it anyway rather than silently remapping an already-mapped table. Returns true
+    // when loading should proceed. A failed lookup does not block the user; it proceeds and surfaces
+    // a warning so the check never becomes a hard gate on unrelated infrastructure errors.
+    private async Task<bool> ConfirmSourceTableNotAlreadyMappedAsync()
+    {
+        if (string.IsNullOrWhiteSpace(SelectedDatabaseName) ||
+            string.IsNullOrWhiteSpace(SelectedTableName))
+        {
+            return true;
+        }
+
+        var selectedDatabase = Databases.FirstOrDefault(database =>
+            string.Equals(database.DatabaseName, SelectedDatabaseName, StringComparison.OrdinalIgnoreCase));
+        if (selectedDatabase is null || selectedDatabase.DatabaseId == 0)
+        {
+            return true;
+        }
+
+        SchemaObjectDefinition? existingBaseObject;
+        try
+        {
+            existingBaseObject = await SchemaObjectRepository.GetBaseObjectBySourceTableAsync(
+                selectedDatabase.DatabaseId,
+                SelectedTableName);
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(
+                NotificationSeverity.Warning,
+                "Could not check existing base object mappings.",
+                ex.Message,
+                6000);
+            return true;
+        }
+
+        if (existingBaseObject is null)
+        {
+            return true;
+        }
+
+        var confirmed = await DialogService.Confirm(
+            $"Table '{SelectedTableName}' is already mapped to base object '{existingBaseObject.SourceObjectName}'. Load it anyway?",
+            "Table Already Mapped",
+            new ConfirmOptions { OkButtonText = "Load Anyway", CancelButtonText = "Cancel" });
+
+        return confirmed == true;
     }
 
     private async Task RefreshMetadataAsync()
@@ -521,6 +605,12 @@ public partial class BaseViewCreator : ComponentBase
             CollapseJoinGroups();
             DisplayColumnTypeCache.Clear();
             MergeCountryDb = "";
+            // Default the date filter to DateUpdate when the source table exposes it; otherwise leave it
+            // blank (the UI flags the empty required field red until the user picks a date column).
+            MergeDateFilterColumn = MergeDateFilterColumnOptions
+                .FirstOrDefault(column => string.Equals(column, PreferredDateFilterColumn, StringComparison.OrdinalIgnoreCase))
+                ?? "";
+            MergeDateFilterRange = DateRangePriorMonth;
             MergeSourceDb = "";
             MergeSourceSchema = DefaultMergeSchemaName;
             MergeDestinationDb = DefaultMergeDestinationDatabaseName;
@@ -536,8 +626,11 @@ public partial class BaseViewCreator : ComponentBase
 
     private void ApplyRelationshipFilters()
     {
-        var filteredRelationships = AllRelationships
-            .Where(ShouldShowLookupRelationship);
+        // Show every FK/lookup relationship, including those with no display column chosen, so the user
+        // can override the default from the Lookups section. No-display relationships still emit no join
+        // or projection (the selection engine requires a chosen display column), and their projection-tree
+        // row stays unchecked until a display column is picked.
+        IEnumerable<TableSchemaRelationshipInfo> filteredRelationships = AllRelationships;
 
         if (IgnoreSelfJoins)
         {
@@ -763,6 +856,11 @@ public partial class BaseViewCreator : ComponentBase
         TargetViewName = string.IsNullOrWhiteSpace(SelectedDatabaseName) || string.IsNullOrWhiteSpace(viewNameToken)
             ? ""
             : $"SS_{SelectedDatabaseName}_{viewNameToken}";
+
+        // Output table defaults to the source table name (e.g. SVSLS -> SVSLS).
+        TargetTableName = string.IsNullOrWhiteSpace(viewNameToken)
+            ? ""
+            : viewNameToken;
     }
 
     private void OnTargetDatabaseChanged(ChangeEventArgs args)
@@ -904,9 +1002,6 @@ public partial class BaseViewCreator : ComponentBase
     private bool CanUseRelationship(TableSchemaRelationshipInfo relationship) =>
         HasDisplayColumn(relationship);
 
-    private static bool ShouldShowLookupRelationship(TableSchemaRelationshipInfo relationship) =>
-        HasDisplayColumn(relationship);
-
     private string RelationshipStatusText(TableSchemaRelationshipInfo relationship)
     {
         if (IsJoinSuppressed(relationship))
@@ -1017,7 +1112,12 @@ public partial class BaseViewCreator : ComponentBase
     {
         if (string.IsNullOrWhiteSpace(relationship.DisplayColumnName))
         {
-            return "(no display column selected)";
+            // No display chosen yet: show the source column(s) and the lookup table so the user can
+            // reason about which display column to pick, instead of an opaque "(no display column selected)".
+            var sourceColumns = string.Join(
+                ", ",
+                relationship.Columns.Select(pair => $"{QuoteIdentifier(BaseAlias)}.{QuoteIdentifier(pair.LocalColumnName)}"));
+            return $"{sourceColumns} -> {QuoteIdentifier(relationship.ReferencedTableName)}";
         }
 
         return $"{QuoteIdentifier(BuildLookupAlias(relationship))}.{QuoteIdentifier(relationship.DisplayColumnName)} AS {QuoteIdentifier(BuildLookupProjectionAlias(relationship))}";
@@ -1500,6 +1600,94 @@ public partial class BaseViewCreator : ComponentBase
     private static string ProjectionPrefix(bool first) =>
         first ? "      " : "    , ";
 
+    // Preferred default date filter column when the source table exposes it.
+    private const string PreferredDateFilterColumn = "DateUpdate";
+
+    // All merge settings must be provided before the merge can be generated.
+    private bool CanRegenerateMerge =>
+        !string.IsNullOrWhiteSpace(MergeCountryDb) &&
+        !string.IsNullOrWhiteSpace(MergeDateFilterColumn) &&
+        !string.IsNullOrWhiteSpace(MergeSourceDb) &&
+        !string.IsNullOrWhiteSpace(MergeSourceSchema) &&
+        !string.IsNullOrWhiteSpace(MergeDestinationDb) &&
+        !string.IsNullOrWhiteSpace(MergeDestinationSchema) &&
+        !string.IsNullOrWhiteSpace(MergeDestinationTable);
+
+    // Batch merge loops the control table for the source/country, so those two dropdowns are not
+    // required; every other precondition of the single merge still applies.
+    private bool CanRegenerateBatchMerge =>
+        Columns.Count > 0 &&
+        !string.IsNullOrWhiteSpace(SelectedTableName) &&
+        !string.IsNullOrWhiteSpace(BaseAlias) &&
+        !string.IsNullOrWhiteSpace(MergeDateFilterColumn) &&
+        !string.IsNullOrWhiteSpace(MergeSourceSchema) &&
+        !string.IsNullOrWhiteSpace(MergeDestinationDb) &&
+        !string.IsNullOrWhiteSpace(MergeDestinationSchema) &&
+        !string.IsNullOrWhiteSpace(MergeDestinationTable);
+
+    // Source columns whose resolved SQL type is a date/time type, offered in the merge Date Filter dropdown.
+    private IReadOnlyList<string> MergeDateFilterColumnOptions =>
+        Columns.Where(IsDateColumn).Select(column => column.ColumnName).ToList();
+
+    private static bool IsDateColumn(TableSchemaColumnInfo column)
+    {
+        var resolved = UdtTypeResolver.ResolveByName(column.DataType);
+        return resolved.StartsWith("date", StringComparison.OrdinalIgnoreCase) ||
+               resolved.StartsWith("smalldatetime", StringComparison.OrdinalIgnoreCase);
+    }
+
+    // Resolves the CountryDB code for a source (replication) database from the loaded control table.
+    private string ResolveCountryCode(string? database)
+    {
+        if (string.IsNullOrWhiteSpace(database))
+        {
+            return "";
+        }
+
+        var trimmed = database.Trim();
+        return ReplicatedSources
+            .FirstOrDefault(source => string.Equals(source.ReplicatedDBName, trimmed, StringComparison.OrdinalIgnoreCase))
+            ?.CountryDB ?? "";
+    }
+
+    // Country DB and Source DB are linked both ways through the loaded control table: setting either
+    // field fills the other. (Programmatic assignment here does not retrigger the partner field's
+    // handler, so there is no feedback loop.)
+    private void OnMergeSourceDbChanged()
+    {
+        var code = ResolveCountryCode(MergeSourceDb);
+        if (!string.IsNullOrEmpty(code))
+        {
+            MergeCountryDb = code;
+        }
+    }
+
+    private void OnMergeCountryDbChanged()
+    {
+        var match = ReplicatedSources
+            .FirstOrDefault(source => string.Equals(source.CountryDB, MergeCountryDb, StringComparison.OrdinalIgnoreCase));
+        if (match is not null && !string.IsNullOrWhiteSpace(match.ReplicatedDBName))
+        {
+            MergeSourceDb = match.ReplicatedDBName;
+        }
+    }
+
+    // Options for the linked Country DB / Source DB dropdowns, sourced from
+    // VVG_Silver.dbo.ReplicatedExcedeSources (loaded once per circuit; empty if the load failed).
+    private IReadOnlyList<string> CountryCodeOptions =>
+        ReplicatedSources
+            .Select(source => source.CountryDB)
+            .Where(code => !string.IsNullOrWhiteSpace(code))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+    private IReadOnlyList<string> SourceDatabaseOptions =>
+        ReplicatedSources
+            .Select(source => source.ReplicatedDBName)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
     private static string YesNo(bool value) =>
         value ? "Yes" : "No";
 
@@ -1613,6 +1801,15 @@ public partial class BaseViewCreator : ComponentBase
         {
             await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", GeneratedMergeSql);
             NotificationService.Notify(NotificationSeverity.Success, "Merge copied.", "", 3000);
+        }
+    }
+
+    private async Task CopyBatchMergeSqlAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(GeneratedBatchMergeSql))
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", GeneratedBatchMergeSql);
+            NotificationService.Notify(NotificationSeverity.Success, "Batch merge copied.", "", 3000);
         }
     }
 

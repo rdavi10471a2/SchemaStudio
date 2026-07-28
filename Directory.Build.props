@@ -1,0 +1,17 @@
+<Project>
+
+  <!--
+    Solution-wide build settings. Applied automatically to every project under this folder
+    (SchemaStudioWebViewer, SchemaStudio.Data, WEBSemanticModel, RelationshipLoader).
+
+    EnforceCodeStyleInBuild runs the IDE code-style analyzers (the IDExxxx rules) during
+    `dotnet build`, not only inside an IDE. Combined with the severities set in the
+    solution-root .editorconfig, this makes dead-code detection (unused/unread private
+    members) surface as build warnings. Warnings are NOT errors: TreatWarningsAsErrors is
+    intentionally left off so turning this on cannot break the build.
+  -->
+  <PropertyGroup>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+
+</Project>

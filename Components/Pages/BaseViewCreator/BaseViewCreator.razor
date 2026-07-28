@@ -70,15 +70,7 @@
 
                 <label>
                     @HelpLabel("Source Table", "Physical table to inspect. Loading the table discovers base columns, FK relationships, and database-specific lookup relationships.")
-                    <div class="bvg-table-entry">
-                        <input value="@SelectedTableName" @oninput="OnTableNameChanged" placeholder="Type table name" disabled="@IsBusy" />
-                        <button type="button"
-                                class="bvg-button secondary"
-                                @onclick="LoadSelectedTableAsync"
-                                disabled="@(IsBusy || string.IsNullOrWhiteSpace(SelectedDatabaseName) || string.IsNullOrWhiteSpace(SelectedSchemaName) || string.IsNullOrWhiteSpace(SelectedTableName))">
-                            Load
-                        </button>
-                    </div>
+                    <input value="@SelectedTableName" @oninput="OnTableNameChanged" placeholder="Type table name" disabled="@IsBusy" />
                 </label>
 
                 <label>
@@ -107,78 +99,26 @@
                         <input value="@TargetTableName" @oninput="OnTargetTableNameChanged" placeholder="@(string.IsNullOrWhiteSpace(TargetViewName) ? "Output table name" : TargetViewName)" />
                     </label>
                 </div>
-                <div class="bvg-preview-line">@TargetViewPreview</div>
-                <div class="bvg-preview-line">@TargetTablePreview</div>
+                <div class="bvg-target-actions">
+                    <button type="button"
+                            class="bvg-button secondary"
+                            @onclick="LoadSelectedTableAsync"
+                            disabled="@(IsBusy || string.IsNullOrWhiteSpace(SelectedDatabaseName) || string.IsNullOrWhiteSpace(SelectedSchemaName) || string.IsNullOrWhiteSpace(SelectedTableName))">
+                        Load
+                    </button>
+                </div>
             </div>
 
-            <section class="bvg-source-info">
-                <header class="bvg-mini-tabs" role="tablist" aria-label="Base view generator source options">
-                    <button type="button" class="@SourceInfoTabClass("options")" @onclick='() => SetSourceInfoTab("options")'>Options</button>
-                    <button type="button" class="@SourceInfoTabClass("children")" @onclick='() => SetSourceInfoTab("children")'>Known Child Tables (@ChildRelationships.Count)</button>
-                </header>
-
-                <div class="bvg-source-info-body">
-                    @if (ActiveSourceInfoTab == "options")
-                    {
-                        <div class="bvg-options">
-                            <label><input type="checkbox" checked="@IgnoreSelfJoins" @onchange="OnIgnoreSelfJoinsChanged" /> Ignore self joins @HelpIcon("Hides relationships where the source table references itself. The source table FK columns are still available in the Columns tab.")</label>
-                            <label>
-                                @HelpLabel("Output shape", "CTE wraps the generated table SQL in a TableName_Source unit and projects the final view from that named source. Standard emits one flat SELECT.")
-                                <select value="@OutputShape" @onchange="OnOutputShapeChanged">
-                                    <option value="@OutputShapeCte">CTE</option>
-                                    <option value="@OutputShapeStandard">Standard</option>
-                                </select>
-                            </label>
-                            @if (!string.IsNullOrWhiteSpace(StatusMessage))
-                            {
-                                <div class="bvg-status bvg-source-status">
-                                    @StatusMessage
-                                    @if (SqlDirty)
-                                    {
-                                        <span class="bvg-dirty-note">SQL has pending changes. Click Regenerate SQL.</span>
-                                    }
-                                </div>
-                            }
-                        </div>
-                    }
-                    else
-                    {
-                        <section class="bvg-child-relationships">
-                            <div class="bvg-note">
-                                These tables reference @SelectedTableDisplayName. This is informational only and does not affect generated SQL.
-                            </div>
-                            <div class="bvg-table-wrap bvg-child-table-wrap">
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th>Table</th>
-                                            <th>Join Clause</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @if (ChildRelationships.Count == 0)
-                                        {
-                                            <tr>
-                                                <td colspan="2" class="bvg-empty-cell">No child tables loaded.</td>
-                                            </tr>
-                                        }
-                                        else
-                                        {
-                                            @foreach (var childRelationship in ChildRelationships)
-                                            {
-                                                <tr>
-                                                    <td>@QualifiedName(SelectedDatabaseName, childRelationship.ChildSchemaName, childRelationship.ChildTableName)</td>
-                                                    <td class="bvg-join-clause">@BuildChildJoinClause(childRelationship)</td>
-                                                </tr>
-                                            }
-                                        }
-                                    </tbody>
-                                </table>
-                            </div>
-                        </section>
-                    }
-                </div>
-            </section>
+            <div class="bvg-options">
+                <label><input type="checkbox" checked="@IgnoreSelfJoins" @onchange="OnIgnoreSelfJoinsChanged" /> Ignore self joins @HelpIcon("Hides relationships where the source table references itself. The source table FK columns are still available in the Columns tab.")</label>
+                <label>
+                    @HelpLabel("Output shape", "CTE wraps the generated table SQL in a TableName_Source unit and projects the final view from that named source. Standard emits one flat SELECT.")
+                    <select value="@OutputShape" @onchange="OnOutputShapeChanged">
+                        <option value="@OutputShapeCte">CTE</option>
+                        <option value="@OutputShapeStandard">Standard</option>
+                    </select>
+                </label>
+            </div>
 
             </section>
             <button type="button"
@@ -193,14 +133,15 @@
                 <button type="button" class="@TabClass("tree")" @onclick='() => SetWorkspaceTab("tree")'>Select Projection</button>
                 <button type="button" class="@TabClass("sql")" @onclick='() => SetWorkspaceTab("sql")'>Generated SQL</button>
                 <button type="button" class="@TabClass("table")" @onclick='() => SetWorkspaceTab("table")'>Create Table</button>
-                <button type="button" class="@TabClass("merge")" @onclick='() => SetWorkspaceTab("merge")'>Merge</button>
+                <button type="button" class="@TabClass("batch")" @onclick='() => SetWorkspaceTab("batch")'>Batch Merge</button>
+                <button type="button" class="@TabClass("merge")" @onclick='() => SetWorkspaceTab("merge")'>Single Merge</button>
                 <button type="button" class="bvg-tab bvg-source-toggle-tab" @onclick="ToggleSourcePanel">@(SourcePanelCollapsed ? "Show Source View" : "Hide Source View")</button>
             </header>
 
             <div class="bvg-tab-body">
                 @if (ActiveWorkspaceTab == "sql")
                 {
-                    <div @key="SqlRenderVersion" class="sql-code-container bvg-sql-output">
+                    <div @key='$"sql-{SqlRenderVersion}"' class="sql-code-container bvg-sql-output">
                         <pre class="language-sql"><code class="language-sql">@GeneratedSql</code></pre>
                     </div>
                 }
@@ -209,12 +150,16 @@
                     <div class="bvg-create-table-controls">
                         <button type="button" class="bvg-button primary" @onclick="CopyCreateTableSqlAsync" disabled="@string.IsNullOrWhiteSpace(GeneratedCreateTableSql)">Copy CREATE TABLE</button>
                     </div>
-                    <div @key="SqlRenderVersion" class="sql-code-container bvg-sql-output">
+                    <div @key='$"table-{SqlRenderVersion}"' class="sql-code-container bvg-sql-output">
                         <pre class="language-sql"><code class="language-sql">@GeneratedCreateTableSql</code></pre>
                     </div>
                 }
                 else if (ActiveWorkspaceTab == "merge")
                 {
+                    @if (!string.IsNullOrWhiteSpace(ReplicatedSourcesError))
+                    {
+                        <RadzenAlert AlertStyle="AlertStyle.Danger" Variant="Variant.Flat">@ReplicatedSourcesError</RadzenAlert>
+                    }
                     <section class="bvg-merge-config">
                         <header class="bvg-merge-config-header">
                             <button type="button" class="bvg-group-toggle" @onclick="ToggleMergeControls">@(MergeControlsExpanded ? "-" : "+")</button>
@@ -225,12 +170,44 @@
                             <div class="bvg-create-table-controls bvg-merge-controls">
                                 <div class="bvg-form-grid bvg-merge-grid">
                                     <label>
-                                        @HelpLabel("Country DB", "Literal written to the CountryDB column in the inlined source select and matched in the merge join.")
-                                        <input @bind="MergeCountryDb" placeholder="Country DB" />
+                                        @HelpLabel("Country DB", "Country code written to the CountryDB column and matched in the merge join. Linked to Source DB: choosing a country auto-selects its source database.")
+                                        <select @bind="MergeCountryDb" @bind:after="OnMergeCountryDbChanged">
+                                            <option value="">(select country)</option>
+                                            @foreach (var countryCode in CountryCodeOptions)
+                                            {
+                                                <option value="@countryCode">@countryCode</option>
+                                            }
+                                        </select>
+                                    </label>
+                                    <label>
+                                        @HelpLabel("Date Filter", "Required. Source date column that limits the merge to a recent window (WHERE [source].[column] >= threshold). Defaults to DateUpdate when present; if it is missing the field shows red until you pick a date column.")
+                                        <select @bind="MergeDateFilterColumn" class="@(string.IsNullOrWhiteSpace(MergeDateFilterColumn) ? "bvg-field-attention" : null)">
+                                            <option value="">(choose a date column)</option>
+                                            @foreach (var dateColumn in MergeDateFilterColumnOptions)
+                                            {
+                                                <option value="@dateColumn">@dateColumn</option>
+                                            }
+                                        </select>
+                                    </label>
+                                    <label>
+                                        @HelpLabel("Date Range", "How far back the date filter reaches, relative to today. Only applied when a Date Filter column is selected.")
+                                        <select @bind="MergeDateFilterRange" disabled="@string.IsNullOrWhiteSpace(MergeDateFilterColumn)">
+                                            <option value="@DateRange7">Last 7 days</option>
+                                            <option value="@DateRange30">Last 30 days</option>
+                                            <option value="@DateRange60">Last 60 days</option>
+                                            <option value="@DateRangePriorMonth">First day of prior month</option>
+                                            <option value="@DateRangeCurrentMonth">First day of current month</option>
+                                        </select>
                                     </label>
                                     <label class="bvg-merge-row-start">
-                                        @HelpLabel("Source DB", "Database the inlined source select reads from.")
-                                        <input @bind="MergeSourceDb" placeholder="Source database" />
+                                        @HelpLabel("Source DB", "Database the inlined source select reads from. Linked to Country DB: choosing one selects the other from the hardcoded map.")
+                                        <select @bind="MergeSourceDb" @bind:after="OnMergeSourceDbChanged">
+                                            <option value="">(select source database)</option>
+                                            @foreach (var db in SourceDatabaseOptions)
+                                            {
+                                                <option value="@db">@db</option>
+                                            }
+                                        </select>
                                     </label>
                                     <label>
                                         @HelpLabel("Source Schema", "Schema of the source table in the inlined select.")
@@ -250,7 +227,7 @@
                                     </label>
                                 </div>
                                 <div class="bvg-merge-source-actions">
-                                    <button type="button" class="bvg-button primary" @onclick="RegenerateMerge">Regenerate Merge</button>
+                                    <button type="button" class="bvg-button primary" @onclick="RegenerateMerge" disabled="@(!CanRegenerateMerge)" title="@(CanRegenerateMerge ? null : "Fill every merge field (including Date Filter) before generating.")">Regenerate Merge</button>
                                     <button type="button" class="bvg-button secondary" @onclick="CopyMergeSqlAsync" disabled="@(!string.IsNullOrWhiteSpace(MergeUnavailableReason) || string.IsNullOrWhiteSpace(GeneratedMergeSql))">Copy Merge</button>
                                 </div>
                             </div>
@@ -262,8 +239,41 @@
                     }
                     else
                     {
-                        <div @key="SqlRenderVersion" class="sql-code-container bvg-sql-output">
+                        <div @key='$"merge-{SqlRenderVersion}"' class="sql-code-container bvg-sql-output">
                             <pre class="language-sql"><code class="language-sql">@GeneratedMergeSql</code></pre>
+                        </div>
+                    }
+                }
+                else if (ActiveWorkspaceTab == "batch")
+                {
+                    <section class="bvg-merge-config">
+                        <header class="bvg-merge-config-header">
+                            <span class="bvg-group-label">Batch Merge — loops every replicated source</span>
+                        </header>
+                        @if (!string.IsNullOrWhiteSpace(ReplicatedSourcesError))
+                        {
+                            <RadzenAlert AlertStyle="AlertStyle.Danger" Variant="Variant.Flat">@ReplicatedSourcesError</RadzenAlert>
+                        }
+                        <div class="bvg-create-table-controls bvg-merge-controls">
+                            <p>
+                                Generates one script that loops <code>VVG_Silver.dbo.ReplicatedExcedeSources</code> and runs a dynamic MERGE
+                                for each <code>ReplicatedDBName</code>. It reuses the destination, source schema and date filter from the
+                                <strong>Merge</strong> tab; the source database and CountryDB are supplied by the loop. Runs as a single job step.
+                            </p>
+                            <div class="bvg-merge-source-actions">
+                                <button type="button" class="bvg-button primary" @onclick="RegenerateBatchMerge" disabled="@(!CanRegenerateBatchMerge)" title="@(CanRegenerateBatchMerge ? null : "Set the Date Filter, Source Schema and Destination fields on the Merge tab first.")">Regenerate Batch Merge</button>
+                                <button type="button" class="bvg-button secondary" @onclick="CopyBatchMergeSqlAsync" disabled="@(!string.IsNullOrWhiteSpace(BatchMergeUnavailableReason) || string.IsNullOrWhiteSpace(GeneratedBatchMergeSql))">Copy Batch Merge</button>
+                            </div>
+                        </div>
+                    </section>
+                    @if (!string.IsNullOrWhiteSpace(BatchMergeUnavailableReason))
+                    {
+                        <RadzenAlert AlertStyle="AlertStyle.Danger" Variant="Variant.Flat">@BatchMergeUnavailableReason</RadzenAlert>
+                    }
+                    else
+                    {
+                        <div @key='$"batch-{SqlRenderVersion}"' class="sql-code-container bvg-sql-output">
+                            <pre class="language-sql"><code class="language-sql">@GeneratedBatchMergeSql</code></pre>
                         </div>
                     }
                 }
@@ -343,25 +353,29 @@
                                             }
                                         }
 
-                                        @if (HasDisplayColumn(relationship))
-                                        {
-                                            <div class="@TreeDisplayRowClass(relationship)">
-                                                <div class="bvg-tree-indent"></div>
-                                                <input type="checkbox" checked="@relationship.IncludeDisplayColumn" @onchange="args => OnRelationshipDisplayIncludeChanged(relationship, args)" disabled="@string.IsNullOrWhiteSpace(relationship.DisplayColumnName)" />
-                                                <div class="bvg-tree-main">
-                                                    <span class="bvg-output-expression">@BuildDisplayProjectionText(relationship)</span>
-                                                    <span class="bvg-role-glyph">Lookup</span>
-                                                    @if (!relationship.Include)
-                                                    {
-                                                        <span class="bvg-role-glyph bvg-role-glyph-muted">Enable Join To Project</span>
-                                                    }
-                                                </div>
-                                                <span class="bvg-business-name">@EffectiveRelationshipDisplayBusinessName(relationship)</span>
-                                                <span class="bvg-business-description">@EffectiveRelationshipDisplayBusinessDescription(relationship)</span>
-                                                <button type="button" class="bvg-link-button" @onclick="() => OpenRelationshipDisplayMetadataDialog(relationship)">Edit</button>
-                                                <span class="bvg-system-note">@YesNo(RelationshipHasLookupMetadataContext(relationship))</span>
+                                        @* Show the lookup display row for every relationship. When no display column
+                                           is chosen the checkbox is disabled/unchecked, so the lookup is never projected
+                                           until the user picks a display column (in the Lookups section below). *@
+                                        <div class="@TreeDisplayRowClass(relationship)">
+                                            <div class="bvg-tree-indent"></div>
+                                            <input type="checkbox" checked="@relationship.IncludeDisplayColumn" @onchange="args => OnRelationshipDisplayIncludeChanged(relationship, args)" disabled="@string.IsNullOrWhiteSpace(relationship.DisplayColumnName)" />
+                                            <div class="bvg-tree-main">
+                                                <span class="bvg-output-expression">@BuildDisplayProjectionText(relationship)</span>
+                                                <span class="bvg-role-glyph">Lookup</span>
+                                                @if (!HasDisplayColumn(relationship))
+                                                {
+                                                    <span class="bvg-role-glyph bvg-role-glyph-muted">Choose display column below to project</span>
+                                                }
+                                                else if (!relationship.Include)
+                                                {
+                                                    <span class="bvg-role-glyph bvg-role-glyph-muted">Enable Join To Project</span>
+                                                }
                                             </div>
-                                        }
+                                            <span class="bvg-business-name">@EffectiveRelationshipDisplayBusinessName(relationship)</span>
+                                            <span class="bvg-business-description">@EffectiveRelationshipDisplayBusinessDescription(relationship)</span>
+                                            <button type="button" class="bvg-link-button" @onclick="() => OpenRelationshipDisplayMetadataDialog(relationship)">Edit</button>
+                                            <span class="bvg-system-note">@YesNo(RelationshipHasLookupMetadataContext(relationship))</span>
+                                        </div>
                                     }
                                 </div>
                             }
@@ -389,9 +403,9 @@
                                     <div class="@TreeRelationshipNodeClass(relationship)">
                                         <div class="bvg-tree-relationship-header">
                                             <button type="button" class="bvg-group-toggle" @onclick="() => ToggleRelationshipGroup(relationship)">@(IsRelationshipGroupExpanded(relationship) ? "-" : "+")</button>
-                                            <span class="@RelationshipStatusClass(relationship)">@RelationshipStatusText(relationship)</span>
                                             <input type="checkbox" checked="@relationship.Include" @onchange="args => OnRelationshipIncludeChanged(relationship, args)" disabled="@(!CanUseRelationship(relationship))" />
                                             <code>@BuildJoinText(relationship)</code>
+                                            <span class="@RelationshipStatusClass(relationship)">@RelationshipStatusText(relationship)</span>
                                             <span class="bvg-relationship-summary">@BuildRelationshipSummaryText(relationship)</span>
                                         </div>
                                         @if (IsRelationshipGroupExpanded(relationship))

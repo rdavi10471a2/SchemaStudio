@@ -44,6 +44,7 @@ public sealed class RelationshipDiscovery
         public string SchemaName { get; set; } = "";
         public string TableName { get; set; } = "";
         public string ColumnName { get; set; } = "";
+        public bool IsNullable { get; set; }
     }
 
     private const string FkSql = """
@@ -70,7 +71,7 @@ public sealed class RelationshipDiscovery
         """;
 
     private const string ColumnsSql = """
-        SELECT s.name AS SchemaName, t.name AS TableName, c.name AS ColumnName
+        SELECT s.name AS SchemaName, t.name AS TableName, c.name AS ColumnName, c.is_nullable AS IsNullable
         FROM sys.columns AS c
         JOIN sys.tables  AS t ON t.object_id = c.object_id
         JOIN sys.schemas AS s ON s.schema_id = t.schema_id;
@@ -101,17 +102,19 @@ public sealed class RelationshipDiscovery
         var fkRows = (await connection.QueryAsync<FkColumnRow>(FkSql)).ToList();
         log($"Read {fkRows.Count} FK column row(s) from source.");
 
-        var columnsByTable = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+        // Per "{schema}.{table}": column name -> is-nullable, so COLOOKUP lookups can apply the same
+        // nullability-driven join rule as FK lookups.
+        var columnsByTable = new Dictionary<string, Dictionary<string, bool>>(StringComparer.OrdinalIgnoreCase);
         foreach (var col in await connection.QueryAsync<ColumnRow>(ColumnsSql))
         {
             var key = $"{col.SchemaName}.{col.TableName}";
             if (!columnsByTable.TryGetValue(key, out var set))
             {
-                set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                set = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
                 columnsByTable[key] = set;
             }
 
-            set.Add(col.ColumnName);
+            set[col.ColumnName] = col.IsNullable;
         }
 
         string? PickDisplayColumn(string schema, string table)
@@ -123,7 +126,7 @@ public sealed class RelationshipDiscovery
 
             foreach (var preferred in _policy.GetPreferredDisplayColumns(sourceDatabaseName, schema, table))
             {
-                if (available.Contains(preferred))
+                if (available.ContainsKey(preferred))
                 {
                     return preferred;
                 }
@@ -192,7 +195,7 @@ public sealed class RelationshipDiscovery
     private async Task<int> DiscoverColookupLookupsAsync(
         SqlConnection connection,
         int databaseId,
-        Dictionary<string, HashSet<string>> columnsByTable,
+        Dictionary<string, Dictionary<string, bool>> columnsByTable,
         List<DatabaseRelationshipDefinition> results,
         Action<string> log)
     {
@@ -229,11 +232,11 @@ public sealed class RelationshipDiscovery
             var schema = dot >= 0 ? tableKey[..dot] : ColookupTargetSchema;
             var table = dot >= 0 ? tableKey[(dot + 1)..] : tableKey;
 
-            foreach (var column in columnsByTable[tableKey].OrderBy(name => name, StringComparer.OrdinalIgnoreCase))
+            foreach (var column in columnsByTable[tableKey].OrderBy(entry => entry.Key, StringComparer.OrdinalIgnoreCase))
             {
-                if (softNames.TryGetValue($"{table}_{column}", out var categoryName))
+                if (softNames.TryGetValue($"{table}_{column.Key}", out var categoryName))
                 {
-                    results.Add(BuildColookupLookupRelationship(databaseId, schema, table, column, categoryName));
+                    results.Add(BuildColookupLookupRelationship(databaseId, schema, table, column.Key, categoryName, column.Value));
                     staged++;
                 }
             }
@@ -247,7 +250,8 @@ public sealed class RelationshipDiscovery
         string sourceSchema,
         string sourceTable,
         string sourceColumn,
-        string lookupName)
+        string lookupName,
+        bool sourceColumnIsNullable)
     {
         return new DatabaseRelationshipDefinition
         {
@@ -256,7 +260,8 @@ public sealed class RelationshipDiscovery
             SourceTableName = sourceTable,
             TargetSchemaName = ColookupTargetSchema,
             TargetTableName = ColookupTargetTable,
-            JoinType = RelationshipJoinPolicy.LeftJoin,
+            // Same nullability rule as FK lookups: INNER when the code column is non-nullable, else LEFT.
+            JoinType = RelationshipJoinPolicy.ForLookup(new[] { sourceColumnIsNullable }),
             DiscoverySource = "SchemaLookup",
             SourceConstraintName = Truncate($"LOOKUP_{ColookupTargetTable}_{sourceTable}_{sourceColumn}"),
             JoinExpression = $"[{sourceTable}].[{sourceColumn}] = [{ColookupTargetTable}].[{ColookupKeyColumn}]",

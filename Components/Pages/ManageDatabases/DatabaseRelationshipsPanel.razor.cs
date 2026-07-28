@@ -451,6 +451,15 @@ public partial class DatabaseRelationshipsPanel : ComponentBase
             table,
             Database.SQLLookupString);
 
+        // Read the source table's columns so the COLOOKUP join type follows the same nullability
+        // rule as FK lookups: INNER when the code column is non-nullable, else LEFT. An unknown
+        // column is treated as nullable (LEFT) so a source row is never silently dropped.
+        var details = await TableSchemaRepository.GetTableDetailsAsync(Database.DatabaseName, schema, table);
+        var columnNullability = details.Columns.ToDictionary(
+            column => column.ColumnName,
+            column => column.IsNullable,
+            StringComparer.OrdinalIgnoreCase);
+
         var prefix = $"{table}_";
         var built = new List<DatabaseRelationshipDefinition>();
         foreach (var name in candidateNames)
@@ -466,7 +475,8 @@ public partial class DatabaseRelationshipsPanel : ComponentBase
                 continue;
             }
 
-            built.Add(RelationshipMetadata.BuildColookupLookupRelationship(Database.DatabaseId, schema, table, sourceColumn, name));
+            var sourceColumnIsNullable = !columnNullability.TryGetValue(sourceColumn, out var isNullable) || isNullable;
+            built.Add(RelationshipMetadata.BuildColookupLookupRelationship(Database.DatabaseId, schema, table, sourceColumn, name, sourceColumnIsNullable));
         }
 
         return built;

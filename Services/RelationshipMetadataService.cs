@@ -101,7 +101,8 @@ public sealed class RelationshipMetadataService
         string sourceSchema,
         string sourceTable,
         string sourceColumn,
-        string lookupName)
+        string lookupName,
+        bool sourceColumnIsNullable)
     {
         var columns = new List<DatabaseRelationshipColumnDefinition>
         {
@@ -120,7 +121,8 @@ public sealed class RelationshipMetadataService
             SourceTableName = sourceTable,
             TargetSchemaName = ColookupTargetSchema,
             TargetTableName = ColookupTargetTable,
-            JoinType = "LEFT JOIN",
+            // Same nullability rule as FK lookups: INNER when the code column is non-nullable, else LEFT.
+            JoinType = RelationshipJoinPolicy.ForLookup(new[] { sourceColumnIsNullable }),
             DiscoverySource = DiscoverySchemaLookup,
             SourceConstraintName = Truncate($"LOOKUP_{ColookupTargetTable}_{sourceTable}_{sourceColumn}", 128),
             JoinExpression = BuildJoinExpression(sourceTable, ColookupTargetTable, columns),

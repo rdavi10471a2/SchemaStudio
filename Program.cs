@@ -16,6 +16,8 @@ namespace SchemaStudioWebViewer
         {
             var builder = WebApplication.CreateBuilder(args);
 
+            builder.WebHost.UseStaticWebAssets();   // force the static-web-assets manifest to load in ALL environments
+
             AppConfig.Initialize(builder.Configuration);
 
             // 1. Register Razor Components once
@@ -66,6 +68,8 @@ namespace SchemaStudioWebViewer
                 new SchemaObjectColumnRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
             builder.Services.AddScoped(_ =>
                 new SqlObjectDependencyRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
+            builder.Services.AddScoped(_ =>
+                new ReplicatedExcedeSourceRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
 
             // Circuit-scoped state so the Base View Creator page retains work across navigation.
             builder.Services.AddScoped<SchemaStudioWebViewer.Components.Pages.BaseViewCreator.BaseViewCreatorState>();

@@ -1,0 +1,9 @@
+root = true
+
+# Solution-wide code-style rules. With EnforceCodeStyleInBuild=true (Directory.Build.props),
+# the escalated rules below are reported as warnings during `dotnet build`.
+
+[*.cs]
+# Dead-code detection: surface unused/unread private members as build warnings.
+dotnet_diagnostic.IDE0051.severity = warning   # Remove unused private member
+dotnet_diagnostic.IDE0052.severity = warning   # Remove unread private member
