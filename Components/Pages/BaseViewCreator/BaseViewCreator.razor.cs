@@ -46,6 +46,11 @@ public partial class BaseViewCreator : ComponentBase
     [Inject] private IJSRuntime JSRuntime { get; set; } = default!;
     [Inject] private DialogService DialogService { get; set; } = default!;
     [Inject] private NotificationService NotificationService { get; set; } = default!;
+
+    [Inject] private ReadOnlyViewDefinitionRepository ViewDefinitionRepository { get; set; } = default!;
+    [Inject] private SqlScriptExecutionRepository ScriptExecutionRepository { get; set; } = default!;
+
+    [Inject] private SchemaStudioWebViewer.WEBSemanticModel.Services.ViewParsingService ViewParser { get; set; } = default!;
     [Inject] private TooltipService TooltipService { get; set; } = default!;
 
     // Transient interaction state that intentionally resets when the page is re-entered.
@@ -96,10 +101,12 @@ public partial class BaseViewCreator : ComponentBase
     private string MergeDestinationTable { get => State.MergeDestinationTable; set => State.MergeDestinationTable = value; }
     private string MergeDateFilterColumn { get => State.MergeDateFilterColumn; set => State.MergeDateFilterColumn = value; }
     private string MergeDateFilterRange { get => State.MergeDateFilterRange; set => State.MergeDateFilterRange = value; }
+    private bool UseRowVersionColumn { get => State.UseRowVersionColumn; set => State.UseRowVersionColumn = value; }
     private string GeneratedBatchMergeSql { get => State.GeneratedBatchMergeSql; set => State.GeneratedBatchMergeSql = value; }
     private string BatchMergeUnavailableReason { get => State.BatchMergeUnavailableReason; set => State.BatchMergeUnavailableReason = value; }
     private string ReplicatedSourcesError { get => State.ReplicatedSourcesError; set => State.ReplicatedSourcesError = value; }
     private string ActiveWorkspaceTab { get => State.ActiveWorkspaceTab; set => State.ActiveWorkspaceTab = value; }
+    private bool HideSingleMergeTab { get => State.HideSingleMergeTab; set => State.HideSingleMergeTab = value; }
     private string ActiveSourceInfoTab { get => State.ActiveSourceInfoTab; set => State.ActiveSourceInfoTab = value; }
     private bool MergeControlsExpanded { get => State.MergeControlsExpanded; set => State.MergeControlsExpanded = value; }
     private bool SourceGroupExpanded { get => State.SourceGroupExpanded; set => State.SourceGroupExpanded = value; }
@@ -120,6 +127,9 @@ public partial class BaseViewCreator : ComponentBase
     private HashSet<string> SelectedLookupRelationshipKeys { get => State.SelectedLookupRelationshipKeys; set => State.SelectedLookupRelationshipKeys = value; }
     private Dictionary<string, string> BootstrapLookupDisplayColumns { get => State.BootstrapLookupDisplayColumns; set => State.BootstrapLookupDisplayColumns = value; }
     private Dictionary<string, IReadOnlyList<string>> LookupDisplayColumnOptions { get => State.LookupDisplayColumnOptions; set => State.LookupDisplayColumnOptions = value; }
+    private Dictionary<string, (string BusinessName, string BusinessDescription)> ImportedColumnComments { get => State.ImportedColumnComments; set => State.ImportedColumnComments = value; }
+    private List<SurrogateKeyDefinition> SurrogateKeys { get => State.SurrogateKeys; set => State.SurrogateKeys = value; }
+    private bool SurrogateKeyDialogOpen { get => State.SurrogateKeyDialogOpen; set => State.SurrogateKeyDialogOpen = value; }
 
     private bool CanRegenerateSql =>
         !IsBusy &&
@@ -290,7 +300,22 @@ public partial class BaseViewCreator : ComponentBase
             await EnsureDisplayColumnTypesAsync();
         }
 
+        // The Batch Merge tab has no Generate button, so build (or refresh) its SQL on arrival.
+        // BuildBatchMergeSql sets an unavailable reason when inputs are incomplete, which the tab
+        // surfaces as an alert instead of a blank preview.
+        if (ActiveWorkspaceTab == "batch")
+        {
+            RegenerateBatchMerge();
+        }
+
         QueueSqlHighlight();
+    }
+
+    // "Generate" on the Select Projection tab: (re)builds the SQL and jumps to the Generated SQL tab.
+    private Task GenerateSqlAndShow()
+    {
+        RegenerateSql();
+        return SetWorkspaceTab("sql");
     }
 
     private async Task EnsureDisplayColumnTypesAsync()
@@ -349,6 +374,18 @@ public partial class BaseViewCreator : ComponentBase
     private void ToggleMergeControls()
     {
         MergeControlsExpanded = !MergeControlsExpanded;
+    }
+
+    // Hides/shows the Single Merge tab entirely (the tab header is not rendered when hidden). When the
+    // user hides it while it is the active tab, fall back to the Batch Merge tab so the workspace is
+    // never left pointing at a tab with no header.
+    private void OnHideSingleMergeTabChanged(ChangeEventArgs args)
+    {
+        HideSingleMergeTab = ToBool(args.Value);
+        if (HideSingleMergeTab && ActiveWorkspaceTab == "merge")
+        {
+            ActiveWorkspaceTab = "batch";
+        }
     }
 
     private void BeginSourcePaneResize(PointerEventArgs args)
@@ -556,8 +593,12 @@ public partial class BaseViewCreator : ComponentBase
             return true;
         }
 
+        var existingBaseTableName = string.IsNullOrWhiteSpace(existingBaseObject.SourceTableName)
+            ? "(none)"
+            : existingBaseObject.SourceTableName;
+
         var confirmed = await DialogService.Confirm(
-            $"Table '{SelectedTableName}' is already mapped to base object '{existingBaseObject.SourceObjectName}'. Load it anyway?",
+            $"Table '{SelectedTableName}' is already mapped to base object '{existingBaseObject.SourceObjectName}' (base table '{existingBaseTableName}'). Load it anyway?",
             "Table Already Mapped",
             new ConfirmOptions { OkButtonText = "Load Anyway", CancelButtonText = "Cancel" });
 
@@ -602,6 +643,7 @@ public partial class BaseViewCreator : ComponentBase
             await LoadSavedLookupRelationshipsAsync(selectedDatabase);
             ApplySavedLookupRelationships();
             ApplyRelationshipFilters();
+            SeedSurrogateKeyCandidates();
             CollapseJoinGroups();
             DisplayColumnTypeCache.Clear();
             MergeCountryDb = "";
@@ -618,6 +660,9 @@ public partial class BaseViewCreator : ComponentBase
             MergeDestinationTable = string.IsNullOrWhiteSpace(TargetTableName) ? "" : TargetTableName;
             GeneratedMergeSql = "";
             MergeUnavailableReason = "";
+            // Pull previously-authored comments from the deployed base view into the projection so
+            // they show in Select Projection and flow into the regenerated SQL below.
+            await ImportExistingViewCommentsAsync();
             RegenerateSql();
             await EnsureDisplayColumnTypesAsync();
             StatusMessage = BuildLoadedStatusMessage();
@@ -731,6 +776,56 @@ public partial class BaseViewCreator : ComponentBase
         LookupDisplayColumnOptions.Clear();
     }
 
+    // Clears the currently loaded source table / existing view and every artifact derived from it
+    // (columns, relationships, imported comments, generated SQL, merge inputs) so the workspace
+    // returns to the pre-load state. The selected source database and schema are kept as the working
+    // context; once-per-circuit reference data (database list, replicated sources) is left intact.
+    private void ClearLoadedView()
+    {
+        SelectedTableName = "";
+        BaseAlias = "";
+        ColumnFilter = "";
+
+        Columns.Clear();
+        AllRelationships.Clear();
+        Relationships.Clear();
+        ChildRelationships.Clear();
+        BootstrapLookupDisplayColumns.Clear();
+        ClearLookupRelationshipState();
+        ImportedColumnComments.Clear();
+        DisplayColumnTypeCache.Clear();
+        CollapsedRelationshipGroups.Clear();
+        SurrogateKeys.Clear();
+
+        GeneratedSql = "";
+        GeneratedCreateTableSql = "";
+        GeneratedMergeSql = "";
+        GeneratedBatchMergeSql = "";
+        MergeUnavailableReason = "";
+        BatchMergeUnavailableReason = "";
+
+        // Reset the merge inputs to the same defaults a fresh table load applies.
+        MergeCountryDb = "";
+        MergeSourceDb = "";
+        MergeSourceSchema = DefaultMergeSchemaName;
+        MergeDestinationDb = DefaultMergeDestinationDatabaseName;
+        MergeDestinationSchema = DefaultMergeSchemaName;
+        MergeDestinationTable = "";
+        MergeDateFilterColumn = "";
+        MergeDateFilterRange = DateRangePriorMonth;
+
+        // BaseAlias/SelectedTableName are now empty, so this clears TargetViewName and TargetTableName.
+        UpdateTargetViewNameFromBaseAlias();
+
+        RelationshipTelemetryMessage = "";
+        SqlDirty = false;
+        SqlRenderVersion++;
+
+        StatusMessage = string.IsNullOrWhiteSpace(SelectedDatabaseName)
+            ? "Cleared. Select a source database, type a table name, and click Load."
+            : $"Cleared. Type a table name for [{SelectedDatabaseName}].[{SelectedSchemaName}] and click Load.";
+    }
+
     private async Task EnsureLookupDisplayColumnOptionsAsync(TableSchemaRelationshipInfo relationship)
     {
         var targetKey = BuildLookupTargetKey(relationship);
@@ -825,6 +920,32 @@ public partial class BaseViewCreator : ComponentBase
         ApplyRelationshipFiltersAndMarkDirty();
     }
 
+    private void OnUseRowVersionColumnChanged(ChangeEventArgs args)
+    {
+        UseRowVersionColumn = ToBool(args.Value);
+        RegenerateMergeAfterOptionChange();
+    }
+
+    // Shared by the batch-merge option row (Date Filter, Date Range, Use TS column) so changing any of
+    // them re-renders the SQL: the single merge always, and the batch merge when it has been generated.
+    private void RegenerateMergeAfterOptionChange()
+    {
+        if (CanRegenerateSql)
+        {
+            RegenerateSql();
+        }
+        else
+        {
+            MarkSqlDirty();
+        }
+
+        // The batch merge has no Generate button, so keep it live whenever its inputs are satisfied.
+        if (CanRegenerateBatchMerge)
+        {
+            RegenerateBatchMerge();
+        }
+    }
+
     private void OnOutputShapeChanged(ChangeEventArgs args)
     {
         OutputShape = args.Value?.ToString() == OutputShapeStandard
@@ -913,6 +1034,105 @@ public partial class BaseViewCreator : ComponentBase
     {
         relationship.IncludeDisplayColumn = ToBool(args.Value);
         SyncRelationshipIncludeFromProjectionRows(relationship);
+        MarkSqlDirty();
+    }
+
+    // ---- Surrogate keys (Power BI single-column joins) ----
+
+    private int IncludedSurrogateKeyCount =>
+        SurrogateKeys.Count(key => key.Include);
+
+    private IReadOnlyList<string> SurrogateKeyColumnOptions =>
+        Columns.Select(column => column.ColumnName).ToList();
+
+    // Rebuilds the auto-detected PK/FK candidates for the freshly-loaded table. Each is opt-in (unchecked)
+    // with a pre-filled, editable expression. Manual keys are table-specific, so a fresh load starts clean.
+    private void SeedSurrogateKeyCandidates()
+    {
+        SurrogateKeys.Clear();
+
+        var pkColumns = Columns.Where(column => column.IsPrimaryKey).Select(column => column.ColumnName).ToList();
+        if (pkColumns.Count > 0)
+        {
+            var pkName = $"{SanitizeAliasToken(SelectedTableName)}_{SanitizeAliasToken(string.Join("_", pkColumns))}{SurrogateKeySuffix}";
+            SurrogateKeys.Add(new SurrogateKeyDefinition
+            {
+                Origin = SurrogateKeyOrigin.PrimaryKey,
+                Key = "__PK__",
+                OutputName = pkName,
+                ColumnNames = pkColumns,
+                Expression = BuildSurrogateKeyExpressionForColumns(pkColumns),
+                Length = BuildSurrogateKeyLengthForColumns(pkColumns),
+                BusinessDescription = $"Conformed PBI surrogate primary key for [{SelectedTableName}]. Single-column join key = [SourceDB] + ({string.Join(", ", pkColumns)}), collapsed to one column. Fact tables that reference this key expose an identically-named [{pkName}] surrogate and join to it directly in Power BI."
+            });
+        }
+
+        // Role-playing detection: when this table has more than one FK to the SAME referenced dimension
+        // key, naming both after the target key alone would collide, so those get the local role column
+        // appended. Everything else is named after the referenced key so it matches the dimension's own
+        // surrogate (self-evident join).
+        var targetBaseCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var relationship in Relationships)
+        {
+            if (relationship.Columns.Count == 0)
+            {
+                continue;
+            }
+
+            var baseName = BuildSurrogateTargetBase(relationship);
+            targetBaseCounts[baseName] = targetBaseCounts.TryGetValue(baseName, out var existing) ? existing + 1 : 1;
+        }
+
+        foreach (var relationship in Relationships)
+        {
+            var localColumns = relationship.Columns.Select(pair => pair.LocalColumnName).ToList();
+            if (localColumns.Count == 0)
+            {
+                continue;
+            }
+
+            var targetBase = BuildSurrogateTargetBase(relationship);
+            var dimensionSurrogate = $"{targetBase}{SurrogateKeySuffix}";
+            var isRolePlaying = targetBaseCounts.TryGetValue(targetBase, out var baseCount) && baseCount > 1;
+            var outputName = isRolePlaying
+                ? $"{targetBase}_{SanitizeAliasToken(string.Join("_", localColumns))}{SurrogateKeySuffix}"
+                : dimensionSurrogate;
+            var roleNote = isRolePlaying ? $" (role column [{string.Join(", ", localColumns)}])" : "";
+
+            SurrogateKeys.Add(new SurrogateKeyDefinition
+            {
+                Origin = SurrogateKeyOrigin.ForeignKey,
+                Key = relationship.ForeignKeyName,
+                OutputName = outputName,
+                ColumnNames = localColumns,
+                Expression = BuildSurrogateKeyExpressionForColumns(localColumns),
+                Length = BuildSurrogateKeyLengthForColumns(localColumns),
+                BusinessDescription = $"PBI surrogate foreign key. Joins the [{relationship.ReferencedTableName}] dimension on its [{dimensionSurrogate}] surrogate{roleNote}. Single-column join key = [SourceDB] + ({string.Join(", ", localColumns)})."
+            });
+        }
+    }
+
+    // {ReferencedTable}_{ReferencedKeyColumns}: the base of the referenced dimension's own surrogate name,
+    // so a fact FK pointing at that key can be named identically for a self-evident Power BI join.
+    private static string BuildSurrogateTargetBase(TableSchemaRelationshipInfo relationship)
+    {
+        var referencedColumns = relationship.Columns
+            .Select(pair => pair.ReferencedColumnName)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .ToList();
+        if (referencedColumns.Count == 0)
+        {
+            referencedColumns = relationship.Columns.Select(pair => pair.LocalColumnName).ToList();
+        }
+
+        return $"{SanitizeAliasToken(relationship.ReferencedTableName)}_{SanitizeAliasToken(string.Join("_", referencedColumns))}";
+    }
+
+    private void OpenSurrogateKeyDialog() => SurrogateKeyDialogOpen = true;
+
+    private void CloseSurrogateKeyDialog()
+    {
+        SurrogateKeyDialogOpen = false;
         MarkSqlDirty();
     }
 
@@ -1061,6 +1281,93 @@ public partial class BaseViewCreator : ComponentBase
             (ActiveWorkspaceTab == "merge" && string.IsNullOrWhiteSpace(MergeUnavailableReason) && !string.IsNullOrWhiteSpace(GeneratedMergeSql));
     }
 
+    private async Task OpenMergeWithExistingViewAsync()
+    {
+        if (string.IsNullOrWhiteSpace(GeneratedSql))
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(TargetSchemaName)
+            || string.IsNullOrWhiteSpace(TargetViewName))
+        {
+            NotificationService.Notify(NotificationSeverity.Warning, "Target view not set",
+                "Set the target schema and view name before merging.", 3500);
+            return;
+        }
+
+        // Base views are always created in VVGBI_Integrations, so the existing view is looked up
+        // there regardless of the editable Target Database field.
+        var existingViewDatabase = DefaultTargetDatabaseName;
+
+        ViewDefinitionResult? existing;
+        try
+        {
+            existing = await ViewDefinitionRepository.GetViewDefinitionAsync(
+                existingViewDatabase, TargetSchemaName, TargetViewName);
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Lookup failed", ex.Message, 6000);
+            return;
+        }
+
+        if (existing is null || string.IsNullOrWhiteSpace(existing.Definition))
+        {
+            NotificationService.Notify(NotificationSeverity.Info, "No existing base view",
+                $"{TargetSchemaName}.{TargetViewName} was not found in {existingViewDatabase}. Nothing to merge against.", 4500);
+            return;
+        }
+
+        // Normalize both sides for an apples-to-apples base comparison: trim leading/trailing
+        // blank lines and canonicalize the CREATE [OR ALTER] VIEW header (the stored definition
+        // comes back as "CREATE VIEW", the generated SQL as "CREATE OR ALTER VIEW"). Comment
+        // blocks and column/metadata differences are left intact — those are the real diff.
+        var existingSql = NormalizeViewSqlForCompare(existing.Definition);
+        var generatedSql = NormalizeViewSqlForCompare(GeneratedSql);
+
+        var result = await DialogService.OpenAsync<BaseViewMergeDialog>(
+            $"Merge with existing view — {TargetSchemaName}.{TargetViewName}",
+            new Dictionary<string, object?>
+            {
+                { "ExistingSql", existingSql },
+                { "GeneratedSql", generatedSql },
+                { "ExistingModifyDate", existing.ModifyDate }
+            },
+            new DialogOptions
+            {
+                Width = "92vw",
+                Height = "90vh",
+                Resizable = true,
+                Draggable = false,
+                CloseDialogOnOverlayClick = false
+            });
+
+        if (result is string merged && !string.IsNullOrWhiteSpace(merged))
+        {
+            GeneratedSql = merged;
+            SqlDirty = false;
+            SqlRenderVersion++;
+            QueueSqlHighlight();
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private static string NormalizeViewSqlForCompare(string? sql)
+    {
+        if (string.IsNullOrWhiteSpace(sql))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = sql.Trim();
+        return System.Text.RegularExpressions.Regex.Replace(
+            trimmed,
+            @"^\s*CREATE\s+(OR\s+ALTER\s+)?VIEW\b",
+            "CREATE OR ALTER VIEW",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+    }
+
     private string ProjectionColumnRowClass(TableSchemaColumnInfo column) =>
         IsSuppressedRelationshipColumn(column)
             ? "bvg-output-cell bvg-muted-row"
@@ -1195,25 +1502,73 @@ public partial class BaseViewCreator : ComponentBase
     private static string MetadataDisplayValue(string? value, string emptyText) =>
         string.IsNullOrWhiteSpace(value) ? emptyText : value;
 
-    private string EffectiveRelationshipColumnBusinessName(TableSchemaColumnInfo column, TableSchemaRelationshipInfo relationship) =>
-        RelationshipHasLookupMetadataContext(relationship)
-            ? MetadataDisplayValue(column.BusinessName, column.ColumnName)
-            : MetadataDisplayValue(column.BusinessName, "No business name");
+    // An explicit user edit (a non-empty value) always wins; otherwise fall back to the comment
+    // imported from the existing deployed view, matched by OUTPUT ALIAS. See ImportExistingViewCommentsAsync.
+    private (string BusinessName, string BusinessDescription) ApplyImportedComment(
+        string outputAlias, string? userBusinessName, string? userBusinessDescription)
+    {
+        var businessName = userBusinessName ?? "";
+        var businessDescription = userBusinessDescription ?? "";
+        if (!string.IsNullOrWhiteSpace(outputAlias)
+            && ImportedColumnComments.TryGetValue(outputAlias, out var imported))
+        {
+            if (string.IsNullOrWhiteSpace(businessName))
+            {
+                businessName = imported.BusinessName;
+            }
 
-    private string EffectiveRelationshipColumnBusinessDescription(TableSchemaColumnInfo column, TableSchemaRelationshipInfo relationship) =>
-        RelationshipHasLookupMetadataContext(relationship)
-            ? MetadataDisplayValue(column.BusinessDescription, column.ColumnName)
-            : MetadataDisplayValue(column.BusinessDescription, "No business description");
+            if (string.IsNullOrWhiteSpace(businessDescription))
+            {
+                businessDescription = imported.BusinessDescription;
+            }
+        }
 
-    private string EffectiveRelationshipDisplayBusinessName(TableSchemaRelationshipInfo relationship) =>
-        RelationshipHasLookupMetadataContext(relationship)
-            ? MetadataDisplayValue(relationship.DisplayBusinessName, BuildLookupProjectionAlias(relationship))
-            : MetadataDisplayValue(relationship.DisplayBusinessName, "No business name");
+        return (businessName, businessDescription);
+    }
 
-    private string EffectiveRelationshipDisplayBusinessDescription(TableSchemaRelationshipInfo relationship) =>
-        RelationshipHasLookupMetadataContext(relationship)
-            ? MetadataDisplayValue(relationship.DisplayBusinessDescription, BuildLookupProjectionAlias(relationship))
-            : MetadataDisplayValue(relationship.DisplayBusinessDescription, "No business description");
+    private string EffectiveBaseColumnBusinessName(TableSchemaColumnInfo column) =>
+        MetadataDisplayValue(
+            ApplyImportedComment(column.ColumnName, column.BusinessName, column.BusinessDescription).BusinessName,
+            "No business name");
+
+    private string EffectiveBaseColumnBusinessDescription(TableSchemaColumnInfo column) =>
+        MetadataDisplayValue(
+            ApplyImportedComment(column.ColumnName, column.BusinessName, column.BusinessDescription).BusinessDescription,
+            "No business description");
+
+    private string EffectiveRelationshipColumnBusinessName(TableSchemaColumnInfo column, TableSchemaRelationshipInfo relationship)
+    {
+        var effective = ApplyImportedComment($"{column.ColumnName}_FK", column.BusinessName, column.BusinessDescription).BusinessName;
+        return RelationshipHasLookupMetadataContext(relationship)
+            ? MetadataDisplayValue(effective, column.ColumnName)
+            : MetadataDisplayValue(effective, "No business name");
+    }
+
+    private string EffectiveRelationshipColumnBusinessDescription(TableSchemaColumnInfo column, TableSchemaRelationshipInfo relationship)
+    {
+        var effective = ApplyImportedComment($"{column.ColumnName}_FK", column.BusinessName, column.BusinessDescription).BusinessDescription;
+        return RelationshipHasLookupMetadataContext(relationship)
+            ? MetadataDisplayValue(effective, column.ColumnName)
+            : MetadataDisplayValue(effective, "No business description");
+    }
+
+    private string EffectiveRelationshipDisplayBusinessName(TableSchemaRelationshipInfo relationship)
+    {
+        var alias = BuildLookupProjectionAlias(relationship);
+        var effective = ApplyImportedComment(alias, relationship.DisplayBusinessName, relationship.DisplayBusinessDescription).BusinessName;
+        return RelationshipHasLookupMetadataContext(relationship)
+            ? MetadataDisplayValue(effective, alias)
+            : MetadataDisplayValue(effective, "No business name");
+    }
+
+    private string EffectiveRelationshipDisplayBusinessDescription(TableSchemaRelationshipInfo relationship)
+    {
+        var alias = BuildLookupProjectionAlias(relationship);
+        var effective = ApplyImportedComment(alias, relationship.DisplayBusinessName, relationship.DisplayBusinessDescription).BusinessDescription;
+        return RelationshipHasLookupMetadataContext(relationship)
+            ? MetadataDisplayValue(effective, alias)
+            : MetadataDisplayValue(effective, "No business description");
+    }
 
     private bool RelationshipOwnsProjectionColumns(TableSchemaRelationshipInfo relationship) =>
         CurrentSelectionPlan.RelationshipOwnsProjectionColumns(relationship);
@@ -1777,11 +2132,50 @@ public partial class BaseViewCreator : ComponentBase
         NotificationService.Notify(NotificationSeverity.Error, summary, "", 5000);
     }
 
+    // The generated SQL is stored GO-free (a single batch); the USE [db]; GO wrapper here is applied only
+    // for display and Copy so the script is SSMS-ready. Apply runs the stored core directly (see
+    // ApplyGeneratedSqlAsync), connecting straight to the target database, so it never needs GO handling.
+    private string GeneratedSqlDisplay => FrameWithUse(TargetDatabaseName, GeneratedSql, trailingGo: false);
+    private string GeneratedCreateTableSqlDisplay => FrameWithUse(MergeDestinationDb, GeneratedCreateTableSql, trailingGo: false);
+    private string GeneratedBatchMergeSqlDisplay => FrameWithUse(MergeDestinationDb, GeneratedBatchMergeSql, trailingGo: true);
+
+    private static string FrameWithUse(string database, string coreSql, bool trailingGo)
+    {
+        if (string.IsNullOrWhiteSpace(coreSql))
+        {
+            return coreSql;
+        }
+
+        var builder = new System.Text.StringBuilder();
+        if (!string.IsNullOrWhiteSpace(database))
+        {
+            builder.Append("USE ").Append(QuoteIdentifier(database.Trim())).Append(';').Append(Environment.NewLine);
+            builder.Append("GO").Append(Environment.NewLine);
+        }
+
+        builder.Append(coreSql);
+        if (trailingGo)
+        {
+            builder.Append(Environment.NewLine).Append("GO");
+        }
+
+        return builder.ToString();
+    }
+
+    private bool CanApplyViewSql =>
+        !IsBusy && !SqlDirty && !string.IsNullOrWhiteSpace(GeneratedSql) && !string.IsNullOrWhiteSpace(TargetDatabaseName);
+
+    private bool CanApplyCreateTableSql =>
+        !IsBusy && !string.IsNullOrWhiteSpace(GeneratedCreateTableSql) && !string.IsNullOrWhiteSpace(MergeDestinationDb);
+
+    private bool CanApplyBatchMergeSql =>
+        !IsBusy && string.IsNullOrWhiteSpace(BatchMergeUnavailableReason) && !string.IsNullOrWhiteSpace(GeneratedBatchMergeSql) && !string.IsNullOrWhiteSpace(MergeDestinationDb);
+
     private async Task CopySqlAsync()
     {
         if (!string.IsNullOrWhiteSpace(GeneratedSql))
         {
-            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", GeneratedSql);
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", GeneratedSqlDisplay);
             NotificationService.Notify(NotificationSeverity.Success, "SQL copied.", "", 3000);
         }
     }
@@ -1790,7 +2184,7 @@ public partial class BaseViewCreator : ComponentBase
     {
         if (!string.IsNullOrWhiteSpace(GeneratedCreateTableSql))
         {
-            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", GeneratedCreateTableSql);
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", GeneratedCreateTableSqlDisplay);
             NotificationService.Notify(NotificationSeverity.Success, "CREATE TABLE copied.", "", 3000);
         }
     }
@@ -1808,9 +2202,51 @@ public partial class BaseViewCreator : ComponentBase
     {
         if (!string.IsNullOrWhiteSpace(GeneratedBatchMergeSql))
         {
-            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", GeneratedBatchMergeSql);
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", GeneratedBatchMergeSqlDisplay);
             NotificationService.Notify(NotificationSeverity.Success, "Batch merge copied.", "", 3000);
         }
+    }
+
+    private Task ApplyViewSqlAsync() =>
+        ApplyGeneratedSqlAsync($"view [{TargetSchemaName}].[{TargetViewName}]", TargetDatabaseName, GeneratedSql);
+
+    private Task ApplyCreateTableSqlAsync() =>
+        ApplyGeneratedSqlAsync("CREATE TABLE script", MergeDestinationDb, GeneratedCreateTableSql);
+
+    private Task ApplyBatchMergeSqlAsync() =>
+        ApplyGeneratedSqlAsync("batch merge procedure", MergeDestinationDb, GeneratedBatchMergeSql);
+
+    // Confirms, then executes the GO-free core against the shared connection with its default database set
+    // to the target (see SqlScriptExecutionRepository). Runs through RunPageOperationAsync for busy state
+    // and error surfacing.
+    private async Task ApplyGeneratedSqlAsync(string label, string database, string coreSql)
+    {
+        if (string.IsNullOrWhiteSpace(coreSql))
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(database))
+        {
+            NotifyError("Set the target database before applying.");
+            return;
+        }
+
+        var confirmed = await DialogService.Confirm(
+            $"Run the {label} against [{database}] on the shared connection? This writes to the live database.",
+            "Apply to database",
+            new ConfirmOptions { OkButtonText = "Apply", CancelButtonText = "Cancel" });
+        if (confirmed != true)
+        {
+            return;
+        }
+
+        await RunPageOperationAsync(async () =>
+        {
+            await ScriptExecutionRepository.ExecuteAsync(database, coreSql);
+            StatusMessage = $"Applied {label} to [{database}].";
+            NotificationService.Notify(NotificationSeverity.Success, $"Applied to [{database}].", label, 4000);
+        }, $"Failed to apply {label} to [{database}].");
     }
 
     private async Task RunPageOperationAsync(Func<Task> operation, string failureMessage)
@@ -1831,6 +2267,130 @@ public partial class BaseViewCreator : ComponentBase
         finally
         {
             IsBusy = false;
+        }
+    }
+
+    private static string NormalizeImportedComment(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "";
+        }
+
+        var trimmed = value.Trim();
+        return string.Equals(trimmed, "--Not Specified--", StringComparison.OrdinalIgnoreCase)
+            ? ""
+            : trimmed;
+    }
+
+    private async Task ImportExistingViewCommentsAsync()
+    {
+        // Fresh import: drop any comments carried over from a previously loaded view.
+        ImportedColumnComments.Clear();
+
+        if (Columns.Count == 0
+            || string.IsNullOrWhiteSpace(TargetSchemaName)
+            || string.IsNullOrWhiteSpace(TargetViewName))
+        {
+            return;
+        }
+
+        try
+        {
+            var existing = await ViewDefinitionRepository.GetViewDefinitionAsync(
+                DefaultTargetDatabaseName, TargetSchemaName, TargetViewName);
+            if (existing is null || string.IsNullOrWhiteSpace(existing.Definition))
+            {
+                return;
+            }
+
+            var definition = existing.Definition
+                .Replace("\r\n", "\n")
+                .Replace("\r", "\n")
+                .Replace("\n", "\r\n");
+
+            var parsed = ViewParser.ParseSql(definition, DefaultTargetDatabaseName, TargetSchemaName, TargetViewName);
+            var parsedColumns = parsed?.Columns;
+            if (parsedColumns is null || parsedColumns.Count == 0)
+            {
+                return;
+            }
+
+            // Align selection with the deployed view before recording comments: a projection the view
+            // does NOT contain (including a column commented out in the SQL, which ScriptDom drops from
+            // the parsed projection list) must not reappear in the regenerated output.
+            var viewOutputAliases = parsedColumns
+                .Select(parsedColumn => parsedColumn.ColumnName)
+                .Where(alias => !string.IsNullOrWhiteSpace(alias))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            ApplyExistingViewSelection(viewOutputAliases);
+
+            // Record every parsed column's business metadata keyed by its OUTPUT ALIAS
+            // (base column name, {col}_FK, or the lookup display alias). This is re-applied as a
+            // fallback in BuildProjectionSpecs and the projection-tree helpers on every regenerate,
+            // so imported comments for FK-ref and lookup-display columns survive Include toggling.
+            foreach (var parsedColumn in parsedColumns)
+            {
+                if (string.IsNullOrWhiteSpace(parsedColumn.ColumnName))
+                {
+                    continue;
+                }
+
+                var businessName = NormalizeImportedComment(parsedColumn.BusinessName);
+                var businessDescription = NormalizeImportedComment(parsedColumn.BusinessDescription);
+                if (string.IsNullOrWhiteSpace(businessName) && string.IsNullOrWhiteSpace(businessDescription))
+                {
+                    continue;
+                }
+
+                ImportedColumnComments[parsedColumn.ColumnName] = (businessName, businessDescription);
+            }
+
+            var importedColumns = ImportedColumnComments.Count;
+
+            if (importedColumns > 0)
+            {
+                NotificationService.Notify(
+                    NotificationSeverity.Info,
+                    "Existing comments imported",
+                    $"Imported business metadata for {importedColumns} column(s) from {TargetSchemaName}.{TargetViewName}.",
+                    3500);
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Warning, "Could not import existing comments", ex.Message, 4000);
+        }
+    }
+
+    // Drives Include selection from the deployed view's live projection so loading an existing view
+    // regenerates the columns the view actually has — a column the view omits (e.g. commented out in
+    // the SQL) is deselected rather than reappearing because every source column defaults to Include.
+    // Matching uses the SAME output aliases the generator emits, so selection and generation stay
+    // consistent by construction: base column -> ColumnName, foreign-key value -> {local}_FK,
+    // lookup display -> {local}_FK_Description (BuildLookupProjectionAlias).
+    private void ApplyExistingViewSelection(IReadOnlySet<string> viewOutputAliases)
+    {
+        // A base source column is present in the view either as a plain projection ([col]) or as the
+        // foreign-key value of an active lookup ([col]_FK); either keeps it selected.
+        foreach (var column in Columns)
+        {
+            column.Include =
+                viewOutputAliases.Contains(column.ColumnName) ||
+                viewOutputAliases.Contains($"{column.ColumnName}_FK");
+        }
+
+        // A relationship contributes its lookup display iff that display alias is in the view. Mirror
+        // the display-include toggle's coupling: relationship.Include follows IncludeDisplayColumn and
+        // only holds when the relationship actually has a display column to project.
+        foreach (var relationship in Relationships)
+        {
+            var displayInView =
+                HasDisplayColumn(relationship) &&
+                viewOutputAliases.Contains(BuildLookupProjectionAlias(relationship));
+
+            relationship.IncludeDisplayColumn = displayInView;
+            relationship.Include = displayInView;
         }
     }
 }

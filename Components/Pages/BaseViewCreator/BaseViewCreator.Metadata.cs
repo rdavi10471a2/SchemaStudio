@@ -17,8 +17,16 @@ public partial class BaseViewCreator
         MetadataEditColumn = column;
         MetadataEditRelationship = null;
         MetadataDialogTitle = $"Metadata for {column.ColumnName}";
-        MetadataEditBusinessName = column.BusinessName;
-        MetadataEditBusinessDescription = column.BusinessDescription;
+
+        // Seed with the same effective value the projection tree shows: the user's own edit when
+        // present, otherwise the comment imported from the existing view. FK-ref columns are keyed
+        // by their {col}_FK output alias; base columns by their column name.
+        var outputAlias = RelationshipOwnsEditorColumn(column.ColumnName)
+            ? $"{column.ColumnName}_FK"
+            : column.ColumnName;
+        var (businessName, businessDescription) = ApplyImportedComment(outputAlias, column.BusinessName, column.BusinessDescription);
+        MetadataEditBusinessName = businessName;
+        MetadataEditBusinessDescription = businessDescription;
         MetadataDialogOpen = true;
     }
 
@@ -26,9 +34,13 @@ public partial class BaseViewCreator
     {
         MetadataEditColumn = null;
         MetadataEditRelationship = relationship;
-        MetadataDialogTitle = $"Metadata for {BuildLookupProjectionAlias(relationship)}";
-        MetadataEditBusinessName = relationship.DisplayBusinessName;
-        MetadataEditBusinessDescription = relationship.DisplayBusinessDescription;
+        var lookupAlias = BuildLookupProjectionAlias(relationship);
+        MetadataDialogTitle = $"Metadata for {lookupAlias}";
+
+        // Seed with the effective value shown in the tree: user edit if present, else imported comment.
+        var (businessName, businessDescription) = ApplyImportedComment(lookupAlias, relationship.DisplayBusinessName, relationship.DisplayBusinessDescription);
+        MetadataEditBusinessName = businessName;
+        MetadataEditBusinessDescription = businessDescription;
         MetadataDialogOpen = true;
     }
 
@@ -95,7 +107,7 @@ public partial class BaseViewCreator
 
         if (!string.IsNullOrWhiteSpace(businessDescription))
         {
-            parts.Add($"@BusinessDescription: {businessDescription}");
+            parts.Add($"@BusinessDescription: {WrapText(businessDescription, MetadataDescriptionWrapWidth)}");
         }
 
         if (disableInheritance)
@@ -117,18 +129,62 @@ public partial class BaseViewCreator
         var tagIndent = new string(' ', projectionLeadLength + 4);
         var closeIndent = new string(' ', projectionLeadLength + 1);
         var builder = new System.Text.StringBuilder();
-        builder.Append($" /* {parts[0]}");
+        builder.Append($" /* {AlignPartLines(parts[0], tagIndent)}");
 
         for (var index = 1; index < parts.Count; index++)
         {
             builder.AppendLine();
             builder.Append(tagIndent);
-            builder.Append(parts[index]);
+            builder.Append(AlignPartLines(parts[index], tagIndent));
         }
 
         builder.AppendLine();
         builder.Append(closeIndent);
         builder.Append("*/");
+        return builder.ToString();
+    }
+
+    // Keeps a multi-line part (e.g. a @BusinessDescription with embedded line breaks) aligned inside the
+    // /* */ block by indenting its wrapped lines to the same column as the leading tag.
+    private static string AlignPartLines(string part, string indent) =>
+        part.Replace("\r\n", "\n").Replace("\n", System.Environment.NewLine + indent);
+
+    // Target text width (characters) for a wrapped @BusinessDescription line, before the tag indent.
+    private const int MetadataDescriptionWrapWidth = 80;
+
+    // Collapses any authored/round-tripped whitespace (line breaks, runs of spaces, indentation) and
+    // greedily word-wraps to lines no wider than width, so generated comments read consistently no matter
+    // how the description was entered. Applied only at comment-generation time -- the stored description
+    // (and its MaxLength) is untouched.
+    private static string WrapText(string text, int width)
+    {
+        var words = text.Split((char[]?)null, System.StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length == 0)
+        {
+            return text.Trim();
+        }
+
+        var builder = new System.Text.StringBuilder();
+        var lineLength = 0;
+        foreach (var word in words)
+        {
+            if (lineLength == 0)
+            {
+                builder.Append(word);
+                lineLength = word.Length;
+            }
+            else if (lineLength + 1 + word.Length > width)
+            {
+                builder.Append(System.Environment.NewLine).Append(word);
+                lineLength = word.Length;
+            }
+            else
+            {
+                builder.Append(' ').Append(word);
+                lineLength += 1 + word.Length;
+            }
+        }
+
         return builder.ToString();
     }
 

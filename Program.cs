@@ -61,6 +61,8 @@ namespace SchemaStudioWebViewer
                 new SourceViewRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
             builder.Services.AddScoped(_ =>
                 new ReadOnlyViewDefinitionRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
+            builder.Services.AddScoped(_ =>
+                new SqlScriptExecutionRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));
             builder.Services.AddScoped<SchemaStudioWebViewer.Components.Pages.DomainObjectEditor.CteFieldParser>();
             builder.Services.AddScoped(_ =>
                 new SchemaObjectRepository(AppConfig.Current.ConnectionStrings.DefaultConnection));

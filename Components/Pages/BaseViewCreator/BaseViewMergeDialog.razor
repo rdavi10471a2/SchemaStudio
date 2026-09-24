@@ -1,0 +1,314 @@
+@using BlazorMonaco
+@using BlazorMonaco.Editor
+@using Radzen
+@using Radzen.Blazor
+
+@namespace SchemaStudioWebViewer.Components.Pages.BaseViewCreator
+
+@inject DialogService DialogService
+@inject IJSRuntime JS
+
+@* PROTOTYPE: Monaco diff/merge editor for the Base View Creator with a section-by-section
+   (per-hunk) merge. Left = existing view (read only). Right = the running merge result
+   (also editable by hand). The section list takes the existing or the generated version of
+   each differing block; "Accept merged" returns the right pane text to the Generated SQL tab. *@
+
+<style>
+    .bvg-merge-dialog { display: flex; flex-direction: column; gap: 10px; }
+    .bvg-merge-dialog-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .bvg-merge-dialog-hint { font-size: 0.85rem; opacity: 0.8; }
+    .bvg-merge-dialog-toolbar-actions { display: flex; gap: 8px; }
+    .bvg-merge-body { display: flex; gap: 10px; height: 64vh; }
+    .bvg-merge-editor { flex: 1 1 auto; min-width: 0; border: 1px solid var(--rz-base-300, #444); }
+    .bvg-merge-hunks { flex: 0 0 300px; overflow-y: auto; border: 1px solid var(--rz-base-300, #444); padding: 6px; display: flex; flex-direction: column; gap: 6px; }
+    .bvg-merge-hunks-head { font-weight: 600; font-size: 0.85rem; padding: 2px 4px; }
+    .bvg-hunk { border: 1px solid var(--rz-base-300, #3a3a3a); border-radius: 4px; padding: 6px; }
+    .bvg-hunk-title { display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 4px; }
+    .bvg-hunk-kind { opacity: 0.65; }
+    .bvg-hunk-actions { display: flex; gap: 4px; }
+    .bvg-hunk-actions button { flex: 1; font-size: 0.75rem; padding: 2px 4px; cursor: pointer; }
+    .bvg-hunk-actions button.active { outline: 2px solid var(--rz-primary, #3b82f6); font-weight: 600; }
+    .bvg-merge-empty { opacity: 0.7; font-size: 0.85rem; padding: 8px 4px; }
+    .bvg-merge-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
+</style>
+
+<div class="bvg-merge-dialog">
+    <div class="bvg-merge-dialog-toolbar">
+        <span class="bvg-merge-dialog-hint">
+            <strong>Left</strong>: existing view@(ExistingModifyDate is null ? "" : $" (modified {ExistingModifyDate:g})") — read only.
+            <strong>Right</strong>: merge result — pick a side per section, or edit directly.
+        </span>
+        <div class="bvg-merge-dialog-toolbar-actions">
+            <RadzenButton Text="All existing" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="@(() => SetAllAsync(HunkChoice.Existing))" />
+            <RadzenButton Text="All generated" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="@(() => SetAllAsync(HunkChoice.Generated))" />
+        </div>
+    </div>
+
+    <div class="bvg-merge-body">
+        <StandaloneDiffEditor @ref="_diffEditor"
+                              Id="base-view-merge-diff"
+                              ConstructionOptions="DiffOptions"
+                              OnDidInit="OnEditorInitAsync"
+                              CssClass="bvg-merge-editor" />
+
+        <div class="bvg-merge-hunks">
+            <div class="bvg-merge-hunks-head">Sections (@_hunks.Count)</div>
+            @if (_hunks.Count == 0)
+            {
+                <div class="bvg-merge-empty">No differences — the generated SQL matches the existing view.</div>
+            }
+            else
+            {
+                @for (var index = 0; index < _hunks.Count; index++)
+                {
+                    var hunk = _hunks[index];
+                    var number = index + 1;
+                    <div class="bvg-hunk">
+                        <div class="bvg-hunk-title">
+                            <span>Section @number</span>
+                            <span class="bvg-hunk-kind">@hunk.Kind</span>
+                        </div>
+                        <div class="bvg-hunk-actions">
+                            <button type="button" class="@ChoiceClass(hunk, HunkChoice.Existing)" @onclick="@(() => SetChoiceAsync(hunk, HunkChoice.Existing))">Existing</button>
+                            <button type="button" class="@ChoiceClass(hunk, HunkChoice.Generated)" @onclick="@(() => SetChoiceAsync(hunk, HunkChoice.Generated))">Generated</button>
+                            <button type="button" class="@ChoiceClass(hunk, HunkChoice.Both)" @onclick="@(() => SetChoiceAsync(hunk, HunkChoice.Both))">Both</button>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+
+    <div class="bvg-merge-dialog-actions">
+        <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Light" Variant="Variant.Flat" Click="@Cancel" />
+        <RadzenButton Text="Accept merged" ButtonStyle="ButtonStyle.Primary" Click="@AcceptAsync" />
+    </div>
+</div>
+
+@code {
+    [Parameter] public string ExistingSql { get; set; } = "";
+    [Parameter] public string GeneratedSql { get; set; } = "";
+    [Parameter] public DateTime? ExistingModifyDate { get; set; }
+
+    private StandaloneDiffEditor _diffEditor = default!;
+    private TextModel? _originalModel;
+    private TextModel? _modifiedModel;
+
+    private string[] _existingLines = Array.Empty<string>();
+    private string[] _generatedLines = Array.Empty<string>();
+    private readonly List<HunkRow> _hunks = new();
+
+    private enum HunkChoice { Existing, Generated, Both }
+
+    private sealed class HunkRow
+    {
+        public int OStart { get; set; }
+        public int OEnd { get; set; }
+        public int MStart { get; set; }
+        public int MEnd { get; set; }
+        public string Kind { get; set; } = "";
+        public HunkChoice Choice { get; set; } = HunkChoice.Generated;
+    }
+
+    private StandaloneDiffEditorConstructionOptions DiffOptions(StandaloneDiffEditor editor) => new()
+    {
+        AutomaticLayout = true,
+        OriginalEditable = false,
+        RenderSideBySide = true,
+        Theme = "vs-dark"
+    };
+
+    private async Task OnEditorInitAsync()
+    {
+        _existingLines = SplitLines(ExistingSql);
+        _generatedLines = SplitLines(GeneratedSql);
+        _originalModel = await Global.CreateModel(JS, ExistingSql ?? "", "sql");
+        _modifiedModel = await Global.CreateModel(JS, GeneratedSql ?? "", "sql");
+        await _diffEditor.SetModel(new DiffEditorModel
+        {
+            Original = _originalModel,
+            Modified = _modifiedModel
+        });
+
+        // Build the section list from our own line diff rather than Monaco's internal diff API
+        // (which varies across BlazorMonaco versions). Monaco still renders its own diff for display.
+        ComputeHunks();
+        StateHasChanged();
+    }
+
+    // Standard LCS line diff over the existing/generated snapshots, grouped into contiguous
+    // change blocks ("sections"). Each block records 1-based inclusive existing and generated
+    // line ranges; an empty range means a pure add or pure delete.
+    private void ComputeHunks()
+    {
+        _hunks.Clear();
+
+        var a = _existingLines;
+        var b = _generatedLines;
+        var n = a.Length;
+        var m = b.Length;
+
+        var dp = new int[n + 1, m + 1];
+        for (var i = n - 1; i >= 0; i--)
+        {
+            for (var j = m - 1; j >= 0; j--)
+            {
+                dp[i, j] = string.Equals(a[i], b[j], StringComparison.Ordinal)
+                    ? dp[i + 1, j + 1] + 1
+                    : Math.Max(dp[i + 1, j], dp[i, j + 1]);
+            }
+        }
+
+        var prevI = -1;
+        var prevJ = -1;
+        var ai = 0;
+        var bj = 0;
+        while (ai < n && bj < m)
+        {
+            if (string.Equals(a[ai], b[bj], StringComparison.Ordinal))
+            {
+                AddHunk(prevI, prevJ, ai, bj);
+                prevI = ai;
+                prevJ = bj;
+                ai++;
+                bj++;
+            }
+            else if (dp[ai + 1, bj] >= dp[ai, bj + 1])
+            {
+                ai++;
+            }
+            else
+            {
+                bj++;
+            }
+        }
+
+        // Trailing block after the last matched line.
+        AddHunk(prevI, prevJ, n, m);
+    }
+
+    // Records a section for the gap strictly between the previous matched line and the next one
+    // (matchI/matchJ are 0-based indices of the next matching line, or n/m for the trailing block).
+    private void AddHunk(int prevI, int prevJ, int matchI, int matchJ)
+    {
+        var oStart = prevI + 2; // 1-based first existing line in the gap
+        var oEnd = matchI;      // 1-based last existing line in the gap
+        var mStart = prevJ + 2; // 1-based first generated line in the gap
+        var mEnd = matchJ;      // 1-based last generated line in the gap
+
+        var hasExisting = oEnd >= oStart;
+        var hasGenerated = mEnd >= mStart;
+        if (!hasExisting && !hasGenerated)
+        {
+            return;
+        }
+
+        _hunks.Add(new HunkRow
+        {
+            OStart = oStart,
+            OEnd = oEnd,
+            MStart = mStart,
+            MEnd = mEnd,
+            Kind = !hasExisting ? "added in generated" : !hasGenerated ? "only in existing" : "changed",
+            Choice = HunkChoice.Generated
+        });
+    }
+
+    private string ChoiceClass(HunkRow hunk, HunkChoice choice) =>
+        hunk.Choice == choice ? "active" : "";
+
+    private async Task SetChoiceAsync(HunkRow hunk, HunkChoice choice)
+    {
+        hunk.Choice = choice;
+        await ApplyDecisionsAsync();
+    }
+
+    private async Task SetAllAsync(HunkChoice choice)
+    {
+        foreach (var hunk in _hunks)
+        {
+            hunk.Choice = choice;
+        }
+
+        await ApplyDecisionsAsync();
+    }
+
+    private async Task ApplyDecisionsAsync()
+    {
+        if (_modifiedModel is null)
+        {
+            return;
+        }
+
+        await _modifiedModel.SetValue(BuildMerged());
+        StateHasChanged();
+    }
+
+    // Rebuild the whole merged text from the immutable existing/generated snapshots plus the
+    // current per-section choices. Identical (context) regions come from the existing lines,
+    // which by definition match the generated ones.
+    private string BuildMerged()
+    {
+        var result = new List<string>();
+        var cursor = 1; // next existing line to emit (1-based)
+
+        foreach (var hunk in _hunks.OrderBy(h => h.OStart))
+        {
+            for (var i = cursor; i <= hunk.OStart - 1; i++)
+            {
+                result.Add(_existingLines[i - 1]);
+            }
+
+            switch (hunk.Choice)
+            {
+                case HunkChoice.Existing:
+                    AppendRange(result, _existingLines, hunk.OStart, hunk.OEnd);
+                    break;
+                case HunkChoice.Generated:
+                    AppendRange(result, _generatedLines, hunk.MStart, hunk.MEnd);
+                    break;
+                case HunkChoice.Both:
+                    AppendRange(result, _existingLines, hunk.OStart, hunk.OEnd);
+                    AppendRange(result, _generatedLines, hunk.MStart, hunk.MEnd);
+                    break;
+            }
+
+            cursor = hunk.OEnd + 1;
+        }
+
+        for (var i = cursor; i <= _existingLines.Length; i++)
+        {
+            result.Add(_existingLines[i - 1]);
+        }
+
+        return string.Join("\n", result);
+    }
+
+    private static void AppendRange(List<string> target, string[] lines, int startInclusive, int endInclusive)
+    {
+        for (var i = startInclusive; i <= endInclusive && i >= 1 && i <= lines.Length; i++)
+        {
+            target.Add(lines[i - 1]);
+        }
+    }
+
+    private static string[] SplitLines(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return Array.Empty<string>();
+        }
+
+        return value.Replace("\r\n", "\n").Replace("\r", "\n").Split('\n');
+    }
+
+    private async Task AcceptAsync()
+    {
+        var merged = _modifiedModel is null
+            ? GeneratedSql
+            : await _modifiedModel.GetValue(EndOfLinePreference.TextDefined, null);
+        DialogService.Close(merged);
+    }
+
+    private void Cancel() => DialogService.Close(null);
+}

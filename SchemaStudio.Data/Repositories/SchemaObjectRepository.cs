@@ -32,7 +32,7 @@ SELECT
     DeveloperNotes,
     CompositionDefinitionJson,
     ETLPopulationJobName,
-    ETLMergeTemplateName,
+    ETLMergeProcedureName,
     IsActive,
     LastSynced
 FROM dbo.SchemaObject
@@ -66,7 +66,7 @@ SELECT
     DeveloperNotes,
     CompositionDefinitionJson,
     ETLPopulationJobName,
-    ETLMergeTemplateName,
+    ETLMergeProcedureName,
     IsActive,
     LastSynced
 FROM dbo.SchemaObject
@@ -108,7 +108,7 @@ SELECT
     DeveloperNotes,
     CompositionDefinitionJson,
     ETLPopulationJobName,
-    ETLMergeTemplateName,
+    ETLMergeProcedureName,
     IsActive,
     LastSynced
 FROM dbo.SchemaObject
@@ -144,7 +144,7 @@ SELECT TOP (1)
     DeveloperNotes,
     CompositionDefinitionJson,
     ETLPopulationJobName,
-    ETLMergeTemplateName,
+    ETLMergeProcedureName,
     IsActive,
     LastSynced
 FROM dbo.SchemaObject
@@ -191,7 +191,7 @@ SELECT TOP (1)
     DeveloperNotes,
     CompositionDefinitionJson,
     ETLPopulationJobName,
-    ETLMergeTemplateName,
+    ETLMergeProcedureName,
     IsActive,
     LastSynced
 FROM dbo.SchemaObject
@@ -235,7 +235,7 @@ INSERT INTO dbo.SchemaObject
     DeveloperNotes,
     CompositionDefinitionJson,
     ETLPopulationJobName,
-    ETLMergeTemplateName,
+    ETLMergeProcedureName,
     IsActive,
     LastSynced
 )
@@ -254,7 +254,7 @@ VALUES
     @DeveloperNotes,
     @CompositionDefinitionJson,
     @ETLPopulationJobName,
-    @ETLMergeTemplateName,
+    @ETLMergeProcedureName,
     @IsActive,
     SYSDATETIME()
 );
@@ -286,7 +286,7 @@ SET
     DeveloperNotes = @DeveloperNotes,
     CompositionDefinitionJson = @CompositionDefinitionJson,
     ETLPopulationJobName = @ETLPopulationJobName,
-    ETLMergeTemplateName = @ETLMergeTemplateName,
+    ETLMergeProcedureName = @ETLMergeProcedureName,
     IsActive = @IsActive,
     LastSynced = SYSDATETIME()
 WHERE SchemaObjectId = @SchemaObjectId;
