@@ -66,28 +66,8 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Services
                     throw new Exception($"View not found: {database}.{schema}.{viewName}");
                 }
 
-                _logger.Info("Calling QueryOrchestrator.ParseFully");
+                var result = ParseSql(sql, database, schema, viewName);
 
-                var result = QueryOrchestrator.ParseFully(
-                    sql,
-                    database,
-                    schema,
-                    viewName,
-                    _provider,
-                    _logger);
-
-                if (result == null)
-                {
-                    _logger.Warning("ParseFully returned null");
-                    return new ParsedQuery();
-                }
-
-                _logger.Info($"ParseFully complete: {result.SourceTables.Count} tables, {result.SelectItems.Count} select items");
-                _logger.Info("Projecting columns");
-
-                result.Columns = result.ToColumns(database, schema, viewName);
-
-                _logger.Info($"Columns projected: {result.Columns?.Count ?? 0}");
                 _logger.Info($"ParseView COMPLETE: {database}.{schema}.{viewName}");
 
                 return result;
@@ -97,6 +77,46 @@ namespace SchemaStudioWebViewer.WEBSemanticModel.Services
                 _logger.Error($"FAILED ParseView: {database}.{schema}.{viewName}", ex);
                 throw;
             }
+        }
+
+        // Parses a view definition supplied as raw SQL text (rather than fetched from the database),
+        // returning the same ParsedQuery + projected columns ParseView produces. Use this to parse a
+        // definition that is not deployed under its own name, e.g. generated or edited-in-memory SQL.
+        // The _provider is still consulted to resolve source/dependent objects for column lineage.
+        public ParsedQuery ParseSql(string sql, string database, string schema, string viewName)
+        {
+            _logger.Info($"ParseSql START: {database}.{schema}.{viewName} ({sql?.Length ?? 0} chars)");
+
+            if (string.IsNullOrWhiteSpace(sql))
+            {
+                _logger.Warning("ParseSql called with empty SQL");
+                return new ParsedQuery();
+            }
+
+            _logger.Info("Calling QueryOrchestrator.ParseFully");
+
+            var result = QueryOrchestrator.ParseFully(
+                sql,
+                database,
+                schema,
+                viewName,
+                _provider,
+                _logger);
+
+            if (result == null)
+            {
+                _logger.Warning("ParseFully returned null");
+                return new ParsedQuery();
+            }
+
+            _logger.Info($"ParseFully complete: {result.SourceTables.Count} tables, {result.SelectItems.Count} select items");
+            _logger.Info("Projecting columns");
+
+            result.Columns = result.ToColumns(database, schema, viewName);
+
+            _logger.Info($"Columns projected: {result.Columns?.Count ?? 0}");
+
+            return result;
         }
 
         public List<SourceTableDto> GetSourceTableDtos(string database, string schema, string viewName)

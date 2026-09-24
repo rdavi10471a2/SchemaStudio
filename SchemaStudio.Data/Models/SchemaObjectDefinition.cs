@@ -21,7 +21,7 @@ public sealed class SchemaObjectDefinition
 
     private string? _etlPopulationJobName;
 
-    private string? _etlMergeTemplateName;
+    private string? _etlMergeProcedureName;
     private bool _isActive = true;
     private DateTime _lastSynced = DateTime.Now;
     private bool _isDirty;
@@ -144,12 +144,12 @@ public sealed class SchemaObjectDefinition
     }
 
     [StringLength(250)]
-    [Display(Name = "ETL Merge Template Name", Order = 94)]
-    [Description("ETL merge template used for this base view's physical table. Editable on base views; will become required once existing rows are backfilled.")]
-    public string? ETLMergeTemplateName
+    [Display(Name = "ETL Merge Procedure Name", Order = 94)]
+    [Description("ETL merge procedure used for this base view's physical table. Required on base views.")]
+    public string? ETLMergeProcedureName
     {
-        get => _etlMergeTemplateName;
-        set => SetField(ref _etlMergeTemplateName, value);
+        get => _etlMergeProcedureName;
+        set => SetField(ref _etlMergeProcedureName, value);
     }
 
     [Display(Name = "Active", Order = 100)]

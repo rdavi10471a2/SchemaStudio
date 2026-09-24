@@ -40,11 +40,15 @@ public sealed class BaseViewCreatorState
     public string MergeDestinationTable { get; set; } = "";
     public string MergeDateFilterColumn { get; set; } = "";
     public string MergeDateFilterRange { get; set; } = "priorMonthStart"; // matches BaseViewCreator.DateRangePriorMonth
+    /// <summary>When true (default) the MERGE requires the TS rowversion column and guards updates with src.TS &gt; tgt.TS. When false the TS column is not required and every matched row is updated.</summary>
+    public bool UseRowVersionColumn { get; set; } = true;
     public string GeneratedBatchMergeSql { get; set; } = "";
     public string BatchMergeUnavailableReason { get; set; } = "";
     // Error surfaced when the VVG_Silver control table (ReplicatedExcedeSources) fails to load.
     public string ReplicatedSourcesError { get; set; } = "";
     public string ActiveWorkspaceTab { get; set; } = "tree";
+    /// <summary>When true the Single Merge tab is hidden entirely (not rendered). On by default.</summary>
+    public bool HideSingleMergeTab { get; set; } = true;
     public string ActiveSourceInfoTab { get; set; } = "options";
     public bool MergeControlsExpanded { get; set; } = true;
     public bool SourceGroupExpanded { get; set; } = true;
@@ -67,4 +71,40 @@ public sealed class BaseViewCreatorState
     public HashSet<string> SelectedLookupRelationshipKeys { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public Dictionary<string, string> BootstrapLookupDisplayColumns { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public Dictionary<string, IReadOnlyList<string>> LookupDisplayColumnOptions { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public Dictionary<string, (string BusinessName, string BusinessDescription)> ImportedColumnComments = new(StringComparer.OrdinalIgnoreCase);
+
+    // Surrogate key (Power BI single-column join) generation. Auto-detected primary-key and
+    // foreign-key candidates are seeded on table load; the operator opts each one in and can tweak
+    // the expression, output type and length -- or add manual keys -- in the surrogate-key dialog.
+    public List<SurrogateKeyDefinition> SurrogateKeys = new();
+    public bool SurrogateKeyDialogOpen;
+}
+
+/// <summary>Origin of a surrogate key candidate.</summary>
+public enum SurrogateKeyOrigin
+{
+    PrimaryKey,
+    ForeignKey,
+    Manual
+}
+
+/// <summary>
+/// One surrogate key (Power BI single-column join) definition. PrimaryKey/ForeignKey rows are
+/// auto-seeded from the loaded schema; Manual rows are added by the operator. Expression is
+/// pre-filled from the source columns but freely editable; SqlType/Length drive the CREATE TABLE type.
+/// </summary>
+public sealed class SurrogateKeyDefinition
+{
+    public SurrogateKeyOrigin Origin;
+    public string Key = "";
+    public bool Include;
+    public string OutputName = "";
+    public List<string> ColumnNames = new();
+    public string Expression = "";
+    public string SqlType = "nvarchar";
+    public int Length = 400;
+    public string BusinessDescription = "";
+
+    public bool IsManual => Origin == SurrogateKeyOrigin.Manual;
 }

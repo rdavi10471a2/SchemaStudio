@@ -342,16 +342,16 @@
                             @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.ETLPopulationJobName))
                             <RadzenTextBox @bind-Value="@EditableObject.ETLPopulationJobName"
                                            Style="width:100%;"
-                                           Placeholder="ETL job that populates this base view"
+                                           Placeholder="Required for base objects"
                                            Disabled="@(!EditableObject.IsBaseObject)"
                                            MaxLength="250" />
                         </div>
 
                         <div class="mvn-field">
-                            @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.ETLMergeTemplateName))
-                            <RadzenTextBox @bind-Value="@EditableObject.ETLMergeTemplateName"
+                            @FieldLabel(typeof(SchemaObjectDefinition), nameof(SchemaObjectDefinition.ETLMergeProcedureName))
+                            <RadzenTextBox @bind-Value="@EditableObject.ETLMergeProcedureName"
                                            Style="width:100%;"
-                                           Placeholder="ETL merge template for this base view"
+                                           Placeholder="Required for base objects"
                                            Disabled="@(!EditableObject.IsBaseObject)"
                                            MaxLength="250" />
                         </div>

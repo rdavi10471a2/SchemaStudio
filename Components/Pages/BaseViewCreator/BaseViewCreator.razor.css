@@ -9,6 +9,24 @@
     overflow: hidden;
 }
 
+.bvg-wip-banner {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.85rem;
+    border: 1px solid #f59e0b;
+    border-left: 4px solid #f59e0b;
+    border-radius: 6px;
+    background: #fffbeb;
+    color: #92400e;
+    font-size: 0.9rem;
+}
+
+.bvg-wip-banner strong {
+    font-weight: 800;
+}
+
 .bvg-busy-overlay {
     position: fixed;
     inset: 0;
@@ -1321,6 +1339,31 @@
 
 .bvg-merge-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: end;
+}
+
+/* Compact the batch-merge option row so the two date controls and the TS toggle fit on one line. */
+.bvg-merge-grid select {
+    min-height: 30px;
+    font-size: 0.82rem;
+}
+
+/* TS toggle sits inline in the third column, aligned with the bottom of the date selects. */
+.bvg-merge-grid label.bvg-merge-ts-inline {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 30px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #354152;
+    white-space: nowrap;
+}
+
+.bvg-merge-ts-inline input[type="checkbox"] {
+    width: auto;
+    min-height: 0;
+    margin: 0;
 }
 
 /* Highlights a required merge field that is still empty (e.g. no DateUpdate column to auto-select). */

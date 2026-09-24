@@ -251,7 +251,7 @@ public partial class ManageViewsNext
         {
             EditableObject.SourceTableName = null;
             EditableObject.ETLPopulationJobName = null;
-            EditableObject.ETLMergeTemplateName = null;
+            EditableObject.ETLMergeProcedureName = null;
         }
     }
 
@@ -321,8 +321,8 @@ public partial class ManageViewsNext
         EditableObject.ETLPopulationJobName = EditableObject.IsBaseObject
             ? NormalizeOptionalString(EditableObject.ETLPopulationJobName)
             : null;
-        EditableObject.ETLMergeTemplateName = EditableObject.IsBaseObject
-            ? NormalizeOptionalString(EditableObject.ETLMergeTemplateName)
+        EditableObject.ETLMergeProcedureName = EditableObject.IsBaseObject
+            ? NormalizeOptionalString(EditableObject.ETLMergeProcedureName)
             : null;
 
         var validationMessage = await ValidateEditableObjectAsync(EditableObject);
@@ -557,7 +557,7 @@ public partial class ManageViewsNext
             DeveloperNotes = source.DeveloperNotes,
             CompositionDefinitionJson = source.CompositionDefinitionJson,
             ETLPopulationJobName = source.ETLPopulationJobName,
-            ETLMergeTemplateName = source.ETLMergeTemplateName,
+            ETLMergeProcedureName = source.ETLMergeProcedureName,
             IsActive = source.IsActive,
             LastSynced = source.LastSynced
         };
@@ -590,8 +590,15 @@ public partial class ManageViewsNext
                 return "Source Table is required when Base Object is checked.";
             }
 
-            // TODO: Once existing base views are backfilled, also require
-            // ETLPopulationJobName and ETLMergeTemplateName here when IsBaseObject is true.
+            if (string.IsNullOrWhiteSpace(model.ETLPopulationJobName))
+            {
+                return "ETL Population Job Name is required when Base Object is checked.";
+            }
+
+            if (string.IsNullOrWhiteSpace(model.ETLMergeProcedureName))
+            {
+                return "ETL Merge Procedure Name is required when Base Object is checked.";
+            }
 
             var duplicate = await SchemaObjectRepository.GetBaseObjectBySourceTableAsync(
                 model.DatabaseId,

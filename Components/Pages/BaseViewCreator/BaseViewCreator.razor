@@ -34,7 +34,6 @@
                             class="bvg-page-help-icon"
                             @onclick="@(() => OpenHelp("base-view-creator"))" />
             </div>
-            <p>Generate base views with the familiar projection workspace while new plumbing evolves safely in this fork.</p>
         </div>
         <div class="bvg-header-actions">
             <button type="button" class="bvg-button secondary" @onclick="RefreshMetadataAsync" disabled="@IsBusy">Refresh Metadata</button>
@@ -74,8 +73,8 @@
                 </label>
 
                 <label>
-                    @HelpLabel("Base Alias", "Alias used for the source table in generated SQL and projection labels.")
-                    <input value="@BaseAlias" @oninput="OnBaseAliasChanged" />
+                    @HelpLabel("Output Table Name", "Physical output table used by the Create Table and Merge tabs. *Current policy is that table names should reflect source table names by design.*")
+                    <input value="@TargetTableName" @oninput="OnTargetTableNameChanged" placeholder="@(string.IsNullOrWhiteSpace(TargetViewName) ? "Output table name" : TargetViewName)" disabled />
                 </label>
             </div>
 
@@ -94,9 +93,9 @@
                         @HelpLabel("View Name", "Generated or overridden base view name. This is the object created by the copied SQL.")
                         <input value="@TargetViewName" @oninput="OnTargetViewNameChanged" />
                     </label>
-                    <label class="bvg-wide">
-                        @HelpLabel("Output Table Name", "Physical output table used by the Create Table and Merge tabs. Defaults to the view name when blank.")
-                        <input value="@TargetTableName" @oninput="OnTargetTableNameChanged" placeholder="@(string.IsNullOrWhiteSpace(TargetViewName) ? "Output table name" : TargetViewName)" />
+                    <label>
+                        @HelpLabel("Physical DB (Silver)", "Database for the Create Table and Batch Merge objects (the physical / silver layer). Used in their USE statement and as the Apply target. Defaults to VVG_Silver.")
+                        <input @bind="MergeDestinationDb" placeholder="VVG_Silver" />
                     </label>
                 </div>
                 <div class="bvg-target-actions">
@@ -106,11 +105,19 @@
                             disabled="@(IsBusy || string.IsNullOrWhiteSpace(SelectedDatabaseName) || string.IsNullOrWhiteSpace(SelectedSchemaName) || string.IsNullOrWhiteSpace(SelectedTableName))">
                         Load
                     </button>
+                    <button type="button"
+                            class="bvg-button secondary"
+                            @onclick="ClearLoadedView"
+                            disabled="@(IsBusy || (Columns.Count == 0 && string.IsNullOrWhiteSpace(SelectedTableName)))"
+                            title="Clear the loaded table/view and generated SQL. Keeps the selected source database.">
+                        Clear
+                    </button>
                 </div>
             </div>
 
             <div class="bvg-options">
                 <label><input type="checkbox" checked="@IgnoreSelfJoins" @onchange="OnIgnoreSelfJoinsChanged" /> Ignore self joins @HelpIcon("Hides relationships where the source table references itself. The source table FK columns are still available in the Columns tab.")</label>
+                <label><input type="checkbox" checked="@HideSingleMergeTab" @onchange="OnHideSingleMergeTabChanged" /> Hide Single Merge tab @HelpIcon("Hides the Single Merge tab entirely so only the Batch Merge workflow is shown. On by default.")</label>
                 <label>
                     @HelpLabel("Output shape", "CTE wraps the generated table SQL in a TableName_Source unit and projects the final view from that named source. Standard emits one flat SELECT.")
                     <select value="@OutputShape" @onchange="OnOutputShapeChanged">
@@ -134,24 +141,32 @@
                 <button type="button" class="@TabClass("sql")" @onclick='() => SetWorkspaceTab("sql")'>Generated SQL</button>
                 <button type="button" class="@TabClass("table")" @onclick='() => SetWorkspaceTab("table")'>Create Table</button>
                 <button type="button" class="@TabClass("batch")" @onclick='() => SetWorkspaceTab("batch")'>Batch Merge</button>
-                <button type="button" class="@TabClass("merge")" @onclick='() => SetWorkspaceTab("merge")'>Single Merge</button>
+                @if (!HideSingleMergeTab)
+                {
+                    <button type="button" class="@TabClass("merge")" @onclick='() => SetWorkspaceTab("merge")'>Single Merge</button>
+                }
                 <button type="button" class="bvg-tab bvg-source-toggle-tab" @onclick="ToggleSourcePanel">@(SourcePanelCollapsed ? "Show Source View" : "Hide Source View")</button>
             </header>
 
             <div class="bvg-tab-body">
                 @if (ActiveWorkspaceTab == "sql")
                 {
+                    <div class="bvg-create-table-controls">
+                        <button type="button" class="bvg-button secondary" @onclick="CopySqlAsync" disabled="@(!CanCopySql)">Copy</button>
+                        <button type="button" class="bvg-button secondary" @onclick="ApplyViewSqlAsync" disabled="@(!CanApplyViewSql)" title="Execute this view against the target database on the shared connection.">Apply</button>
+                    </div>
                     <div @key='$"sql-{SqlRenderVersion}"' class="sql-code-container bvg-sql-output">
-                        <pre class="language-sql"><code class="language-sql">@GeneratedSql</code></pre>
+                        <pre class="language-sql"><code class="language-sql">@GeneratedSqlDisplay</code></pre>
                     </div>
                 }
                 else if (ActiveWorkspaceTab == "table")
                 {
                     <div class="bvg-create-table-controls">
-                        <button type="button" class="bvg-button primary" @onclick="CopyCreateTableSqlAsync" disabled="@string.IsNullOrWhiteSpace(GeneratedCreateTableSql)">Copy CREATE TABLE</button>
+                        <button type="button" class="bvg-button secondary" @onclick="CopyCreateTableSqlAsync" disabled="@string.IsNullOrWhiteSpace(GeneratedCreateTableSql)">Copy</button>
+                        <button type="button" class="bvg-button secondary" @onclick="ApplyCreateTableSqlAsync" disabled="@(!CanApplyCreateTableSql)" title="Execute this CREATE TABLE against the physical database on the shared connection.">Apply</button>
                     </div>
                     <div @key='$"table-{SqlRenderVersion}"' class="sql-code-container bvg-sql-output">
-                        <pre class="language-sql"><code class="language-sql">@GeneratedCreateTableSql</code></pre>
+                        <pre class="language-sql"><code class="language-sql">@GeneratedCreateTableSqlDisplay</code></pre>
                     </div>
                 }
                 else if (ActiveWorkspaceTab == "merge")
@@ -180,26 +195,6 @@
                                         </select>
                                     </label>
                                     <label>
-                                        @HelpLabel("Date Filter", "Required. Source date column that limits the merge to a recent window (WHERE [source].[column] >= threshold). Defaults to DateUpdate when present; if it is missing the field shows red until you pick a date column.")
-                                        <select @bind="MergeDateFilterColumn" class="@(string.IsNullOrWhiteSpace(MergeDateFilterColumn) ? "bvg-field-attention" : null)">
-                                            <option value="">(choose a date column)</option>
-                                            @foreach (var dateColumn in MergeDateFilterColumnOptions)
-                                            {
-                                                <option value="@dateColumn">@dateColumn</option>
-                                            }
-                                        </select>
-                                    </label>
-                                    <label>
-                                        @HelpLabel("Date Range", "How far back the date filter reaches, relative to today. Only applied when a Date Filter column is selected.")
-                                        <select @bind="MergeDateFilterRange" disabled="@string.IsNullOrWhiteSpace(MergeDateFilterColumn)">
-                                            <option value="@DateRange7">Last 7 days</option>
-                                            <option value="@DateRange30">Last 30 days</option>
-                                            <option value="@DateRange60">Last 60 days</option>
-                                            <option value="@DateRangePriorMonth">First day of prior month</option>
-                                            <option value="@DateRangeCurrentMonth">First day of current month</option>
-                                        </select>
-                                    </label>
-                                    <label class="bvg-merge-row-start">
                                         @HelpLabel("Source DB", "Database the inlined source select reads from. Linked to Country DB: choosing one selects the other from the hardcoded map.")
                                         <select @bind="MergeSourceDb" @bind:after="OnMergeSourceDbChanged">
                                             <option value="">(select source database)</option>
@@ -228,7 +223,7 @@
                                 </div>
                                 <div class="bvg-merge-source-actions">
                                     <button type="button" class="bvg-button primary" @onclick="RegenerateMerge" disabled="@(!CanRegenerateMerge)" title="@(CanRegenerateMerge ? null : "Fill every merge field (including Date Filter) before generating.")">Regenerate Merge</button>
-                                    <button type="button" class="bvg-button secondary" @onclick="CopyMergeSqlAsync" disabled="@(!string.IsNullOrWhiteSpace(MergeUnavailableReason) || string.IsNullOrWhiteSpace(GeneratedMergeSql))">Copy Merge</button>
+                                    <button type="button" class="bvg-button secondary" @onclick="CopyMergeSqlAsync" disabled="@(!string.IsNullOrWhiteSpace(MergeUnavailableReason) || string.IsNullOrWhiteSpace(GeneratedMergeSql))">Copy</button>
                                 </div>
                             </div>
                         }
@@ -256,13 +251,38 @@
                         }
                         <div class="bvg-create-table-controls bvg-merge-controls">
                             <p>
-                                Generates one script that loops <code>VVG_Silver.dbo.ReplicatedExcedeSources</code> and runs a dynamic MERGE
-                                for each <code>ReplicatedDBName</code>. It reuses the destination, source schema and date filter from the
-                                <strong>Merge</strong> tab; the source database and CountryDB are supplied by the loop. Runs as a single job step.
+                                Generates a <code>CREATE OR ALTER PROCEDURE</code> named <code>MergeExcede&lt;OutputTableName&gt;</code>
+                                that loops <code>VVG_Silver.dbo.ReplicatedExcedeSources</code> and runs a dynamic MERGE for each
+                                <code>ReplicatedDBName</code>. It reuses the destination and source schema from the <strong>Merge</strong>
+                                tab and applies the Date Filter and Date Range set below; the source database is supplied by the loop and
+                                written to the <code>SourceDB</code> column.
                             </p>
+                            <div class="bvg-form-grid bvg-merge-grid">
+                                <label>
+                                    @HelpLabel("Date Filter", "Required. Source date column that limits each MERGE to a recent window (WHERE [source].[column] >= threshold). Defaults to DateUpdate when present; if it is missing the field shows red until you pick a date column.")
+                                    <select @bind="MergeDateFilterColumn" @bind:after="RegenerateMergeAfterOptionChange" class="@(string.IsNullOrWhiteSpace(MergeDateFilterColumn) ? "bvg-field-attention" : null)">
+                                        <option value="">(choose a date column)</option>
+                                        @foreach (var dateColumn in MergeDateFilterColumnOptions)
+                                        {
+                                            <option value="@dateColumn">@dateColumn</option>
+                                        }
+                                    </select>
+                                </label>
+                                <label>
+                                    @HelpLabel("Date Range", "How far back the date filter reaches, relative to today. Only applied when a Date Filter column is selected.")
+                                    <select @bind="MergeDateFilterRange" @bind:after="RegenerateMergeAfterOptionChange" disabled="@string.IsNullOrWhiteSpace(MergeDateFilterColumn)">
+                                        <option value="@DateRange7">Last 7 days</option>
+                                        <option value="@DateRange30">Last 30 days</option>
+                                        <option value="@DateRange60">Last 60 days</option>
+                                        <option value="@DateRangePriorMonth">First day of prior month</option>
+                                        <option value="@DateRangeCurrentMonth">First day of current month</option>
+                                    </select>
+                                </label>
+                                <label class="bvg-merge-ts-inline"><input type="checkbox" checked="@UseRowVersionColumn" @onchange="OnUseRowVersionColumnChanged" /> Use TS column @HelpIcon("On by default. Requires the base table's TS rowversion column and only updates rows whose source TS is newer than the target (WHEN MATCHED AND src.TS > tgt.TS). Turn off to drop that requirement and update every matched row.")</label>
+                            </div>
                             <div class="bvg-merge-source-actions">
-                                <button type="button" class="bvg-button primary" @onclick="RegenerateBatchMerge" disabled="@(!CanRegenerateBatchMerge)" title="@(CanRegenerateBatchMerge ? null : "Set the Date Filter, Source Schema and Destination fields on the Merge tab first.")">Regenerate Batch Merge</button>
-                                <button type="button" class="bvg-button secondary" @onclick="CopyBatchMergeSqlAsync" disabled="@(!string.IsNullOrWhiteSpace(BatchMergeUnavailableReason) || string.IsNullOrWhiteSpace(GeneratedBatchMergeSql))">Copy Batch Merge</button>
+                                <button type="button" class="bvg-button secondary" @onclick="CopyBatchMergeSqlAsync" disabled="@(!string.IsNullOrWhiteSpace(BatchMergeUnavailableReason) || string.IsNullOrWhiteSpace(GeneratedBatchMergeSql))">Copy</button>
+                                <button type="button" class="bvg-button primary" @onclick="ApplyBatchMergeSqlAsync" disabled="@(!CanApplyBatchMergeSql)" title="Create/alter this batch-merge procedure in the physical database on the shared connection.">Apply</button>
                             </div>
                         </div>
                     </section>
@@ -273,7 +293,7 @@
                     else
                     {
                         <div @key='$"batch-{SqlRenderVersion}"' class="sql-code-container bvg-sql-output">
-                            <pre class="language-sql"><code class="language-sql">@GeneratedBatchMergeSql</code></pre>
+                            <pre class="language-sql"><code class="language-sql">@GeneratedBatchMergeSqlDisplay</code></pre>
                         </div>
                     }
                 }
@@ -318,8 +338,8 @@
                                                     <span class="bvg-role-glyph">No Display Selected</span>
                                                 }
                                             </div>
-                                            <span class="bvg-business-name">@MetadataDisplayValue(column.BusinessName, "No business name")</span>
-                                            <span class="bvg-business-description">@MetadataDisplayValue(column.BusinessDescription, "No business description")</span>
+                                            <span class="bvg-business-name">@EffectiveBaseColumnBusinessName(column)</span>
+                                            <span class="bvg-business-description">@EffectiveBaseColumnBusinessDescription(column)</span>
                                             <button type="button" class="bvg-link-button" @onclick="() => OpenColumnMetadataDialog(column)">Edit</button>
                                                <span class="bvg-system-note">@YesNo(ColumnHasLookupDisplayProjection(column.ColumnName))</span>
                                         </div>
@@ -393,6 +413,7 @@
                                 <span class="bvg-count-chip">@FilteredRelationships.Count() M-to-1 relationship(s)</span>
                                 <span></span>
                                 <div class="bvg-tree-section-actions">
+                                    <button type="button" class="bvg-button secondary" @onclick="OpenSurrogateKeyDialog">Surrogate Keys (@IncludedSurrogateKeyCount)</button>
                                     <button type="button" class="bvg-button secondary" @onclick="ExpandJoinGroups">Expand Joins</button>
                                     <button type="button" class="bvg-button secondary" @onclick="CollapseJoinGroups">Collapse Joins</button>
                                 </div>
@@ -432,10 +453,12 @@
                     </div>
                 }
             </div>
-            <footer class="bvg-workspace-actions">
-                <button type="button" class="@RegenerateButtonClass" @onclick="RegenerateSql" disabled="@IsBusy">Regenerate SQL</button>
-                <button type="button" class="bvg-button primary" @onclick="CopySqlAsync" disabled="@(!CanCopySql)">Copy SQL</button>
-            </footer>
+            @if (ActiveWorkspaceTab == "tree")
+            {
+                <footer class="bvg-workspace-actions">
+                    <button type="button" class="@RegenerateButtonClass" @onclick="GenerateSqlAndShow" disabled="@IsBusy">Generate</button>
+                </footer>
+            }
         </section>
     </div>
 </div>
@@ -451,4 +474,14 @@
                                    BusinessDescriptionLabel="@MetadataFieldLabel(nameof(SchemaObjectColumnDefinition.BusinessDescription))"
                                    OnCancel="@CloseMetadataDialog"
                                    OnApply="@ApplyMetadataDialog" />
+}
+
+@if (SurrogateKeyDialogOpen)
+{
+    <BaseViewSurrogateKeyDialog Keys="@SurrogateKeys"
+                                ColumnOptions="@SurrogateKeyColumnOptions"
+                                ExpressionFactory="@BuildSurrogateKeyExpressionForColumns"
+                                LengthFactory="@BuildSurrogateKeyLengthForColumns"
+                                Suffix="@SurrogateKeySuffix"
+                                OnClose="@CloseSurrogateKeyDialog" />
 }

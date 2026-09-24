@@ -1,0 +1,150 @@
+@using Radzen
+@using Radzen.Blazor
+
+@namespace SchemaStudioWebViewer.Components.Pages.BaseViewCreator
+
+@* Surrogate key (Power BI single-column join) editor. Auto-detected PK/FK candidates arrive pre-filled
+   and opt-in; the operator can edit the expression, output type/length and output name, and add manual
+   keys. Edits mutate the shared SurrogateKeyDefinition list in place; the parent regenerates on close. *@
+
+<style>
+    .bvg-sk-dialog { width: min(1120px, 94vw); }
+    .bvg-sk-intro { color: #516174; font-size: 0.82rem; margin: 0 0 0.6rem; }
+    .bvg-sk-grid { width: 100%; border-collapse: collapse; }
+    .bvg-sk-grid th, .bvg-sk-grid td { padding: 6px 8px; border-bottom: 1px solid #edf0f5; text-align: left; vertical-align: top; font-size: 0.82rem; }
+    .bvg-sk-grid th { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: #516174; white-space: nowrap; }
+    .bvg-sk-origin { font-weight: 800; color: #1d4ed8; }
+    .bvg-sk-name-input { width: 100%; min-width: 150px; min-height: 30px; padding: 0.2rem 0.4rem; border: 1px solid #cdd6e4; border-radius: 6px; }
+    .bvg-sk-expr { width: 100%; min-width: 280px; min-height: 54px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.76rem; padding: 0.3rem 0.4rem; border: 1px solid #cdd6e4; border-radius: 6px; resize: vertical; box-sizing: border-box; }
+    .bvg-sk-length { width: 84px; min-height: 30px; padding: 0.2rem 0.4rem; border: 1px solid #cdd6e4; border-radius: 6px; }
+    .bvg-sk-type { min-height: 30px; padding: 0.2rem 0.3rem; border: 1px solid #cdd6e4; border-radius: 6px; }
+    .bvg-sk-cols { font-size: 0.78rem; color: #374151; min-width: 200px; }
+    .bvg-sk-empty { color: #6b7280; padding: 10px; }
+    .bvg-sk-actions-cell { white-space: nowrap; }
+</style>
+
+<div class="bvg-modal-backdrop">
+    <section class="bvg-modal bvg-sk-dialog" role="dialog" aria-modal="true" aria-labelledby="bvg-sk-dialog-title">
+        <header class="bvg-modal-header">
+            <h2 id="bvg-sk-dialog-title">Surrogate Keys (Power BI)</h2>
+            <button type="button" class="bvg-icon-button" @onclick="Close" aria-label="Close surrogate key editor">x</button>
+        </header>
+        <div class="bvg-modal-body">
+            <p class="bvg-sk-intro">
+                Each key concatenates <code>[SourceDB]</code> with its columns into one deterministic column, so a
+                composite / multi-source key collapses to a single column Power BI can join on. Tick to include a key;
+                the expression is pre-filled from the source columns but is editable. <strong>Auto</strong> re-derives it.
+            </p>
+            <table class="bvg-sk-grid">
+                <thead>
+                    <tr>
+                        <th>Include</th>
+                        <th>Source</th>
+                        <th>Output column</th>
+                        <th>Columns</th>
+                        <th>Expression</th>
+                        <th>Type</th>
+                        <th>Length</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var key in Keys)
+                    {
+                        <tr>
+                            <td><input type="checkbox" @bind="key.Include" /></td>
+                            <td class="bvg-sk-origin">@OriginLabel(key.Origin)</td>
+                            <td><input class="bvg-sk-name-input" @bind="key.OutputName" /></td>
+                            <td class="bvg-sk-cols">
+                                @if (key.IsManual)
+                                {
+                                    <RadzenDropDown TValue="IEnumerable<string>"
+                                                    Data="@ColumnOptions"
+                                                    Value="@key.ColumnNames"
+                                                    Change="@(value => OnColumnsChanged(key, value))"
+                                                    Multiple="true"
+                                                    Chips="true"
+                                                    AllowClear="true"
+                                                    FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                                                    Filterable="true"
+                                                    Placeholder="Select key columns"
+                                                    Style="width:100%;" />
+                                }
+                                else
+                                {
+                                    @string.Join(", ", key.ColumnNames)
+                                }
+                            </td>
+                            <td><textarea class="bvg-sk-expr" @bind="key.Expression"></textarea></td>
+                            <td>
+                                <select class="bvg-sk-type" @bind="key.SqlType">
+                                    <option value="nvarchar">nvarchar</option>
+                                    <option value="varchar">varchar</option>
+                                </select>
+                            </td>
+                            <td><input class="bvg-sk-length" type="number" min="1" @bind="key.Length" /></td>
+                            <td class="bvg-sk-actions-cell">
+                                <button type="button" class="bvg-link-button" @onclick="() => ResetExpression(key)">Auto</button>
+                                @if (key.IsManual)
+                                {
+                                    <button type="button" class="bvg-link-button" @onclick="() => Remove(key)">Remove</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    @if (Keys.Count == 0)
+                    {
+                        <tr><td colspan="8" class="bvg-sk-empty">No key candidates yet. Load a table, or add a manual key.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <footer class="bvg-modal-actions">
+            <button type="button" class="bvg-button secondary" @onclick="AddManual">Add manual key</button>
+            <button type="button" class="bvg-button primary" @onclick="Close">Done</button>
+        </footer>
+    </section>
+</div>
+
+@code {
+    [Parameter] public List<SurrogateKeyDefinition> Keys { get; set; } = new();
+    [Parameter] public IReadOnlyList<string> ColumnOptions { get; set; } = Array.Empty<string>();
+    [Parameter] public Func<IReadOnlyList<string>, string> ExpressionFactory { get; set; } = _ => "";
+    [Parameter] public Func<IReadOnlyList<string>, int> LengthFactory { get; set; } = _ => 400;
+    [Parameter] public string Suffix { get; set; } = "_SK_PBI";
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private void AddManual() =>
+        Keys.Add(new SurrogateKeyDefinition
+        {
+            Origin = SurrogateKeyOrigin.Manual,
+            Include = true,
+            OutputName = $"Custom{Suffix}",
+            ColumnNames = new List<string>(),
+            Expression = ""
+        });
+
+    private void Remove(SurrogateKeyDefinition key) => Keys.Remove(key);
+
+    private void ResetExpression(SurrogateKeyDefinition key)
+    {
+        key.Expression = ExpressionFactory(key.ColumnNames);
+        key.Length = LengthFactory(key.ColumnNames);
+    }
+
+    private void OnColumnsChanged(SurrogateKeyDefinition key, object value)
+    {
+        key.ColumnNames = (value as IEnumerable<string>)?.ToList() ?? new List<string>();
+        key.Expression = ExpressionFactory(key.ColumnNames);
+        key.Length = LengthFactory(key.ColumnNames);
+    }
+
+    private static string OriginLabel(SurrogateKeyOrigin origin) => origin switch
+    {
+        SurrogateKeyOrigin.PrimaryKey => "PK",
+        SurrogateKeyOrigin.ForeignKey => "FK",
+        _ => "Manual"
+    };
+
+    private Task Close() => OnClose.InvokeAsync();
+}
